@@ -469,10 +469,15 @@ describe('interpolation', () => {
 	 * cannot check is OWED and not made** — `asset-library-overview-DESIGN-SPEC.md` is outside
 	 * AD13's lease, and the pin's own paragraph above records that the guarantee here is *the
 	 * count cannot move silently*, never *the spec was amended*.
+	 *
+	 * 100 → 103: AD18-R18's Grid view added the toolbar's `Grid | List` switch —
+	 * `view.asset-library.layout.label`, `.layout.grid` and `.layout.list`. The ruling amends §3.1
+	 * ("no view switcher"), and the §8 amendment is OWED and not made: the spec is outside Task 10's
+	 * files.
 	 */
-	it('pins the Asset library inventory at 100 keys in both locales', () => {
-		expect(assetLibraryKeys(en)).toHaveLength(100);
-		expect(assetLibraryKeys(de)).toHaveLength(100);
+	it('pins the Asset library inventory at 103 keys in both locales', () => {
+		expect(assetLibraryKeys(en)).toHaveLength(103);
+		expect(assetLibraryKeys(de)).toHaveLength(103);
 	});
 });
 

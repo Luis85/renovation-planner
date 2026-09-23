@@ -53,6 +53,7 @@
 import { computed, ref, watch } from 'vue';
 import EmptyState from '../components/EmptyState.vue';
 import AssetShelves from './AssetShelves.vue';
+import AssetGrid from './AssetGrid.vue';
 import UnreadableStrip from './UnreadableStrip.vue';
 import { useAssetLibraryContext } from './AssetLibraryContext';
 import { useAssetLibraryStore } from '../stores/AssetLibraryStore';
@@ -60,12 +61,15 @@ import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
 import { tr } from '../i18n/strings';
 import type { AssetId } from '../../domain/asset/AssetId';
+import type { LibraryLayout } from './libraryBrowse';
 
 const props = defineProps<{
 	/** Which shelf categories are open — the ROOT's, per this file's own header. */
 	expanded: ReadonlySet<string>;
 	/** §6.3's `''` sentinel already resolved to an id or `null` by the root. */
 	selectedId: AssetId | null;
+	/** AD18-R18's `Grid | List`, the root's for the same reason `expanded` is. */
+	layout: LibraryLayout;
 }>();
 
 const emit = defineEmits<{
@@ -140,7 +144,8 @@ function onEmptyStateAction(): void {
  * where no gate here can reach it — the trade CLAUDE.md already records taking the other way
  * (*prefer the fix whose result a gate can see to the one whose correctness lives where no gate
  * reaches*). What ships is a strict SUPERSET of the viewport: every row an open shelf draws, or
- * every match when §6.1's flat Results list has replaced the shelves.
+ * every match when §6.1's flat Results list has replaced the shelves, or every tile when
+ * AD18-R18's Grid view draws them all.
  *
  * What that costs, exactly, so the next reader does not have to derive it: a shelf holding 34
  * entries reads 34 sidecars to draw the six rows a pane can show — §5.3's own named objection to
@@ -180,7 +185,7 @@ function onEmptyStateAction(): void {
  * of this class on the branch, and the second inside a round fixing an instance of it.)
  */
 const drawnAssetIds = computed((): readonly AssetId[] =>
-	(store.searching
+	(store.searching || props.layout === 'grid'
 		? store.visibleEntries
 		: store.visibleEntries.filter((entry) => props.expanded.has(entry.category))
 	).map((entry) => entry.assetId),
@@ -250,13 +255,20 @@ defineExpose({ shelvesElement });
 			@action="onEmptyStateAction"
 		/>
 		<AssetShelves
-			v-else
+			v-else-if="layout === 'list'"
 			:entries="store.visibleEntries"
 			:searching="store.searching"
 			:expanded="expanded"
 			:selected-id="selectedId"
 			:outline-for="store.markFor"
 			@toggle="emit('toggle', $event)"
+			@select="emit('select', $event)"
+		/>
+		<AssetGrid
+			v-else
+			:entries="store.visibleEntries"
+			:selected-id="selectedId"
+			:outline-for="store.markFor"
 			@select="emit('select', $event)"
 		/>
 	</div>

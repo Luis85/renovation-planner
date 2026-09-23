@@ -139,4 +139,7 @@ export const deAssetLibrary = {
 	'form.new-asset.unit-symbol.fixed': 'pauschal',
 	'form.new-asset.similar.exists': 'Ein Objekt namens „{name}“ gibt es bereits.',
 	'form.new-asset.similar.show': 'Anzeigen',
+	'view.asset-library.layout.label': 'Ansicht',
+	'view.asset-library.layout.grid': 'Raster',
+	'view.asset-library.layout.list': 'Liste',
 } satisfies Partial<Record<StringKey, string>>;

@@ -5,6 +5,8 @@ import DialogHost from '../dialogs/DialogHost.vue';
 import ViewFailure from '../components/ViewFailure.vue';
 import AssetInspector from './AssetInspector.vue';
 import AssetLibraryBody from './AssetLibraryBody.vue';
+import AssetLibraryBrowseControls from './AssetLibraryBrowseControls.vue';
+import { DEFAULT_BROWSE, type LibraryBrowse, type LibraryLayout } from './libraryBrowse';
 import { useAssetLibraryContext } from './AssetLibraryContext';
 import { focusRowAt, focusWithin, rowPositionOf, shelvesWithdrawn } from './shelfFocus';
 import { deleteAssetWithReferences } from './deleteAssetFlow';
@@ -68,6 +70,16 @@ watch(context.expanded, (categories) => {
 	expandedCategories.value = new Set(categories);
 });
 
+// AD18-R18's layout and category filter, held here as `expanded` is: a bare mount supplies no `browse` ref and a
+// publish that does not write one back, and the switch still has to answer the press.
+const browseSource = context.browse ?? ref<LibraryBrowse>(DEFAULT_BROWSE);
+const layout = ref<LibraryLayout>(browseSource.value.layout);
+const categoryFilter = ref(browseSource.value.category);
+watch(browseSource, (browse) => {
+	layout.value = browse.layout;
+	categoryFilter.value = browse.category;
+});
+
 const showingSelection = ref(true);
 watch(
 	() => store.searching,
@@ -109,7 +121,7 @@ watch(paneAssetId, async (now, before) => {
 }, { flush: 'sync' });
 
 function publish(assetId: AssetId | null, expanded: ReadonlySet<string>): void {
-	context.publishViewState(assetId ?? '', [...expanded]);
+	context.publishViewState(assetId ?? '', [...expanded], { layout: layout.value, category: categoryFilter.value });
 }
 
 async function focusAfterSwap(selector: string, swapped: () => boolean): Promise<void> {
@@ -127,6 +139,11 @@ function onClearSearch(): void {
 function clearSearchField(): void {
 	store.query = '';
 	searchEl.value?.focus();
+}
+
+function setLayout(next: LibraryLayout): void {
+	layout.value = next;
+	publish(selectedId.value, expandedCategories.value);
 }
 
 function toggleShelf(category: string): void {
@@ -265,6 +282,10 @@ watch(context.assetId, async (assetId) => {
 						×
 					</button>
 				</div>
+				<AssetLibraryBrowseControls
+					:layout="layout"
+					@layout="setLayout"
+				/>
 				<button
 					type="button"
 					class="rp-al-create"
@@ -285,6 +306,7 @@ watch(context.assetId, async (assetId) => {
 						ref="bodyRef"
 						:expanded="expandedCategories"
 						:selected-id="selectedId"
+						:layout="layout"
 						@toggle="toggleShelf"
 						@select="onSelect"
 						@create="onCreateAsset"

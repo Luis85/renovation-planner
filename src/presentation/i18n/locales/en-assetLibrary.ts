@@ -204,4 +204,8 @@ export const enAssetLibrary = {
 	// reason as the rest of this file's `form.new-asset.*` rows.
 	'form.new-asset.similar.exists': 'An asset named “{name}” already exists.',
 	'form.new-asset.similar.show': 'Show it',
+	// AD18-R18's `Grid | List` switch in the toolbar, and the name of its group.
+	'view.asset-library.layout.label': 'View',
+	'view.asset-library.layout.grid': 'Grid',
+	'view.asset-library.layout.list': 'List',
 } as const;

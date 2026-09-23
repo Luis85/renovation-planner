@@ -13,12 +13,19 @@
  * `disabled` is always false and is passed explicitly rather than defaulted: a composition action
  * this selection cannot take is not DRAWN — the panel decides which actions exist — so a disabled
  * one here would be the live control that does nothing this repository refuses.
+ *
+ * **`icon` is optional per action** (AD18-R16 Task 10), forwarded to `DesignerActionButton`
+ * unchanged: absent for group's text buttons, present for the Align and Distribute rows, which
+ * draw as icon-only. The row itself takes no icon-vs-text layout decision — the CALLER's `class`
+ * falls through to this file's one root `<div>` (Vue's own attribute inheritance, no prop needed
+ * here) and picks the compact grid `styles/designer-selection.css` declares for those two rows.
  */
+import type { IconName } from 'obsidian';
 import type { StringKey } from '../../i18n/locales/en';
 import DesignerActionButton from './DesignerActionButton.vue';
 
 defineProps<{
-	actions: readonly { readonly name: string; readonly label: StringKey; readonly run: () => void }[];
+	actions: readonly { readonly name: string; readonly label: StringKey; readonly run: () => void; readonly icon?: IconName }[];
 }>();
 </script>
 
@@ -33,6 +40,7 @@ defineProps<{
 			:name="action.name"
 			:label="action.label"
 			:disabled="false"
+			:icon="action.icon"
 			:on-run="action.run"
 		/>
 	</div>

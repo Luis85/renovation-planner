@@ -36,6 +36,7 @@
  * closes every control this panel has and every one it grows.
  */
 import { computed, ref, watch } from 'vue';
+import type { IconName } from 'obsidian';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { AppError } from '../../../core/errors/AppError';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
@@ -71,6 +72,7 @@ interface Action {
 	readonly name: string;
 	readonly label: StringKey;
 	readonly run: () => void;
+	readonly icon?: IconName;
 }
 
 const ALIGN_EDGES: readonly AlignEdge[] = ['left', 'centre-x', 'right', 'top', 'centre-y', 'bottom'];
@@ -80,6 +82,28 @@ const DISTRIBUTIONS: ReadonlyArray<readonly [SpacingMode, ArrangeAxis]> = [
 	['gaps', 'x'],
 	['gaps', 'y'],
 ];
+
+/**
+ * AD18-R16 Task 10: both boards draw align and distribute as an icon row rather than the ten text
+ * buttons this panel drew before. Every one of the ten pinned Lucide names below exists at the
+ * pinned revision under its own spelling — none is a closest-match substitute — so this is a plain
+ * lookup rather than a fallback table.
+ */
+const ALIGN_ICONS: Readonly<Record<AlignEdge, IconName>> = {
+	left: 'align-horizontal-justify-start',
+	'centre-x': 'align-horizontal-justify-center',
+	right: 'align-horizontal-justify-end',
+	top: 'align-vertical-justify-start',
+	'centre-y': 'align-vertical-justify-center',
+	bottom: 'align-vertical-justify-end',
+};
+
+const DISTRIBUTE_ICONS: Readonly<Record<`${SpacingMode}-${ArrangeAxis}`, IconName>> = {
+	'centres-x': 'align-horizontal-distribute-center',
+	'centres-y': 'align-vertical-distribute-center',
+	'gaps-x': 'align-horizontal-space-between',
+	'gaps-y': 'align-vertical-space-between',
+};
 
 const refusal = ref<AppError | null>(null);
 /** Which reference an alignment holds still. Ephemeral: a choice about the next gesture, never data. */
@@ -166,6 +190,7 @@ const alignActions = computed((): Action[] =>
 		: ALIGN_EDGES.map((edge) => ({
 				name: `align-${edge}`,
 				label: `designer.arrange.align.${edge}` as StringKey,
+				icon: ALIGN_ICONS[edge],
 				run: () => void commit((current) => alignDetails(current, { ...selection(), edge, reference: alignReference() })),
 			})),
 );
@@ -176,6 +201,7 @@ const distributeActions = computed((): Action[] =>
 		: DISTRIBUTIONS.map(([spacing, axis]) => ({
 				name: `distribute-${spacing}-${axis}`,
 				label: `designer.arrange.distribute.${spacing}-${axis}` as StringKey,
+				icon: DISTRIBUTE_ICONS[`${spacing}-${axis}`],
 				run: () => void commit((current) => distributeDetails(current, { ...selection(), axis, spacing })),
 			})),
 );
@@ -219,8 +245,14 @@ watch(
 				</option>
 			</select>
 		</label>
-		<DesignerActionRow :actions="alignActions" />
-		<DesignerActionRow :actions="distributeActions" />
+		<DesignerActionRow
+			:actions="alignActions"
+			class="rp-designer-arrange-align"
+		/>
+		<DesignerActionRow
+			:actions="distributeActions"
+			class="rp-designer-arrange-distribute"
+		/>
 		<DesignerSetTransform
 			:ids="graphics"
 			:locked="locked"

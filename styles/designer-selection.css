@@ -174,6 +174,38 @@
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
+/*
+ * The Align and Distribute rows draw as icon-only buttons now (AD18-R16 Task 10), and each is a
+ * fixed GRID rather than `.rp-designer-selection-actions`'s flex-wrap — the shape
+ * `.rp-designer-placement-modes`'s own comment argues for an uneven wrap of near-square buttons.
+ * Align's six are two rows of three in `ALIGN_EDGES`'s own order (left/centre/right over
+ * top/centre/bottom); Distribute's four are two rows of two (centres over gaps). `minmax(0, 1fr)`
+ * is that same rule's fix for the identical overflow.
+ */
+.rp-designer-arrange-align {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--size-4-1);
+}
+
+.rp-designer-arrange-distribute {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--size-4-1);
+}
+
+/*
+ * The icon-only button: centred on both axes, where a text button's content is already centred by
+ * its own text flow. `button.` and the `.rp-designer-inspector` prefix, for the specificity
+ * reason the base rule above already gives: Obsidian's own `button:not(.clickable-icon)` scores
+ * (0,1,1) and would otherwise decide `display` over a bare class.
+ */
+.rp-designer-inspector button.rp-designer-icon-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
 /* The facing angle's direction hint (critique finding 25): a description under its field, quieter than the label. */
 .rp-designer-field-hint {
 	margin: 0;

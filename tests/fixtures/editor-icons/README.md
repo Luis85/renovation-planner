@@ -59,3 +59,13 @@ pinned claim, and nothing re-runs it.
 `crosshair.svg` (the asset designer's Placement point group, Centre) and `panel-bottom.svg`
 (the same group's Back centre) were taken from the same pinned revision. Whether the installed
 host catalogue answers either name is not verified here.
+
+The Composition block's Align and Distribute rows (AD18-R16 Task 10) took ten fixtures from the
+same pinned revision: `align-horizontal-justify-start.svg`, `align-horizontal-justify-center.svg`,
+`align-horizontal-justify-end.svg`, `align-vertical-justify-start.svg`,
+`align-vertical-justify-center.svg`, `align-vertical-justify-end.svg` for the six align edges, and
+`align-horizontal-distribute-center.svg`, `align-vertical-distribute-center.svg`,
+`align-horizontal-space-between.svg`, `align-vertical-space-between.svg` for the four
+distributions. All ten names exist at the pinned revision under their own spelling, so none is a
+closest-match substitute. Whether the installed host catalogue answers any of the ten is not
+verified here.

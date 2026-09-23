@@ -72,25 +72,38 @@ async function accessibility(page, scenario, out, suffix = '') {
  return { violations: violations.length, incompleteChecks: result.incomplete.length, scope: 'real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate' };
 }
 /**
- * Rooms-and-areas sits between the context bar and the Inspector; at 80 rows it is 160 sequential
- * tab stops, past tabTo's 150-press budget. Closing it by keyboard first keeps a forward walk into
- * the Inspector inside that budget, whatever the list holds; reopening it by keyboard afterward is
- * what lets `action` still leave the list open for materialPan and every later largeFloor() step.
+ * Runs `action` in the Inspector with Rooms and areas CLOSED, then reopens the section by keyboard.
+ * At 1440 and 1000 px the open list lies between its summary and the Inspector in forward Tab order,
+ * and closing it is what keeps the forward walk inside tabTo's 150 presses; at 460 px the list is in
+ * the Layers overlay and never in that walk, and the same close and reopen run anyway. So `pan` and
+ * `materialPan` run with the list open, and whatever `action` does runs with it closed.
  */
 async function pastRoomsList(page, action) {
  const section = '[data-rp-section="rooms"] summary';
- // Constrained widths show Layers and Details as mutually exclusive overlays (PanelRail); panel()
- // is a no-op wherever both sit side by side, so the same two calls cover every scenario.
- await panel(page, 'layers');
+ await overlay(page, 'layers');
  await tabTo(page, section); await page.keyboard.press('Enter');
  assert.equal(await page.locator('[data-rp-section="rooms"]').evaluate(el => el.open), false, 'Rooms and areas closed by keyboard');
- await panel(page, 'details');
+ await overlay(page, 'details');
  const result = await action();
- await panel(page, 'layers');
- await tabBackTo(page, section); await page.keyboard.press('Enter');
+ // A freshly opened overlay has focus on its own root, ahead of the summary; side by side, the summary precedes the Inspector.
+ await (await overlay(page, 'layers') ? tabTo : tabBackTo)(page, section); await page.keyboard.press('Enter');
  assert.equal(await page.locator('[data-rp-section="rooms"]').evaluate(el => el.open), true, 'Rooms and areas reopened by keyboard');
+ // Guards against the list being re-rendered short or unmounted; a closed <details> keeps its rows, so this cannot see the reopen.
  await page.waitForFunction(() => document.querySelectorAll('[data-rp-region="layers"] .rp-room-list__row').length === 80);
  return result;
+}
+/**
+ * Switches the constrained layout's overlay without wrapping the page: Escape inside an overlay returns
+ * focus to its own rail button (ResponsiveEditorShell's closeOverlay), and Layers and Details are
+ * neighbours on the rail. A no-op where the rail is hidden or `name` is already open; answers whether it switched.
+ */
+async function overlay(page, name) {
+ const rail = `[data-rp-rail="${name}"]`;
+ if (!await page.locator(rail).isVisible() || await page.locator(rail).getAttribute('aria-expanded') === 'true') return false;
+ await page.keyboard.press('Escape');
+ assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-rp-rail]') ?? false), true, 'Escape returns focus to the rail');
+ await (name === 'layers' ? tabBackTo : tabTo)(page, rail); await page.keyboard.press('Enter');
+ return true;
 }
 async function largeFloor(page, scenario, out) {
  await page.reload(); await page.locator('[data-rp-empty="floor-start"]').waitFor();
@@ -117,7 +130,8 @@ async function largeFloor(page, scenario, out) {
  await panel(page, 'details');
  // The photos tab, its thumbnails and the shot all live in the Inspector, so they stay inside this
  // crossing: pastRoomsList's own reopen switches back to the Layers overlay, and at a constrained
- // width that would hide them again before they were read.
+ // width that would hide them again before they were read. So `inspectorMs` and the large-photos
+ // shot are taken with Rooms and areas closed.
  const inspectorMs = await pastRoomsList(page, async () => {
   if (!await page.locator('[data-rp-mode="photos"]').isVisible()) await activate(page, '[data-rp-room-navigation]');
   await tabTo(page, '[data-rp-mode="photos"]');

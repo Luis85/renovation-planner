@@ -11,8 +11,8 @@ import { constants, isIdCharacter, namesIn, planEditorQuery, query, script, shot
 describe('the per-surface harness shots', () => {
 	/**
 	 * THE SEVEN ASSET LIBRARY SHOTS, each pinned on the ONE field that makes it different from a
-	 * sibling — the convention `project-detail-narrow` and `asset-designer-narrow` already state
-	 * two cases below, applied to a surface that arrived with seven shots and no pins at all.
+	 * sibling — the convention `project-detail-narrow` and `asset-designer-narrow` already state,
+	 * applied to a surface that arrived with seven shots and no pins at all.
 	 *
 	 * What each pin is FOR, because "pin the fields" is not an argument:
 	 *
@@ -176,7 +176,7 @@ describe('the per-surface harness shots', () => {
 
 	/**
 	 * Task 21's three Plan Editor shots, pinned the same way `project-detail-narrow` and
-	 * `asset-designer-narrow` are above: the property that makes each shot differ from
+	 * `asset-designer-narrow` are: the property that makes each shot differ from
 	 * `plan-editor-light` is not merely that its name exists, but that it is reached through
 	 * the knob that actually produces the picture. Losing `&select=`/`&add` off either of the
 	 * first two would silently photograph the resting editor under a new name and exit 0;

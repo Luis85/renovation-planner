@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { writeFile } from 'node:fs/promises';
 import { journey as planningJourney } from './editor-planning-check.mjs';
-import { runAreaBrowserMatrix, activate, tabTo } from './editor-area-browser.mjs';
+import { runAreaBrowserMatrix, activate, tabTo, tabBackTo } from './editor-area-browser.mjs';
 import { panel } from './editor-structure-check.mjs';
 import { recordText, recordApply, recordShot } from './editor-record-browser.mjs';
 const form = '[data-rp-form="planning"]', retry = '[data-rp-warning="stale"] [data-rp-action="retry"]';
@@ -86,8 +86,9 @@ async function largeFloor(page, scenario, out) {
  const selectionMs = await page.evaluate(start => performance.now() - start, selectionStart);
  if (scenario.width === 460) await page.keyboard.press('Escape');
  const pan = await panFrames(page);
- await activate(page, '[data-rp-perspective="renovate"]'); await panel(page, 'details');
- await activate(page, '[data-rp-linked="materials"]'); await idle(page);
+ // Each Rooms row is two tab stops (row, lock toggle): 160 here, past tabTo's 150. Walk back instead: the context bar precedes the panel, and the Inspector is reached across the harness page's end.
+ await tabBackTo(page, '[data-rp-perspective][tabindex="0"]'); await activate(page, '[data-rp-perspective="renovate"]'); await panel(page, 'details');
+ await tabBackTo(page, '[data-rp-linked="materials"]'); await activate(page, '[data-rp-linked="materials"]'); await idle(page);
  await page.waitForFunction(() => window.planningRecovery.scene()[0]?.materialMarkers === 3);
  if (scenario.width === 460) await page.keyboard.press('Escape');
  const materialPan = await panFrames(page);

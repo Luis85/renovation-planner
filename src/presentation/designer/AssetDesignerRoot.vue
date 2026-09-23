@@ -51,7 +51,7 @@ import { isOpenGraphicSelection, isOutlineSelection } from './selection/designer
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { provideDesignerRuntime } from './runtime';
 import { isMissingAsset, useAssetDesignStore } from './stores/assetDesignStore';
-import { designerShortcut, selectionKeyActions } from './designerKeys';
+import { designerShortcut, selectionKeyActions, selectionKeysRefused } from './designerKeys';
 import DesignerCanvas from './DesignerCanvas.vue';
 import DesignerHeader from './DesignerHeader.vue';
 import DesignerToolbar from './DesignerToolbar.vue';
@@ -565,7 +565,7 @@ function onFailureAction(): void {
 const keyActions = selectionKeyActions(designStore, runtime.editShape, runtime.activeToolId);
 const contextMenu = useDesignerContextMenu(runtime, keyActions);
 function onCanvasKeyDown(event: KeyboardEvent): void {
-	if (event.target !== event.currentTarget || runtime.activeToolId.value !== 'select' || runtime.toolManager.activeToolHasDraft()) return;
+	if (event.target !== event.currentTarget || selectionKeysRefused(runtime)) return;
 	designerShortcut(event, designStore, keyActions);
 }
 

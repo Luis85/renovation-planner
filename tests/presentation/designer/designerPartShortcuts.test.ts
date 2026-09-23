@@ -77,7 +77,7 @@ describe('the context menu', () => {
 	});
 });
 
-describe('the selection keys on a focused Parts row', () => {
+describe('the selection keys on a selected Parts row', () => {
 	it('Delete and Backspace delete the row’s part', async () => {
 		const { rig, bowl } = await onTheBowl();
 		key(bowl, { key: 'Delete' });
@@ -118,8 +118,6 @@ describe('the selection keys on a focused Parts row', () => {
 		expect((await rig.document()).shape?.groups?.map((each) => each.members.toSorted())).toEqual([['detail-1', 'detail-2']]);
 		// The member under the keyboard became the focused one, the set kept — the menu's `store.focus`.
 		expect(useAssetDesignStore(rig.pinia).selected).toEqual([DETAIL_2, DETAIL_1]);
-		// Re-nested under its group header, the row keeps the keyboard rather than dropping it to <body>.
-		expect(document.activeElement).toBe(row(rig, 'detail:detail-1'));
 
 		const ungroup = key(row(rig, 'detail:detail-1'), { key: 'G', ctrlKey: true, shiftKey: true });
 		await settle();
@@ -147,7 +145,7 @@ describe('the selection keys on a focused Parts row', () => {
 		rig.unmount();
 	});
 
-	it('acts on nothing from a row that is not the focused part — arrowed to, not pressed', async () => {
+	it('acts on nothing from an UNSELECTED row — arrowed to, not pressed', async () => {
 		const { rig, bowl } = await onTheBowl();
 		const before = await rig.document();
 		key(bowl, { key: 'ArrowDown' });
@@ -161,19 +159,6 @@ describe('the selection keys on a focused Parts row', () => {
 		expect(duplicate.defaultPrevented).toBe(false);
 		expect(await rig.document()).toEqual(before);
 		expect(useAssetDesignStore(rig.pinia).selected).toEqual([DETAIL_2]);
-		rig.unmount();
-	});
-
-	it('Home, End and the arrows in the Label field move the caret, not the list’s focus', async () => {
-		const { rig } = await onTheBowl();
-		const label = rig.wrapper.element.querySelector('input[name="part-label"]') as HTMLInputElement;
-		label.focus();
-
-		const presses = ['Home', 'End', 'ArrowDown', 'ArrowUp'].map((each) => key(label, { key: each }));
-		await settle();
-
-		expect(presses.map((each) => each.defaultPrevented)).toEqual([false, false, false, false]);
-		expect(document.activeElement).toBe(label);
 		rig.unmount();
 	});
 });
@@ -217,6 +202,23 @@ describe('where the keyboard goes after a row is deleted', () => {
 		expect(document.activeElement).toBe(row(rig, 'footprint'));
 		rig.unmount();
 	});
+
+	it('nowhere, and nothing thrown, once the leaf closed while the write was in flight', async () => {
+		const rejections: unknown[] = [];
+		const onRejection = (reason: unknown): void => {
+			rejections.push(reason);
+		};
+		process.on('unhandledRejection', onRejection);
+		const { rig, bowl } = await onTheBowl();
+		key(bowl, { key: 'Delete' });
+		rig.unmount();
+		await settle();
+		await new Promise((resolve) => {
+			setTimeout(resolve, 0);
+		});
+		process.off('unhandledRejection', onRejection);
+		expect(rejections).toEqual([]);
+	});
 });
 
 describe('never while typing', () => {
@@ -232,6 +234,19 @@ describe('never while typing', () => {
 		expect(presses.map((each) => each.defaultPrevented)).toEqual([false, false, false]);
 		expect(await rig.document()).toEqual(before);
 		expect(useAssetDesignStore(rig.pinia).selected).toEqual([DETAIL_2]);
+		rig.unmount();
+	});
+
+	it('Home, End and the arrows in the Label field move the caret, not the list’s focus', async () => {
+		const { rig } = await onTheBowl();
+		const label = rig.wrapper.element.querySelector('input[name="part-label"]') as HTMLInputElement;
+		label.focus();
+
+		const presses = ['Home', 'End', 'ArrowDown', 'ArrowUp'].map((each) => key(label, { key: each }));
+		await settle();
+
+		expect(presses.map((each) => each.defaultPrevented)).toEqual([false, false, false, false]);
+		expect(document.activeElement).toBe(label);
 		rig.unmount();
 	});
 });

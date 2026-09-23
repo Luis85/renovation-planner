@@ -40,8 +40,7 @@ import { reorderDetail, updateDetail } from '../../../domain/asset/detailEdits';
 import { tr } from '../../i18n/strings';
 import type { EditShape } from '../selection/editShape';
 import { partKey, type DesignerSelection } from '../selection/designerSelection';
-import { designerShortcut, selectionKeyActions, selectionKeysRefused, type SelectionKeyGate } from '../designerKeys';
-import { focusDropped } from '../designerMenu';
+import { designerShortcut, focusDropped, selectionKeyActions, selectionKeysRefused, type SelectionKeyGate } from '../designerKeys';
 import { partRows, type PartRow } from './partRows';
 import type { PartView } from './partView';
 import DesignerPartRow from './DesignerPartRow.vue';
@@ -198,24 +197,24 @@ function shortcut(event: KeyboardEvent, row: PartRow): void {
 	});
 }
 
-const rowButton = (key: string): HTMLElement | null => list.value?.querySelector<HTMLElement>(`[data-key="${CSS.escape(key)}"] button`) ?? null;
-
 /**
- * Run a row key's action, and hand focus the browser DROPPED back to the list (`focusDropped`, the
- * menu's own rule): to the row itself where it survived — a group re-nests it under its header — else
- * to the row below it. Named before the write, from the rows as they were. **There is no "row above"
- * or "the list" arm**: every row a key can delete, a graphic or the clearance, has the footprint's or
- * the anchor's row below it, and the list is not a focus target — an arm that can never run is not free.
+ * Run a row key's action, and hand focus the browser DROPPED (`focusDropped`, the menu's own rule) to
+ * the row below the one the key was pressed on, named before the write from the rows as they were.
+ *
+ * Focus is dropped only when the row itself was unmounted, which is a Delete: Group and Ungroup insert
+ * or remove a header `<li>` and leave every part row's node where it was (`partRows` keeps members in
+ * draw order, and a keyed list mounting one new item moves none of the others). **There is no "row
+ * above" or "the list" arm**: every row a key can delete, a graphic or the clearance, has the
+ * footprint's or the anchor's row below it, and the list is not a focus target — an arm that can never
+ * run is not free. A leaf CLOSED while the write was in flight has no list, and there is nothing to do.
  */
 async function keepKeyboard(run: () => Promise<void>, key: string): Promise<void> {
-	const keys = focusable.value.map((each) => each.key);
-	const order = [key, keys[keys.indexOf(key) + 1]];
+	const keys = focusable.value.map((each) => each.key), next = keys[keys.indexOf(key) + 1];
 	await run();
 	await nextTick();
-	if (!focusDropped()) return;
-	const next = order.find((each) => rowButton(each) !== null) as string;
+	if (list.value === null || !focusDropped()) return;
 	focusedKey.value = next;
-	(rowButton(next) as HTMLElement).focus();
+	(list.value.querySelector(`[data-key="${CSS.escape(next)}"] button`) as HTMLElement).focus();
 }
 
 function rename(id: string, label: string): void {

@@ -14,7 +14,7 @@ import type { EditShape, ShapeEdit } from './selection/editShape';
  * The asset designer's selection keys (symbols spec, Decision 10). Delete, Ctrl+D, and Ctrl+G and
  * Ctrl+Shift+G (group and ungroup, AD18-R16 Task 11) are decided HERE and bound on the canvas element
  * itself by `AssetDesignerRoot`, because `EditorSurface` routes none of them and leaves them to other
- * listeners, and on the focused part's Parts row by `DesignerPartsPanel` (AD18-R17 Task 3); the
+ * listeners, and on any SELECTED Parts row by `DesignerPartsPanel` (AD18-R17 Task 3); the
  * arrows are `EditorSurface`'s own nudge, which `DesignerCanvas` answers with
  * `selectionKeyActions(...).nudgeSelection`. Every edit is one `editShape`, so one conditional write
  * and one undo entry, and every refusal goes through `notifyIfRefused` — except a nudge or a Delete whose
@@ -54,10 +54,20 @@ export interface SelectionKeyGate {
 }
 
 /**
- * The selection keys' ONE refusal, asked by the context menu and by the Parts rows (AD18-R17 Task 3):
+ * Whether focus was DROPPED — to `<body>`, or nowhere — as a browser does when the focused element is
+ * unmounted. Only then may a door that ran a write move it: the write awaits the vault, and a user who
+ * clicked into a note or opened a modal meanwhile keeps their focus there. The context menu's
+ * `runAndRefocus` and the Parts rows' keys (`DesignerPartsPanel`) both ask it.
+ */
+export function focusDropped(): boolean {
+	return ([null, document.body] as (Element | null)[]).includes(document.activeElement);
+}
+
+/**
+ * The selection keys' ONE refusal, asked by the canvas, the context menu and the Parts rows (AD18-R17 Task 3):
  * any tool but Select owns the keyboard for its own gesture (Backspace mid-trace takes a point back),
  * and a press still held on the selection is about to write that very part. `AssetDesignerRoot`'s
- * `onCanvasKeyDown` still spells the same two clauses inline; that file is owned by no task.
+ * `onCanvasKeyDown` asks it too, so the canvas, the menu and the rows cannot disagree about when a key is theirs.
  */
 export function selectionKeysRefused(gate: SelectionKeyGate): boolean {
 	return gate.activeToolId.value !== 'select' || gate.toolManager.activeToolHasDraft();
@@ -139,7 +149,12 @@ export function canGroup(shape: AssetShape, ids: readonly string[]): boolean {
 	return ids.length > 1 && ids.every((id) => groupOfDetail(shape, id) === null);
 }
 
-/** The key actions one leaf builds once, for its canvas keys and its context menu alike. */
+/**
+ * The key actions, built by `selectionKeyActions`. A leaf builds THREE instances over the same store,
+ * `editShape` and active tool: `AssetDesignerRoot`'s, for its canvas keys and its context menu alike;
+ * `DesignerCanvas`'s, for the arrows' nudge; and `DesignerPartsPanel`'s, for its rows' keys. Each
+ * action reads the selection at the call, so three instances over one store are one behaviour.
+ */
 export type SelectionKeyActions = ReturnType<typeof selectionKeyActions>;
 
 /**

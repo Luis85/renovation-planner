@@ -7,7 +7,7 @@ import { STAGE_PIXELS, screenPoint, screenToWorld, worldPerScreenPixel } from '.
 import { tr } from '../i18n/strings';
 import { useEditorStore } from '../stores/EditorStore';
 import { modifierLabel } from '../views/platformModifier';
-import { selectionAbilities, selectionKeysRefused, type SelectionKeyActions } from './designerKeys';
+import { focusDropped, selectionAbilities, selectionKeysRefused, type SelectionKeyActions } from './designerKeys';
 import { partRows, type PartRow } from './parts/partRows';
 import type { DesignerRuntime } from './runtime';
 import { hitDesign } from './selection/hitTest';
@@ -169,13 +169,3 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToo
 }
 
 export type DesignerContextMenuState = ReturnType<typeof useDesignerContextMenu>;
-
-/**
- * Whether focus was DROPPED — to `<body>`, or nowhere — as a browser does when the focused element is
- * unmounted. Only then may a door that ran a write move it: the write awaits the vault, and a user who
- * clicked into a note or opened a modal meanwhile keeps their focus there. The menu's `runAndRefocus`
- * and the Parts rows' keys (`DesignerPartsPanel`) both ask it.
- */
-export function focusDropped(): boolean {
-	return ([null, document.body] as (Element | null)[]).includes(document.activeElement);
-}

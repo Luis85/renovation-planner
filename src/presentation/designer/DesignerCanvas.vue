@@ -68,6 +68,7 @@ import { isOutlineSelection } from './selection/designerSelection';
 import DesignerGestureLayer from './layers/DesignerGestureLayer.vue';
 import DesignerRulers from './rulers/DesignerRulers.vue';
 import DesignerDimensions from './dimensions/DesignerDimensions.vue';
+import DesignerLegend from './legend/DesignerLegend.vue';
 import RotateArrowIcon from '../editor/elements/RotateArrowIcon.vue';
 import { selectionKeyActions } from './designerKeys';
 
@@ -355,21 +356,26 @@ onBeforeUnmount(() => stopPixelRatio());
 			/>
 		</template>
 		<!--
-			The overlay slot: the rulers first, then the dimensions, then whatever the shell passed
-			down — the empty state today — so a card meant to be read sits OVER both rather than
-			under them. All three are `position: absolute` against `.rp-plan-canvas`, and neither
-			annotation takes any layout at all, which is what holds AD18-R10's floor on the canvas's
-			share of the shell.
+			The overlay slot: the rulers first, then the dimensions, then the legend (AD18-R16
+			Task 4), then whatever the shell passed down — the empty state today — so a card
+			meant to be read sits OVER all three rather than under them. All four are
+			`position: absolute` against `.rp-plan-canvas`, and none of them takes any layout at
+			all, which is what holds AD18-R10's floor on the canvas's share of the shell.
 
-			The dimensions come SECOND on purpose, and it is the one ordering here that is not
-			merely about reading: they carry the only controls of the three — real buttons and a
-			real form (AD18-R11) — so they must paint over the rulers' strips rather than under
-			them, and the empty state must still paint over everything, since a surface with
-			nothing drawn has nothing to measure.
+			The dimensions come SECOND, ahead of the legend, and it is the one ordering here that
+			is not merely about reading: they carry the only controls of the four — real buttons
+			and a real form (AD18-R11) — so they must paint over the rulers' strips rather than
+			under them. The legend takes no press at all and sits in the canvas's bottom-left
+			corner, away from where the rulers and the dimension labels draw, so its own place in
+			this order costs it nothing. The empty state must still paint over everything, since a
+			surface with nothing drawn has nothing to measure — and nothing to explain the
+			vocabulary of, which is `legendRows.ts`'s own account of why the legend draws no row
+			at all over the same `null` shape that state answers.
 		-->
 		<template #overlay>
 			<DesignerRulers />
 			<DesignerDimensions />
+			<DesignerLegend />
 			<slot />
 		</template>
 	</EditorSurface>

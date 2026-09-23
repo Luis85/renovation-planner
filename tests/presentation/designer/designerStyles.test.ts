@@ -156,3 +156,48 @@ describe('the library door’s label below the header’s narrow width', () => {
 		}
 	});
 });
+
+/**
+ * AD18-R16 Task 4's canvas legend. The swatches read the SAME two host variables the Konva layers
+ * resolve for the parts they stand for (`themeTokens.ts`): `--text-normal` (`tokens.zoneStroke`)
+ * for the footprint and details, `--interactive-accent` (`tokens.accent`) for the clearance, the
+ * placement point and the front direction. The clearance swatch alone carries a dashed border
+ * style, standing for `clearanceLayer.ts`'s own dash — not its exact `[8, 6]` screen-pixel
+ * spacing, which a swatch a few pixels wide has no room for.
+ */
+describe('the canvas legend’s swatches', () => {
+	const rules = partial('designer-legend.css');
+
+	it('takes no pointer at all, unlike its two neighbours which let a child opt back in', () => {
+		expect(declared(rules, '.rp-designer-legend', 'pointer-events')).toEqual(parsed('pointer-events', 'none'));
+	});
+
+	it('draws the footprint and details swatches in the same ink the layers draw them in', () => {
+		expect(declared(rules, '.rp-designer-legend__swatch', 'border-top')).toEqual(parsed('border-top', '2px solid var(--text-normal)'));
+		expect(declared(rules, '.rp-designer-legend__swatch--details', 'border-top-width')).toEqual(parsed('border-top-width', '1px'));
+	});
+
+	it('draws the clearance, placement point and front direction swatches in the accent colour', () => {
+		for (const selector of ['.rp-designer-legend__swatch--clearance', '.rp-designer-legend__swatch--facing']) {
+			expect(declared(rules, selector, 'border-top-color')).toEqual(parsed('border-top-color', 'var(--interactive-accent)'));
+		}
+		expect(declared(rules, '.rp-designer-legend__swatch--placement', 'background-color')).toEqual(parsed('background-color', 'var(--interactive-accent)'));
+	});
+
+	it('dashes only the clearance swatch', () => {
+		expect(declared(rules, '.rp-designer-legend__swatch--clearance', 'border-top-style')).toEqual(parsed('border-top-style', 'dashed'));
+		expect(declared(rules, '.rp-designer-legend__swatch--facing', 'border-top-style')).toEqual([]);
+	});
+});
+
+/** AD18-R16 Task 4: below 35rem the legend is hidden, on the same container `designer-narrow.css` declares. */
+describe('the legend below the designer’s narrow width', () => {
+	const narrow = (): string => onlyRule('@container rp-designer (width < 35rem) { .reference { color: inherit; } }').condition;
+
+	it('is not drawn below 35rem', () => {
+		const rules = partial('designer-legend.css');
+
+		expect(narrow()).not.toBe('');
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-legend', 'display', narrow())).toEqual(parsed('display', 'none'));
+	});
+});

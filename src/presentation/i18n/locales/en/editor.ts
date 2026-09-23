@@ -10,6 +10,7 @@ import { designerToolbarIconsEn } from './designerToolbarIcons';
 import { designerTraceEn } from './designerTrace';
 import { designerRulersEn } from './designerRulers';
 import { assetDimensionsOnCanvasEn } from './assetDimensionsOnCanvas';
+import { designerLegendEn } from './designerLegend';
 import { designerAddEn } from './designerAdd';
 import { designerRecoveryEn } from './designerRecovery';
 import { referenceViewportEn } from './referenceViewport';
@@ -63,6 +64,7 @@ export const editorEn = {
 	...designerTraceEn,
 	...designerRulersEn,
 	...assetDimensionsOnCanvasEn,
+	...designerLegendEn,
 	...designerAddEn,
 	...designerRecoveryEn,
 	...groupsEn,

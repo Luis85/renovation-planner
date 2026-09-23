@@ -126,6 +126,19 @@ export interface DesignerRuntime {
 	 */
 	readonly allDimensions: Ref<boolean>;
 	/**
+	 * The View menu's `Legend` row (AD18-R16 Task 4), which shows or hides the canvas legend.
+	 *
+	 * **`allDimensions`'s kind of row exactly, by the same AD18-R12 precedent** — leaf-local,
+	 * written NOWHERE, default `true` rather than `false` because the legend explains a canvas
+	 * vocabulary a first-time user has not yet learned, where `allDimensions` widens an overlay
+	 * that already has a narrower default. It reaches no command, no note, no sidecar and no undo
+	 * entry, and it does not survive a reopened leaf.
+	 *
+	 * A `Ref` and not a getter for `allDimensions`'s reason: `DesignerViewMenu` binds it with
+	 * `v-model`.
+	 */
+	readonly showLegend: Ref<boolean>;
+	/**
 	 * Task B8's gesture, the same shape as `setBackground` above and for the same reason: a
 	 * click-bound dispatch with no field to show a refusal under, so it swallows the `Result`
 	 * itself through `notifyIfRefused`/`reportDispatchFault` rather than handing it back. TWO
@@ -520,11 +533,10 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	const { editor, selection, workspace, viewportAdapter, snapService } = leafStores();
 
 	const renderState = reactive(new RenderState());
-	// A view preference and nothing else — see `DesignerRuntime.backgroundOpacity`. Here rather
-	// than in `writingFor` because it writes nothing.
-	const backgroundOpacity = ref(1);
-	// The same kind of thing and here for the same reason — see `DesignerRuntime.allDimensions`.
-	const allDimensions = ref(false);
+	// Three view preferences and nothing else, here rather than in `writingFor` because none of
+	// them writes anything — see `DesignerRuntime.backgroundOpacity`, `.allDimensions` and
+	// `.showLegend` for each one's own account.
+	const backgroundOpacity = ref(1), allDimensions = ref(false), showLegend = ref(true);
 	/**
 	 * TWO ledgers, because an asset is two resources under one id — see `DesignWriteLedgers`.
 	 * Only the geometry one is reachable from this surface's tools, every one of which writes the
@@ -706,8 +718,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		redo,
 		setBackground,
 		removeBackground,
-		backgroundOpacity,
-		allDimensions,
+		backgroundOpacity, allDimensions, showLegend,
 		setFootprintFromDimensions,
 		applyShape,
 		commitHeight,

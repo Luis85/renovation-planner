@@ -1,0 +1,85 @@
+/*
+ * The asset designer's canvas legend — AD18-R16 Task 4, board 01: Clearance, Footprint, Details,
+ * Placement point and Front direction over the canvas's bottom-left corner.
+ *
+ * A partial of its OWN for `designer-rulers.css`'s reason: `designer.css` is at the assembler's
+ * 400-line cap and the seam is a budget rather than a new organising idea. `grep -rln
+ * "rp-designer-legend" styles/` prints this file alone, so no rule anywhere else can win or lose
+ * against a selector here at equal specificity.
+ *
+ * **`pointer-events: none` is the whole of this file's pointer story, not half of it.** The
+ * rulers and the dimension labels each declare it on a container so a CHILD may opt back in with
+ * `auto` — a real control the rulers' own docblock proves is permitted in this slot. This
+ * component has no such child: every row is a swatch and a label, nothing a user can act on, so
+ * `none` here is simply correct rather than a container clearing the way for something beneath it.
+ *
+ * **The swatches read the SAME two host variables the Konva layers resolve for the parts they
+ * stand for** (`themeTokens.ts`): `--text-normal` for the footprint and details, which
+ * `footprintLayer.ts` / `detailsLayer.ts` draw with `tokens.zoneStroke`, and
+ * `--interactive-accent` for the clearance, the placement point and the front direction, which
+ * `clearanceLayer.ts` / `anchorLayer.ts` draw with `tokens.accent`. The dash on the clearance
+ * swatch is the CSS `dashed` border style rather than `clearanceLayer.ts`'s own `[8, 6]`
+ * screen-pixel pattern — a legend icon a few pixels wide has no room for that period, and the
+ * convention this file promises is the colour and the presence of a dash, not its exact spacing.
+ *
+ * **Positioned by eye rather than aligned to the rulers' own strip width.** `designer-rulers.css`
+ * declares `--rp-designer-ruler-size` on `.rp-designer-rulers` itself, which does not cascade to
+ * this file's sibling element, so the 24px left offset below is a value chosen to clear an 18px
+ * strip with headroom rather than one derived from that variable — the two files agreeing is a
+ * measurement to make in a browser, not a constraint this stylesheet enforces.
+ */
+.rp-designer-legend {
+	position: absolute;
+	left: 24px;
+	bottom: 8px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 4px 6px;
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	pointer-events: none;
+}
+.rp-designer-legend__row {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+.rp-designer-legend__swatch {
+	display: inline-block;
+	width: 14px;
+	height: 0;
+	border-top: 2px solid var(--text-normal);
+}
+.rp-designer-legend__swatch--clearance {
+	border-top-color: var(--interactive-accent);
+	border-top-style: dashed;
+}
+.rp-designer-legend__swatch--facing {
+	border-top-color: var(--interactive-accent);
+}
+.rp-designer-legend__swatch--details {
+	border-top-width: 1px;
+}
+.rp-designer-legend__swatch--placement {
+	width: 8px;
+	height: 8px;
+	border: none;
+	border-radius: 50%;
+	background-color: var(--interactive-accent);
+}
+
+/*
+ * The narrow breakpoint `designer-narrow.css` declares on `.renovation-asset-designer`
+ * (`container-name: rp-designer`) — `designer-toolbar.css` already adds its own query against the
+ * same name, which is the precedent for a sibling partial doing the same rather than editing that
+ * file. Below it the canvas's own share is smaller (AD18-R10), and the legend is the annotation
+ * with the least claim to a corner of it.
+ */
+@container rp-designer (width < 35rem) {
+	.renovation-asset-designer .rp-designer-legend {
+		display: none;
+	}
+}

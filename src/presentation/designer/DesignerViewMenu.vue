@@ -28,6 +28,13 @@
  * than last, so the rows that are always there keep a fixed order: a row that appears and
  * disappears between two fixed ones would move its neighbour under the pointer.
  *
+ * **The `Legend` row** (AD18-R16 Task 4) is `allDimensions`'s kind of row again, by the same
+ * AD18-R12 precedent: leaf-local, written nowhere, default ON rather than off. It sits AFTER
+ * `All dimensions` and BEFORE the opacity row, for the same fixed-then-conditional ordering that
+ * puts opacity last: both `All dimensions` and `Legend` are drawn unconditionally, so the rows
+ * that are always there keep one fixed order and the row that appears and disappears stays at
+ * the end, where its coming and going cannot move a neighbour under the pointer.
+ *
  * **No row is addressed here by its POSITION**, and that is a correction rather than a style: this
  * header called the opacity "the third row" and this one "the fourth" for exactly as long as it
  * took to add a row above the opacity, at which point both sentences were false and the template
@@ -52,7 +59,7 @@ const runtime = useDesignerRuntime();
  * the ref. `runtime.backgroundOpacity` — a property access on a plain object — is not unwrapped,
  * the same trap `DesignerCanvas` records about `editorRefs.activeToolId` from the other side.
  */
-const { backgroundOpacity, allDimensions } = runtime;
+const { backgroundOpacity, allDimensions, showLegend } = runtime;
 const designStore = useAssetDesignStore();
 /** Whether there is a sheet to fade at all. `undefined` while the design is still being read. */
 const hasReference = computed(() => (designStore.design?.background ?? null) !== null);
@@ -93,6 +100,11 @@ function toggleSnap(event: Event): void {
 				type="checkbox"
 				data-rp-view="all-dimensions"
 			>{{ tr('designer.view.all-dimensions') }}</label>
+			<label><input
+				v-model="showLegend"
+				type="checkbox"
+				data-rp-view="legend"
+			>{{ tr('designer.view.legend') }}</label>
 			<label v-if="hasReference">{{ tr('designer.view.reference-opacity') }}<input
 				v-model.number="backgroundOpacity"
 				type="range"

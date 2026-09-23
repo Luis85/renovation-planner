@@ -43,6 +43,8 @@ describe('the lines a dimension draws', () => {
 			line: 'M50 100L50 330M46 100L54 100M46 300L54 300',
 			arrows: 'M50 100L47 106L53 106ZM50 300L47 294L53 294Z',
 		});
+		// And past its START, the other way.
+		expect(dimensionLine('y', p(50, 100), p(50, 300), p(50, 70)).line).toBe('M50 70L50 300M46 100L54 100M46 300L54 300');
 	});
 
 	/** A span too short for two arrowheads takes them OUTSIDE, pointing in, as a drafted narrow gap does. */

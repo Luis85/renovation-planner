@@ -57,6 +57,33 @@ describe('the lines each dimension draws', () => {
 		}
 	});
 
+	/**
+	 * **The line goes where the LABEL went.** At this zoomed-out camera a selected `detail-1`'s labels
+	 * mostly move off their anchors (`dimensionCollision.test.ts` pins where), and each one's line has
+	 * to follow: a width's or a horizontal gap's line runs along the label's row, a depth's or a
+	 * vertical gap's up the label's column. Read off the first point of each path.
+	 */
+	it('runs each line through its label wherever the collision rule put it', async () => {
+		const rig = await designer();
+		try {
+			useAssetDesignStore(rig.pinia).select({ kind: 'detail', id: 'detail-1' });
+			await settle();
+
+			const vertical = /-(depth|offset-top|offset-bottom)$/u;
+			const wrappers = rig.wrapper.findAll('.rp-designer-dimension');
+			const across = marks(rig).map(([name, line], index) => {
+				const [x = '', y = ''] = line.slice(1).split('L')[0]?.split(' ') ?? [];
+				const style = (wrappers[index]?.element as HTMLElement | undefined)?.style;
+				return [name, vertical.test(name) ? [Number(x), Number.parseFloat(style?.left ?? '')] : [Number(y), Number.parseFloat(style?.top ?? '')]] as const;
+			});
+
+			expect(across.filter(([, [line, label]]) => Math.abs(line - label) > 1e-9)).toEqual([]);
+			expect(across.map(([name]) => name)).toContain('detail-detail-1-offset-left');
+		} finally {
+			rig.unmount();
+		}
+	});
+
 	/** Decoration: hidden from assistive technology, since each button already names what it measures. */
 	it('hides the marks from assistive technology', async () => {
 		const rig = await designer();

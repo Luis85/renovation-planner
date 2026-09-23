@@ -339,8 +339,8 @@ describe('the per-surface harness shots', () => {
 	 * So the two states each need their own SETUP, and this pins that the setup is still there:
 	 * a `focus` selector on one shot, and a query naming an id no entry can have on the other.
 	 * Parsed assertions because `SHOTS` runs at module scope behind a browser — the same bargain
-	 * every case in this block makes — and the behaviour under them is `focusForShot`'s, which is
-	 * asserted directly below.
+	 * every case in this block makes — and the behaviour under them is `focusForShot`'s, which the
+	 * case "reaches the focus target with the keyboard rather than programmatically" asserts.
 	 */
 	it('gives the focus ring and the failure card a shot that actually renders them', () => {
 		expect(shot('index-focus').focus).toBeDefined();

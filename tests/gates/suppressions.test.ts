@@ -50,7 +50,7 @@ const carries = (text: string) => DIRECTIVES.some((directive) => text.includes(d
  * read: it never existed for long.
  *
  * `lintedFiles()` enumerates the tree and this case reads each entry afterwards, and the two
- * steps are not atomic. `tests/build/lint-edited.test.ts` plants a real
+ * steps are not atomic. `tests/gates/lint-edited.test.ts` plants a real
  * `tests/harness/lint-edited-probe-N.vue` and removes it in `afterEach` — inside the repository
  * rather than a temp directory, deliberately and for a reason its own comment gives (ESLint's
  * `VUE_FILES` glob has to match it) — and vitest runs the two files in separate workers. So the

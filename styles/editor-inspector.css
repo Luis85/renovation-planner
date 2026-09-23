@@ -79,7 +79,7 @@
  * A qualified `<button>`, for the reason every other list action in this file's sibling
  * partials is: Obsidian's own `button:not(.clickable-icon)` sets `background-color`, `color`
  * and `box-shadow` at (0,1,1), which outranks a bare class at (0,1,0) regardless of source
- * order. `tests/build/buttonSpecificity.test.ts` and `tests/build/buttonFocusRing.test.ts`
+ * order. `tests/gates/buttonSpecificity.test.ts` and `tests/gates/buttonFocusRing.test.ts`
  * are what would have caught it going unqualified.
  */
 .rp-room-list {

@@ -2,7 +2,7 @@
 // jsdom: `installObsidianDom()` reads `HTMLElement.prototype` at module evaluation and node
 // provides no `HTMLElement`, so without this the file dies before any assertion runs — not a
 // failing test, a file that never executes. `tests/plugin/persistence-wiring.test.ts` carries
-// the same directive for the same reason. `tests/build/test-environments.test.ts` guards two
+// the same directive for the same reason. `tests/gates/test-environments.test.ts` guards two
 // things and this file trips neither: `tests/plugin/` is not one of the THREE
 // `PROTECTED_DIRECTORIES` (`tests/core/`, `tests/domain/`, `tests/application/`), and this
 // file's own imports (`../helpers/dom`, `../helpers/plugin`, `../helpers/fixtureVault`,

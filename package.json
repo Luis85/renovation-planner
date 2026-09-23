@@ -43,7 +43,7 @@
 		"eslint": "^10.10.0",
 		"eslint-plugin-obsidianmd": "^0.4.2",
 		"eslint-plugin-vue": "^10.10.0",
-		"fallow": "^3.24.1",
+		"fallow": "^3.26.0",
 		"jsdom": "^30.0.1",
 		"lightningcss": "^1.33.0",
 		"mdast-util-from-markdown": "^2.0.3",

@@ -183,7 +183,7 @@ an implementer reads the approach first.
   the tree). This slice adds a store, two queries, a form, a change source, four context
   members and a navigation path. Tests are planned with the code or the gate fails; there is
   no room to catch up afterwards. Measure on a quiet machine: a single load-induced timeout in
-  `tests/build/` or `tests/harness/` suppresses the coverage report entirely, so a run that
+  `tests/gates/` or `tests/harness/` suppresses the coverage report entirely, so a run that
   looks like a gate failure can simply be a run that never produced the number.
 - **`FakeLeaf.setViewState` was once *faster* than Obsidian** — it established view state
   synchronously, which made a duplicate-tab regression case pass against a live defect. This

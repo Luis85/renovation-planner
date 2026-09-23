@@ -22,7 +22,7 @@
 
 /*
  * Qualified with `.rp-designer-inspector`: Obsidian's `button:not(.clickable-icon)` scores (0,1,1)
- * and beats a bare class (`tests/build/buttonSpecificity.test.ts`).
+ * and beats a bare class (`tests/gates/buttonSpecificity.test.ts`).
  * REVIEWED CLONE: the flat bordered button is written once per component by necessity — the
  * argument is on `.rp-designer-tool-button` in `designer.css`.
  */

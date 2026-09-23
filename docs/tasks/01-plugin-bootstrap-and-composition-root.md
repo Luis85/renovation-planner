@@ -851,7 +851,7 @@ Module boundaries this slice fixes for every later one:
   created and mounted in `onOpen`, and unmounted in `onClose`, using `@vue/test-utils` per
   ADR-004 — asserted against the mount point rather than against Konva or any real content,
   since there is none yet.
-- **Build/config plumbing** (`tests/build/`): the `obsidian` alias literal in
+- **Build/config plumbing** (`tests/gates/`): the `obsidian` alias literal in
   `vitest.config.ts` and `vite.harness.config.ts` is pinned together
   (`config-alias.test.ts`) so the two cannot silently drift; UTF-8/no-BOM encoding on
   checked-in config and manifest files is asserted directly (`encoding.test.ts`), since a
@@ -908,14 +908,14 @@ Module boundaries this slice fixes for every later one:
       copy is what puts it in the edit loop, since `scripts/lint-edited.mjs` runs oxlint
       and only oxlint. What oxlint cannot mirror is the obsidianmd wrapper that still
       fails `console.log`/`console.info` *inside* the carve-out, so that one case is
-      caught by `npm run check` and `tests/build/logging-carve-out.test.ts`, never by the
+      caught by `npm run check` and `tests/gates/logging-carve-out.test.ts`, never by the
       edit loop.
 
       **Measured while wiring Vue: oxlint DOES parse an SFC** — it reports `no-console`
       inside a `<script setup lang="ts">` block, and `--debug=files` names `ViewRoot.vue`
       among the files it lints. So `.vue` files are in the oxlint gate AND in the edit loop,
       which needed two edits rather than a note: `vue` joined the extension list in
-      `tests/build/lint-scope.test.ts` (or that test would assert about a tree with the SFCs
+      `tests/gates/lint-scope.test.ts` (or that test would assert about a tree with the SFCs
       cut out of it) and in `scripts/lint-edited.mjs`, whose own list was missing it — so an
       SFC edit was silently skipped by the hook. Verified end to end: the hook exits 0 on a
       clean SFC and 2 on one with a console call.

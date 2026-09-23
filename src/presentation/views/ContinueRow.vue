@@ -70,7 +70,7 @@ const emit = defineEmits<{ resume: []; open: []; openNote: [] }>();
  *
  * `useId` rather than hand-built ids, and `app.config.idPrefix` is set at every `createApp`
  * site (`app-id-prefix.ts`) so two Vue apps' ids cannot collide — the mechanism design slice
- * 16's `FieldError` established and `tests/build/appIdPrefix.test.ts` keeps true.
+ * 16's `FieldError` established and `tests/gates/appIdPrefix.test.ts` keeps true.
  */
 const nameId = useId();
 const resumeId = useId();

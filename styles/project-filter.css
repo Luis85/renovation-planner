@@ -131,7 +131,7 @@
  * Obsidian's own `input[type='text']` is (0,1,1) — one type plus one attribute — and sets every
  * property being neutralised here; a single class is (0,1,0) and loses with no warning and no
  * failing build. The same trap `list-row.css` records for `button:not(.clickable-icon)`, and
- * `tests/build/buttonSpecificity.test.ts` is the category check that reads it for buttons.
+ * `tests/gates/buttonSpecificity.test.ts` is the category check that reads it for buttons.
  */
 .rp-project-filter .rp-project-filter__input {
 	flex-grow: 1;

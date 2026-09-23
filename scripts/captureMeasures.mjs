@@ -20,7 +20,7 @@ export function shellMetrics(selector) {
 }
 
 /**
- * The rule itself, judged in Node rather than in the page: `tests/build/captureMeasures.test.ts`
+ * The rule itself, judged in Node rather than in the page: `tests/gates/captureMeasures.test.ts`
  * can drive every branch with a plain object and no browser, where the page-side half above has
  * nothing left to unit-test once it is known to call `document.querySelector` and read two
  * properties back.

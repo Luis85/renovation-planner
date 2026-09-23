@@ -197,7 +197,7 @@ tests/
 
 The SDD's `unit/` and `integration/` do not appear, and neither does a separate
 `architecture/`: a planted-violation test proving a lint rule fires is the same species
-as `tests/build/lint-scope.test.ts`, shares its instrument, and a second directory for it
+as `tests/gates/lint-scope.test.ts`, shares its instrument, and a second directory for it
 would be a second answer to "where does a gate meta-test go". A unit test of `Money`
 belongs at
 `tests/core/money/`, and an integration test of `ObsidianZoneRepository` belongs at
@@ -230,7 +230,7 @@ Two glob lists would be the defect: a directory named in neither runs in neither
 suite that silently stops running is indistinguishable from a suite that passes. Stated
 as default-plus-exception, a new directory joins the node profile by existing. **This is
 a claim about the configuration, so it gets a check**, in the shape
-`tests/build/lint-scope.test.ts` already uses for oxlint: ask vitest itself which files
+`tests/gates/lint-scope.test.ts` already uses for oxlint: ask vitest itself which files
 each project collects and assert the union equals every `tests/**/*.test.ts` on disk.
 
 Running domain/application/contract tests in a bare `node` environment — not
@@ -549,7 +549,7 @@ This slice introduces no production persistence. It defines:
 
 This slice's own subject is testing infrastructure, so its Testing Strategy is about
 proving the infrastructure and rules actually work — a planted-violation test for each
-enforcement mechanism, living under `tests/build/` beside the gate meta-tests that
+enforcement mechanism, living under `tests/gates/` beside the gate meta-tests that
 already exist there (§1):
 
 - **Lint rule fires on a real violation.** A config entry that is never actually
@@ -562,7 +562,7 @@ already exist there (§1):
   precisely the failure this test exists to prevent, reproduced inside the test.
 
   So the fixture is **never a file on disk under `src/`**. Follow the harness this
-  repository already has for exactly this shape — `tests/build/lint-*.test.ts` driving
+  repository already has for exactly this shape — `tests/gates/lint-*.test.ts` driving
   the real linter through `tests/helpers/oxlint.ts`, which spawns the tool and reads its
   own resolution rather than re-implementing it. The ESLint equivalent is the `ESLint`
   class's `lintText(code, { filePath })`: `filePath` decides which flat-config blocks
@@ -573,7 +573,7 @@ already exist there (§1):
   the rule is keyed on the layer rather than firing everywhere.
 
   Two properties this shape has that a disk fixture does not: nothing is added to
-  `ignores`, so `tests/build/suppressions.test.ts`'s no-suppressions claim stays whole;
+  `ignores`, so `tests/gates/suppressions.test.ts`'s no-suppressions claim stays whole;
   and `lintText` honours `warnIgnored`, so if a future `ignores` edit ever *did* cover
   the synthetic path, the test can be made to fail rather than to pass quietly. A
   helper alongside `tests/helpers/oxlint.ts` owns the `ESLint` instance, for the same
@@ -593,7 +593,7 @@ already exist there (§1):
   method names.
 - **`broken-references/` actually degrades gracefully** (this one is a real test of the
   bootstrap path, not a gate meta-test, so it sits at `tests/plugin/` — its mirrored
-  home — rather than under `tests/build/`). Loading the
+  home — rather than under `tests/gates/`). Loading the
   `broken-references/` fixture through the real (non-fixture) plugin bootstrap path
   is asserted to leave the rest of the plugin usable — directly exercising
   Architecture Completion Criterion 13, and simultaneously proving the fixture
@@ -633,7 +633,7 @@ Infrastructure-specific:
       would come to look delivered. `large-project/` is dropped — see the Integration
       Test Vault item below.
 - [ ] ~~`vitest.config.ts` runs the node-default / jsdom-opt-in split~~ — **WITHDRAWN**,
-      paired with `tests/build/test-environments.test.ts`. `environment: 'node'` is already
+      paired with `tests/gates/test-environments.test.ts`. `environment: 'node'` is already
       the default with jsdom opted in per file, and forgetting a docblock fails loudly. The
       split would introduce a hazard the current design does not have — a file matched by
       neither project silently never running — which is why the original item pairs it with
@@ -651,7 +651,7 @@ Infrastructure-specific:
       plan, as the signal that the split is the answer after all.
 
       **That threshold has already been crossed, within this same branch, and is recorded
-      here as OPEN rather than acted on.** `git log --oneline -- tests/build/
+      here as OPEN rather than acted on.** `git log --oneline -- tests/gates/
       test-environments.test.ts` shows three commits: `a955d71` (Task 6's own self-reported
       sixth correction, at the file's first commit), then `2924fd5` ("Widen the
       import-specifier delimiter class to backticks…") and `5a09276` ("Split the
@@ -705,11 +705,11 @@ Infrastructure-specific:
 - [ ] The Architecture Test Rules — the per-layer ESLint blocks and the `node` default
       environment, the two mechanisms §8 lists, `fallow` deliberately not among them —
       both run inside the single `npm run check` CI invokes on Ubuntu and Windows, and
-      each has a passing planted-violation meta-test under `tests/build/` proving it
+      each has a passing planted-violation meta-test under `tests/gates/` proving it
       fires. No `dependency-cruiser` config exists — see §8, including the indirect-import
       gap it names rather than claims to close.
 
-      Both mechanisms now have a planted-violation meta-test under `tests/build/`:
+      Both mechanisms now have a planted-violation meta-test under `tests/gates/`:
       `layer-boundaries.test.ts` fires every (block × extension × import shape) cell of the
       ESLint rule, and `tests/domain/nodeEnvironment.test.ts` proves the node default catches
       an indirect DOM reach no per-file lint rule can see. `ci-invokes-check.test.ts` asserts

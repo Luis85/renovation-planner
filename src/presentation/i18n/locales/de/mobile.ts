@@ -1,7 +1,7 @@
 /**
  * `enMobile`'s German half. German noun capitalization is incompatible with the sentence-case
  * rule the English partial carries, which is why this one sits under `de/` — see
- * `tests/build/localeModuleSentenceCase.test.ts` for how the two scopes are told apart.
+ * `tests/gates/localeModuleSentenceCase.test.ts` for how the two scopes are told apart.
  */
 export const deMobile = {
 	'view.mobile.read-only': 'Auf Mobilgeräten zum Ansehen verfügbar. Änderungen brauchen einen Desktop.',

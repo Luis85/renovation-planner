@@ -21,7 +21,7 @@ const out = mkdtempSync(join(tmpdir(), 'rp-contract-'));
 const reportFile = join(out, 'report.json');
 const child = spawnSync(
 	process.execPath,
-	['node_modules/vitest/vitest.mjs', 'run', '--config', 'tests/build/fixtures/vitest.brokenFake.config.ts', '--reporter=json', `--outputFile=${reportFile}`],
+	['node_modules/vitest/vitest.mjs', 'run', '--config', 'tests/gates/fixtures/vitest.brokenFake.config.ts', '--reporter=json', `--outputFile=${reportFile}`],
 	{ cwd: REPO, encoding: 'utf8', timeout: 120_000 },
 );
 

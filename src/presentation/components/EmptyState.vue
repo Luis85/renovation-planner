@@ -19,7 +19,7 @@
  * differs from the mock, and not only by losing the mock's placeholder defaults: the mock
  * was visual-only and wired no click at all, so the template also gained
  * `@click="$emit('action')"` here — without it the promoted component's `action` event
- * would have been unreachable. `tests/build/prototype-promotion.test.ts` holds templates
+ * would have been unreachable. `tests/gates/prototype-promotion.test.ts` holds templates
  * byte-identical across promotion for exactly one file pair (`ZoneSummary.vue`) and does
  * not cover this one, so nothing caught that gap automatically; CLAUDE.md's design-slice-14
  * entry records it as the reason promotion is not always a byte-for-byte move.

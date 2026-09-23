@@ -431,7 +431,7 @@ body {
  * So it rendered as plain body text at the top-left of the stage: an entry that failed to render
  * and an entry nobody had picked yet drew the same picture, in the same colour, in the same
  * place. Confirmed by capture — `?entry=component:editor/layers/EmptyLayer` and `?index` differ
- * only in the words. That is precisely what `tests/build/prototype-styles.test.ts` refuses for
+ * only in the words. That is precisely what `tests/gates/prototype-styles.test.ts` refuses for
  * `src/prototypes/` ("a class a mock names that the assembled sheet leaves undeclared", the
  * defect that once rendered `Kitchen12.60 m²` through forty-four review rounds); the harness
  * index is outside that check's scope and had the same defect.

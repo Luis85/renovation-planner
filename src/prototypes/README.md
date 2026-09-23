@@ -7,10 +7,10 @@ Read it before the first mock: two of the questions below — where a mock's CSS
 
 `.vue` files that are already real Vue components the harness mounts like any other, so
 **promotion MOVES the file — the markup is never redrawn.** That is the whole point, and
-`tests/build/prototype-promotion.test.ts` holds it.
+`tests/gates/prototype-promotion.test.ts` holds it.
 
 **A `<template>` is the only required block.** A `<script setup>` and a `<style>` are both
-allowed here and refused everywhere else in `src/`; `tests/build/vue-rules.test.ts` drives both
+allowed here and refused everywhere else in `src/`; `tests/gates/vue-rules.test.ts` drives both
 trees, because "off here and on there" is a claim a config's own text cannot make good on.
 
 - **Template-only is the simplest shape and stays fully supported.** It composes through the
@@ -32,7 +32,7 @@ redraw this tree exists to avoid. Both are auto-fixable, so `npx eslint --fix sr
 settles them without reading a rule. One rule IS relaxed — `vue/multi-word-component-names`, so a
 mock may be called `Kitchen.vue` after the screen it draws; it is about the file name rather than
 the markup, and a promoted mock is simply renamed. `eslint.config.mjs` carries the reasoning and
-`tests/build/vue-rules.test.ts` drives all three spellings in both trees.
+`tests/gates/vue-rules.test.ts` drives all three spellings in both trees.
 
 **Two ways to compose, and which one you get follows from whether the file has a script.** A
 template-only file can import nothing at all — it has nowhere to put the statement — so
@@ -53,7 +53,7 @@ mock has a script; keep the registry for the template-only shape, where it is th
 **This tree is a one-way door.** Nothing in `src/` may import from it. The reverse direction is
 open at the layer level — no `no-restricted-imports` rule stands in the way of a prototype naming
 `vue`, a real component, or anything else `src/` may name, which
-`tests/build/prototypes-one-way-door.test.ts` drives from the open side as well as the closed
+`tests/gates/prototypes-one-way-door.test.ts` drives from the open side as well as the closed
 one — and a scripted mock is exactly how that gets exercised: `WorkPackageFilters.vue` imports
 `vue` today. This paragraph read
 "nothing in this tree can exercise that today, because the template-only rule leaves no place for
@@ -63,8 +63,8 @@ had authors avoiding is the supported one. Two checks guard the CLOSED direction
 is sufficient alone:
 
 - `eslint.config.mjs` bans the import from every other layer — checked at the forbidden thing,
-  so it holds for code nobody has written yet. `tests/build/prototypes-one-way-door.test.ts`.
-- `tests/build/prototypes-not-bundled.test.ts` runs a real `vite build` in memory (`write:
+  so it holds for code nobody has written yet. `tests/gates/prototypes-one-way-door.test.ts`.
+- `tests/gates/prototypes-not-bundled.test.ts` runs a real `vite build` in memory (`write:
   false`, so nothing is ever written to `dist/`) and inspects which modules composed each
   chunk — catching the dynamic route lint cannot see. It derives what to look for from THIS
   TREE: no file here has to remember a marker, because a marker only ever proves the marker
@@ -79,7 +79,7 @@ imports this tree, so the block never reaches `dist/`: a screen that does not ex
 every vault nothing. `WorkPackageFilters.vue` is the worked example. What it costs is that the
 block does not TRAVEL: a shipped component is styled from the assembled sheet, because SDD §84's
 colour check runs over that sheet with lightningcss and never sees inside an SFC — so promotion
-lifts the block into a partial. `tests/build/prototype-promotion.test.ts` pins that a promoted
+lifts the block into a partial. `tests/gates/prototype-promotion.test.ts` pins that a promoted
 component carries no `<style>`.
 
 **`scoped` is required, and it is not a preference.** Vite injects a component's CSS when its
@@ -87,7 +87,7 @@ module loads and never removes it, so an unscoped block goes on styling the inde
 designer has navigated away — and any later entry sharing a selector, a real component included,
 inherits provisional rules, making what it looks like depend on the order entries were opened.
 That is criterion 5's guarantee broken by the mechanism meant to be free.
-`tests/build/prototype-styles.test.ts` refuses an unscoped block.
+`tests/gates/prototype-styles.test.ts` refuses an unscoped block.
 
 **And `scoped` alone is not enough, which is the part worth reading twice.** Vue applies the
 parent's scope attribute to a child component's ROOT element, by design — so a mock's rule can
@@ -124,7 +124,7 @@ here put 296 lines of CSS into the shipped sheet for a screen nobody can open. D
 mock means deleting its partial and its `@import` too; deleting a mock that styles itself means
 deleting one file.
 
-`tests/build/prototype-styles.test.ts` refuses a class a mock names that the assembled sheet
+`tests/gates/prototype-styles.test.ts` refuses a class a mock names that the assembled sheet
 leaves undeclared, so a mock cannot arrive unstyled by accident — which is how the first one
 here rendered `Kitchen12.60 m²` through forty-four review rounds. It says nothing about whether
 the styling is any GOOD: jsdom lays nothing out, so spacing, wrapping and overflow are visible

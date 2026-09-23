@@ -28,7 +28,7 @@ import { assembleStyles } from '../../../scripts/styles-assemble.mjs';
  *
  * **Copied is not derived, which is why this is a scan.** A hand-transcribed pair of selectors
  * leaves this whole file green on the day the shipped rule changes and production stops hiding
- * anything — the drift would redden only in `tests/build/styles.test.ts`, one file away, and
+ * anything — the drift would redden only in `tests/gates/styles.test.ts`, one file away, and
  * only for the one rule that file pins by text. Reading the sheet means the composition these
  * cases drive IS the composition that ships.
  *

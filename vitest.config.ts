@@ -24,9 +24,9 @@ import { namedFrom, repoTree } from './tests/helpers/importGraph.ts';
  * **TWO mechanisms, and the second is what made the first version of this rule wrong.** A file
  * can boot ESLint by importing that shared instance, or by executing `scripts/lint-edited.mjs`,
  * which spawns a real one per invocation. The reviewed proposal was "the twelve files in
- * `tests/build/` that import the helper", and shipping exactly that turned the gate RED: it
+ * `tests/gates/` that import the helper", and shipping exactly that turned the gate RED: it
  * missed `tests/helpers/eslint.test.ts`, which imports the helper as a sibling (`./eslint`) from
- * outside `tests/build/`, and `tests/build/lint-edited.test.ts`, which imports nothing and
+ * outside `tests/gates/`, and `tests/gates/lint-edited.test.ts`, which imports nothing and
  * spawns the linter instead. Both then ran against the full parallel suite and blew their 60s
  * budgets — measured, not predicted. Hence a scan over all of `tests/` and a pattern naming both
  * mechanisms.
@@ -125,7 +125,7 @@ export default defineConfig({
 	// refuses an SSR transform of any `.vue` — the shape a
 	// node-environment test produces by reaching an SFC through its imports, whose unrendered
 	// `v-if`/`v-model` arms the coverage merge then counts as uncovered. In THIS config only;
-	// the plugin's header says why, and `tests/build/no-ssr-sfc.test.ts` drives it through a
+	// the plugin's header says why, and `tests/gates/no-ssr-sfc.test.ts` drives it through a
 	// child vitest over two fixture specs.
 	plugins: [noSsrSfc(), vue()],
 	resolve: {
@@ -135,7 +135,7 @@ export default defineConfig({
 			// alias by reading this literal, and an imported value would blind it to
 			// every `import ... from 'obsidian'` in src/. The identical literal in
 			// `vite.harness.config.ts` is pinned to this one by
-			// `tests/build/config-alias.test.ts`, so the two cannot silently drift.
+			// `tests/gates/config-alias.test.ts`, so the two cannot silently drift.
 			obsidian: fileURLToPath(new URL('./tests/helpers/obsidian-mock.ts', import.meta.url)),
 		},
 	},
@@ -159,7 +159,7 @@ export default defineConfig({
 		maxWorkers: process.env.CI ? undefined : '50%',
 		// TWO PROJECTS, and the split is a COST decision rather than a taxonomy.
 		//
-		// `tests/build/` is the count `ls tests/build/*.test.ts | wc -l` prints today; the files
+		// `tests/gates/` is the count `ls tests/gates/*.test.ts | wc -l` prints today; the files
 		// `eslintBootingTests()` derives each boot a type-aware ESLint, and
 		// `tests/helpers/eslint.ts` says what one boot costs (~3s idle, 17.8s seen under full
 		// parallel load). Every boot is paid AGAIN per file, because vitest gives each test
@@ -174,7 +174,7 @@ export default defineConfig({
 		// timing, 40 today. Each is what the tree held when that run happened; renumbering one
 		// to today's figure would claim a run nobody made. Re-run the command above before
 		// reasoning from any of them: this line has already been one file behind its own tree,
-		// because a merge added `tests/build/appIdPrefix.test.ts` after the numbers were
+		// because a merge added `tests/gates/appIdPrefix.test.ts` after the numbers were
 		// written and nothing re-measures a number in prose.
 		//
 		// **Only that directory, and that bound is measured rather than cautious.**
@@ -185,7 +185,7 @@ export default defineConfig({
 		// the observed ones is whack-a-mole. Four families of module-level state cause it
 		// (Konva's `stages` registry, a `npm_package_version` mutation, `@napi-rs/canvas`'s
 		// install against a reused jsdom global, and the harness `import.meta.glob`
-		// registry). `tests/build/` holds none of them, and its own numbers say why it is the
+		// registry). `tests/gates/` holds none of them, and its own numbers say why it is the
 		// safe half: 605ms of environment across all 36 files it then held, against 82s for the
 		// rest.
 		//
@@ -196,7 +196,7 @@ export default defineConfig({
 		// boots then contends with the others for the same cores. That is the `beforeAll`
 		// timeout this repository documents as a hazard and had learned to re-run serially
 		// rather than close — measured on the merged tree, which held 39 files then, at ten
-		// `tests/build/` files failing under default parallelism with no source change, and
+		// `tests/gates/` files failing under default parallelism with no source change, and
 		// 39 of 39 passing on a `--no-file-parallelism` re-run.
 		//
 		// `maxWorkers: 1` is the lever the note above says does not exist ("a lever that helps
@@ -238,14 +238,14 @@ export default defineConfig({
 		// evidence about the case — and it carries the warm-up its siblings carry now.
 		//
 		// WHAT THE SPLIT COSTS, said out loud rather than left to be discovered: a file in
-		// `tests/build/` no longer proves anything about its own isolation, so a leak between
+		// `tests/gates/` no longer proves anything about its own isolation, so a leak between
 		// two of those files now reads as a pass. Nothing there asserts one today — every
 		// leak-detection case the whole-suite experiment broke lives under
 		// `tests/presentation/` or `tests/harness/`, which stay isolated.
 		//
 		// `exclude` spreads `configDefaults.exclude` rather than replacing it: a project's
 		// `exclude` OVERRIDES the default rather than adding to it, so naming only
-		// `tests/build/**` would put `node_modules/**` back in scope.
+		// `tests/gates/**` would put `node_modules/**` back in scope.
 		//
 		// AND THERE IS NO `include` BESIDE THIS KEY, which is the one thing here a reader is
 		// likely to put back. With `extends: true` a project's `include` MERGES with the root's
@@ -278,7 +278,7 @@ export default defineConfig({
 					sequence: { groupOrder: 0 },
 				},
 			},
-			// The other `tests/build/` files, back at default parallelism where they always
+			// The other `tests/gates/` files, back at default parallelism where they always
 			// belonged, and sharing a group with `suite` so the two overlap. Vitest 4 refuses to
 			// overlap two projects whose `maxWorkers` differ ("Projects 'x' and 'y' have
 			// different 'maxWorkers' but same 'sequence.groupOrder'"), which is why `build-lint`
@@ -291,7 +291,7 @@ export default defineConfig({
 				extends: true,
 				test: {
 					name: 'build',
-					include: ['tests/build/**/*.test.ts'],
+					include: ['tests/gates/**/*.test.ts'],
 					exclude: [...configDefaults.exclude, ...ESLINT_TESTS],
 					isolate: false,
 					sequence: { groupOrder: 1 },
@@ -302,7 +302,7 @@ export default defineConfig({
 				test: {
 					name: 'suite',
 					include: ['tests/**/*.test.ts'],
-					exclude: [...configDefaults.exclude, 'tests/build/**', ...ESLINT_TESTS],
+					exclude: [...configDefaults.exclude, 'tests/gates/**', ...ESLINT_TESTS],
 					sequence: { groupOrder: 1 },
 				},
 			},
@@ -320,7 +320,7 @@ export default defineConfig({
 			// `src/prototypes/**` is design scaffolding: nothing in the tree ships, so measuring
 			// it would let a mock's untested branches move a gate that exists for shipped code —
 			// and the floors are a RATCHET, so a tree that drags them is a tree that lowers them.
-			// `tests/build/prototypes-not-bundled.test.ts` proves the "never in a built plugin"
+			// `tests/gates/prototypes-not-bundled.test.ts` proves the "never in a built plugin"
 			// half directly: a real `vite build` in memory (`write: false`, so nothing is ever
 			// written to `dist/`), asking Rolldown which modules composed each chunk.
 			exclude: ['src/main.ts', 'src/prototypes/**'],
@@ -1367,7 +1367,7 @@ export default defineConfig({
 			//
 			// **A note about the RUN rather than the numbers, because it cost three attempts.** Two
 			// serial coverage runs failed on a `warmUpEslint` hook timing out — a DIFFERENT
-			// `tests/build/` file each time (`notice-text-boundary`, then
+			// `tests/gates/` file each time (`notice-text-boundary`, then
 			// `language-resolution-boundary`), each passing in isolation. Serial is not the remedy for
 			// that contention and is arguably its cause: this file's own paragraph on the derived
 			// ESLint-booting files records ~30s per boot under default parallelism against ~60s

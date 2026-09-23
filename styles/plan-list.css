@@ -99,7 +99,7 @@
  * Scoped under `.rp-plan-list`, not a bare `.rp-plan-list__row`: Obsidian's own
  * `button:not(.clickable-icon)` is (0,1,1) and a single class here is (0,1,0), so the flat
  * transparent row would lose its background and colour outright —
- * `tests/build/buttonSpecificity.test.ts` refuses that loss as a category.
+ * `tests/gates/buttonSpecificity.test.ts` refuses that loss as a category.
  */
 /*
  * The row and its Delete share one line, so the separator moved from the row to the ITEM: left
@@ -173,7 +173,7 @@
 }
 
 /* Flattening the row took Obsidian's own `button:focus-visible` box-shadow with it, so the ring
-   is stated here — `tests/build/buttonFocusRing.test.ts` is the check for exactly that. The
+   is stated here — `tests/gates/buttonFocusRing.test.ts` is the check for exactly that. The
    offset is NEGATIVE because the row is edge-to-edge and an outside ring would clip. WCAG 2.4.7. */
 .rp-plan-list .rp-plan-list__row:focus-visible {
 	outline: 2px solid var(--interactive-accent);

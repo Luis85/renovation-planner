@@ -64,8 +64,8 @@ const TESTS = '**/tests/**';
  * carve-out fails INWARD — the sink's own `.js` files would be the one place a `.js` file
  * could not use the console — so every caller is spelled by the same function.
  *
- * What actually catches a forgotten block is `tests/build/vue-rules.test.ts` (`.vue`) and
- * `tests/build/prototypes-one-way-door.test.ts` (`.ts` and `.js`, the root-of-`src/` block
+ * What actually catches a forgotten block is `tests/gates/vue-rules.test.ts` (`.vue`) and
+ * `tests/gates/prototypes-one-way-door.test.ts` (`.ts` and `.js`, the root-of-`src/` block
  * below) — `.tsx`, `.mts` and `.cts` are the three extensions this helper covers that no
  * test drives, for the reason above. This helper only makes the spellings impossible to
  * write apart by hand; it does not make every one of them equally verified.
@@ -164,7 +164,7 @@ const forbidden = (layer, { groups = [], packages = [] }, reason) => ({
  * `infrastructure/` that fetches is invisible here; and a dependency that wraps one of
  * these, since a package name nobody listed is a package this rule has never heard of.
  * `npm run analyze`'s dependency hygiene sees packages but not calls, so nothing else in
- * the gate closes those. `tests/build/network-boundary.test.ts` pins each blind spot as an
+ * the gate closes those. `tests/gates/network-boundary.test.ts` pins each blind spot as an
  * absence rather than leaving it in prose.
  */
 /**
@@ -224,7 +224,7 @@ const NETWORK_MEMBERS = [{ name: 'obsidian', importNames: ['request', 'requestUr
  * not the subtree, and the survival cases in the test can only name the groups that exist
  * today. Sharing the constant is what makes divergence impossible rather than merely absent.
  *
- * `tests/build/network-boundary.test.ts` still checks the outcome instead of trusting the
+ * `tests/gates/network-boundary.test.ts` still checks the outcome instead of trusting the
  * sharing: it drives a cross-layer import through these paths the way `vue-rules.test.ts`
  * does for `presentation/dialogs/`, AND compares each subtree's resolved ban against its
  * parent's for superset, which is what would catch an un-hoisting.
@@ -282,11 +282,11 @@ const PRESENTATION_AND_HOST = ['vue', 'pinia', 'konva', 'vue-konva', 'obsidian']
  * layer's ban verbatim. Spelling that restatement out by hand made it a SECOND LIST, which
  * is the exact defect the network work was fixing: a group added to `forbidden('application', …)`
  * would silently not reach `application/queries/`, and nothing would report it, because the
- * survival cases in `tests/build/network-boundary.test.ts` can only name the groups that
+ * survival cases in `tests/gates/network-boundary.test.ts` can only name the groups that
  * exist today.
  *
  * One constant per layer, passed to BOTH calls, so divergence is not something a reviewer
- * has to notice. `tests/build/network-boundary.test.ts` still checks the outcome rather than
+ * has to notice. `tests/gates/network-boundary.test.ts` still checks the outcome rather than
  * trusting this: it compares the two subtrees' RESOLVED configs against their parents' and
  * requires a superset, which catches an un-hoisting as well as an omission.
  *
@@ -338,7 +338,7 @@ const pluginRules = obsidianmd.configs.recommendedWithLocalesEn.map((c) => ({
  * The `files` list is DERIVED from `recommendedWithLocalesEn` itself — the one config block
  * whose `rules` names `sentence-case-locale-module` — rather than retyped, so this override
  * cannot drift from the glob the rule is actually scoped to.
- * `tests/build/localeModuleSentenceCase.test.ts` pins that the RESOLVED config for a real
+ * `tests/gates/localeModuleSentenceCase.test.ts` pins that the RESOLVED config for a real
  * locale file actually carries `SKU` in its `acronyms` option, which is what a stale
  * derivation here would break: `files: undefined` is not a silent no-op, it is an ESLint
  * config VALIDATION ERROR (`Key "files": Expected value to be a non-empty array`), so the
@@ -546,7 +546,7 @@ const I18N_LITERAL_BAN = [
 	 * a selector that merely says "a literal somewhere in this call".
 	 *
 	 * Blind spots, the same three every selector in this file has and asserted as such in
-	 * `tests/build/i18n-literal-boundary.test.ts`: a literal held in a variable first, a
+	 * `tests/gates/i18n-literal-boundary.test.ts`: a literal held in a variable first, a
 	 * TEMPLATE literal (a different node type), and a call reached through a name other than
 	 * these two.
 	 */
@@ -605,7 +605,7 @@ const I18N_LITERAL_BAN = [
  *     half. `[value=/\S/]` for the reason `I18N_LITERAL_BAN` gives: an empty or
  *     whitespace-only string carries nothing to translate.
  *
- * What they CANNOT see, pinned as absences in `tests/build/notice-text-boundary.test.ts`
+ * What they CANNOT see, pinned as absences in `tests/gates/notice-text-boundary.test.ts`
  * rather than left in prose:
  *
  *   - a value one hop away — a local assigned `error.message` and then passed — the same
@@ -688,7 +688,7 @@ const NOTICE_TEXT_BAN = [
  * between them, so the category costs two spreads and one carve-out. ESLint-only either way:
  * oxlint has no `no-restricted-syntax`, so the edit-loop hook cannot see this rule.
  *
- * `tests/build/language-resolution-boundary.test.ts` drives both selectors, the carve-out and
+ * `tests/gates/language-resolution-boundary.test.ts` drives both selectors, the carve-out and
  * the blind spots through real fixture paths.
  */
 const LANGUAGE_RESOLUTION_BAN = [
@@ -762,7 +762,7 @@ export default defineConfig([
 		 *
 		 * No `files` key, so it applies to everything ESLint lints here; a comment that now
 		 * does nothing is reported, and `--max-warnings 0` fails on it. The complement is
-		 * `tests/build/suppressions.test.ts`: oxlint keeps its own directive handling, and
+		 * `tests/gates/suppressions.test.ts`: oxlint keeps its own directive handling, and
 		 * nothing in ESLint's configuration reaches that.
 		 */
 		linterOptions: { noInlineConfig: true },
@@ -831,7 +831,7 @@ export default defineConfig([
 		 * sibling layers and its banned packages) with just this one's `prototypes`-only
 		 * rule. One hole, in an unnamed subtree, would be traded for six, in every named
 		 * one, silently: the prototypes ban would still fire everywhere and
-		 * `tests/build/prototypes-one-way-door.test.ts` would still read green, because
+		 * `tests/gates/prototypes-one-way-door.test.ts` would still read green, because
 		 * nothing in it checks that a LAYER ban survived — only that the prototypes ban did.
 		 *
 		 * Placed BEFORE them, as it is here, the same override becomes the fix instead: each
@@ -842,7 +842,7 @@ export default defineConfig([
 		 * `forbidden(...)` call of its own is left with just this block's rule, which is
 		 * exactly the coverage a subtree nobody has named yet should have.
 		 *
-		 * `tests/build/prototypes-one-way-door.test.ts` drives both halves of that claim: an
+		 * `tests/gates/prototypes-one-way-door.test.ts` drives both halves of that claim: an
 		 * unnamed subtree refusing a prototype import, AND a named layer's own
 		 * cross-layer ban still firing — proof this block did not quietly take the second
 		 * one away. Proving only the first half is the trade above, passing.
@@ -929,7 +929,7 @@ export default defineConfig([
 		// Repeats `infrastructure` and `plugin` from the `presentation` block above ON
 		// PURPOSE: two blocks matching one file OVERRIDE `no-restricted-imports` rather than
 		// merging it, so a block that named only its own additions would quietly widen the
-		// hole it was written to narrow. `tests/build/vue-rules.test.ts` drives all three
+		// hole it was written to narrow. `tests/gates/vue-rules.test.ts` drives all three
 		// through real fixture paths rather than reading this object.
 		//
 		// `prototypes` is in that list for exactly the reason the paragraph above gives, and it
@@ -1058,7 +1058,7 @@ export default defineConfig([
 			// The TypeScript parser INSIDE the SFC, so `<script setup lang="ts">` parses.
 			// Deliberately without `projectService`: type-aware linting of SFCs needs
 			// `extraFileExtensions` and a file the project service can resolve, which the
-			// fixture technique in tests/build/vue-rules.test.ts cannot supply. So
+			// fixture technique in tests/gates/vue-rules.test.ts cannot supply. So
 			// `@typescript-eslint/no-floating-promises` stays on `.ts` only, and the first
 			// SFC with an async call site is the trigger to wire the type-aware half.
 			parserOptions: { parser: tsparser },
@@ -1096,7 +1096,7 @@ export default defineConfig([
 			// repository indents with tabs — `.ts`, `.vue`, `.json` and `.css` alike. Told the
 			// project's format rather than reformatting one file away from every other: a
 			// formatting rule has no opinion worth overriding the project's with. Checked by a
-			// fixture in tests/build/vue-rules.test.ts, so this is not a silencing.
+			// fixture in tests/gates/vue-rules.test.ts, so this is not a silencing.
 			'vue/html-indent': ['error', 'tab'],
 			// The budgets and the console ban the `**/*.ts` block gives every other file.
 			// Repeated rather than inherited: that block is `.ts`-scoped by design, since
@@ -1127,7 +1127,7 @@ export default defineConfig([
 		 *
 		 * ONE rule and nothing else, for the flat-config reason stated at the logging carve-out:
 		 * a second block matching the same file REPLACES the rule rather than merging, so the
-		 * budgets and every Vue rule above stay in force. `tests/build/lint-scope.test.ts` asks
+		 * budgets and every Vue rule above stay in force. `tests/gates/lint-scope.test.ts` asks
 		 * ESLint itself for both halves — the Vue rules on, this one off — because a `files`
 		 * glob that stopped matching would make the gate quieter rather than redder.
 		 */
@@ -1164,7 +1164,7 @@ export default defineConfig([
 		 * anything — the wider `VUE_FILES` block's `['error', 'style']` would simply apply. The
 		 * same trap this config documents for `no-restricted-syntax`, in the other direction.
 		 *
-		 * `tests/build/vue-rules.test.ts` drives both blocks in both trees, because "off here and
+		 * `tests/gates/vue-rules.test.ts` drives both blocks in both trees, because "off here and
 		 * on there" is exactly the claim a config's own text cannot make good on.
 		 */
 		files: ['**/src/prototypes/**/*.vue'],
@@ -1185,7 +1185,7 @@ export default defineConfig([
 			 * Only ONE of the three is turned off, and the line between them is `--fix`. The two
 			 * formatting rules are auto-fixable (measured: `eslint --fix` rewrites both spellings
 			 * above correctly), and they are what makes a mock's template LEGAL in
-			 * `src/presentation/` unchanged — `tests/build/prototype-promotion.test.ts` holds that
+			 * `src/presentation/` unchanged — `tests/gates/prototype-promotion.test.ts` holds that
 			 * the promoted template is byte-identical, so relaxing formatting here would move the
 			 * failure to promotion, where the fix is redrawing the markup and the whole feature is
 			 * "the markup is never redrawn". This one is not fixable and never could be: it is
@@ -1196,7 +1196,7 @@ export default defineConfig([
 			 *
 			 * The cost, stated: a promoted mock still meets this rule in `src/presentation/`, so
 			 * `Kitchen.vue` is renamed at promotion. That is a rename of a file, not a redraw of a
-			 * template, and it is the trade this block is choosing. `tests/build/vue-rules.test.ts`
+			 * template, and it is the trade this block is choosing. `tests/gates/vue-rules.test.ts`
 			 * drives all three spellings, in both trees.
 			 */
 			'vue/multi-word-component-names': 'off',
@@ -1226,7 +1226,7 @@ export default defineConfig([
 		// `npm run check`. Keeping the rule on is what makes the gate agree with the
 		// reviewer.
 		//
-		// Both halves of the claim above are pinned by `tests/build/logging-carve-out.test.ts`,
+		// Both halves of the claim above are pinned by `tests/gates/logging-carve-out.test.ts`,
 		// because both are one upstream release from being false: the glob is asked of
 		// ESLint's own resolution, and — the fragile one — the obsidianmd rule is a WRAPPER
 		// that matches the built-in rule's rendered message against a literal and reports

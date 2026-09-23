@@ -421,7 +421,7 @@ its old wording is how the gap between promise and check reopens.
 
 - [x] `Asset` declares no `projectId`, `AssetEventPayload` carries none, and
       `AssetFrontmatterSchemaV1` has no `project` key.
-      *(amended 2026-08-31: this item named a `tests/build/` check "finding no `asset` module
+      *(amended 2026-08-31: this item named a `tests/gates/` check "finding no `asset` module
       naming `ProjectId`". No such check was written and none is proposed, and the reason is
       what the greps actually print. `grep -rn "ProjectId" src/domain/asset/` — the TYPE, that
       exact spelling — matches **nothing**, so a scan for it would pass over a tree that had

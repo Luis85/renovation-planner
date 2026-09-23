@@ -69,9 +69,9 @@ outcome, not a skip. Section D was left alone.
 | 20 | Fixed | Slice 01 states it once: registration in `onload`, vault walks in `app.workspace.onLayoutReady`. Two independent reasons (main-thread contention; `MetadataCache` incomplete during startup). Slice 04's ordering language adjusted, recovery still before the index build. |
 | 21 | Fixed | Pan/zoom is the content `Group`'s transform; `ZoneShape` passes world millimetres straight to `<v-line>` and takes no `Viewport`. `strokeScaleEnabled: false` and the unscaled-sibling layer for slice 6's handles are named. DoD asserts points are reference-identical across a pan. |
 | 22 | Fixed | `write()` dropped from `PlanGeometryStore`; `read()` kept. The comment records why a method whose own documentation forbids its only use is not an escape hatch. |
-| 23 | Fixed | Respecced against the existing harness: `ESLint.lintText` with a synthetic `src/domain/` `filePath`, positive and negative cases, no `ignores` entry, so `suppressions.test.ts`'s claim stays whole. The tests move to `tests/build/`, and 473's "or a documented manual check at release time" is withdrawn against §8's own principle. |
+| 23 | Fixed | Respecced against the existing harness: `ESLint.lintText` with a synthetic `src/domain/` `filePath`, positive and negative cases, no `ignores` entry, so `suppressions.test.ts`'s claim stays whole. The tests move to `tests/gates/`, and 473's "or a documented manual check at release time" is withdrawn against §8's own principle. |
 | 24 | Fixed | "matches nothing until slice 1's console sink lands there" — true before and after. |
-| 25 | Fixed | (a) The real reason is written in both places: the marketplace bot lints with its own config, so a local override would not travel. The old justification was wrong twice — `noInlineConfig` already refuses the comment form, and a config-level `'obsidianmd/rule-custom-message': 'off'` was available. (b) `tests/build/logging-carve-out.test.ts` pins the wrapper's verbatim message match against ESLint's own rendered message, both read from `node_modules`. `tests/helpers/eslint.ts` owns the instrument; `suppressions.test.ts` moves onto it and stops spawning the bin. |
+| 25 | Fixed | (a) The real reason is written in both places: the marketplace bot lints with its own config, so a local override would not travel. The old justification was wrong twice — `noInlineConfig` already refuses the comment form, and a config-level `'obsidianmd/rule-custom-message': 'off'` was available. (b) `tests/gates/logging-carve-out.test.ts` pins the wrapper's verbatim message match against ESLint's own rendered message, both read from `node_modules`. `tests/helpers/eslint.ts` owns the instrument; `suppressions.test.ts` moves onto it and stops spawning the bin. |
 | 26 | Decided — adopted | The cascade runs its per-Requirement pairs with bounded concurrency. Independence follows from the lock hierarchy's own rules; undo ordering was never resting on this (slice 6 serializes `CommandHistory` per Plan). The three properties the concurrent form must keep are stated. |
 | 27 | Decided — adopted | `AssetUpdated` skips a Requirement whose `calculatedFrom` still matches. The usual objection does not apply: `calculatedFrom` is the first and only declaration of those inputs, and the read-model backstop already depends on it. An 80-Requirement rename: 160 writes down to zero. |
 | 28 | Declined | Refreshing from `save()`'s return value. The payload is discarded by `UndoableCommand`'s contract, and it is the wrong *set* anyway — the refresh must cover what the cascade wrote, so it would be right for one-entity commands and silently wrong for the rest. Recorded in slice 08's third decorator property. |
@@ -102,7 +102,7 @@ outcome, not a skip. Section D was left alone.
 Two things changed that the ledger did not ask for, both consequences of items above and
 both worth naming rather than leaving to be noticed:
 
-- **`tests/helpers/eslint.ts` is new**, and `tests/build/suppressions.test.ts` moved onto
+- **`tests/helpers/eslint.ts` is new**, and `tests/gates/suppressions.test.ts` moved onto
   it. Item 25(b) needed a second caller of ESLint-as-an-instrument, and the existing one
   was spending 4.4 seconds of vitest's 5-second default inside a subprocess boot. The
   suite is now several times faster overall.
@@ -182,7 +182,7 @@ both worth naming rather than leaving to be noticed:
     DoD at 488) contradicts the bold claim at 129 ("Every test lives under `tests/`,
     mirroring `src/`") and CLAUDE.md's convention, and the profile globs (139–145)
     cover neither the mirrored layout nor the directories that exist on disk today
-    (`tests/build/`, `tests/harness/`, `tests/helpers/`, `tests/release/`) — so
+    (`tests/gates/`, `tests/harness/`, `tests/helpers/`, `tests/release/`) — so
     implementing the profiles as written silently stops running the existing suites,
     including the lint-gate meta-tests this slice depends on. Pick ONE layout,
     reconcile tree + claim + globs + DoD, and make the globs account for every
@@ -282,7 +282,7 @@ both worth naming rather than leaving to be noticed:
     sit under `src/domain/` for the layer rule to fire, where the real `eslint .`
     run reds on it; the escape (global `ignores`) makes the meta-test assert on zero
     findings and pass vacuously — the exact failure 452 says it exists to prevent.
-    It also ignores the existing lint-meta-test harness (`tests/build/lint-*.test.ts`,
+    It also ignores the existing lint-meta-test harness (`tests/gates/lint-*.test.ts`,
     `tests/helpers/oxlint.ts`). And 473's "a test (or a documented manual check at
     release time)" contradicts the slice's own 325. Respec against the existing
     harness with an explicit story for where the fixture lives.
@@ -413,10 +413,10 @@ was considered and why it was declined.
     detecting its removal; `.oxlintrc.json`'s "deliberately NOT here" list (72) does
     not name `no-console` and `overrides` (153) has no logging carve-out to pair
     with ESLint's; the carve-out glob has no resolution test
-    (`tests/build/suppressions.test.ts` owns the `--print-config` instrument);
+    (`tests/gates/suppressions.test.ts` owns the `--print-config` instrument);
     `scripts/lint-edited.mjs` runs only oxlint so `console.log` in the future sink
     is invisible to the edit loop; ESLint's scope has no equivalent of
-    `tests/build/lint-scope.test.ts`; and slice 01:671's Vue-widening checklist
+    `tests/gates/lint-scope.test.ts`; and slice 01:671's Vue-widening checklist
     omits the carve-out its own line 292–293 says gets widened (fix that checklist
     line regardless).
 51. `docs/product/prds/obsidian-renovation-planner.md` vs `docs/development/sdds/…-SDD.md` — the rename

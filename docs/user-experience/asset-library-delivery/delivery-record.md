@@ -156,7 +156,7 @@ review limitations.
 | Captures and documentation | 16 production-component states; no page errors; all local links in this delivery package resolve |
 | `git diff --check` | Passed |
 
-The lint-hook timeout is in `tests/build/lint-edited.test.ts`, case “tells the agent what ESLint found
+The lint-hook timeout is in `tests/gates/lint-edited.test.ts`, case “tells the agent what ESLint found
 in an SFC, which oxlint cannot see at all”. Large concurrent test runs on this 8 GB host accompanied
 the timeouts; that observation is not a claim that the test passed. The full gate is not green because
 of this timeout and the baseline analysis findings above. The implementation is submitted as a draft

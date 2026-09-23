@@ -1,4 +1,4 @@
-# Editors read this; shells do not — `tests/build/encoding.test.ts` is the check that
+# Editors read this; shells do not — `tests/gates/encoding.test.ts` is the check that
 # holds the charset rule against a redirect or a PowerShell Set-Content (whose utf8 is
 # BOM'd in 5.1, which breaks JSON.parse and broke lint here once).
 root = true

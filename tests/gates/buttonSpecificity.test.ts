@@ -180,7 +180,7 @@ describe('the instrument', () => {
 	 * Under-scoring is the false-pass direction, and the first case is the one that bites: against
 	 * `.a.b .button:focus-visible` at (0,4,0) a reset carrying `:nth-child(2 of .scope)` TIES and,
 	 * coming later, wins in the browser — while a reader scoring it (0,3,0) leaves the ring the
-	 * simulated winner and `tests/build/buttonFocusRing.test.ts` certifies an indicator that is not
+	 * simulated winner and `tests/gates/buttonFocusRing.test.ts` certifies an indicator that is not
 	 * on screen.
 	 */
 	it.each([

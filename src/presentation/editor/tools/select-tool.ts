@@ -57,20 +57,24 @@ export interface SpatialObjectCandidate {
 	readonly size?: Dimensions;
 }
 
-/**
- * The move gesture factory. One reversible command per drag, built here rather than held:
- * like every adapter in this slice, one instance carries one transaction's forward/inverse
- * pair.
- */
-export interface SelectToolDeps extends ElementMoveDeps, ElementResizeDeps, RotationGestureDeps, SelectionInteractions, LabelMoveDeps, OpeningResizeDeps {
-	/** Selection remains available when false; only geometry gestures are withheld. */
-	readonly canMutateGeometry?: () => boolean;
+/** The gesture and opening/wall edits the select tool reaches; `EditorToolDeps` carries them through. */
+export interface SelectGestureDeps extends ElementMoveDeps, ElementResizeDeps, RotationGestureDeps, SelectionInteractions, LabelMoveDeps, OpeningResizeDeps {
 	/** The selected opening's handles, or `null` where none are offered; the same points that are drawn. */
 	readonly openingHandles?: () => { readonly id: string; readonly handles: readonly OpeningHandle[] } | null;
 	readonly stepOpening?: (id: string, deltaMm: number) => void;
 	readonly flipOpening?: (id: string, side: 'left' | 'right') => void;
 	readonly previewWall?: (id: string | null, end?: Point) => void;
 	readonly editWall?: (id: string, end: Point) => void;
+}
+
+/**
+ * The move gesture factory. One reversible command per drag, built here rather than held:
+ * like every adapter in this slice, one instance carries one transaction's forward/inverse
+ * pair.
+ */
+export interface SelectToolDeps extends SelectGestureDeps {
+	/** Selection remains available when false; only geometry gestures are withheld. */
+	readonly canMutateGeometry?: () => boolean;
 	readonly spatialObjects: () => readonly SpatialObjectCandidate[];
 	readonly createMoveGesture: (
 		zoneId: ZoneId,

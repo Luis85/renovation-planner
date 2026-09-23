@@ -18,7 +18,7 @@ import { reachableFrom, repoTree } from '../helpers/importGraph';
  * A DENYLIST, not an allowlist. An allowlist says "jsdom is permitted here and nowhere
  * else", a claim about the whole tree that nothing needs and that goes stale every time a
  * legitimate DOM-touching helper appears somewhere new — measured, it rejects
- * `tests/helpers/obsidian-mock.test.ts` and `tests/build/entryDrawn.test.ts`, both of which
+ * `tests/helpers/obsidian-mock.test.ts` and `tests/gates/entryDrawn.test.ts`, both of which
  * legitimately need jsdom. The subject is narrower: the inner layers' node enforcement.
  *
  * Not `jsdom` by name but "not node", because a rule with an implicit `else` claims

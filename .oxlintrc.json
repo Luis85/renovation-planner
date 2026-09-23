@@ -16,7 +16,7 @@
 	// ignores `scripts/` and the root configs entirely, leaving `tests/` with 24 rules and
 	// the build scripts with none. This file is what lints those. It earned the second
 	// linter on its first run, on a test file ESLint's core recommended never reached
-	// (`tests/build/config-alias.test.ts`, an unsafe optional chain).
+	// (`tests/gates/config-alias.test.ts`, an unsafe optional chain).
 	//
 	// The two overlap on `src/`, where ESLint's core recommended and oxlint's `correctness`
 	// say many of the same things twice. That is deliberate and costs nothing: one fix
@@ -48,7 +48,7 @@
 	// A directive that no longer silences anything is a claim about code that has since
 	// changed, and the ones that rot are the ones written to get past a gate. Denied rather
 	// than warned, because a warning here would be the only thing in `npm run lint` that
-	// does not fail. `tests/build/suppressions.test.ts` covers the other half — a directive
+	// does not fail. `tests/gates/suppressions.test.ts` covers the other half — a directive
 	// that IS doing something — which this cannot see by construction.
 	"options": { "reportUnusedDisableDirectives": "deny" },
 
@@ -182,7 +182,7 @@
 			// What oxlint canNOT back up: inside this directory ESLint still fails
 			// `console.log`/`console.info` through the obsidianmd wrapper, and oxlint has
 			// no port of that ruleset. So the edit loop is blind to exactly that case,
-			// and `tests/build/logging-carve-out.test.ts` plus `npm run check` are what
+			// and `tests/gates/logging-carve-out.test.ts` plus `npm run check` are what
 			// catch it. Narrowing the sentence rather than implying the backstop is total.
 			"files": ["src/infrastructure/logging/**"],
 			"rules": { "no-console": "off" }

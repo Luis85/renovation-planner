@@ -48,7 +48,7 @@ Opening docked there while Room, Area, Path, Fence, Item, Stairs, Arrow and Asse
 bar over the canvas's top edge. Every task now uses the bottom placement and one layout —
 title and instruction, tool controls, then Finish and Cancel — with Finish filled as the primary
 action in an accent mix measured at 5.64:1 (dark) and 5.33:1 (light) against its label in the harness. `styles/editor-task-bar.css`
-holds every rule for the bar, and `tests/build/taskBarPlacement.test.ts` refuses a second partial
+holds every rule for the bar, and `tests/gates/taskBarPlacement.test.ts` refuses a second partial
 naming it or a `top` placement. The Inspector's precise creation forms are unchanged.
 
 ## Follow-up from integrated smoke at `736ca7c1`

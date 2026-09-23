@@ -20,7 +20,7 @@ jobs:
     # source project could not see on one platform alone.
     #
     # `engines.node` declares three supported ranges (`^22.22.2 || ^24.15.0 || >=26.0.0`);
-    # `tests/build/engines.test.ts` only checks that every installed package's own
+    # `tests/gates/engines.test.ts` only checks that every installed package's own
     # `engines.node` fits inside that declaration — it cannot see a runtime break on a
     # range this suite never actually executes on. So all three ride here: a declared
     # range nobody executes is the same defect `engines.node` itself exists to catch,

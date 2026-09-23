@@ -3,7 +3,7 @@ import { transform, type Declaration, type Selector, type SelectorComponent, typ
 /**
  * CSS read through the parser this project already ships with, rather than through regexes.
  *
- * **Why this file exists.** Two checks — `tests/build/buttonSpecificity.test.ts` and
+ * **Why this file exists.** Two checks — `tests/gates/buttonSpecificity.test.ts` and
  * `tests/harness/indexChrome.test.ts` — have to answer questions about selectors: what class does
  * a rule's subject wear, how specific is it, does it reach past a given element. Both grew
  * hand-rolled readers, and NINE consecutive rounds of review found holes in them. Every one was
@@ -19,7 +19,7 @@ import { transform, type Declaration, type Selector, type SelectorComponent, typ
  *
  * None of those is a hard problem. They are all the same problem: a selector is a grammar, and a
  * regex is not a parser. `lightningcss` is already a devDependency, already parses this
- * project's stylesheets in `tests/build/styles.test.ts` and `tests/harness/harness.test.ts`, and
+ * project's stylesheets in `tests/gates/styles.test.ts` and `tests/harness/harness.test.ts`, and
  * hands back a typed tree in which each of those five defects is unrepresentable — a combinator
  * IS a node, a pseudo-class OWNS its argument list, and nesting is structure rather than text.
  *
@@ -263,7 +263,7 @@ export const matchesTheSubject = (component: SelectorComponent): boolean =>
  * The parser puts it under `of`, not under `selectors`, which is why the generic arm could not see
  * it at all: `.button:nth-child(2 of .scope):focus-visible` scored (0,3,0) here and is (0,4,0) in
  * a browser. Under-scoring a rule is the false-pass direction — a reset that really wins the
- * cascade reads as losing it, and `tests/build/buttonFocusRing.test.ts` then certifies a focus
+ * cascade reads as losing it, and `tests/gates/buttonFocusRing.test.ts` then certifies a focus
  * indicator no user can see.
  */
 const nthOfArgumentsOf = (component: SelectorComponent): SelectorList =>

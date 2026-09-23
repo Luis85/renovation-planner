@@ -13,7 +13,7 @@ export default defineConfig({
 	test: {
 		root: process.cwd(),
 		environment: 'node',
-		// NAMED EXACTLY, never globbed. `tests/build/fixtures/*.fixture.ts` also collects
+		// NAMED EXACTLY, never globbed. `tests/gates/fixtures/*.fixture.ts` also collects
 		// Task 8's `indirectDom.fixture.ts`, which reads `document` at module evaluation and
 		// therefore throws a `ReferenceError` under this run's node environment — so every
 		// child run would carry an unrelated second failure, the direct-run expectation of an
@@ -21,6 +21,6 @@ export default defineConfig({
 		// reading a run with two causes in it. A glob absorbs the next fixture and tells
 		// nobody, which is the reason `.fallowrc.json`'s own comments give for naming files
 		// one at a time.
-		include: ['tests/build/fixtures/brokenFake.fixture.ts'],
+		include: ['tests/gates/fixtures/brokenFake.fixture.ts'],
 	},
 });

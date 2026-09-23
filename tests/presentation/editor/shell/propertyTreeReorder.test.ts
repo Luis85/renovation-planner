@@ -110,7 +110,7 @@ describe('PropertyTree reordering', () => {
 	/**
 	 * The checked kind has to be VISIBLE, not only announced: jsdom draws nothing, so the pin is on
 	 * the stylesheet rule keyed on the attribute the component sets — the same seam
-	 * `tests/build/prototype-styles.test.ts` reads through.
+	 * `tests/gates/prototype-styles.test.ts` reads through.
 	 */
 	it('Mark as building writes the kind alone, and the current kind is checked and drawn so', async () => {
 		const { execute, queries, commands } = rig();

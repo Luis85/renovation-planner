@@ -310,6 +310,30 @@ describe('a mixed-space selection (ruling AD10-R1)', () => {
 });
 
 describe('moving, rotating and scaling the set', () => {
+	/**
+	 * AD18-R16 Task 5 review (Important finding): branch coverage cannot see a transposed
+	 * short-label key or a dropped `unit` literal — `move-x.short`/`move-y.short` swapped, or
+	 * `set-rotate-by`'s `°` missing, would ship silently. This pins each field's short visible
+	 * label, its unit suffix (or the absence of one, for Scale by's bare factor) and its full
+	 * accessible name BY NAME, in `designerReferencePanels.test.ts`'s own table-driven shape.
+	 */
+	it('pins every field’s short label, unit suffix and full accessible name', () => {
+		const { wrapper } = mountPanel();
+
+		([
+			['set-move-x', 'designer.arrange.move-x.short', 'designer.arrange.move-x', 'mm'],
+			['set-move-y', 'designer.arrange.move-y.short', 'designer.arrange.move-y', 'mm'],
+			['set-rotate-by', 'designer.selection.rotate-by.short', 'designer.selection.rotate-by', '°'],
+			['set-scale-by', 'designer.arrange.scale-by.short', 'designer.arrange.scale-by', undefined],
+		] as const).forEach(([name, shortKey, labelKey, unit]) => {
+			const input = wrapper.get(`[name="${name}"]`).element as HTMLInputElement;
+			const row = input.closest('.rp-designer-field-row') as HTMLElement;
+			expect(row.querySelector('.rp-designer-field-row__label')?.textContent).toBe(t('en', shortKey));
+			expect(input.getAttribute('aria-label')).toBe(t('en', labelKey));
+			expect(row.querySelector('.rp-designer-field-row__unit')?.textContent).toBe(unit);
+		});
+	});
+
 	it('moves every selected graphic and puts the field back to zero', async () => {
 		const { wrapper, written } = mountPanel();
 		const field = wrapper.find('[name="set-move-x"]');

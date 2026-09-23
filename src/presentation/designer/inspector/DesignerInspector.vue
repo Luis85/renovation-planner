@@ -505,7 +505,7 @@ function onTabKeydown(event: KeyboardEvent): void {
 			</label>
 
 			<FieldError
-				v-slot="{ inputId, aria }"
+				v-slot="{ aria }"
 				:message="height.error.value"
 			>
 				<DesignerFieldRowShell
@@ -513,7 +513,6 @@ function onTabKeydown(event: KeyboardEvent): void {
 					unit="mm"
 				>
 					<input
-						:id="inputId"
 						v-bind="aria"
 						type="number"
 						name="height"

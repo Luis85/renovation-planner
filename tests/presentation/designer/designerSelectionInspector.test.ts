@@ -175,6 +175,36 @@ describe('what the inspector offers for each kind of part', () => {
 		expect(numberFields(mountFor({ kind: 'facing' }).wrapper)).toEqual({ angle: '90' });
 	});
 
+	/**
+	 * AD18-R16 Task 5 review (Important finding): branch coverage cannot see a transposed
+	 * short-label key or a dropped `unit` literal — `centre-x.short`/`centre-y.short` swapped,
+	 * or `width`'s `mm` missing, would ship silently. This pins every field's short visible
+	 * label, its unit suffix and its full accessible name BY NAME, in
+	 * `designerReferencePanels.test.ts`'s own table-driven shape (the clearance helper).
+	 */
+	it('pins every field’s short label, unit suffix and full accessible name', () => {
+		const detail = mountFor(BOWL).wrapper;
+		const anchor = mountFor({ kind: 'anchor' }).wrapper;
+		const facing = mountFor({ kind: 'facing' }).wrapper;
+
+		([
+			[detail, 'width', 'designer.preset.field.width.short', 'designer.preset.field.width', 'mm'],
+			[detail, 'depth', 'designer.preset.field.depth.short', 'designer.preset.field.depth', 'mm'],
+			[detail, 'centre-x', 'designer.selection.centre-x.short', 'designer.selection.centre-x', 'mm'],
+			[detail, 'centre-y', 'designer.selection.centre-y.short', 'designer.selection.centre-y', 'mm'],
+			[detail, 'rotate-by', 'designer.selection.rotate-by.short', 'designer.selection.rotate-by', '°'],
+			[anchor, 'position-x', 'designer.selection.position-x.short', 'designer.selection.position-x', 'mm'],
+			[anchor, 'position-y', 'designer.selection.position-y.short', 'designer.selection.position-y', 'mm'],
+			[facing, 'angle', 'designer.selection.angle.short', 'designer.selection.angle', '°'],
+		] as const).forEach(([wrapper, name, shortKey, labelKey, unit]) => {
+			const input = wrapper.get(`[name="${name}"]`).element as HTMLInputElement;
+			const row = input.closest('.rp-designer-field-row') as HTMLElement;
+			expect(row.querySelector('.rp-designer-field-row__label')?.textContent).toBe(t('en', shortKey));
+			expect(input.getAttribute('aria-label')).toBe(t('en', labelKey));
+			expect(row.querySelector('.rp-designer-field-row__unit')?.textContent).toBe(unit);
+		});
+	});
+
 	/** PBI extension 2a: no control for a part the asset does not carry. */
 	it('draws nothing for a part the shape lacks', () => {
 		expect(mountFor({ kind: 'detail', id: 'detail-9' }).wrapper.find('.rp-designer-selection').exists()).toBe(false);

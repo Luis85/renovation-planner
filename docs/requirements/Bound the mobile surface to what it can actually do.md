@@ -131,7 +131,7 @@ command id changed, because a user's hotkey is bound to it.
 
 - **The Asset library's write controls — done for L-43 (2026-09-23).** `AssetLibraryView` puts
   `readOnly: Platform.isMobile` into its context at its `provide()`, and on a mobile device the
-  library draws one `.rp-view-notice.rp-mobile-notice` with `view.mobile.read-only`. `New asset`
+  library draws one notice carrying `view.mobile.read-only`. `New asset`
   (the toolbar and the empty catalogue's action), `Open designer`, `Delete`, the definition fields
   and `Save` stay drawn, refused (`disabled`, `aria-disabled` or `readonly`) and described by that
   notice, and each gesture's handler refuses as well. Search, selection and the shelves stay

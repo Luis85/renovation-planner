@@ -140,6 +140,81 @@
 }
 
 /*
+ * `DesignerFieldRow`'s compact row (AD18-R16 Task 5, both concept boards' `Width [800 mm]`): a
+ * short label to the left, the input and its unit suffix to the right. Its own class rather than
+ * `designer.css`'s `.rp-designer-field`, which stays the stacked shape for the clearance helper's
+ * four setbacks, the repeat form's fields and the asset's own Height — none of them converged
+ * (`DesignerFieldRow.vue`'s own docblock says why), so their layout must not move under them.
+ *
+ * **Stacks below the inspector's OWN resting width, not at a width of its own.** `50rem` (800px)
+ * is exactly where `designer-toolbar.css`'s `min(14rem, 28cqi)` cap starts binding — above it the
+ * rail holds its full 224px, below it the rail is narrower than that already. A label-left row is
+ * only ever drawn at the rail's full width; anywhere the rail is being compressed, the row reverts
+ * to the label-above-input shape `.rp-designer-field` already draws down to the rail's measured
+ * floor (`designer-toolbar.css`'s own comment: 224 / 157-224 / 123-176px across 560-800px leaf
+ * widths). Declared and unrendered here, like every `@container` rule in this suite: jsdom
+ * resolves no `cqi` and no container query, so this is a layout PREDICTION, not a measurement.
+ */
+.rp-designer-field-row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	font-size: var(--font-ui-small);
+}
+
+.rp-designer-field-row__label {
+	flex: 1 1 auto;
+	min-width: 0;
+	color: var(--text-muted);
+}
+
+.rp-designer-field-row__control {
+	position: relative;
+	flex: 0 0 auto;
+	width: 5rem;
+}
+
+/*
+ * The suffix sits inside the input's trailing edge (`position: absolute` below), so the input
+ * needs room on its right not to draw digits under it, and the native spinner arrows — which
+ * would otherwise sit exactly where the suffix does — are turned off. Text is right-aligned so a
+ * short value reads next to its unit rather than off at the field's leading edge.
+ */
+.rp-designer-field-row__control input {
+	width: 100%;
+	padding-right: var(--size-4-6);
+	text-align: right;
+	appearance: textfield;
+}
+
+.rp-designer-field-row__control input::-webkit-outer-spin-button,
+.rp-designer-field-row__control input::-webkit-inner-spin-button {
+	appearance: none;
+	margin: 0;
+}
+
+.rp-designer-field-row__unit {
+	position: absolute;
+	top: 50%;
+	right: var(--size-4-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	transform: translateY(-50%);
+	pointer-events: none;
+}
+
+@container rp-designer (width < 50rem) {
+	.rp-designer-field-row {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.rp-designer-field-row__control {
+		width: 100%;
+	}
+}
+
+/*
  * AD12's three blocks — the reference's status, the placement point and the clearance helper —
  * each a sibling of the composition block above and spaced the same way. Grouped into one rule
  * where `.rp-designer-arrange` and `.rp-designer-selection` are written out separately, because

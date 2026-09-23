@@ -23,6 +23,10 @@ export const assetSymbolsEn = {
 	'designer.preset.group.plants-beds': 'Plants and beds',
 	'designer.preset.field.width': 'Width in millimetres',
 	'designer.preset.field.depth': 'Depth in millimetres',
+	// The compact row's SHORT visible labels (AD18-R16 Task 5): `DesignerFieldRow` draws these
+	// beside the input and keeps the sentence above as the input's `aria-label`.
+	'designer.preset.field.width.short': 'Width',
+	'designer.preset.field.depth.short': 'Depth',
 	'designer.preset.field.diameter': 'Diameter in millimetres',
 	'designer.preset.field.length': 'Length in millimetres',
 	'designer.preset.field.radius': 'Outer radius in millimetres',
@@ -51,6 +55,14 @@ export const assetSymbolsEn = {
 	'designer.selection.position-x': 'Horizontal position in millimetres',
 	'designer.selection.position-y': 'Vertical position in millimetres',
 	'designer.selection.angle': 'Angle in degrees',
+	// The same compact-row split as the preset fields above, for the selection inspector's own
+	// fields and `DesignerSetTransform`'s "by" fields, which reuse `rotate-by`.
+	'designer.selection.centre-x.short': 'Horizontal centre',
+	'designer.selection.centre-y.short': 'Vertical centre',
+	'designer.selection.rotate-by.short': 'Rotate by',
+	'designer.selection.position-x.short': 'Horizontal position',
+	'designer.selection.position-y.short': 'Vertical position',
+	'designer.selection.angle.short': 'Angle',
 	'designer.selection.bring-forward': 'Bring forward',
 	'designer.selection.send-backward': 'Send backward',
 	'designer.selection.duplicate': 'Duplicate',

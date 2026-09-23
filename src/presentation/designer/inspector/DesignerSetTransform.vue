@@ -32,7 +32,12 @@ const props = defineProps<{
 
 interface ByField {
 	readonly name: string;
+	/** The field's full sentence — `DesignerFieldRow`'s accessible name (AD18-R16 Task 5). */
 	readonly label: StringKey;
+	/** The field's short visible label — `DesignerFieldRow`'s compact-row text. */
+	readonly short: StringKey;
+	/** `mm`, `°`, or left out for Scale by, which is a bare factor. */
+	readonly unit?: 'mm' | '°';
 	/** What the empty field reads as: nothing moves by 0, and nothing scales by 1. */
 	readonly resting: number;
 	readonly edit: (value: number) => ShapeEdit;
@@ -43,10 +48,10 @@ const radians = (degrees: number): number => (degrees * Math.PI) / 180;
 const fields = computed((): readonly ByField[] => {
 	const selection = { ids: props.ids, immovable: props.locked };
 	return [
-		{ name: 'set-move-x', label: 'designer.arrange.move-x', resting: 0, edit: (value) => (current) => moveDetails(current, { ...selection, by: { dx: value, dy: 0 } }) },
-		{ name: 'set-move-y', label: 'designer.arrange.move-y', resting: 0, edit: (value) => (current) => moveDetails(current, { ...selection, by: { dx: 0, dy: value } }) },
-		{ name: 'set-rotate-by', label: 'designer.selection.rotate-by', resting: 0, edit: (value) => (current) => rotateDetails(current, { ...selection, radians: radians(value) }) },
-		{ name: 'set-scale-by', label: 'designer.arrange.scale-by', resting: 1, edit: (value) => (current) => scaleDetails(current, { ...selection, factor: value }) },
+		{ name: 'set-move-x', label: 'designer.arrange.move-x', short: 'designer.arrange.move-x.short', unit: 'mm', resting: 0, edit: (value) => (current) => moveDetails(current, { ...selection, by: { dx: value, dy: 0 } }) },
+		{ name: 'set-move-y', label: 'designer.arrange.move-y', short: 'designer.arrange.move-y.short', unit: 'mm', resting: 0, edit: (value) => (current) => moveDetails(current, { ...selection, by: { dx: 0, dy: value } }) },
+		{ name: 'set-rotate-by', label: 'designer.selection.rotate-by', short: 'designer.selection.rotate-by.short', unit: '°', resting: 0, edit: (value) => (current) => rotateDetails(current, { ...selection, radians: radians(value) }) },
+		{ name: 'set-scale-by', label: 'designer.arrange.scale-by', short: 'designer.arrange.scale-by.short', resting: 1, edit: (value) => (current) => scaleDetails(current, { ...selection, factor: value }) },
 	];
 });
 
@@ -75,6 +80,8 @@ async function onNumber(field: ByField, event: Event): Promise<void> {
 		:key="field.name"
 		:name="field.name"
 		:label="field.label"
+		:short="field.short"
+		:unit="field.unit"
 		:value="field.resting"
 		:on-change="(event: Event) => void onNumber(field, event)"
 	/>

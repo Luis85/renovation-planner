@@ -63,7 +63,12 @@ const props = defineProps<{
 
 interface NumberField {
 	readonly name: string;
+	/** The field's full sentence — `DesignerFieldRow`'s accessible name (AD18-R16 Task 5). */
 	readonly label: StringKey;
+	/** The field's short visible label — `DesignerFieldRow`'s compact-row text. */
+	readonly short: StringKey;
+	/** `mm`, `°`, or left out for a field with no unit (none here — every field below is a length or an angle). */
+	readonly unit?: 'mm' | '°';
 	readonly value: number;
 	readonly edit: (value: number) => ShapeEdit;
 	readonly resets?: true;
@@ -139,26 +144,26 @@ function boxOf(part: OutlinePart): PartBox {
 function sizeFields(part: OutlinePart): NumberField[] {
 	const { width, depth } = boxOf(part);
 	return [
-		{ name: 'width', label: 'designer.preset.field.width', value: width, edit: (value) => (current) => resizeToExtent(current, part, 'width', value) },
-		{ name: 'depth', label: 'designer.preset.field.depth', value: depth, edit: (value) => (current) => resizeToExtent(current, part, 'depth', value) },
+		{ name: 'width', label: 'designer.preset.field.width', short: 'designer.preset.field.width.short', unit: 'mm', value: width, edit: (value) => (current) => resizeToExtent(current, part, 'width', value) },
+		{ name: 'depth', label: 'designer.preset.field.depth', short: 'designer.preset.field.depth.short', unit: 'mm', value: depth, edit: (value) => (current) => resizeToExtent(current, part, 'depth', value) },
 	];
 }
 
 function detailFields(part: OutlinePart): NumberField[] {
 	const { centre } = boxOf(part);
 	return [
-		{ name: 'centre-x', label: 'designer.selection.centre-x', value: centre.x, edit: (value) => (current) => withPartBox(current, part, (box) => moveOutline(current, part, { dx: value - box.centre.x, dy: 0 })) },
-		{ name: 'centre-y', label: 'designer.selection.centre-y', value: centre.y, edit: (value) => (current) => withPartBox(current, part, (box) => moveOutline(current, part, { dx: 0, dy: value - box.centre.y })) },
+		{ name: 'centre-x', label: 'designer.selection.centre-x', short: 'designer.selection.centre-x.short', unit: 'mm', value: centre.x, edit: (value) => (current) => withPartBox(current, part, (box) => moveOutline(current, part, { dx: value - box.centre.x, dy: 0 })) },
+		{ name: 'centre-y', label: 'designer.selection.centre-y', short: 'designer.selection.centre-y.short', unit: 'mm', value: centre.y, edit: (value) => (current) => withPartBox(current, part, (box) => moveOutline(current, part, { dx: 0, dy: value - box.centre.y })) },
 		...sizeFields(part),
-		{ name: 'rotate-by', label: 'designer.selection.rotate-by', value: 0, edit: (value) => (current) => withPartBox(current, part, (box) => rotateOutline(current, part, radians(value), box.centre)), resets: true },
+		{ name: 'rotate-by', label: 'designer.selection.rotate-by', short: 'designer.selection.rotate-by.short', unit: '°', value: 0, edit: (value) => (current) => withPartBox(current, part, (box) => rotateOutline(current, part, radians(value), box.centre)), resets: true },
 	];
 }
 
 function anchorFields(): NumberField[] {
 	const { x, y } = shape.value.anchor;
 	return [
-		{ name: 'position-x', label: 'designer.selection.position-x', value: x, edit: (value) => (current) => moveAnchor(current, { x: value, y: current.anchor.y }) },
-		{ name: 'position-y', label: 'designer.selection.position-y', value: y, edit: (value) => (current) => moveAnchor(current, { x: current.anchor.x, y: value }) },
+		{ name: 'position-x', label: 'designer.selection.position-x', short: 'designer.selection.position-x.short', unit: 'mm', value: x, edit: (value) => (current) => moveAnchor(current, { x: value, y: current.anchor.y }) },
+		{ name: 'position-y', label: 'designer.selection.position-y', short: 'designer.selection.position-y.short', unit: 'mm', value: y, edit: (value) => (current) => moveAnchor(current, { x: current.anchor.x, y: value }) },
 	];
 }
 
@@ -212,7 +217,7 @@ const fields = computed((): readonly NumberField[] => {
 		default: {
 			// Exhaustive at compile time: a new kind of selection reaches this line and fails to narrow.
 			const _facing: 'facing' = selection.kind;
-			return [{ name: 'angle', label: 'designer.selection.angle', hint: 'designer.selection.angle.hint', value: (shape.value.facing * 180) / Math.PI, edit: (value) => (current) => setFacing(current, radians(value)) }];
+			return [{ name: 'angle', label: 'designer.selection.angle', short: 'designer.selection.angle.short', unit: '°', hint: 'designer.selection.angle.hint', value: (shape.value.facing * 180) / Math.PI, edit: (value) => (current) => setFacing(current, radians(value)) }];
 		}
 	}
 });
@@ -293,6 +298,8 @@ async function onNumber(field: NumberField, event: Event): Promise<void> {
 			:key="field.name"
 			:name="field.name"
 			:label="field.label"
+			:short="field.short"
+			:unit="field.unit"
 			:value="field.value"
 			:hint="field.hint"
 			:on-change="(event: Event) => void onNumber(field, event)"

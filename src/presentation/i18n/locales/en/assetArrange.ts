@@ -46,6 +46,11 @@ export const assetArrangeEn = {
 	'designer.arrange.move-x': 'Move across in millimetres',
 	'designer.arrange.move-y': 'Move down in millimetres',
 	'designer.arrange.scale-by': 'Scale by a factor',
+	// The compact row's short visible labels (AD18-R16 Task 5), the same split
+	// `assetSymbols.ts`'s own `.short` keys carry. Scale by has no unit — a bare factor.
+	'designer.arrange.move-x.short': 'Move across',
+	'designer.arrange.move-y.short': 'Move down',
+	'designer.arrange.scale-by.short': 'Scale by',
 	'designer.arrange.repeat': 'Repeat',
 	'designer.arrange.repeat.count': 'Copies',
 	'designer.arrange.repeat.spacing': 'Spacing in millimetres',

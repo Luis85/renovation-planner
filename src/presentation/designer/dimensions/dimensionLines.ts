@@ -19,7 +19,11 @@ import type { ScreenPoint } from '../../editor/viewport/Viewport';
 /** An arrowhead's length along the line, and its full width across it. */
 const ARROW_PX = 6;
 const ARROW_HALF_PX = 3;
-/** How far an extension line runs past the dimension line, and past the edge it starts at. */
+/**
+ * How far an extension line runs past the dimension line. It starts AT the edge when the line stands
+ * off it, since a drafted extension line never runs back into the object; a line left on its edge
+ * gets a tick this far to each side instead.
+ */
 const EXTENSION_PX = 4;
 
 /** SVG path data: the stroked line and extension lines, and the two filled arrowheads. */
@@ -52,8 +56,8 @@ export function dimensionLine(axis: 'x' | 'y', from: ScreenPoint, to: ScreenPoin
 	const back = inside ? ARROW_PX : -ARROW_PX;
 	const start = Math.min(inside ? lo : lo - 2 * ARROW_PX, along(at));
 	const end = Math.max(inside ? hi : hi + 2 * ARROW_PX, along(at));
-	const near = Math.min(edge, row) - EXTENSION_PX;
-	const far = Math.max(edge, row) + EXTENSION_PX;
+	const near = row <= edge ? row - EXTENSION_PX : edge;
+	const far = row >= edge ? row + EXTENSION_PX : edge;
 
 	const extension = (a: number): string => `M${pt(a, near)}L${pt(a, far)}`;
 	const head = (tip: number, base: number): string => `M${pt(tip, row)}L${pt(base, row - ARROW_HALF_PX)}L${pt(base, row + ARROW_HALF_PX)}Z`;

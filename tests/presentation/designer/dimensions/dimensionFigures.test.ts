@@ -257,6 +257,8 @@ describe('the span each figure measures', () => {
 		expect(span(drawn, 'overall-depth')).toEqual(['y', -500, -300, -500, 300]);
 		expect(span(drawn, 'detail-detail-1-width')).toEqual(['x', -400, -100, 0, -100]);
 		expect(span(drawn, 'detail-detail-1-depth')).toEqual(['y', -400, -100, -400, 100]);
+		// Only the OVERALL pair is drawn outside its edge when the canvas has room (board 01).
+		expect(drawn.filter((figure) => figure.outside).map((figure) => figure.name)).toEqual(['overall-width', 'overall-depth']);
 	});
 
 	/** From the edge the gap is measured OFF to the edge it is measured TO — signed, so it can run backwards. */

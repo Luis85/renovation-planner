@@ -393,12 +393,11 @@ describe('what the mounted overlay draws once the rule has run', () => {
 	 * The first label keeps its anchor (earlier wins). A MOVED label never leaves the stage, which is
 	 * why `detail-1`'s depth and left offset jump right, off the left edge.
 	 *
-	 * **And this camera shows the rule's one residual, pinned rather than hidden.** `overall-depth`,
-	 * placed last, finds every slot within reach either taken or off the stage, so it stays on its
-	 * anchor and touches `detail-1`'s width — `separateLabels`' "no slot is free" arm. At the camera
-	 * the designer OPENS with, the floor AD18-R17 names, `restingLabels.test.ts` finds no such frame.
+	 * `overall-depth`, placed last, finds every nearer slot taken or off the stage and goes five rows
+	 * down — the whole of `RESTING_ROWS`' reach, and the price of the floor at a camera this far out.
+	 * (At three rows it found no slot and stayed on its anchor, touching `detail-1`'s width.)
 	 */
-	it('keeps a selected part’s labels apart but for one the zoomed-out camera leaves no slot', async () => {
+	it('keeps the eight labels a selected part draws from touching at all, and names where', async () => {
 		const rig = await designer();
 		try {
 			useAssetDesignStore(rig.pinia).select({ kind: 'detail', id: 'detail-1' });
@@ -413,13 +412,13 @@ describe('what the mounted overlay draws once the rule has run', () => {
 				['detail-detail-1-offset-top', 113.8, 88],
 				['detail-detail-1-offset-bottom', 56.6, 158],
 				['overall-width', 111.6, 18],
-				['overall-depth', -2, 48],
+				['overall-depth', 55.2, 198],
 			]);
 			const values = [400, 200, 100, 500, 200, 200, 1000, 600];
 			const touching = labels.flatMap(([name, x, y], index) => labels.slice(index + 1)
 				.filter(([, ox, oy], offset) => Math.abs(x - ox) < (width(values[index]) + width(values[index + 1 + offset])) / 2 && Math.abs(y - oy) < 30)
 				.map(([other]) => `${name} / ${other}`));
-			expect(touching).toEqual(['detail-detail-1-width / overall-depth']);
+			expect(touching).toEqual([]);
 		} finally {
 			rig.unmount();
 		}

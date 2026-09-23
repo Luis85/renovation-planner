@@ -49,7 +49,9 @@
  * **Each figure is drawn as a dimension LINE, not only a number** (AD18-R17, board 01): a line
  * through the placed label with an arrowhead at each end and an extension line to each edge it
  * measures, in one `aria-hidden` SVG before the labels so each opaque label interrupts its own line.
- * `dimensionLines.ts` is the arithmetic. The button reads `800 mm` — the unit rides on the label
+ * `dimensionLines.ts` is the arithmetic. The OVERALL pair stands outside the footprint, as board 01
+ * draws it, wherever the canvas has room above the top edge or left of the left edge below the
+ * rulers (`outsideAnchor`), and on the edge where it has not. The button reads `800 mm` — the unit rides on the label
  * now, still inside its accessible name.
  *
  * **Nothing is drawn over an UNSCALED design.** `dimensionsUnscaled` is a footprint captured
@@ -72,7 +74,7 @@ import { useEditorStore } from '../../stores/EditorStore';
 import { STAGE_PIXELS, worldToScreen } from '../../editor/viewport/Viewport';
 import { useAssetDesignStore } from '../stores/assetDesignStore';
 import { useDesignerRuntime } from '../runtime';
-import { dimensionFigures, separateLabels, spreadLabels, type DimensionFigure } from './dimensionFigures';
+import { dimensionFigures, outsideAnchor, separateLabels, spreadLabels, type DimensionFigure } from './dimensionFigures';
 import { dimensionLine, type DimensionLine } from './dimensionLines';
 
 const editor = useEditorStore();
@@ -147,7 +149,11 @@ const figures = computed((): readonly PlacedFigure[] => {
 	//
 	// AD18-R17: the RESTING state — `All dimensions` off — is held to a stricter floor, no two labels
 	// touching at all, which `separateLabels` answers. See that function for why the two differ.
-	const anchors = drawing.map((figure) => ({ at: screen(figure.at), value: figure.value }));
+	// The overall pair asks to stand OUTSIDE the footprint first, where the canvas has room (board 01).
+	const anchors = drawing.map((figure) => {
+		const at = screen(figure.at);
+		return { at: figure.outside ? outsideAnchor(figure.axis, at, figure.value) : at, value: figure.value };
+	});
 	const points = allDimensions.value ? spreadLabels(anchors, editor.stageSize) : separateLabels(anchors, editor.stageSize);
 	return drawing.map((figure, index) => {
 		// The world point is DROPPED here rather than carried: the rule has already answered

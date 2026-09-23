@@ -30,8 +30,11 @@ describe('the lines a dimension draws', () => {
 	 * the edges it measures rather than whatever it now sits over.
 	 */
 	it('moves the line to a moved label and runs the extension lines out to it', () => {
+		// From the edge itself, 4 px past the line — never back into the object.
 		expect(dimensionLine('x', p(100, 50), p(300, 50), p(200, 80)).line)
-			.toBe('M100 80L300 80M100 46L100 84M300 46L300 84');
+			.toBe('M100 80L300 80M100 50L100 84M300 50L300 84');
+		expect(dimensionLine('x', p(100, 50), p(300, 50), p(200, 35)).line)
+			.toBe('M100 35L300 35M100 31L100 50M300 31L300 50');
 	});
 
 	/**

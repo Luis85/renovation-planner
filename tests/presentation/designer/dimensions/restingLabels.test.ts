@@ -12,7 +12,8 @@
  * constant moves. It is a MODEL: jsdom draws nothing, and the rendered count is the integrator's.
  */
 import { describe, expect, it } from 'vitest';
-import { dimensionFigures, separateLabels } from '../../../../src/presentation/designer/dimensions/dimensionFigures';
+import { readFileSync } from 'node:fs';
+import { dimensionFigures, outsideAnchor, separateLabels } from '../../../../src/presentation/designer/dimensions/dimensionFigures';
 import { fitViewport, screenPoint, STAGE_PIXELS, worldToScreen, type ScreenPoint, type StageSize } from '../../../../src/presentation/editor/viewport/Viewport';
 import { partMeasure } from '../../../../src/presentation/designer/selection/partExtent';
 import { ASSET_PRESETS } from '../../../../src/domain/asset/presets/catalogue';
@@ -20,6 +21,7 @@ import { defaultValues } from '../../../../src/domain/asset/presets/presetGeomet
 import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
 import type { DesignerSelection } from '../../../../src/presentation/designer/selection/designerSelection';
 import { expectDefined, expectOk } from '../../../helpers/domain';
+import { propertyOf, stylesheetRules } from '../../../helpers/selectors';
 
 const STAGE: StageSize = { width: 800, height: 600 };
 const width = (value: number): number => 14 + 6.4 * String(Math.round(value)).length + 24;
@@ -94,6 +96,33 @@ describe('where a resting label is drawn', () => {
 	/** With no free slot at all it stays on its anchor: an overlap drawn honestly, not a label hidden. */
 	it('keeps a label on its anchor when no slot is free', () => {
 		expect(separateLabels([at(30, 15), at(30, 15)], { width: 60, height: 30 })).toEqual([screenPoint(30, 15), screenPoint(30, 15)]);
+	});
+});
+
+/**
+ * **The OVERALL pair stands outside the footprint when the canvas has room** (board 01): a width's
+ * line 15 px above the top edge — half a 30 px label, so the label's box sits wholly outside the
+ * outline and exactly fills the 30 px the fit camera leaves between the 18 px ruler and its 48 px
+ * margin — and a depth's 36 px left of the left edge, half the widest overall label (a five-glyph
+ * reading, 70 px) plus one. With no room — the label would run under the ruler — it stays on the edge.
+ */
+describe('where an overall dimension stands', () => {
+	it.each([
+		['a width, at the fit camera’s 48 px margin', 'x', at(200, 48, 1000), screenPoint(200, 33)],
+		['a width with a pixel less', 'x', at(200, 47, 1000), screenPoint(200, 47)],
+		['a depth with room', 'y', at(100, 200, 600), screenPoint(64, 200)],
+		['a depth whose label would reach the ruler', 'y', at(82, 200, 600), screenPoint(82, 200)],
+	] as const)('places %s', (_case, axis, anchor, expected) => {
+		expect(outsideAnchor(axis, anchor.at, anchor.value)).toEqual(expected);
+	});
+
+	/** The 18 px `outsideAnchor` measures room against is the rulers' strip, declared in their partial. */
+	it('measures room against the rulers’ own strip', () => {
+		const declared = stylesheetRules(readFileSync('styles/designer-rulers.css', 'utf8'))
+			.flatMap((rule) => rule.declarations.filter((entry) => propertyOf(entry) === '--rp-designer-ruler-size').map((entry) => entry.value));
+		const reference = stylesheetRules('.reference { --rp-designer-ruler-size: 18px; }')[0]?.declarations[0]?.value;
+
+		expect(declared).toEqual([reference]);
 	});
 });
 

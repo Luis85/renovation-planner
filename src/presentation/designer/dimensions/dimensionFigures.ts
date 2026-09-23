@@ -8,9 +8,10 @@
  * the component owns only `worldToScreen` and the markup. Nothing here reads a store, a camera or
  * a DOM node.
  *
- * **Three exported FUNCTIONS, and the last two work in PIXELS rather than millimetres.** Counted
- * from `grep -n "^export"` over this file after AD18-R17's change, which prints five lines: the
- * types `DimensionFigure` and `LabelAnchor` and the three functions. `dimensionFigures` answers what
+ * **Four exported FUNCTIONS, and the last three work in PIXELS rather than millimetres.** Counted
+ * from `grep -n "^export"` over this file after AD18-R17's change, which prints six lines: the
+ * types `DimensionFigure` and `LabelAnchor` and the four functions — `outsideAnchor`, last, stands
+ * the overall pair outside the footprint where the canvas has room. `dimensionFigures` answers what
  * is measured and where in the world it belongs; `spreadLabels` answers where a label is actually
  * drawn under `All dimensions` once the camera has crowded several of them onto one row —
  * AD18-R14, whose whole subject is a box that has a size only on a stage — and `separateLabels` the
@@ -59,6 +60,8 @@ export interface DimensionFigure {
 	readonly axis: 'x' | 'y';
 	readonly from: Point;
 	readonly to: Point;
+	/** An OVERALL figure, drawn outside the footprint's edge when the canvas has room — `outsideAnchor`. */
+	readonly outside: boolean;
 	/** The CANONICAL millimetres; the surface rounds them for display and `unchanged` knows it does. */
 	readonly value: number;
 	/**
@@ -144,6 +147,7 @@ function sizeFigures(part: OutlinePart, box: Corners, key: string, labels: reado
 			name: `${key}-width`,
 			label: labels[0],
 			at: { x: box.centre.x, y: box.min.y },
+			outside: part.kind === 'footprint',
 			axis: 'x',
 			from: box.min,
 			to: { x: box.max.x, y: box.min.y },
@@ -154,6 +158,7 @@ function sizeFigures(part: OutlinePart, box: Corners, key: string, labels: reado
 			name: `${key}-depth`,
 			label: labels[1],
 			at: { x: box.min.x, y: box.centre.y },
+			outside: part.kind === 'footprint',
 			axis: 'y',
 			from: box.min,
 			to: { x: box.min.x, y: box.max.y },
@@ -220,6 +225,7 @@ function offsetFigures(part: OutlinePart, key: string, box: Corners, outer: Corn
 			name: `${key}-${spec.key}`,
 			label: spec.label,
 			at: point(near + drawn / 2),
+			outside: false,
 			axis: spec.axis,
 			from: point(near),
 			to: point(near + drawn),
@@ -622,26 +628,30 @@ export function spreadLabels(labels: readonly LabelAnchor[], stage: StageSize): 
 }
 
 /**
- * How far a RESTING label may be moved to clear another: up to three whole label heights up or
- * down (90 px), each at no shift or at a half, one or one and a half of its own width either side.
+ * How far a RESTING label may be moved to clear another: up to five whole label heights up or
+ * down (150 px), each at no shift or at a half, one or one and a half of its own width either side.
  *
  * Measured rather than chosen, over every catalogue preset with nothing, the clearance and each
  * detail selected in turn, at the fit camera on every stage from 280 x 280 to 900 x 700 in 40 x 20
- * steps — 20,416 frames, counting frames left with two labels sharing any area:
+ * steps — 20,416 frames, counting frames left with two labels sharing any area. First with the
+ * overall pair on its edges:
  *
  * | reach | frames with an overlap |
  * | --- | --- |
  * | three rows, no sideways shift (`spreadLabels`' own axis) | 2,692 |
  * | three rows, shifts to one width | 963 |
  * | two rows, shifts to one and a half widths | 45 |
- * | **three rows, shifts to one and a half widths** | **0** |
+ * | three rows, shifts to one and a half widths | 0 |
  *
- * It also holds at zero down to 260 x 240, and when the labels are drawn up to four pixels wider
- * than `labelWidth` models — the `APART_GAP_PX` margin, spent. Two widths either side added nothing.
- * The cost is movement: a moved label travels 36 px on average and at most 124, and 68 of the 45,590
- * moves exceeded 100 px — each a label whose nearer slots were all taken or off the stage.
+ * **Then again once `outsideAnchor` stood the overall pair outside the footprint**, which crowds a
+ * narrow canvas's top band: three rows left 9 frames overlapping and four left 6, all an armchair's
+ * or a sofa's detail at a stage under 560 px; **five rows leave none**, down to 260 x 240, and when
+ * the labels are drawn up to four pixels wider than `labelWidth` models — the `APART_GAP_PX` margin,
+ * spent. Two widths either side added nothing. The cost is movement: a moved label travels 38 px on
+ * average and at most 150, and 158 of the 45,347 moves exceeded 100 px — each a label whose nearer
+ * slots were all taken or off the stage.
  */
-const RESTING_ROWS = 3;
+const RESTING_ROWS = 5;
 const RESTING_SHIFTS: readonly number[] = [0, 0.5, -0.5, 1, -1, 1.5, -1.5];
 
 const distance = (one: ScreenPoint, other: ScreenPoint): number => Math.hypot(one.x - other.x, one.y - other.y);
@@ -686,4 +696,43 @@ export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize)
 		placed.push(free(own) ? own : slots.find((box) => inside(box) && free(box)) ?? own);
 	}
 	return placed.map((box) => box.at);
+}
+
+/**
+ * The rulers' strip, in stage pixels — `--rp-designer-ruler-size` in `designer-rulers.css`, restated
+ * because a stylesheet variable is not readable from here; `restingLabels.test.ts` pins the two
+ * together. A label may not stand under it, since the strip is opaque.
+ */
+const RULER_PX = 18;
+/**
+ * How far an OVERALL dimension line stands outside the footprint (board 01), in stage pixels.
+ *
+ * A width's is 15: half a label's height, so its box sits wholly outside the outline — and at the
+ * camera an asset OPENS with it exactly fills the 30 px `FIT_PADDING_PX`'s 48 px margin leaves below
+ * the 18 px ruler, which is the most it can be and still be drawn there. A depth's is 36: half the
+ * widest overall label the model draws, a five-glyph reading at 70 px, plus one, so its box clears
+ * the left edge too.
+ */
+const WIDTH_OUTSET_PX = 15;
+const DEPTH_OUTSET_PX = 36;
+/** Floating-point slack in the room test, so a fit camera's 48 px margin is not read as 47.999. */
+const ROOM_SLACK_PX = 0.5;
+
+/**
+ * Where an OVERALL label stands (AD18-R17, board 01): its line moved OUTSIDE the footprint — up for
+ * the width, left for the depth — by a fixed distance, when the canvas has ROOM for the label there;
+ * otherwise `anchor`, the edge placement. Room is read off the canvas box itself — the stage's own
+ * top and left, where the rulers' strip lies — so it is a fact about the current camera rather than
+ * a width breakpoint: at a camera that puts the edge near the canvas's top or left the label falls
+ * back to the edge rather than run under the ruler or off the canvas, which `overflow: hidden` clips.
+ *
+ * Only the top and left: those are the only edges the overall pair is anchored on.
+ */
+export function outsideAnchor(axis: 'x' | 'y', anchor: ScreenPoint, value: number): ScreenPoint {
+	if (axis === 'x') {
+		const y = anchor.y - WIDTH_OUTSET_PX;
+		return y - LABEL_HEIGHT_PX / 2 >= RULER_PX - ROOM_SLACK_PX ? screenPoint(anchor.x, y) : anchor;
+	}
+	const x = anchor.x - DEPTH_OUTSET_PX;
+	return x - labelWidth(value) / 2 >= RULER_PX - ROOM_SLACK_PX ? screenPoint(x, anchor.y) : anchor;
 }

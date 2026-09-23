@@ -84,6 +84,27 @@ describe('the lines each dimension draws', () => {
 		}
 	});
 
+	/**
+	 * **At the camera an asset OPENS with, the overall pair stands outside the footprint** (board 01):
+	 * the width 15 px above the top edge and the depth 36 px left of the left edge, each on its own
+	 * line with extension lines back to the corners. `rig.at` is the live camera.
+	 */
+	it('offsets the overall pair outside the footprint at the camera the asset opens with', async () => {
+		const rig = await designerRig({ shape: editableShape(), camera: 'opened' });
+		try {
+			const wrapper = (name: string) => (rig.wrapper.get(`[data-rp-dimension="${name}"]`).element.parentElement as HTMLElement).style;
+			const top = rig.at({ x: 0, y: -300 });
+			const left = rig.at({ x: -500, y: 0 });
+
+			expect(Number.parseFloat(wrapper('overall-width').top)).toBeCloseTo(top.y - 15);
+			expect(Number.parseFloat(wrapper('overall-width').left)).toBeCloseTo(top.x);
+			expect(Number.parseFloat(wrapper('overall-depth').left)).toBeCloseTo(left.x - 36);
+			expect(Number.parseFloat(wrapper('overall-depth').top)).toBeCloseTo(left.y);
+		} finally {
+			rig.unmount();
+		}
+	});
+
 	/** Decoration: hidden from assistive technology, since each button already names what it measures. */
 	it('hides the marks from assistive technology', async () => {
 		const rig = await designer();

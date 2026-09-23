@@ -209,15 +209,44 @@ describe('where the keyboard goes after a row is deleted', () => {
 			rejections.push(reason);
 		};
 		process.on('unhandledRejection', onRejection);
-		const { rig, bowl } = await onTheBowl();
-		key(bowl, { key: 'Delete' });
-		rig.unmount();
-		await settle();
-		await new Promise((resolve) => {
-			setTimeout(resolve, 0);
-		});
-		process.off('unhandledRejection', onRejection);
+		try {
+			const { rig, bowl } = await onTheBowl();
+			key(bowl, { key: 'Delete' });
+			rig.unmount();
+			await settle();
+			await new Promise((resolve) => {
+				setTimeout(resolve, 0);
+			});
+		} finally {
+			process.off('unhandledRejection', onRejection);
+		}
 		expect(rejections).toEqual([]);
+	});
+
+	/**
+	 * `nextGroupId` counts from the highest group id still PRESENT, so ungrouping the only group frees
+	 * `group-1` for the next Group. A collapse remembered for the old one must not fold the new one away
+	 * — which would also hide the very row the key was pressed on, and drop its focus.
+	 */
+	it('stays on the row when a re-allocated group id was collapsed before an ungroup', async () => {
+		const { rig, tank } = await bothSelected();
+		key(tank, { key: 'g', ctrlKey: true });
+		await settle();
+		(rig.wrapper.element.querySelector('.rp-designer-part-group') as HTMLButtonElement).click();
+		await settle();
+		key(rig.canvasEl, { key: 'G', ctrlKey: true, shiftKey: true });
+		await settle();
+		expect((await rig.document()).shape?.groups ?? []).toEqual([]);
+
+		const again = row(rig, 'detail:detail-1');
+		again.focus();
+		key(again, { key: 'g', ctrlKey: true });
+		await settle();
+
+		expect((await rig.document()).shape?.groups?.map((each) => each.id)).toEqual(['group-1']);
+		expect(rig.wrapper.element.querySelector('.rp-designer-part-group')?.getAttribute('aria-expanded')).toBe('true');
+		expect(document.activeElement).toBe(row(rig, 'detail:detail-1'));
+		rig.unmount();
 	});
 });
 

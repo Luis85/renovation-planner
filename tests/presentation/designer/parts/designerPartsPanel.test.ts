@@ -492,3 +492,23 @@ describe('select multiple parts', () => {
 		expect(mountPanel({ shape: oneDetail(), mode: ref(true) }).wrapper.find('[data-rp-action="multiple-selection"]').exists()).toBe(true);
 	});
 });
+
+/**
+ * The selection keys' focus hand-off (AD18-R17 Task 3). A refresh reads back whatever else changed
+ * meanwhile, so a write can remove more than the row a key was pressed on — here the row below it
+ * too. Focus goes to the nearest row still drawn, and never to a row that is not there.
+ */
+describe('the selection keys', () => {
+	it('hands dropped focus to the nearest row still drawn when the row below went as well', async () => {
+		const { wrapper } = mountPanel({ selected: [BOWL] });
+		const bowl = rowFor(wrapper, 'detail:detail-2').element as HTMLElement;
+		bowl.focus();
+		bowl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+		await wrapper.setProps({ design: assetDesign({ shape: expectOk(validateAssetShape({ ...editableShape(), details: [] })) }) });
+		await flushPromises();
+
+		expect(document.activeElement).toBe(rowFor(wrapper, 'footprint').element);
+		expect(rowFor(wrapper, 'footprint').attributes('tabindex')).toBe('0');
+		wrapper.unmount();
+	});
+});

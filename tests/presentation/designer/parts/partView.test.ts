@@ -78,6 +78,28 @@ describe('createPartView', () => {
 		expect([...view.locked.value]).toEqual(['detail-1']);
 	});
 
+	/**
+	 * Ids ARE recycled — `nextDetailId` and `nextGroupId` count from the highest id still PRESENT — so
+	 * what the design no longer has is forgotten, and a re-allocated id is never born hidden, locked or
+	 * collapsed. An id still present keeps its state, and a prune that forgets nothing writes nothing.
+	 */
+	it('forgets the state of every graphic and group the design no longer has', () => {
+		const view = createPartView();
+		view.toggleHidden('detail-1');
+		view.toggleHidden('detail-3');
+		view.toggleLocked('detail-3');
+		view.toggleGroup('group-1');
+		view.toggleGroup('group-2');
+
+		view.prune(new Set(['detail-1', 'detail-2']), new Set(['group-2']));
+		expect([[...view.hidden.value], [...view.locked.value], [...view.collapsed.value]]).toEqual([['detail-1'], [], ['group-2']]);
+
+		const kept = [view.hidden.value, view.locked.value, view.collapsed.value];
+		view.prune(new Set(['detail-1', 'detail-2']), new Set(['group-2']));
+		expect([view.hidden.value, view.locked.value, view.collapsed.value]).toEqual(kept);
+		expect(view.hidden.value).toBe(kept[0]);
+	});
+
 	/** A new set on every write, never a mutated one: `ref` compares by identity, so a mutated Set updates nothing. */
 	it('replaces the set rather than mutating it, so a reader actually re-renders', () => {
 		const view = createPartView();

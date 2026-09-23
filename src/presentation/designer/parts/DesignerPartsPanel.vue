@@ -33,7 +33,7 @@
  * selected row opens controls beneath it, and interactive controls inside an `option` is invalid
  * ARIA that `tests/harness/accessibility*.test.ts` would be right to refuse.
  */
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { rovingIndex } from '../../components/rovingIndex';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import { reorderDetail, updateDetail } from '../../../domain/asset/detailEdits';
@@ -105,6 +105,17 @@ const shown = computed(() =>
  * this list is never asked for. `rows` is topmost-first, so it is reversed back.
  */
 const graphicIds = computed(() => rows.value.flatMap((row) => (row.kind === 'detail' ? [row.detail.id] : [])).toReversed());
+/**
+ * Every read-back forgets the view state of a graphic or group the design no longer has
+ * (`PartView.prune`), since ids are recycled — a regrouped `group-1` must not inherit a collapse.
+ * `immediate`, so a panel remounted after a failed read prunes what changed while it was away.
+ */
+watch(
+	rows,
+	(next) => props.view.prune(new Set(graphicIds.value), new Set(next.flatMap((row) => (row.kind === 'group' ? [row.groupId] : [])))),
+	{ immediate: true },
+);
+
 const selectedKeys = computed(() => new Set(props.selected.map((member) => partKey(member))));
 
 /** Every row that can take focus, in the order they are drawn — the reference sheet's plain text is not one. */
@@ -199,22 +210,31 @@ function shortcut(event: KeyboardEvent, row: PartRow): void {
 
 /**
  * Run a row key's action, and hand focus the browser DROPPED (`focusDropped`, the menu's own rule) to
- * the row below the one the key was pressed on, named before the write from the rows as they were.
+ * the nearest row STILL DRAWN: the rows below the pressed one nearest first, then the rows above it
+ * nearest first, named before the write from the rows as they were and each looked up after it. What
+ * the code guarantees is that much and no more — focus goes to a drawn row if one is left, and is left
+ * where the browser put it if none is; it never focuses a row that is not there. A leaf CLOSED while
+ * the write was in flight has no list, and there is nothing to do.
  *
- * Focus is dropped only when the row itself was unmounted, which is a Delete: Group and Ungroup insert
- * or remove a header `<li>` and leave every part row's node where it was (`partRows` keeps members in
- * draw order, and a keyed list mounting one new item moves none of the others). **There is no "row
- * above" or "the list" arm**: every row a key can delete, a graphic or the clearance, has the
- * footprint's or the anchor's row below it, and the list is not a focus target — an arm that can never
- * run is not free. A leaf CLOSED while the write was in flight has no list, and there is nothing to do.
+ * The row below is not always drawn: a read-back carries whatever ELSE changed meanwhile, and a row can
+ * be folded away under a collapsed group — which `PartView.prune` keeps from happening to a group
+ * just made, but this does not rely on it.
  */
 async function keepKeyboard(run: () => Promise<void>, key: string): Promise<void> {
-	const keys = focusable.value.map((each) => each.key), next = keys[keys.indexOf(key) + 1];
+	const keys = focusable.value.map((each) => each.key), at = keys.indexOf(key);
+	const candidates = [...keys.slice(at + 1), ...keys.slice(0, at).toReversed()];
 	await run();
 	await nextTick();
-	if (list.value === null || !focusDropped()) return;
-	focusedKey.value = next;
-	(list.value.querySelector(`[data-key="${CSS.escape(next)}"] button`) as HTMLElement).focus();
+	const drawn = list.value;
+	if (drawn === null || !focusDropped()) return;
+	const found = candidates
+		.map((each) => ({ key: each, button: drawn.querySelector<HTMLElement>(`[data-key="${CSS.escape(each)}"] button`) }))
+		.filter((each): each is { key: string; button: HTMLElement } => each.button !== null);
+	// At most one: the nearest drawn row, or none — never a lookup that found nothing.
+	for (const nearest of found.slice(0, 1)) {
+		focusedKey.value = nearest.key;
+		nearest.button.focus();
+	}
 }
 
 function rename(id: string, label: string): void {

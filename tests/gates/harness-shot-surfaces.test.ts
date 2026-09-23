@@ -141,8 +141,8 @@ describe('the per-surface harness shots', () => {
 	 * leaf's real width.
 	 *
 	 * **Measured rather than argued**: with `width` dropped, the narrow row is a byte-identical
-	 * duplicate of the wide one under a second name, and the whole of `tests/build` — 46 files,
-	 * 1280 tests — stayed green. That is the same silent wrong-picture outcome the detail-state
+	 * duplicate of the wide one under a second name, and the whole gate directory
+	 * stayed green. That is the same silent wrong-picture outcome the detail-state
 	 * case below names, and this family shipped with nothing holding it.
 	 */
 	it('takes the three outline shots through the ?outline knob, and the narrow one at a sidebar width', () => {

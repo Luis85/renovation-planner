@@ -77,9 +77,14 @@ function fromCentre(point: Point): Point {
 }
 function onHandle(point: Point): boolean {
 	const { knob } = handle();
-	return props.rotatable && Math.hypot(point.x - knob.x, point.y - knob.y) <= 12;
+	return props.rotatable && !panMode.value && !space.value && Math.hypot(point.x - knob.x, point.y - knob.y) <= 12;
 }
 function fit(): void { view.value = previewTransform(props.appearance, size.value); }
+/** After a rotation change: keep the zoom and shift the view so the image's on-screen centre stays put. */
+function keepCentre(previousRotation: number): void {
+	const before = referenceScreenCentre(view.value, { ...props.appearance, rotation: previousRotation }), after = referenceScreenCentre(view.value, props.appearance);
+	view.value = { ...view.value, x: view.value.x + before.x - after.x, y: view.value.y + before.y - after.y };
+}
 function measure(): void {
 	const rect = canvas.value?.getBoundingClientRect();
 	if (!rect || rect.width <= 0 || rect.height <= 0) return;
@@ -122,7 +127,7 @@ function move(event: PointerEvent): void {
 	const point = previewPointerPoint(event);
 	if (!gesture) { overHandle.value = !!point && onHandle(point); return; }
 	if (gesture.id !== event.pointerId || !point) return;
-	if (gesture.rotate) { emit('rotation', dragRotation(gesture.rotate.rotation, gesture.rotate.from, fromCentre(point), event.shiftKey)); return; }
+	if (gesture.rotate) { gesture.moved = true; emit('rotation', dragRotation(gesture.rotate.rotation, gesture.rotate.from, fromCentre(point), event.shiftKey)); return; }
 	const dx = point.x - gesture.start.x, dy = point.y - gesture.start.y;
 	if (!gesture.moved && Math.hypot(dx, dy) < 3) return;
 	gesture.moved = true; dragging.value = true;
@@ -166,7 +171,11 @@ onMounted(() => { measure(); fit(); draw(); observer = new ResizeObserver(measur
 onBeforeUnmount(() => { observer?.disconnect(); unsubscribe?.(); end(); });
 watch(view, draw);
 watch(() => props.measuring, measuring => { end(); if (measuring) panMode.value = false; });
-watch(() => [props.raster, props.appearance.crop.x, props.appearance.crop.y, props.appearance.crop.width, props.appearance.crop.height, props.appearance.rotation], fit);
+// One watcher, so a change of source or crop always refits even when the rotation moved in the same tick.
+watch(() => [props.raster, props.appearance.crop.x, props.appearance.crop.y, props.appearance.crop.width, props.appearance.crop.height, props.appearance.rotation] as const, (next, previous) => {
+	if (next.slice(0, 5).every((value, index) => value === previous[index])) keepCentre(previous[5]); else fit();
+});
+watch(() => props.rotatable, () => { end(); overHandle.value = false; });
 watch(() => [props.appearance.opacity, props.points, props.rotatable, rotating.value], draw, { deep: true });
 </script>
 <template>

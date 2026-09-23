@@ -5,7 +5,7 @@ import { nextTick } from 'vue';
 import type { Point } from '../../../src/core/geometry/Point';
 import ReferencePreview from '../../../src/presentation/editor/reference/ReferencePreview.vue';
 import { previewTransform } from '../../../src/presentation/editor/reference/referenceSetup';
-import { referenceScreenCentre, rotationHandlePoint } from '../../../src/presentation/editor/reference/referenceViewport';
+import { referenceScreenCentre, rotationHandlePoint, zoomReference } from '../../../src/presentation/editor/reference/referenceViewport';
 import { expectDefined } from '../../helpers/domain';
 import { backingCanvas, installCanvas } from '../../helpers/canvas';
 import { installResizeObserver, placeAt } from '../../helpers/layout';
@@ -57,7 +57,7 @@ it('rotates by dragging the knob about the image centre, snapping with Shift, an
 	expect(w.emitted('point')).toBeUndefined();
 });
 
-it('measures the drag about the live image centre after a pan and the refit a rotation causes', async () => {
+it('keeps a panned image centre in place as the parent echoes each dragged rotation', async () => {
 	const { w, canvas } = setup(true);
 	await w.get('canvas').trigger('keydown', { key: 'ArrowLeft' }); await w.get('canvas').trigger('keydown', { key: 'ArrowUp' });
 	const panned = { x: centre.x + 32, y: centre.y + 32 }, tilt = 10 * Math.PI / 180;
@@ -66,10 +66,9 @@ it('measures the drag about the live image centre after a pan and the refit a ro
 	const first = expectDefined(rotations(w)[0], 'first drag rotation'); expect(first).toBeCloseTo(10, 0);
 	const turned = { ...appearance, rotation: first };
 	await w.setProps({ appearance: turned });
-	const live = referenceScreenCentre(previewTransform(turned), turned);
-	pointer(canvas, 'pointermove', { x: live.x + radius, y: live.y });
+	pointer(canvas, 'pointermove', { x: panned.x + radius, y: panned.y });
 	expect(rotations(w)[1]).toBeCloseTo(90, 5);
-	pointer(canvas, 'pointerup', { x: live.x + radius, y: live.y });
+	pointer(canvas, 'pointerup', { x: panned.x + radius, y: panned.y });
 });
 
 it('nudges with brackets typed through AltGr but keeps other shortcuts behind the modifier guard', async () => {
@@ -97,7 +96,7 @@ it('nudges rotation with the bracket keys, a tenth of a degree with Shift', asyn
 	await w.get('canvas').trigger('keydown', { key: ']' });
 	await w.get('canvas').trigger('keydown', { key: '[' });
 	await w.get('canvas').trigger('keydown', { key: '}', shiftKey: true });
-	await w.get('canvas').trigger('keydown', { key: '[', shiftKey: true });
+	await w.get('canvas').trigger('keydown', { key: '{', shiftKey: true });
 	expect(rotations(w)).toEqual([1, -1, 0.1, -0.1]);
 });
 
@@ -114,4 +113,47 @@ it('draws no knob and rotates nothing when not rotatable', async () => {
 	pointer(canvas, 'pointerup', { x: centre.x + radius, y: centre.y });
 	await w.get('canvas').trigger('keydown', { key: ']' });
 	expect(w.emitted('rotation')).toBeUndefined();
+});
+
+it('ends a knob drag and clears the handle cursor when the preview stops being rotatable', async () => {
+	const { w, canvas } = setup(true);
+	pointer(canvas, 'pointermove', knob); pointer(canvas, 'pointerdown', knob); await nextTick();
+	expect(w.get('canvas').classes()).toEqual(expect.arrayContaining(['is-over-handle', 'is-rotating']));
+	await w.setProps({ rotatable: false });
+	pointer(canvas, 'pointermove', { x: centre.x + radius, y: centre.y }); await nextTick();
+	expect(w.emitted('rotation')).toBeUndefined();
+	expect(w.get('canvas').classes()).not.toContain('is-over-handle'); expect(w.get('canvas').classes()).not.toContain('is-rotating');
+});
+
+it('pans rather than rotates from the knob while Pan mode is on or Space is held', async () => {
+	const { w, canvas } = setup(true);
+	await w.get('[data-rp-reference-view="pan"]').trigger('click');
+	pointer(canvas, 'pointerdown', knob); pointer(canvas, 'pointermove', { x: centre.x + radius, y: centre.y });
+	await nextTick(); expect(w.get('canvas').classes()).toContain('is-panning');
+	pointer(canvas, 'pointerup', { x: centre.x + radius, y: centre.y });
+	await w.get('[data-rp-reference-view="pan"]').trigger('click'); await w.get('canvas').trigger('keydown', { key: 'f' });
+	await w.get('canvas').trigger('keydown', { key: ' ' });
+	pointer(canvas, 'pointerdown', knob); pointer(canvas, 'pointermove', { x: centre.x + radius, y: centre.y });
+	await nextTick(); expect(w.get('canvas').classes()).toContain('is-panning');
+	pointer(canvas, 'pointerup', { x: centre.x + radius, y: centre.y });
+	expect(w.emitted('rotation')).toBeUndefined();
+});
+
+it('keeps the zoom and the on-screen image centre through a rotation, and refits on a crop change', async () => {
+	const { w, canvas } = setup(true);
+	await w.get('[data-rp-reference-view="zoom-in"]').trigger('click'); await w.get('canvas').trigger('keydown', { key: 'ArrowLeft' });
+	await w.get('canvas').trigger('keydown', { key: ']' });
+	await nextTick();
+	const backing = expectDefined(backingCanvas(canvas), 'preview backing canvas');
+	backing.width = canvas.width; backing.height = canvas.height;
+	const arc = vi.spyOn(backing.getContext('2d'), 'arc'), scale = vi.spyOn(backing.getContext('2d'), 'scale');
+	const fit = previewTransform(appearance), zoomed = zoomReference(fit, { x: 200, y: 110 }, 1.25, fit.scale).scale;
+	await w.setProps({ appearance: { ...appearance, rotation: expectDefined(rotations(w)[0], 'nudged rotation') } });
+	expect(scale.mock.calls.at(-1)).toEqual([zoomed, zoomed]);
+	// The readout is relative to the ROTATED image's fit, so the same absolute zoom reads a point higher.
+	expect(w.get('output').text()).toBe(`${Math.round(zoomed / previewTransform({ ...appearance, rotation: 1 }).scale * 100)}%`);
+	const expected = rotationHandlePoint({ x: centre.x + 32, y: centre.y }, 1, radius), drawn = expectDefined(arc.mock.calls.at(-1), 'knob drawn');
+	expect(drawn[0]).toBeCloseTo(expected.x, 6); expect(drawn[1]).toBeCloseTo(expected.y, 6);
+	await w.setProps({ appearance: { ...appearance, rotation: 1, crop: { ...appearance.crop, width: 300 } } });
+	expect(w.get('output').text()).toBe('100%');
 });

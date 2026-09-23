@@ -2,8 +2,8 @@
 /**
  * Choosing a PDF page other than page 1 through the real reference form, with the decode left
  * real: `loadBackground` is spied on and passes through, so pdf.js rasterises the page the form
- * named. The two pages of `TWO_PAGE_PDF` differ in size and colour, so each assertion reads
- * which page was decoded from the raster itself rather than from the argument it was asked for.
+ * named. The two pages of `TWO_PAGE_PDF` differ in size and colour, so which page was decoded is
+ * read from the raster itself rather than from the argument `loadBackground` was asked for.
  *
  * The pdf.js here is the suite's `pdfjs-dist`, handed back by the obsidian mock's `loadPdfJs`;
  * production runs Obsidian's copy, which nothing in this file reaches.

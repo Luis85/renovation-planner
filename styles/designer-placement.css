@@ -5,20 +5,15 @@
  */
 
 /*
- * The Front direction picker beside its mini preview: the labelled select takes the row, the
- * 40px picture sits at its trailing edge, bottom-aligned so it lines up with the select rather
- * than with the label above it. `min-width: 0` lets the select shrink inside a narrow rail
- * instead of pushing the preview out of it.
+ * The Front direction picker, then its mini preview BELOW it at the full content width, as board 01
+ * draws it. At 40px beside the select (the first version) an 800 x 450 outline drew about 33 x 19px
+ * with an arrow a few pixels long, which the integrator measured as unreadable. `min-width: 0` lets
+ * the select shrink inside a narrow rail.
  */
 .rp-designer-front {
 	display: flex;
-	align-items: flex-end;
+	flex-direction: column;
 	gap: var(--size-4-2);
-}
-
-.rp-designer-front__field {
-	flex: 1 1 auto;
-	min-width: 0;
 }
 
 .rp-designer-front__field select {
@@ -27,19 +22,25 @@
 }
 
 /*
- * The asset card's thumbnail treatment (`designer-object.css`): outline only, in the muted text
- * colour, strokes in SCREEN pixels through `vector-effect` so a metre-wide `viewBox` drawn at 40px
- * does not thin them to nothing. The arrow takes the accent, the colour the canvas draws it in.
+ * A framed box as wide as the Inspector's content and 112px tall. `frontPreview`'s `viewBox` fits
+ * the outline and the arrow together, and the SVG's default `meet` scales that to fit and centres it.
+ * Outline only, in the muted text colour, as the asset card's thumbnail is (`designer-object.css`).
+ * Every stroke is in SCREEN pixels through `vector-effect`, so a metre-wide `viewBox` does not thin
+ * them. The arrow takes the accent, the colour the canvas draws it in.
  */
 .rp-designer-front-preview {
-	width: 40px;
-	height: 40px;
-	flex: none;
+	display: block;
+	width: 100%;
+	height: 112px;
+	padding: var(--size-4-2);
+	box-sizing: border-box;
 	color: var(--text-muted);
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
 }
 
-.rp-designer-front-preview__footprint,
-.rp-designer-front-preview__shaft {
+.rp-designer-front-preview__footprint {
 	fill: none;
 	stroke: currentColor;
 	stroke-width: 1.5;
@@ -47,13 +48,17 @@
 	vector-effect: non-scaling-stroke;
 }
 
-.rp-designer-front-preview__shaft,
-.rp-designer-front-preview__head {
+.rp-designer-front-preview__shaft {
+	fill: none;
 	stroke: var(--interactive-accent);
+	stroke-width: 2;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
 }
 
 .rp-designer-front-preview__head {
 	fill: var(--interactive-accent);
+	stroke: var(--interactive-accent);
 	stroke-width: 1;
 	stroke-linejoin: round;
 	vector-effect: non-scaling-stroke;

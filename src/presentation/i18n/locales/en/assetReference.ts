@@ -44,11 +44,6 @@ export const assetReferenceEn = {
 	'designer.placement.custom': 'Custom',
 	'designer.placement.hint': 'Back centre is the middle of the side opposite the front arrow.',
 	'designer.placement.front': 'Front direction',
-	'designer.placement.front.right': 'Toward the right of the drawing',
-	'designer.placement.front.down': 'Toward the bottom of the drawing',
-	'designer.placement.front.left': 'Toward the left of the drawing',
-	'designer.placement.front.up': 'Toward the top of the drawing',
-	'designer.placement.front.angle': '{degrees}° from the right of the drawing',
 	'designer.clearance': 'Clearance',
 	'designer.clearance.front': 'In front',
 	// "At the back" rather than "Behind": WCAG 2.5.3 needs the visible short label ("Back")

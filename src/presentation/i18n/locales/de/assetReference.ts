@@ -29,11 +29,6 @@ export const assetReferenceDe: Record<keyof typeof assetReferenceEn, string> = {
 	'designer.placement.custom': 'Eigener Punkt',
 	'designer.placement.hint': 'Die hintere Mitte ist die Mitte der Seite gegenüber dem Frontpfeil.',
 	'designer.placement.front': 'Frontrichtung',
-	'designer.placement.front.right': 'Zur rechten Seite der Zeichnung',
-	'designer.placement.front.down': 'Zum unteren Rand der Zeichnung',
-	'designer.placement.front.left': 'Zur linken Seite der Zeichnung',
-	'designer.placement.front.up': 'Zum oberen Rand der Zeichnung',
-	'designer.placement.front.angle': '{degrees}° von der rechten Seite der Zeichnung',
 	'designer.clearance': 'Freiraum',
 	// "Direkt vorne"/"Direkt hinten" rather than "Davor"/"Dahinter": WCAG 2.5.3 needs the
 	// visible short label ("Vorne"/"Hinten") inside this sentence, and the contracted forms

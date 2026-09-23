@@ -198,6 +198,18 @@ describe('the mini preview', () => {
 		for (const y of ys) expect(y).toBeLessThanOrEqual(minY + height);
 	});
 
+	/**
+	 * Fitted to the outline and the arrow together rather than to a fixed square, so the full-width box
+	 * below the picker draws the object as large as it fits (the integrator measured the first, 40px
+	 * square version as unreadable). 800 x 450 facing down: the tip reaches 0.4 x 800 = 320 below the
+	 * middle, past the outline's 225, and 0.1 x 800 = 80 of clear space goes round the whole of it.
+	 */
+	it('fits the picture to the outline and the arrow, with clear space round both', () => {
+		const shape: AssetShape = { ...baseShape(), footprint: expectOk(footprintFromDimensions(800, 450)), facing: Math.PI / 2 };
+		const [minX = NaN, minY = NaN, width = NaN, height = NaN] = frontPreview(shape).viewBox.split(' ').map(Number);
+		expect([minX, minY, width, height].map((value) => Math.round(value))).toEqual([-480, -305, 960, 705]);
+	});
+
 	/** Drawn from the outline's middle rather than from the anchor, so an anchor on an edge cannot push it off the picture. */
 	it('starts the arrow at the middle of the outline wherever the anchor is', () => {
 		const shape: AssetShape = { ...baseShape(), anchor: { x: -600, y: 0 } };

@@ -112,16 +112,19 @@ describe('every toolbar button is an icon with a name', () => {
 	});
 
 	/**
-	 * **No two buttons wear the same glyph.** Once the text is hidden the glyph is the ONLY thing
-	 * that tells two buttons apart on screen, so a table that reused one — the cheapest possible
-	 * edit, and the one a reader adding a twelfth tool would reach for — would ship two controls
-	 * that look identical and do different things. Nothing else in this repository can see that:
-	 * the labels would still differ, so every existing toolbar case stays green.
+	 * **No two buttons wear the same glyph.** Below the toolbar's own 80rem the text is hidden and
+	 * the glyph is the ONLY thing that tells two buttons apart on screen, so a table that reused
+	 * one — the cheapest possible edit, and the one a reader adding a twelfth tool would reach
+	 * for — would ship two controls that look identical and do different things at that width.
+	 * Nothing else in this repository can see that: the labels would still differ, so every
+	 * existing toolbar case stays green.
 	 *
 	 * **Asked across BOTH homes since AD18-R3**, which is the widening the ruling forces rather
-	 * than a convenience: the rail draws its four with their text hidden at every width, so an
-	 * icon reused between a rail button and a toolbar button would ship exactly the defect this
-	 * case exists for, in the one place where neither control has any text at all.
+	 * than a convenience. **Task 3's fix round gave the rail's four a visible tile label**
+	 * (`designer.add.tile-*`), so the rail is no longer the "neither control has any text at all"
+	 * case this paragraph used to name — but the toolbar's OWN icon-only state below 80rem still
+	 * is, and a glyph shared between a toolbar button and a rail button would still be reused
+	 * copy-paste, so the case is kept for the half of the claim that is still true.
 	 */
 	it('asks for a distinct glyph per button across both homes, which is all that tells them apart once the text is hidden', async () => {
 		const rig = await designerRig();

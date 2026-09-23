@@ -3,6 +3,7 @@ import type { IconName } from 'obsidian';
 // table — so the totality below is enforced with no runtime edge to the registration module,
 // which is what keeps this file importable from anywhere the `Add` rail eventually lives.
 import type { DESIGNER_TOOL_LABELS } from './registerDesignerTools';
+import type { StringKey } from '../../i18n/locales/en';
 
 /**
  * The glyph each designer tool wears, and which half of the toolbar it belongs to (AD18 item 3).
@@ -54,11 +55,16 @@ import type { DESIGNER_TOOL_LABELS } from './registerDesignerTools';
  * would ship two controls that look identical and do different things with every label-reading
  * test still green. `designerIconToolbar.test.ts` is what refuses it.
  *
- * **TWO partials hide a label now, under different conditions, which is why that sentence no
- * longer names one.** `styles/designer-toolbar.css` hides it below 80rem;
- * `styles/designer-add.css` hides the rail's at EVERY width. So the `'shape'` rows are in the
- * state this rule guards against permanently and the others only at a narrow leaf — distinctness
- * got strictly harder to satisfy at AD18 item 5, not easier.
+ * **One partial hid a label at every width, until Task 3's fix round — updated here because a
+ * stale claim in this file is as much a defect as one in the code it describes.** Wave 11 shipped
+ * `styles/designer-add.css` hiding `.rp-designer-tool-label` unconditionally, which is what the
+ * paragraph above used to say; board 01 draws a visible label under the icon instead, so that rule
+ * now shows the text at every width. `styles/designer-toolbar.css` still hides its own copy below
+ * 80rem, unchanged. So the `'shape'` rows are icon-only ONLY at a narrow toolbar-adjacent leaf,
+ * same as every other row, and glyph distinctness is no longer the rail's ONLY signal — the tile's
+ * own short label (`designer.add.tile-*`, below) tells two tiles apart too — but
+ * `designerIconToolbar.test.ts` still refuses a reused glyph regardless, since the toolbar's own
+ * icon-only state at a narrow leaf never went away.
  */
 export const DESIGNER_TOOL_ICONS = {
 	select: { icon: 'mouse-pointer-2', group: 'tool' },
@@ -73,3 +79,28 @@ export const DESIGNER_TOOL_ICONS = {
 	'set-facing': { icon: 'arrow-up-right', group: 'tool' },
 	calibrate: { icon: 'ruler', group: 'tool' },
 } as const satisfies Readonly<Record<keyof typeof DESIGNER_TOOL_LABELS, { icon: IconName; group: 'tool' | 'shape' }>>;
+
+/**
+ * The literal ids `DESIGNER_TOOL_ICONS` groups as `'shape'`, extracted BY TYPE — Task 3's fix
+ * round, for `SHAPE_TILE_LABELS` below: a fifth shape added to the table above with no entry
+ * below is a compile error rather than a tile silently rendering `undefined`. A plain `.ts` module
+ * rather than a `const` inside `DesignerAddPanel.vue`'s `<script setup>`, for the reason this
+ * file's own header gives about `DESIGNER_TOOL_ICONS` itself: a `<script setup>` binding is not a
+ * module export, so `designerAddRail.test.ts` could not otherwise import the real table and would
+ * have to keep a second, hand-written copy that could drift from it.
+ */
+export type ShapeToolId = { [K in keyof typeof DESIGNER_TOOL_ICONS]: (typeof DESIGNER_TOOL_ICONS)[K]['group'] extends 'shape' ? K : never }[keyof typeof DESIGNER_TOOL_ICONS];
+
+/**
+ * The tile's own visible text (Task 3 fix round) — board 01 labels a tile with the shape's name
+ * ("Rectangle"), not the toolbar's verb phrase ("Draw rectangle", `DESIGNER_TOOL_LABELS`) that
+ * stays every tile's accessible name. `en/designerAdd.ts`'s header carries the label-in-name
+ * argument (each short label is a literal substring of its own `designer.toolbar.draw-*` string);
+ * `designerAddRail.test.ts` pins the containment rather than trusting it by construction.
+ */
+export const SHAPE_TILE_LABELS = {
+	'draw-rect': 'designer.add.tile-rect',
+	'draw-rounded-rect': 'designer.add.tile-rounded-rect',
+	'draw-circle': 'designer.add.tile-circle',
+	'draw-line': 'designer.add.tile-line',
+} as const satisfies Readonly<Record<ShapeToolId, StringKey>>;

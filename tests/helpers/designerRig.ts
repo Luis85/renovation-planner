@@ -137,6 +137,19 @@ function pointer(
 	);
 }
 
+/**
+ * A button's accessible name, for `toolbarButton` below — `aria-label` when the button carries
+ * one, `.text()` when it does not, mirroring the browser's own computation (an explicit label
+ * wins, text content is the fallback) rather than picking one attribute and breaking the button
+ * that relies on the other. `.rp-designer-tools` holds both kinds: a `DesignerToolButton` always
+ * sets `aria-label` (unaffected by Task 3's `visibleLabel`, which only changes what the SPAN
+ * shows), and `DesignerSelectionModes.vue`'s mode buttons ("Edit points", "Bend edges") carry no
+ * `aria-label` at all — their own docblock states the button's TEXT stays its accessible name.
+ */
+function accessibleName(button: { attributes: (name: string) => string | undefined; text: () => string }): string {
+	return button.attributes('aria-label') ?? button.text();
+}
+
 export interface DesignerRig {
 	readonly wrapper: VueWrapper;
 	readonly pinia: Pinia;
@@ -148,8 +161,9 @@ export interface DesignerRig {
 	/** The stage pixel a world point sits at under the LIVE camera. */
 	at(world: Point): { x: number; y: number };
 	/**
-	 * A tool button by its rendered label, from the toolbar OR the `Add` rail — the four drawing
-	 * tools live in the second since AD18-R3. Throws rather than answering `undefined`.
+	 * A tool button by its ACCESSIBLE name (`aria-label`), from the toolbar OR the `Add` rail —
+	 * the four drawing tools live in the second since AD18-R3. Throws rather than answering
+	 * `undefined`.
 	 */
 	toolbarButton(label: string): HTMLButtonElement;
 	/** Which tool the leaf's manager has active, through the mirror `setTool` writes. */
@@ -403,11 +417,13 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 			// `.rp-designer-tools` for the ten the toolbar kept, `.rp-designer-add` for the four
 			// the `Add` rail took. A caller that asked for a
 			// shape by label went on compiling and started throwing when the button moved, which is
-			// a SELECTOR failure dressed as a missing label — jsdom applies no CSS, so
-			// `designer-toolbar.css`'s `display: none` on the text never touches `.text()`.
-			// The union is what makes it resolvable from one helper; `designerAddRail.test.ts`
-			// drives one button from each home through this resolver so neither half can rot.
-			const found2 = wrapper.findAll('.rp-designer-tools button, .rp-designer-add button').find((button) => button.text() === label);
+			// a SELECTOR failure dressed as a missing label.
+			//
+			// Resolved against `accessibleName` (above) rather than `.text()` alone since Task 3's fix
+			// round — its own docblock carries why: the rail's tile now shows a shorter visible label
+			// than its accessible name, so `.text()` stopped equalling the string every caller here
+			// passes for a shape button specifically.
+			const found2 = wrapper.findAll('.rp-designer-tools button, .rp-designer-add button').find((button) => accessibleName(button) === label);
 			if (found2 === undefined) throw new Error(`no designer toolbar button labelled ${label}`);
 			return found2.element as HTMLButtonElement;
 		},

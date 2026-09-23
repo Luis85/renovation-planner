@@ -38,6 +38,17 @@
  * `designer.shapes.group` stays where wave 10 minted it (`designerToolbarIcons.ts`): the group
  * label outlived the toolbar exactly as that card intended, and moving the ENTRY between locale
  * modules would be churn with no reader.
+ *
+ * **Four more keys landed in the Task 3 fix round, and they are new copy rather than a rename of
+ * the four above.** The integrator's rendered check found the tile grid overflowing at 176px
+ * because `repeat(2, 1fr)` sized each column to the LONGEST unbreakable label
+ * (`designer.toolbar.draw-rounded-rect`, "Draw rounded rectangle"), and separately found board 01
+ * labelling the tile with the shape's name alone — "Rectangle", not "Draw rectangle". So the rail
+ * needs a SHORTER visible label than its accessible name, which stays `designer.toolbar.draw-*`
+ * (unchanged, still the toolbar's copy too). WCAG 2.5.3 label-in-name holds: each short label is a
+ * literal substring of its own accessible name ("Rectangle" ⊂ "Draw rectangle", and so on for the
+ * other three) — `designerAddRail.test.ts` pins that containment rather than trusting the pairing
+ * by construction.
  */
 export const designerAddEn = {
 	/**
@@ -46,4 +57,9 @@ export const designerAddEn = {
 	 * One word, because it names half a rail beside `Parts` and the two are read as a pair.
 	 */
 	'designer.add': 'Add',
+	/** The tile's own visible text (Task 3 fix round) — board 01's shape name, not the verb. */
+	'designer.add.tile-rect': 'Rectangle',
+	'designer.add.tile-rounded-rect': 'Rounded rectangle',
+	'designer.add.tile-circle': 'Circle',
+	'designer.add.tile-line': 'Line',
 } as const;

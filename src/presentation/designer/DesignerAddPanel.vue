@@ -27,14 +27,22 @@
  *   board 02 draws the gallery inline in the rail, and a panel labelled `Add` whose gallery wipes
  *   the drawing is a false label at any width.
  *
- * **The buttons are `DesignerToolButton`s, unchanged, which is what makes the move a move.** They
- * carry the same labels (`designer.toolbar.draw-*` — deliberately NOT renamed; `en/designerAdd.ts`
- * carries that argument), the same glyphs, the same `aria-pressed` mirror and the same active
- * class. What differs is the rule that draws them: `styles/designer-add.css` no longer hides the
- * text at all (Task 3, AD18-R16) — board 01's tiles carry a visible label under the icon, so the
- * icon-only treatment wave 11 gave this rail is inverted here, where `styles/designer-toolbar.css`
- * still hides its own copy of that class below 80rem, a measurement of the TOOLBAR's row count that
- * says nothing about this rail.
+ * **The buttons are `DesignerToolButton`s.** They carry the same accessible name
+ * (`designer.toolbar.draw-*` — deliberately NOT renamed; `en/designerAdd.ts` carries that
+ * argument), the same glyphs, the same `aria-pressed` mirror and the same active class. What
+ * differs is the rule that draws them: `styles/designer-add.css` no longer hides the text at all
+ * (Task 3, AD18-R16) — board 01's tiles carry a visible label under the icon, so the icon-only
+ * treatment wave 11 gave this rail is inverted here, where `styles/designer-toolbar.css` still
+ * hides its own copy of that class below 80rem, a measurement of the TOOLBAR's row count that says
+ * nothing about this rail.
+ *
+ * **Task 3's fix round adds a SECOND label, the tile's own.** The integrator's rendered check
+ * found the grid overflowing (`repeat(2, 1fr)` sized each column to its longest unbreakable
+ * label) and found board 01 labelling a tile with the shape's name, not the toolbar's verb
+ * phrase — so `DesignerToolButton` grew an optional `visibleLabel` (unused by the toolbar, which
+ * still passes only `label`), and `SHAPE_TILE_LABELS`/`ShapeToolId` below give each shape its own
+ * short text while `label` keeps carrying the long one for `aria-label`. Two keys per tile rather
+ * than a rename, for the reason `en/designerAdd.ts`'s header states in full.
  *
  * **Task 3 also reorders the section and turns the group's name into a heading.** Board 01 draws
  * the preset door above `Basic shapes`, so the door is written first in the template; and the
@@ -51,7 +59,7 @@ import { tr } from '../i18n/strings';
 import type { StringKey } from '../i18n/locales/en';
 import type { ToolId } from '../editor/tools/editor-tool';
 import { DESIGNER_TOOL_LABELS } from './tools/registerDesignerTools';
-import { DESIGNER_TOOL_ICONS } from './tools/designerToolIcons';
+import { DESIGNER_TOOL_ICONS, SHAPE_TILE_LABELS, type ShapeToolId } from './tools/designerToolIcons';
 import { useDesignerRuntime } from './runtime';
 import DesignerToolButton from './DesignerToolButton.vue';
 
@@ -76,13 +84,15 @@ const shapesHeadingId = useId();
  * the label is then looked up by key, which `DESIGNER_TOOL_LABELS` is total over. `Object.entries`
  * loses the key's literal type, so the row is typed on the way out — the same unchecked step
  * `DesignerToolbar.vue` names, and the reason `designerAddRail.test.ts` clicks every button and
- * asserts the manager's active tool rather than counting them.
+ * asserts the manager's active tool rather than counting them. `tileLabel` is looked up the same
+ * unchecked way, safe here only because the filter above never produces an id outside `ShapeToolId`.
  */
-const SHAPE_MODES: readonly { readonly id: ToolId; readonly label: StringKey; readonly icon: IconName }[] = Object.entries(DESIGNER_TOOL_ICONS)
+const SHAPE_MODES: readonly { readonly id: ToolId; readonly label: StringKey; readonly tileLabel: StringKey; readonly icon: IconName }[] = Object.entries(DESIGNER_TOOL_ICONS)
 	.filter(([, entry]) => entry.group === 'shape')
 	.map(([id, entry]) => ({
 		id: id as ToolId,
 		label: DESIGNER_TOOL_LABELS[id as keyof typeof DESIGNER_TOOL_LABELS] as StringKey,
+		tileLabel: SHAPE_TILE_LABELS[id as ShapeToolId],
 		icon: entry.icon as IconName,
 	}));
 </script>
@@ -130,6 +140,7 @@ const SHAPE_MODES: readonly { readonly id: ToolId; readonly label: StringKey; re
 				v-for="mode in SHAPE_MODES"
 				:key="mode.label"
 				:label="mode.label"
+				:visible-label="mode.tileLabel"
 				:icon="mode.icon"
 				:class="{ 'rp-designer-tool-active': runtime.activeToolId.value === mode.id }"
 				:aria-pressed="runtime.activeToolId.value === mode.id"

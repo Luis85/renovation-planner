@@ -49,13 +49,24 @@
  * state does not change that, because Obsidian draws its own tooltip from `aria-label` — host
  * behaviour, which nothing in this repository can check, so the sentence claims the attribute
  * and not the tooltip.
+ *
+ * **`visibleLabel` is Task 3's fix-round addition, and it is TEXT rather than the STATE the
+ * correction above refuses.** The rail's tile grid overflowed because `repeat(2, 1fr)` sized each
+ * column to its longest unbreakable label, and separately board 01 labels a tile with the shape's
+ * name alone ("Rectangle") rather than the toolbar's verb phrase ("Draw rectangle") — so the two
+ * homes need different WORDS, which `showLabel` (refused above) was never about. Optional and
+ * defaulting to `label` itself, so every toolbar call site is unchanged: `visibleLabel` is never
+ * passed there and the span still reads the same string `aria-label` does. `aria-label` stays
+ * `label` unconditionally — WCAG 2.5.3 label-in-name is the caller's job (`designerAddRail.test.ts`
+ * pins the containment for the rail's four), not this component's, exactly as whether the span
+ * draws at all already was.
  */
 import type { IconName } from 'obsidian';
 import { tr } from '../i18n/strings';
 import type { StringKey } from '../i18n/locales/en';
 import HostIcon from '../components/HostIcon.vue';
 
-defineProps<{ label: StringKey; icon: IconName }>();
+const props = defineProps<{ label: StringKey; icon: IconName; visibleLabel?: StringKey }>();
 </script>
 
 <template>
@@ -64,6 +75,6 @@ defineProps<{ label: StringKey; icon: IconName }>();
 		class="rp-designer-tool-button"
 		:aria-label="tr(label)"
 	>
-		<HostIcon :name="icon" /><span class="rp-designer-tool-label">{{ tr(label) }}</span>
+		<HostIcon :name="icon" /><span class="rp-designer-tool-label">{{ tr(props.visibleLabel ?? label) }}</span>
 	</button>
 </template>

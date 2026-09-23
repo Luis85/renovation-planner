@@ -70,16 +70,33 @@
  * 123px (22cqi at the 35rem boundary) — each minus `.rp-designer-parts`'s 2×8px padding, so 160px
  * stays two columns and 107px does not. Unverified here: jsdom resolves no container query, so
  * which side of that line a real leaf lands on is the browser's question and the report's.
+ *
+ * **`minmax(0, 1fr)`, not bare `1fr` — the fix-round's root cause.** `repeat(2, 1fr)` is
+ * `repeat(2, minmax(auto, 1fr))`, and an `auto` minimum is each column's own min-content
+ * contribution — the width of its longest UNBREAKABLE run. Combined with the button's inherited
+ * `white-space: nowrap` (below), that run was the whole label ("Draw rounded rectangle"), so the
+ * rendered rail measured [8,146,98] / [110,146,146] at a 176px leaf: two unequal columns summing
+ * to 244px in a ~160px content box, scrolling horizontally. `minmax(0, 1fr)` removes the content
+ * floor, so both tracks split the container's own width exactly in half regardless of what is
+ * inside them, and the label wraps within that fixed width instead of forcing it wider.
+ *
+ * **`align-items: start`, restoring the reviewer's Minor.** Grid's own default is `stretch`, which
+ * would stretch every tile in a row to the height of its tallest neighbour — harmless once tiles
+ * size to their own content (below), but still the wrong picture for four tiles whose labels wrap
+ * to different line counts: a one-line "Circle" tile has no reason to grow to a two-line "Rounded
+ * rectangle" tile's height. `start` keeps each tile exactly as tall as its own icon-plus-label and
+ * top-aligns the row, which is board 01's picture rather than a padded one.
  */
 .rp-designer-add-shapes {
 	display: grid;
-	grid-template-columns: repeat(2, 1fr);
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	align-items: start;
 	gap: var(--size-4-1);
 }
 
 @container rp-designer-add (width < 9rem) {
 	.rp-designer-add-shapes {
-		grid-template-columns: 1fr;
+		grid-template-columns: minmax(0, 1fr);
 	}
 }
 
@@ -95,10 +112,14 @@
  * specificity resolves to source order rather than to which one is a superset of the other.
  *
  * Sized down from the button's own text and centred, because a tile's label sits under a small
- * glyph rather than beside a full-height one.
+ * glyph rather than beside a full-height one. `overflow-wrap: anywhere` (fix round) is the second
+ * half of the grid fix: `minmax(0, 1fr)` fixes the TRACK width, and this is what stops a single
+ * long word from overflowing that fixed width once the button's own `white-space: normal` (below)
+ * lets the label wrap at all.
  */
 .rp-designer-add .rp-designer-tool-label {
 	display: block;
+	overflow-wrap: anywhere;
 	font-size: var(--font-ui-smaller);
 	text-align: center;
 	line-height: var(--line-height-tight);
@@ -106,16 +127,44 @@
 
 /*
  * The tile itself: icon above label rather than beside it, which is the row-to-column flip that
- * turns `DesignerToolButton`'s unchanged markup into a tile. `designer-toolbar.css`'s equivalent
- * is qualified with `.rp-designer-tools` and so reaches nothing here; ELEMENT-qualified for that
+ * turns `DesignerToolButton`'s markup into a tile. `designer-toolbar.css`'s equivalent is
+ * qualified with `.rp-designer-tools` and so reaches nothing here; ELEMENT-qualified for that
  * file's stated reason — a `<summary>` carrying this class exists in the toolbar, and keeping both
  * spellings the same shape is what lets a reader move between them.
+ *
+ * **`height: auto` and `white-space: normal` are the fix round's other root cause, and both
+ * override Obsidian's OWN base `button` rule** (`tests/harness/obsidian.css`:
+ * `height: var(--input-height); white-space: nowrap;`), which reaches every button in this rail at
+ * lower specificity than the element-qualified selector here. `nowrap` is what forced each label
+ * onto one unbreakable line in the first place — the direct cause of the grid overflow above.
+ * `var(--input-height)` is sized for a single line of text beside an icon, not an icon ABOVE a
+ * wrapped one- or two-line label; kept, a tile's content painted past its own fixed-height box and
+ * OVER the tile below it in the grid, which is what the integrator's 460px stacked-leaf capture
+ * showed — "Draw rectangle" drawn over the circle tile's icon in the row underneath. `auto` lets
+ * each button's box grow to whatever its own icon-plus-label needs, which is also what makes
+ * `align-items: start` above meaningful rather than moot.
  */
 .rp-designer-add button.rp-designer-tool-button {
 	display: inline-flex;
 	flex-direction: column;
 	align-items: center;
 	gap: var(--size-4-1);
+	height: auto;
+	white-space: normal;
+}
+
+/*
+ * THE GLYPH, LARGER THAN THE TOOLBAR'S (fix round) — board 01 draws roughly 24–32px icons, and
+ * `.rp-host-icon`'s own default (`editor-icons.css`) is 18px, sized for sitting beside a line of
+ * text rather than reading as a tile's own picture. 28px matches the size this codebase already
+ * uses for a comparably prominent icon-above-text button
+ * (`.rp-floor-start > button > .rp-host-icon` in `editor-reference.css`). Scoped to the rail's own
+ * tool buttons via the `--icon-size` custom property `.rp-host-icon` already reads, rather than a
+ * new rule in `HostIcon.vue` — the same convention every other per-surface icon size in this
+ * codebase follows, so the toolbar's own 18px is untouched.
+ */
+.rp-designer-add .rp-designer-tool-button .rp-host-icon {
+	--icon-size: 28px;
 }
 
 /*

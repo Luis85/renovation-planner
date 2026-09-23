@@ -77,6 +77,39 @@ describe('the Add rail', () => {
 	});
 
 	/**
+	 * **Fix round: the tile's own VISIBLE text is the shape's name, not the toolbar's verb phrase**
+	 * — board 01 labels a tile "Rectangle", not "Draw rectangle". The accessible name stays the
+	 * long form (asserted above, unchanged), so this is a SECOND string per tile rather than a
+	 * rename, and WCAG 2.5.3 label-in-name is what makes the pair legal: each visible text must be
+	 * CONTAINED in its own accessible name, checked here rather than trusted from the two locale
+	 * tables agreeing by construction. Compared case-insensitively rather than as a literal
+	 * substring — sentence-case UI text capitalises a tile's own first (and only) word
+	 * ("Rectangle") where the same noun sits mid-sentence in its accessible name ("Draw
+	 * rectangle"), and 2.5.3 does not turn on letter case; a same-word, different-case pair is
+	 * exactly the "contained" the success criterion means, not a violation of it.
+	 */
+	it('labels each tile with the shape’s own short name, contained in its accessible name', async () => {
+		const rig = await railOpen();
+		const buttons = rig.wrapper.findAll('.rp-designer-add-shapes button');
+		const visible = buttons.map((button) => button.find('.rp-designer-tool-label').text());
+		const accessible = buttons.map((button) => button.attributes('aria-label'));
+
+		expect(visible).toEqual([
+			t('en', 'designer.add.tile-rect'),
+			t('en', 'designer.add.tile-rounded-rect'),
+			t('en', 'designer.add.tile-circle'),
+			t('en', 'designer.add.tile-line'),
+		]);
+		visible.forEach((text, index) => {
+			expect(accessible[index]?.toLowerCase()).toContain(text.toLowerCase());
+		});
+		// The visible text is genuinely shorter, or this case would not be testing what it claims.
+		visible.forEach((text, index) => {
+			expect(text.length).toBeLessThan((accessible[index] ?? '').length);
+		});
+	});
+
+	/**
 	 * **EVERY registered designer tool has exactly one button, counting both homes.** This is the
 	 * property AD18-R3 turns into a risk: two components now filter one table, and a predicate
 	 * edited on one side alone either duplicates a tool or loses it. A lost tool is design slice
@@ -304,23 +337,52 @@ describe('what the Add rail’s stylesheet declares', () => {
 	});
 
 	/**
-	 * **Two columns, one when the rail itself is too narrow to hold them.** The brief's own words —
-	 * board 01 draws a grid, not a wrap — so `.rp-designer-add-shapes` is a CSS grid rather than the
-	 * flex-wrap row it was under wave 11's icon-only treatment, and the degrade is a container query
-	 * keyed to `.rp-designer-add`'s OWN width (`rp-designer-add`) rather than to the outer
-	 * `rp-designer` container `designer-narrow.css` and `designer-toolbar.css` already query — the
-	 * outer container measures the whole leaf, and "the rail is narrow" is a fact about the rail,
-	 * not about the leaf holding it. 9rem sits between the two rail widths this card's report
-	 * predicts (176px and 123px, minus the parts panel's 2×8px padding): wide enough that the
-	 * 176px case keeps two columns and narrow enough that the 123px case does not.
+	 * **Fix round: the tile sizes to its OWN content instead of Obsidian's fixed button height.**
+	 * `tests/harness/obsidian.css`'s base `button` rule sets `height: var(--input-height)` and
+	 * `white-space: nowrap` at element specificity, which this element-qualified rule outranks. The
+	 * integrator's 460px stacked-leaf capture found "Draw rectangle" painted OVER the circle tile's
+	 * icon in the row underneath — a fixed height too short for an icon stacked above a wrapped
+	 * label, with the overflow simply painting past the box rather than clipping (no `overflow`
+	 * declared). `white-space: normal` is the other half: `nowrap` is what forced a whole label onto
+	 * one unbreakable line, which is the ROOT CAUSE the grid test below is the other side of.
+	 */
+	it('sizes the tile to its own icon-and-label content instead of Obsidian’s fixed button height', () => {
+		const rules = partial();
+
+		expect(declared(rules, '.rp-designer-add button.rp-designer-tool-button', 'height')).toEqual(parsed('height', 'auto'));
+		expect(declared(rules, '.rp-designer-add button.rp-designer-tool-button', 'white-space')).toEqual(parsed('white-space', 'normal'));
+	});
+
+	/**
+	 * **Two columns, one when the rail itself is too narrow to hold them — `minmax(0, 1fr)`, not
+	 * bare `1fr`.** The integrator's 176px capture measured tile boxes [8,146,98] and [110,146,146]:
+	 * two UNEQUAL columns summing to 244px in a ~160px content box. `repeat(2, 1fr)` is
+	 * `repeat(2, minmax(auto, 1fr))`, and combined with the button's inherited `white-space: nowrap`
+	 * (fixed above), each column's `auto` floor became its longest label's unbroken width rather
+	 * than an equal half of the container. `minmax(0, 1fr)` removes that floor so both tracks split
+	 * the container exactly in half regardless of content, and the label wraps inside that fixed
+	 * width instead of forcing it wider.
+	 *
+	 * The degrade is a container query keyed to `.rp-designer-add`'s OWN width (`rp-designer-add`)
+	 * rather than to the outer `rp-designer` container `designer-narrow.css` and
+	 * `designer-toolbar.css` already query — the outer container measures the whole leaf, and "the
+	 * rail is narrow" is a fact about the rail, not about the leaf holding it. 9rem sits between the
+	 * two rail widths this card's report predicts (176px and 123px, minus the parts panel's 2×8px
+	 * padding): wide enough that the 176px case keeps two columns and narrow enough that the 123px
+	 * case does not.
+	 *
+	 * `align-items: start` restores the reviewer's Minor: grid's own default (`stretch`) would grow
+	 * every tile in a row to its tallest neighbour's height, which is the wrong picture once tiles
+	 * of different label-line-counts size to their own content.
 	 */
 	it('lays the tiles out as a two-column grid, one column once the rail itself is too narrow', () => {
 		const rules = partial();
 		const narrow = container('rp-designer-add (width < 9rem)');
 
 		expect(declared(rules, '.rp-designer-add-shapes', 'display')).toEqual(parsed('display', 'grid'));
-		expect(declared(rules, '.rp-designer-add-shapes', 'grid-template-columns')).toEqual(parsed('grid-template-columns', 'repeat(2, 1fr)'));
-		expect(declared(rules, '.rp-designer-add-shapes', 'grid-template-columns', narrow)).toEqual(parsed('grid-template-columns', '1fr'));
+		expect(declared(rules, '.rp-designer-add-shapes', 'grid-template-columns')).toEqual(parsed('grid-template-columns', 'repeat(2, minmax(0, 1fr))'));
+		expect(declared(rules, '.rp-designer-add-shapes', 'align-items')).toEqual(parsed('align-items', 'start'));
+		expect(declared(rules, '.rp-designer-add-shapes', 'grid-template-columns', narrow)).toEqual(parsed('grid-template-columns', 'minmax(0, 1fr)'));
 	});
 
 	/**
@@ -333,6 +395,31 @@ describe('what the Add rail’s stylesheet declares', () => {
 
 		expect(declared(rules, '.rp-designer-add', 'container-type')).toEqual(parsed('container-type', 'inline-size'));
 		expect(declared(rules, '.rp-designer-add', 'container-name')).toEqual(parsed('container-name', 'rp-designer-add'));
+	});
+
+	/**
+	 * **Fix round: a long word must wrap inside its fixed-width track rather than overflow it.**
+	 * `minmax(0, 1fr)` above fixes the TRACK's width; this is what stops the label's own text from
+	 * escaping that fixed width once `white-space: normal` lets it wrap at all.
+	 */
+	it('lets a tile’s label break anywhere rather than overflow its fixed-width column', () => {
+		const rules = partial();
+
+		expect(declared(rules, '.rp-designer-add .rp-designer-tool-label', 'overflow-wrap')).toEqual(parsed('overflow-wrap', 'anywhere'));
+	});
+
+	/**
+	 * **Fix round: the glyph reads as the tile's own picture, not a small mark beside text.** Board
+	 * 01 draws roughly 24–32px icons; `.rp-host-icon`'s own default (`editor-icons.css`) is 18px,
+	 * sized for sitting beside a line of text. Scoped through the `--icon-size` custom property
+	 * `.rp-host-icon` already reads — the convention every other per-surface icon size in this
+	 * codebase follows (e.g. `editor-reference.css`'s `.rp-floor-start > button > .rp-host-icon`) —
+	 * rather than a new prop on `HostIcon.vue`, so the toolbar's own 18px glyphs are untouched.
+	 */
+	it('draws the tile’s glyph larger than the toolbar’s icon-beside-text one', () => {
+		const rules = partial();
+
+		expect(declared(rules, '.rp-designer-add .rp-designer-tool-button .rp-host-icon', '--icon-size')).toEqual(parsed('--icon-size', '28px'));
 	});
 
 	/**

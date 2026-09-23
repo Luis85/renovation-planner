@@ -223,6 +223,53 @@ describe('which figures the designer draws over a design', () => {
 	it('draws nothing for a selected detail the shape has lost', () => {
 		expect(figures({ kind: 'detail', id: 'detail-gone' }).map((figure) => figure.name)).toEqual(['overall-width', 'overall-depth']);
 	});
+
+	/**
+	 * **`Show clearance` off withholds the clearance's figures (AD18-R17)**, in both modes, for the
+	 * hidden part's reason: the canvas stops drawing that boundary, so six editable millimetre labels
+	 * would stand over nothing.
+	 */
+	it('measures no clearance while Show clearance is off, neither selected nor under the toggle', () => {
+		const hiddenClearance = (selection: DesignerSelection | null, all: boolean): string[] =>
+			dimensionFigures(editableShape(), selection, all, NOTHING_HIDDEN, false).map((figure) => figure.name);
+
+		expect(hiddenClearance({ kind: 'clearance' }, false)).toEqual(['overall-width', 'overall-depth']);
+		expect(hiddenClearance(null, true).some((name) => name.startsWith('clearance-'))).toBe(false);
+		expect(hiddenClearance(null, true)).toContain('detail-detail-1-width');
+	});
+});
+
+/**
+ * **What each dimension LINE spans (AD18-R17, board 01)**: the axis it runs along and the two points
+ * on the edges it measures, at the row or column its label is anchored on. The component turns them
+ * into a line, two arrowheads and two extension lines; this module states only the world geometry.
+ */
+describe('the span each figure measures', () => {
+	const span = (list: readonly DimensionFigure[], name: string): [string, number, number, number, number] => {
+		const figure = named(list, name);
+		return [figure.axis, figure.from.x, figure.from.y, figure.to.x, figure.to.y];
+	};
+
+	it('runs each size along its own edge, from one corner to the other', () => {
+		const drawn = figures(TOP);
+
+		expect(span(drawn, 'overall-width')).toEqual(['x', -500, -300, 500, -300]);
+		expect(span(drawn, 'overall-depth')).toEqual(['y', -500, -300, -500, 300]);
+		expect(span(drawn, 'detail-detail-1-width')).toEqual(['x', -400, -100, 0, -100]);
+		expect(span(drawn, 'detail-detail-1-depth')).toEqual(['y', -400, -100, -400, 100]);
+	});
+
+	/** From the edge the gap is measured OFF to the edge it is measured TO — signed, so it can run backwards. */
+	it('runs each offset across its gap, through the middle of the part', () => {
+		const drawn = figures(TOP);
+
+		expect(span(drawn, 'detail-detail-1-offset-left')).toEqual(['x', -500, 0, -400, 0]);
+		expect(span(drawn, 'detail-detail-1-offset-right')).toEqual(['x', 0, 0, 500, 0]);
+		expect(span(drawn, 'detail-detail-1-offset-top')).toEqual(['y', -200, -300, -200, -100]);
+		expect(span(drawn, 'detail-detail-1-offset-bottom')).toEqual(['y', -200, 100, -200, 300]);
+		// The clearance reaches 400 past the footprint's bottom edge: the span runs back up to it.
+		expect(span(figures({ kind: 'clearance' }), 'clearance-offset-bottom')).toEqual(['y', 0, 700, 0, 300]);
+	});
 });
 
 describe('what typing a figure back writes', () => {

@@ -42,13 +42,23 @@
  * fixed lift clipped every form on open. Writing a `transform` here would be a second answer that
  * silently wins or loses by source order.
  */
+/*
+ * **A resting label paints at `z-index: 1`, above the canvas key** (AD18-R17, routed from Task 6's
+ * review). The key — `.rp-designer-key` in `designer-legend.css`, opaque and bottom-left — is drawn
+ * AFTER this overlay and declares no `z-index`, so at `auto` a label a camera put in that corner
+ * was painted under it: a click target nobody could see and a focus ring hidden (WCAG 2.4.11).
+ * Every label shares the one value, so among the labels paint and hit order is still DOM order,
+ * which AD18-R14's rule relies on. The LINES stay at `auto`: a key drawn over a line hides
+ * decoration, not a control.
+ */
 .rp-designer-dimension {
 	position: absolute;
+	z-index: 1;
 }
 /*
- * The open field stacks above its neighbours: two anchors 30 px apart are ordinary on a small
- * part, and a form drawn under the next label along is a form whose Apply button cannot be
- * pressed.
+ * The open field stacks above its neighbours and the key: two anchors 30 px apart are ordinary on
+ * a small part, and a form drawn under the next label along is a form whose Apply button cannot
+ * be pressed.
  */
 .rp-designer-dimension:has(.rp-designer-dimension__form) {
 	z-index: 2;
@@ -56,6 +66,31 @@
 .rp-designer-dimension__value,
 .rp-designer-dimension__form {
 	pointer-events: auto;
+}
+/*
+ * The drafting marks (AD18-R17, board 01): one SVG over the whole canvas, drawn BEFORE the labels
+ * so each label's opaque box interrupts its own line, as a drafted dimension's figure does. It
+ * takes no press — it inherits the container's `none` and says so again, since an SVG that took one
+ * would eat the canvas's gestures across its whole box. `overflow: visible` because a line may run
+ * on past the canvas edge to a label near it. `--text-muted` is the rulers' ink: a line is a
+ * reading aid like a tick, and the accent stays the mark of a thing a user can edit.
+ */
+.rp-designer-dimension-lines {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+	pointer-events: none;
+}
+.rp-designer-dimension-lines__line {
+	fill: none;
+	stroke: var(--text-muted);
+	stroke-width: 1px;
+}
+.rp-designer-dimension-lines__arrows {
+	fill: var(--text-muted);
+	stroke: none;
 }
 /*
  * `tabular-nums` so a figure updating during a drag does not jitter its own width, and

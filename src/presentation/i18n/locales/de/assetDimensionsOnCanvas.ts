@@ -27,6 +27,7 @@ export const assetDimensionsOnCanvasDe: Record<keyof typeof assetDimensionsOnCan
 	'designer.dimension.offset-top': 'Abstand zur oberen Kante',
 	'designer.dimension.offset-bottom': 'Abstand zur unteren Kante',
 	'designer.dimension.value': '{name} {value} mm',
+	'designer.dimension.label': '{value} mm',
 	'designer.dimension.edit': '{name} bearbeiten',
 	'designer.dimension.unavailable': 'Geben Sie ein Maß in Millimetern ein.',
 	'designer.view.all-dimensions': 'Alle Maße',

@@ -102,7 +102,7 @@ describe('what the designer’s dimensions draw', () => {
 			const drawn = rig.wrapper.get('.rp-designer-dimensions').element;
 			expect(overlay?.contains(drawn)).toBe(true);
 
-			expect(buttons(rig)).toEqual([['overall-width', '1000'], ['overall-depth', '600']]);
+			expect(buttons(rig)).toEqual([['overall-width', '1000 mm'], ['overall-depth', '600 mm']]);
 			// (0, -300) at this camera is (48, 18); the label is centred on it by the stylesheet.
 			expect(button(rig, 'overall-width').parentElement?.style.left).toBe('48px');
 			expect(button(rig, 'overall-width').parentElement?.style.top).toBe('18px');
@@ -132,7 +132,7 @@ describe('what the designer’s dimensions draw', () => {
 			useAssetDesignStore(rig.pinia).select({ kind: 'detail', id: 'detail-1' });
 			await settle();
 			expect(buttons(rig).map(([name]) => name)).toContain('detail-detail-1-offset-left');
-			expect(buttons(rig)).toContainEqual(['detail-detail-1-offset-left', '100']);
+			expect(buttons(rig)).toContainEqual(['detail-detail-1-offset-left', '100 mm']);
 
 			useAssetDesignStore(rig.pinia).select(null);
 			await settle();
@@ -291,13 +291,13 @@ describe('what the designer’s dimensions draw', () => {
 	it('follows the gesture’s preview rather than the committed shape', async () => {
 		const rig = await designer();
 		try {
-			expect(buttons(rig)).toContainEqual(['overall-width', '1000']);
+			expect(buttons(rig)).toContainEqual(['overall-width', '1000 mm']);
 
 			useAssetDesignStore(rig.pinia).setPreview({ ...editableShape(), footprint: expectOk(footprintFromDimensions(2400, 1600)) });
 			await settle();
 
-			expect(buttons(rig)).toContainEqual(['overall-width', '2400']);
-			expect(buttons(rig)).toContainEqual(['overall-depth', '1600']);
+			expect(buttons(rig)).toContainEqual(['overall-width', '2400 mm']);
+			expect(buttons(rig)).toContainEqual(['overall-depth', '1600 mm']);
 		} finally {
 			rig.unmount();
 		}
@@ -367,7 +367,7 @@ describe('the inline field a dimension opens', () => {
 
 			await submit(rig);
 
-			expect(buttons(rig)).toContainEqual(['overall-width', '2000']);
+			expect(buttons(rig)).toContainEqual(['overall-width', '2000 mm']);
 			expect(rig.wrapper.findAll('.rp-designer-dimension__form')).toHaveLength(0);
 		} finally {
 			rig.unmount();
@@ -385,8 +385,8 @@ describe('the inline field a dimension opens', () => {
 
 			await submit(rig);
 
-			expect(buttons(rig)).toContainEqual(['detail-detail-1-offset-left', '250']);
-			expect(buttons(rig)).toContainEqual(['detail-detail-1-width', '400']);
+			expect(buttons(rig)).toContainEqual(['detail-detail-1-offset-left', '250 mm']);
+			expect(buttons(rig)).toContainEqual(['detail-detail-1-width', '400 mm']);
 		} finally {
 			rig.unmount();
 		}
@@ -415,7 +415,7 @@ describe('the inline field a dimension opens', () => {
 			expect(rig.wrapper.findAll('.rp-designer-dimension__form')).toHaveLength(0);
 			expect(document.activeElement).toBe(button(rig, 'overall-depth'));
 			// Nothing was written: the value is the one the design still has.
-			expect(buttons(rig)).toContainEqual(['overall-depth', '600']);
+			expect(buttons(rig)).toContainEqual(['overall-depth', '600 mm']);
 		} finally {
 			rig.unmount();
 		}
@@ -462,7 +462,7 @@ describe('the inline field a dimension opens', () => {
 			// Nothing landed: closing the field puts the button back reading what it read before.
 			await rig.wrapper.get('.rp-designer-dimension__form').trigger('keydown', { key: 'Escape' });
 			await settle();
-			expect(buttons(rig)).toContainEqual(['overall-width', '1000']);
+			expect(buttons(rig)).toContainEqual(['overall-width', '1000 mm']);
 		} finally {
 			rig.unmount();
 		}
@@ -516,7 +516,7 @@ describe('the inline field a dimension opens', () => {
 
 			expect(rig.wrapper.findAll('.rp-designer-dimension__form')).toHaveLength(0);
 			expect(rig.wrapper.findAll('.rp-designer-dimension__error')).toHaveLength(0);
-			expect(buttons(rig)).toContainEqual(['detail-detail-1-width', '400']);
+			expect(buttons(rig)).toContainEqual(['detail-detail-1-width', '400 mm']);
 		} finally {
 			rig.unmount();
 		}
@@ -543,7 +543,7 @@ describe('the inline field a dimension opens', () => {
 
 			expect(store.design?.geometryVersion.revision).toBe(before);
 			expect(rig.wrapper.findAll('.rp-designer-dimension__form')).toHaveLength(0);
-			expect(buttons(rig)).toContainEqual(['overall-width', '1000']);
+			expect(buttons(rig)).toContainEqual(['overall-width', '1000 mm']);
 		} finally {
 			rig.unmount();
 		}

@@ -59,7 +59,8 @@ function shapeBounds(shape: AssetShape): { min: { x: number; y: number }; max: {
 	};
 }
 
-const width = (value: number): number => 14 + 6.4 * String(Math.round(value)).length;
+/** The label box `labelWidth` models, restated: chrome, one tabular digit each, and ` mm` (AD18-R17). */
+const width = (value: number): number => 14 + 6.4 * String(Math.round(value)).length + 24;
 
 /**
  * A label the rule places: where it wants to be, and the number whose digits give it its width.
@@ -383,39 +384,42 @@ describe('what the mounted overlay draws once the rule has run', () => {
 	});
 
 	/**
-	 * **Selecting a part DOES move two of its eight labels, and this case exists to say which.**
-	 * An earlier version of it was called "moves nothing … with or without a selection" and asserted
-	 * `toContainEqual` on exactly the two labels that stay put, so it read as a floor while the
-	 * module's own docblock recorded the movement — the claim was the defect, not the behaviour.
+	 * **A selected part's eight labels are the RESTING state, and since AD18-R17 none of them may
+	 * touch another** — `separateLabels`, not `spreadLabels`. At this rig's zoomed-out camera the
+	 * part is 40 x 20 px and its labels are ~55 px wide, so most of them move: the case pins WHERE,
+	 * by exact array in DOM order rounded to a tenth of a pixel, so a retune cannot move one quietly,
+	 * and asserts the property itself with this file's own box model.
 	 *
-	 * The behaviour is a FIX rather than a regression, and the distinction is what makes the
-	 * renaming sufficient: three of these eight anchors sat on y = 48 before this card
-	 * (`detail-1`'s depth at (8, 48), its left offset at (3, 48) and the overall depth at (-2, 48)),
-	 * so the selected state was never at zero overlaps. AD18-R14's floor is the state it measured —
-	 * the unselected pair above, at zero overlapping pairs — and that is untouched.
+	 * The first label keeps its anchor (earlier wins). A MOVED label never leaves the stage, which is
+	 * why `detail-1`'s depth and left offset jump right, off the left edge.
 	 *
-	 * Asserted by EXACT ARRAY, in DOM order, so a future retune cannot move a third label quietly.
+	 * **And this camera shows the rule's one residual, pinned rather than hidden.** `overall-depth`,
+	 * placed last, finds every slot within reach either taken or off the stage, so it stays on its
+	 * anchor and touches `detail-1`'s width — `separateLabels`' "no slot is free" arm. At the camera
+	 * the designer OPENS with, the floor AD18-R17 names, `restingLabels.test.ts` finds no such frame.
 	 */
-	it('moves two of the eight labels a selected part draws, and names them', async () => {
+	it('keeps a selected part’s labels apart but for one the zoomed-out camera leaves no slot', async () => {
 		const rig = await designer();
 		try {
 			useAssetDesignStore(rig.pinia).select({ kind: 'detail', id: 'detail-1' });
 			await settle();
 
-			// detail-1 is (-400, -100) to (0, 100), so its width label's anchor is (-200, -100) —
-			// (28, 38) at this camera — and its left offset's is (-450, 0), which is (3, 48). That
-			// offset and the overall depth are the two that move, each off `detail-1`'s own depth
-			// label at (8, 48); every other row here is the anchor untouched.
-			expect(drawn(rig)).toEqual([
-				['detail-detail-1-width', '28px', '38px'],
-				['detail-detail-1-depth', '8px', '48px'],
-				['detail-detail-1-offset-left', '3px', '78px'],
-				['detail-detail-1-offset-right', '73px', '48px'],
-				['detail-detail-1-offset-top', '28px', '28px'],
-				['detail-detail-1-offset-bottom', '28px', '68px'],
-				['overall-width', '48px', '18px'],
-				['overall-depth', '-2px', '108px'],
+			const labels = drawn(rig).map(([name, left, top]) => [name, Math.round(Number.parseFloat(left) * 10) / 10, Number.parseFloat(top)] as const);
+			expect(labels).toEqual([
+				['detail-detail-1-width', 28, 38],
+				['detail-detail-1-depth', 36.6, 78],
+				['detail-detail-1-offset-left', 31.6, 108],
+				['detail-detail-1-offset-right', 101.6, 48],
+				['detail-detail-1-offset-top', 113.8, 88],
+				['detail-detail-1-offset-bottom', 56.6, 158],
+				['overall-width', 111.6, 18],
+				['overall-depth', -2, 48],
 			]);
+			const values = [400, 200, 100, 500, 200, 200, 1000, 600];
+			const touching = labels.flatMap(([name, x, y], index) => labels.slice(index + 1)
+				.filter(([, ox, oy], offset) => Math.abs(x - ox) < (width(values[index]) + width(values[index + 1 + offset])) / 2 && Math.abs(y - oy) < 30)
+				.map(([other]) => `${name} / ${other}`));
+			expect(touching).toEqual(['detail-detail-1-width / overall-depth']);
 		} finally {
 			rig.unmount();
 		}

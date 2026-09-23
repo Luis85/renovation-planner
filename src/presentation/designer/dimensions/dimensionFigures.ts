@@ -8,14 +8,15 @@
  * the component owns only `worldToScreen` and the markup. Nothing here reads a store, a camera or
  * a DOM node.
  *
- * **Two exported FUNCTIONS, and the second works in PIXELS rather than millimetres.** Counted from
- * `grep -n "^export"` over this file after the change, which prints three lines — the FIRST is
- * `DimensionFigure` and is a type. `dimensionFigures`
- * answers what is measured and where in the world it belongs; `spreadLabels` answers where a label
- * is actually drawn once the camera has crowded several of them onto one row — AD18-R14, whose
- * whole subject is a box that has a size only on a stage. It is here rather than in the component
- * for this module's founding reason: it is a rule about positions, it reads nothing but its two
- * arguments, and a rule that lives in an SFC is a rule no node test can put a case on.
+ * **Three exported FUNCTIONS, and the last two work in PIXELS rather than millimetres.** Counted
+ * from `grep -n "^export"` over this file after AD18-R17's change, which prints five lines: the
+ * types `DimensionFigure` and `LabelAnchor` and the three functions. `dimensionFigures` answers what
+ * is measured and where in the world it belongs; `spreadLabels` answers where a label is actually
+ * drawn under `All dimensions` once the camera has crowded several of them onto one row —
+ * AD18-R14, whose whole subject is a box that has a size only on a stage — and `separateLabels` the
+ * same for the resting state, whose floor is stricter (AD18-R17). They are here rather than in the
+ * component for this module's founding reason: each is a rule about positions, reads nothing but
+ * its arguments, and a rule that lives in an SFC is a rule no node test can put a case on.
  *
  * **Which measurements, and which are NOT here.** The spec's decision table fixes the set for the
  * whole iteration — overall size, part size, offsets from edges, and explicitly *"not per-edge
@@ -50,6 +51,14 @@ export interface DimensionFigure {
 	readonly label: StringKey;
 	/** World millimetres, at the middle of whatever the figure spans. */
 	readonly at: Point;
+	/**
+	 * What the figure's dimension LINE spans (AD18-R17, board 01): the axis it runs along, and a
+	 * point on each of the two edges it measures, on the row or column `at` sits on. `to` minus
+	 * `from` along the axis is the signed `value`, so a gap a part overhangs runs BACKWARDS.
+	 */
+	readonly axis: 'x' | 'y';
+	readonly from: Point;
+	readonly to: Point;
 	/** The CANONICAL millimetres; the surface rounds them for display and `unchanged` knows it does. */
 	readonly value: number;
 	/**
@@ -135,6 +144,9 @@ function sizeFigures(part: OutlinePart, box: Corners, key: string, labels: reado
 			name: `${key}-width`,
 			label: labels[0],
 			at: { x: box.centre.x, y: box.min.y },
+			axis: 'x',
+			from: box.min,
+			to: { x: box.max.x, y: box.min.y },
 			value: box.max.x - box.min.x,
 			edit: (typed) => (shape) => resized(shape, part, 'width', typed),
 		},
@@ -142,6 +154,9 @@ function sizeFigures(part: OutlinePart, box: Corners, key: string, labels: reado
 			name: `${key}-depth`,
 			label: labels[1],
 			at: { x: box.min.x, y: box.centre.y },
+			axis: 'y',
+			from: box.min,
+			to: { x: box.min.x, y: box.max.y },
 			value: box.max.y - box.min.y,
 			edit: (typed) => (shape) => resized(shape, part, 'depth', typed),
 		},
@@ -198,13 +213,17 @@ function gapOf(box: Corners, outer: Corners, spec: OffsetSpec): number {
 function offsetFigures(part: OutlinePart, key: string, box: Corners, outer: Corners): DimensionFigure[] {
 	return OFFSETS.map((spec) => {
 		const near = spec.sign === 1 ? outer.min[spec.axis] : box.max[spec.axis];
-		const along = near + gapOf(box, outer, spec) / 2;
+		const drawn = gapOf(box, outer, spec);
 		const across = spec.axis === 'x' ? box.centre.y : box.centre.x;
+		const point = (along: number): Point => (spec.axis === 'x' ? { x: along, y: across } : { x: across, y: along });
 		return {
 			name: `${key}-${spec.key}`,
 			label: spec.label,
-			at: spec.axis === 'x' ? { x: along, y: across } : { x: across, y: along },
-			value: gapOf(box, outer, spec),
+			at: point(near + drawn / 2),
+			axis: spec.axis,
+			from: point(near),
+			to: point(near + drawn),
+			value: drawn,
 			edit: (typed: number) => (shape: AssetShape) => {
 				const current = partMeasure(shape, part);
 				if (current === null) return err(partNotFound(part));
@@ -235,6 +254,11 @@ const PART_LABELS: readonly [StringKey, StringKey] = ['designer.dimension.width'
  * locked part be resized by typing, and a lock that stopped one field and not the other would be
  * two answers to what a lock means.
  *
+ * **The CLEARANCE has its own hide, `Show clearance` (AD18-R17), and `clearanceShown` is it** — the
+ * leaf's `showClearance` ref, which drops the canvas's clearance layer as `hidden` drops a detail's
+ * graphic. Same reason, same answer in both modes: a selected clearance draws nothing while it is
+ * off. It defaults to shown so a caller with no leaf runtime measures what it always did.
+ *
  * **A PENDING part is not measured, in either mode.** §0's *"no numbers on an unscaled part"* is
  * read at the part and not only at the design: a detail or clearance captured over an uncalibrated
  * background carries placeholder pixels that calibration later multiplies, so a millimetre drawn
@@ -251,8 +275,8 @@ const PART_LABELS: readonly [StringKey, StringKey] = ['designer.dimension.width'
  * A selection that is the footprint, the anchor or the facing contributes nothing: the footprint
  * is already the overall pair, and the other two are points. See this module's header.
  */
-function measuredParts(shape: AssetShape, selection: DesignerSelection | null, all: boolean, hidden: ReadonlySet<string>): OutlinePart[] {
-	const clearance = shape.clearance === null || shape.clearancePending ? [] : [CLEARANCE];
+function measuredParts(shape: AssetShape, selection: DesignerSelection | null, all: boolean, hidden: ReadonlySet<string>, clearanceShown: boolean): OutlinePart[] {
+	const clearance = shape.clearance === null || shape.clearancePending || !clearanceShown ? [] : [CLEARANCE];
 	const drawable = shape.details.filter((detail) => !detail.pending && !hidden.has(detail.id));
 	if (all) return [...drawable.map((detail) => asPart(detail)), ...clearance];
 	if (selection === null) return [];
@@ -274,10 +298,11 @@ export function dimensionFigures(
 	selection: DesignerSelection | null,
 	all: boolean,
 	hidden: ReadonlySet<string>,
+	clearanceShown = true,
 ): DimensionFigure[] {
 	const outer = footprintCorners(shape);
 	const overall = sizeFigures(FOOTPRINT, outer, 'overall', ['designer.dimension.overall-width', 'designer.dimension.overall-depth']);
-	return measuredParts(shape, selection, all, hidden).flatMap((part) => {
+	return measuredParts(shape, selection, all, hidden, clearanceShown).flatMap((part) => {
 		// `measuredParts` names only parts the shape HAS — it derives them from `shape.details` and
 		// from `shape.clearance` rather than from the selection — so this cast rests on the same
 		// kind of guarantee `footprintCorners` does, and a guard here would be undrivable.
@@ -356,13 +381,20 @@ const SAME_COLUMN_PX = 15;
  * The VALUE is what the width depends on, which is why `spreadLabels` takes one per label: the
  * component draws `Math.round(figure.value)`, so the glyph count is read from the same number the
  * button shows rather than from a second opinion about it.
+ *
+ * **`UNIT_PX` is the ` mm` every label carries since AD18-R17, and it is NOT one of the measured
+ * three.** It is estimated from the UI font's own metrics — a space and two `m`s at
+ * `--font-ui-smaller`, about 23 px — and rounded UP, because an over-wide model separates labels a
+ * little further than they need while an under-wide one lets two touch. A constant rather than a
+ * per-locale figure because both locales print the SI symbol.
  */
 const LABEL_CHROME_PX = 14;
 const GLYPH_PX = 6.4;
+const UNIT_PX = 24;
 
-/** One label's drawn width, from the digits the button shows — see `LABEL_CHROME_PX`. */
+/** One label's drawn width, from the digits the button shows and its unit — see `LABEL_CHROME_PX`. */
 function labelWidth(value: number): number {
-	return LABEL_CHROME_PX + GLYPH_PX * String(Math.round(value)).length;
+	return LABEL_CHROME_PX + GLYPH_PX * String(Math.round(value)).length + UNIT_PX;
 }
 
 /**
@@ -382,7 +414,9 @@ const SPAN_SLACK_PX = 4;
  * Ten pixels is a third of the box, across its full width. Measured rather than chosen: at twelve
  * the browser-measured `All dimensions` frame keeps its overlap count but a SELECTED part starts
  * moving four of its eight labels instead of two, which is the floor AD18-R14 sets on the resting
- * state. Ten is the largest value that holds that floor.
+ * state. Ten is the largest value that holds that floor. **That measurement predates AD18-R17**,
+ * which gave the resting state to `separateLabels`; the value was kept, not re-derived, and today it
+ * governs `All dimensions` alone.
  */
 const MIN_BAND_PX = 10;
 
@@ -413,6 +447,20 @@ const MIN_BAND_PX = 10;
  */
 const MAX_STEPS = 4;
 
+/**
+ * The air the RESTING state keeps between two labels side by side (AD18-R17), in stage pixels.
+ *
+ * AD18-R14's floor is ZERO overlapping pairs in the resting state, and it held at a 1280 leaf by
+ * the accident of the camera: at a 460 leaf the same eight labels of a selected part overlapped in
+ * five pairs, every one of them PRESSABLE and therefore invisible to `spreadLabels`' two rules,
+ * which are about being covered rather than about touching. So the resting state asks the plain question —
+ * do the boxes share any area — and this is the margin it asks it with. Side by side only, because
+ * that is the axis the width MODEL answers: four pixels absorb two either side of `labelWidth`'s
+ * estimate of the unit. Vertically the box is Obsidian's fixed `--input-height`, so a label one
+ * whole height away touches its neighbour and shares no area with it.
+ */
+const APART_GAP_PX = 4;
+
 /** A label as the rule sees it: where its centre is, and how wide the number makes it. */
 interface LabelBox {
 	readonly at: ScreenPoint;
@@ -428,6 +476,12 @@ export interface LabelAnchor {
 /** Whether `later` would sit on `earlier`'s row, near enough along it to cover the reading. */
 function sharesRow(later: ScreenPoint, earlier: ScreenPoint): boolean {
 	return Math.abs(later.x - earlier.x) < SAME_COLUMN_PX && Math.abs(later.y - earlier.y) < SAME_ROW_PX;
+}
+
+/** Whether two boxes share any area, keeping `APART_GAP_PX` of air between them side by side. */
+function overlaps(one: LabelBox, other: LabelBox): boolean {
+	return Math.abs(one.at.x - other.at.x) < (one.width + other.width) / 2 + APART_GAP_PX
+		&& Math.abs(one.at.y - other.at.y) < LABEL_HEIGHT_PX;
 }
 
 /** Whether `later` covers `earlier` across its whole width, give or take `SPAN_SLACK_PX`. */
@@ -481,8 +535,8 @@ const rangeOf = (box: LabelBox): readonly [number, number] =>
  * Earlier wins, and the order is `dimensionFigures`' own — a part's own figures first and the
  * overall pair appended last — so the label with the more specific subject keeps its true anchor
  * and the outer measurement stacks off it, which is how a drafting dimension chain reads. Paint and
- * hit order among the buttons is DOM order, the overlay's one `z-index` lifting a wrapper only
- * while it holds an open FORM, so a label placed later is a label drawn ON TOP.
+ * hit order among the buttons is DOM order — every label wrapper shares one `z-index`, and only an
+ * open FORM is lifted above it — so a label placed later is a label drawn ON TOP.
  *
  * **It steps DOWN from an anchor in the stage's top half and UP from one in the bottom half**, the
  * same rule `DesignerDimensions.placement` uses for an open field and for the same measured reason:
@@ -521,8 +575,8 @@ const rangeOf = (box: LabelBox): readonly [number, number] =>
  * outside it by construction: a pair just over `SAME_ROW_PX` apart, where the lower label is
  * pressable but its digits may not be legible; and a jam that exhausts `MAX_STEPS`, which is
  * bounded at `MAX_STEPS + 1` labels on one point and asserted rather than hoped for. What it does
- * guarantee is testable here: a label nothing would cover is returned UNMOVED, which is the floor
- * AD18-R14 sets on the resting state, and no placed label leaves an earlier one with less than
+ * guarantee is testable here: a label nothing would cover is returned UNMOVED — the floor AD18-R14
+ * set on the resting state, which since AD18-R17 is `separateLabels`' — and no placed label leaves an earlier one with less than
  * `MIN_BAND_PX` clear unless that label exhausted its steps.
  */
 export function spreadLabels(labels: readonly LabelAnchor[], stage: StageSize): ScreenPoint[] {
@@ -563,6 +617,73 @@ export function spreadLabels(labels: readonly LabelAnchor[], stage: StageSize): 
 		});
 		placed.push(chosen);
 		cuts.push([]);
+	}
+	return placed.map((box) => box.at);
+}
+
+/**
+ * How far a RESTING label may be moved to clear another: up to three whole label heights up or
+ * down (90 px), each at no shift or at a half, one or one and a half of its own width either side.
+ *
+ * Measured rather than chosen, over every catalogue preset with nothing, the clearance and each
+ * detail selected in turn, at the fit camera on every stage from 280 x 280 to 900 x 700 in 40 x 20
+ * steps — 20,416 frames, counting frames left with two labels sharing any area:
+ *
+ * | reach | frames with an overlap |
+ * | --- | --- |
+ * | three rows, no sideways shift (`spreadLabels`' own axis) | 2,692 |
+ * | three rows, shifts to one width | 963 |
+ * | two rows, shifts to one and a half widths | 45 |
+ * | **three rows, shifts to one and a half widths** | **0** |
+ *
+ * It also holds at zero down to 260 x 240, and when the labels are drawn up to four pixels wider
+ * than `labelWidth` models — the `APART_GAP_PX` margin, spent. Two widths either side added nothing.
+ * The cost is movement: a moved label travels 36 px on average and at most 124, and 68 of the 45,590
+ * moves exceeded 100 px — each a label whose nearer slots were all taken or off the stage.
+ */
+const RESTING_ROWS = 3;
+const RESTING_SHIFTS: readonly number[] = [0, 0.5, -0.5, 1, -1, 1.5, -1.5];
+
+const distance = (one: ScreenPoint, other: ScreenPoint): number => Math.hypot(one.x - other.x, one.y - other.y);
+
+/**
+ * Where each label of the RESTING state is drawn — nothing selected, or one part selected, with
+ * `All dimensions` off (AD18-R17). AD18-R14 set that state's floor at ZERO overlapping pairs and it
+ * was only ever measured at a 1280 leaf; at a 460 leaf a selected part's eight labels overlapped in
+ * five pairs, every one pressable, so neither of `spreadLabels`' rules — both about being COVERED —
+ * could see them. This one asks the plain question instead: do two boxes share any area.
+ *
+ * **Earlier wins, as in `spreadLabels`, and a label that would touch one already placed takes the
+ * NEAREST free slot** among whole label heights up or down and shifts of up to one and a half of
+ * its own width sideways (`RESTING_ROWS`), inside the stage — nearest by straight distance, the
+ * inward row first on a tie.
+ * Each of those moves has a drafting reading, which `dimensionLines.ts` draws: a width moved up or
+ * down takes its line with it on longer extension lines, a width moved sideways slides along its own
+ * line, and a depth the other way round. A label nothing would touch is returned UNMOVED, which is
+ * what keeps the nothing-selected pair exactly where it has always been drawn.
+ *
+ * **A slot must lie inside the stage** because `.rp-plan-canvas` is `overflow: hidden`: a label
+ * moved off it is clipped, which is worse than the overlap it was moved for. When no slot is free
+ * the label stays on its anchor and the overlap stands — honest rather than hidden, and it did not
+ * happen on any frame of the measurement above.
+ *
+ * `spreadLabels` stays the rule for `All dimensions`, whose floor is a different one: 26 labels
+ * cannot all be kept apart at the camera the designer opens with, and AD18-R14 asks only that none
+ * is impossible to click.
+ */
+export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize): ScreenPoint[] {
+	const placed: LabelBox[] = [];
+	const inside = (box: LabelBox): boolean => box.at.x - box.width / 2 >= 0 && box.at.x + box.width / 2 <= stage.width
+		&& box.at.y - LABEL_HEIGHT_PX / 2 >= 0 && box.at.y + LABEL_HEIGHT_PX / 2 <= stage.height;
+	for (const label of labels) {
+		const width = labelWidth(label.value);
+		const own: LabelBox = { at: label.at, width };
+		const inward = label.at.y < stage.height / 2 ? LABEL_HEIGHT_PX : -LABEL_HEIGHT_PX;
+		const slots = Array.from({ length: 2 * RESTING_ROWS + 1 }, (_, index) => (index % 2 === 0 ? -index / 2 : (index + 1) / 2))
+			.flatMap((row) => RESTING_SHIFTS.map((shift): LabelBox => ({ at: screenPoint(label.at.x + shift * width, label.at.y + row * inward), width })))
+			.toSorted((one, other) => distance(one.at, label.at) - distance(other.at, label.at));
+		const free = (box: LabelBox): boolean => !placed.some((other) => overlaps(box, other));
+		placed.push(free(own) ? own : slots.find((box) => inside(box) && free(box)) ?? own);
 	}
 	return placed.map((box) => box.at);
 }

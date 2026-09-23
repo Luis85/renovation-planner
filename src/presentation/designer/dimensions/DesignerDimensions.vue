@@ -35,17 +35,22 @@
  *
  * **A label that would be covered by another one moves, which is AD18-R14.** `All dimensions` at
  * the camera `DesignerCanvas` fits on mount put three readings in one 33.4 x 30 px box, and since
- * `styles/designer-dimensions.css` lifts a wrapper only while it holds an open FORM — its one
- * `z-index`, grepped — a wrapper holding a button is `auto` and the paint and hit order among them
- * is DOM order. So the last figure appended took every click and the two under it could not be
- * reached at all. `spreadLabels` is
- * the whole of the answer and it is in the pure module; this component hands it the stage points
- * `worldToScreen` just produced and draws what comes back. The state AD18-R14 measured as its floor
- * — nothing selected, two labels — is untouched by construction, since a label sharing no row with
- * another is returned exactly where it asked to be. **A SELECTED part is a different state and two
- * of its eight labels do move**, which that module's own numbers record and
- * `dimensionCollision.test.ts` asserts by exact array; three of those eight shared one row before
- * this card, so it is a fix rather than a cost.
+ * every label wrapper in `styles/designer-dimensions.css` shares one `z-index` (only an open FORM is
+ * lifted above it), the paint and hit order among them is DOM order. So the last figure appended
+ * took every click and the two under it could not be reached at all. `spreadLabels` is the whole of
+ * that answer and it is in the pure module; this component hands it the stage points
+ * `worldToScreen` just produced and draws what comes back.
+ *
+ * **The RESTING state — `All dimensions` off — is held to a stricter floor since AD18-R17**: no two
+ * labels touching at all, which AD18-R14 set and which held only at a 1280 leaf; at 460 a selected
+ * part's labels overlapped in five pairs. `separateLabels` answers it, and the nothing-selected pair
+ * is untouched by construction, since a label touching nothing is returned where it asked to be.
+ *
+ * **Each figure is drawn as a dimension LINE, not only a number** (AD18-R17, board 01): a line
+ * through the placed label with an arrowhead at each end and an extension line to each edge it
+ * measures, in one `aria-hidden` SVG before the labels so each opaque label interrupts its own line.
+ * `dimensionLines.ts` is the arithmetic. The button reads `800 mm` — the unit rides on the label
+ * now, still inside its accessible name.
  *
  * **Nothing is drawn over an UNSCALED design.** `dimensionsUnscaled` is a footprint captured
  * before the asset had a scale, whose coordinates are placeholder pixels; a millimetre reading
@@ -67,11 +72,12 @@ import { useEditorStore } from '../../stores/EditorStore';
 import { STAGE_PIXELS, worldToScreen } from '../../editor/viewport/Viewport';
 import { useAssetDesignStore } from '../stores/assetDesignStore';
 import { useDesignerRuntime } from '../runtime';
-import { dimensionFigures, spreadLabels, type DimensionFigure } from './dimensionFigures';
+import { dimensionFigures, separateLabels, spreadLabels, type DimensionFigure } from './dimensionFigures';
+import { dimensionLine, type DimensionLine } from './dimensionLines';
 
 const editor = useEditorStore();
 const { design, selection, preview } = storeToRefs(useAssetDesignStore());
-const { allDimensions, editShape, activeToolId, partView } = useDesignerRuntime();
+const { allDimensions, editShape, activeToolId, partView, showClearance } = useDesignerRuntime();
 
 /** The overlay's own element, so focus is handed back within it and never stolen from elsewhere. */
 const root = ref<HTMLElement | null>(null);
@@ -90,9 +96,10 @@ const draft = ref<{ readonly name: string; text: string } | null>(null);
 /** The refusal the last submission answered, shown inside the open field and cleared by the next one. */
 const refusal = ref<string | null>(null);
 
-/** A figure with its world point already resolved to the CSS the template writes. */
-interface PlacedFigure extends Omit<DimensionFigure, 'at'> {
+/** A figure with its world geometry already resolved to the CSS and the path data the template writes. */
+interface PlacedFigure extends Omit<DimensionFigure, 'at' | 'from' | 'to'> {
 	readonly style: { readonly left: string; readonly top: string; readonly transform: string };
+	readonly marks: DimensionLine;
 }
 
 /**
@@ -129,24 +136,28 @@ const figures = computed((): readonly PlacedFigure[] => {
 	const drawn = preview.value ?? view.shape;
 	if (drawn === null) return [];
 	const editing = draft.value?.name;
-	const drawing = dimensionFigures(drawn, selection.value, allDimensions.value, partView.hidden.value);
+	const drawing = dimensionFigures(drawn, selection.value, allDimensions.value, partView.hidden.value, showClearance.value);
+	const screen = (point: DimensionFigure['at']) => worldToScreen(point, editor.viewport, STAGE_PIXELS);
 	// AD18-R14: several figures can want one row of pixels at a zoomed-out camera, and the ones
 	// drawn later cover the ones beneath them — a control that cannot be pressed. The rule is
 	// `spreadLabels`', in the pure module, because a label box has a size only in stage pixels and
 	// this is where world millimetres have just become some. It is handed the VALUE as well as the
 	// point because the box's width is the digits the button draws, and only the number knows how
 	// many there are. Nothing else about the figure changes, so the two lists stay index-for-index.
-	const points = spreadLabels(
-		drawing.map((figure) => ({ at: worldToScreen(figure.at, editor.viewport, STAGE_PIXELS), value: figure.value })),
-		editor.stageSize,
-	);
+	//
+	// AD18-R17: the RESTING state — `All dimensions` off — is held to a stricter floor, no two labels
+	// touching at all, which `separateLabels` answers. See that function for why the two differ.
+	const anchors = drawing.map((figure) => ({ at: screen(figure.at), value: figure.value }));
+	const points = allDimensions.value ? spreadLabels(anchors, editor.stageSize) : separateLabels(anchors, editor.stageSize);
 	return drawing.map((figure, index) => {
-		// The world point is DROPPED here rather than carried: `spreadLabels` has already answered
+		// The world point is DROPPED here rather than carried: the rule has already answered
 		// where this label goes, and a `PlacedFigure` holding both would offer two answers.
-		const { at: _at, ...rest } = figure;
+		// The span is resolved into the marks instead, drawn through the PLACED label, so a line
+		// follows a label the rule moved (`dimensionLines.ts`).
+		const { at: _at, from, to, ...rest } = figure;
 		const point = points[index];
 		const style = { left: `${String(point.x)}px`, top: `${String(point.y)}px`, transform: placement(point, figure.name === editing) };
-		return { ...rest, style };
+		return { ...rest, style, marks: dimensionLine(figure.axis, screen(from), screen(to), point) };
 	});
 });
 
@@ -171,9 +182,9 @@ const figures = computed((): readonly PlacedFigure[] => {
  * A BUTTON stays centred on its mark, which is what makes a number read as belonging to the gap or
  * the edge it sits on.
  *
- * `point` is the one `spreadLabels` settled on rather than the raw anchor, because a form has to
- * grow away from the edge it is ACTUALLY at — and the two differ for any label AD18-R14's rule
- * moved. A label pushed far enough to cross the middle therefore opens its form the other way,
+ * `point` is the one `spreadLabels` or `separateLabels` settled on rather than the raw anchor,
+ * because a form has to grow away from the edge it is ACTUALLY at — and the two differ for any
+ * label either rule moved. A label pushed far enough to cross the middle therefore opens its form the other way,
  * which is this function answering the question it was written to answer and not a special case.
  */
 function placement(point: { x: number; y: number }, isOpen: boolean): string {
@@ -260,6 +271,26 @@ async function submit(figure: PlacedFigure, text: string): Promise<void> {
 		ref="root"
 		class="rp-designer-dimensions"
 	>
+		<!-- The drafting marks: decoration, since each button names what it measures (AD18-R17). -->
+		<svg
+			class="rp-designer-dimension-lines"
+			aria-hidden="true"
+		>
+			<g
+				v-for="figure in figures"
+				:key="figure.name"
+				:data-rp-dimension-line="figure.name"
+			>
+				<path
+					class="rp-designer-dimension-lines__line"
+					:d="figure.marks.line"
+				/>
+				<path
+					class="rp-designer-dimension-lines__arrows"
+					:d="figure.marks.arrows"
+				/>
+			</g>
+		</svg>
 		<div
 			v-for="figure in figures"
 			:key="figure.name"
@@ -311,7 +342,7 @@ async function submit(figure: PlacedFigure, text: string): Promise<void> {
 				:aria-label="tr('designer.dimension.value', { name: tr(figure.label), value: String(Math.round(figure.value)) })"
 				@click="void open(figure)"
 			>
-				{{ Math.round(figure.value) }}
+				{{ tr('designer.dimension.label', { value: String(Math.round(figure.value)) }) }}
 			</button>
 		</div>
 	</div>

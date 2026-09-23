@@ -33,6 +33,7 @@ import DesignerReferenceStatus from './DesignerReferenceStatus.vue';
 import DesignerReferencePlacement from './DesignerReferencePlacement.vue';
 import DesignerClearanceHelper from './DesignerClearanceHelper.vue';
 import DesignerClearanceReview from './DesignerClearanceReview.vue';
+import DesignerSourceScale from './DesignerSourceScale.vue';
 import DesignerUsageScope from './DesignerUsageScope.vue';
 import DesignerAssetCard from './DesignerAssetCard.vue';
 import { useFieldCommit } from '../../composables/use-field-commit';
@@ -547,6 +548,8 @@ function onTabKeydown(event: KeyboardEvent): void {
 				:design="design"
 				:edit-shape="editShape"
 			/>
+			<!-- Board 01's read-only `Source & scale` (AD18-R17): no control, so the review above can push it down harmlessly. -->
+			<DesignerSourceScale :design="design" />
 		</div>
 		<!--
 			The reference sheet and its scale — the half a user is not looking at while drawing, which

@@ -268,24 +268,8 @@ describe('the placement presets', () => {
 		expect(written().anchorPending).toBe(true);
 	});
 
-	it.each([
-		[0, 'designer.placement.front.right' as const],
-		[Math.PI / 2, 'designer.placement.front.down' as const],
-		[Math.PI, 'designer.placement.front.left' as const],
-		[(3 * Math.PI) / 2, 'designer.placement.front.up' as const],
-	])('says where the front points at facing %s', (facing, key) => {
-		const shape: AssetShape = { ...baseShape(), facing };
-		const { editShape } = chain(shape);
-		const wrapper = mountPlacement(assetDesign({ shape }), editShape);
-		expect(wrapper.text()).toContain(t('en', key));
-	});
-
-	it('falls back to an angle measured from a named direction for a front between two axes', () => {
-		const shape: AssetShape = { ...baseShape(), facing: Math.PI / 4 };
-		const { editShape } = chain(shape);
-		const wrapper = mountPlacement(assetDesign({ shape }), editShape);
-		expect(wrapper.text()).toContain(t('en', 'designer.placement.front.angle', { degrees: '45' }));
-	});
+	// The Front direction SENTENCE these two cases pinned is a picker since AD18-R17; its cases,
+	// the no-degree-figure one included, are `designerFrontDirection.test.ts`.
 
 	/**
 	 * The anchor is already ON the preset and its FLAG disagrees with the footprint's, which is a

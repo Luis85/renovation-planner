@@ -2,7 +2,16 @@
 /**
  * WHERE a plan positions this object and WHICH WAY it faces (AD12 item 2, contract C04): the
  * placement point as a named choice — centre, back centre, or a custom point the user placed —
- * and the front direction as a sentence rather than as an angle.
+ * and the front direction as a picker of drawing-relative directions rather than as an angle.
+ *
+ * **The Front direction picker (AD18-R17, board 01) writes through `editShape` and `setFacing`**,
+ * the same pair `DesignerSelectionInspector`'s angle field uses, so a choice is one `SetAssetShape`
+ * and one undo entry. It names four directions and `Custom`, and never a degree figure: board 01's
+ * `Top (0°)` is the "up = 0 degrees" C04 refuses to copy. `Custom` is selected for any facing
+ * between the axes and is DISABLED as a choice — it names no direction to write, and the ways to a
+ * custom angle (the Set-facing tool, the facing's own angle field) already exist. A facing owns no
+ * pending flag (`SetAssetFacing`'s docblock: an angle survives a rescale), so the picker is offered
+ * before calibration exactly as the sentence it replaced was. Its preview is `frontPreview.ts`.
  *
  * **Neither label is copied from a mockup.** C04 requires direction labels to agree with actual
  * placement and AD01 §3 names `set-facing-tool.ts` as the shipped authority; every direction
@@ -40,13 +49,14 @@ import { computed, ref } from 'vue';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { AppError } from '../../../core/errors/AppError';
 import { coincident } from '../../../core/geometry/operations';
-import { moveAnchor } from '../../../domain/asset/shapeEdits';
+import { moveAnchor, setFacing } from '../../../domain/asset/shapeEdits';
 import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import type { EditShape } from '../selection/editShape';
-import { anchorPresetPoint, currentAnchorPreset, facingQuarter, type AnchorPreset } from '../../../domain/asset/referenceFrame';
+import { anchorPresetPoint, currentAnchorPreset, facingQuarter, type AnchorPreset, type FacingQuarter } from '../../../domain/asset/referenceFrame';
 import HostIcon from '../../components/HostIcon.vue';
+import { frontPreview } from './frontPreview';
 
 const props = defineProps<{
 	design: AssetDesignDto;
@@ -76,12 +86,16 @@ const PRESETS: readonly { readonly preset: AnchorPreset; readonly label: StringK
 	{ preset: 'centre', label: 'designer.placement.centre', icon: 'crosshair' },
 ];
 
-/** In quarter order — 0 is +x, and +y renders DOWN the sheet (`Viewport.sceneConfig` never flips it). */
-const FRONT_LABELS: readonly StringKey[] = [
-	'designer.placement.front.right',
-	'designer.placement.front.down',
-	'designer.placement.front.left',
-	'designer.placement.front.up',
+/**
+ * The picker's four directions, in the brief's up-right-down-left order, each with the QUARTER it
+ * writes — 0 is +x, and +y renders DOWN the sheet (`worldToScreen` never flips it), so quarter 3 is
+ * the top. `designerFrontDirection.test.ts` checks each against the canvas arrow on screen.
+ */
+const DIRECTIONS: readonly { readonly value: string; readonly quarter: FacingQuarter; readonly label: StringKey }[] = [
+	{ value: 'up', quarter: 3, label: 'designer.placement.front.option.up' },
+	{ value: 'right', quarter: 0, label: 'designer.placement.front.option.right' },
+	{ value: 'down', quarter: 1, label: 'designer.placement.front.option.down' },
+	{ value: 'left', quarter: 2, label: 'designer.placement.front.option.left' },
 ];
 
 const refusal = ref<AppError | null>(null);
@@ -97,19 +111,27 @@ const view = computed(() => {
 	const design = props.design.shape;
 	if (design === null) return null;
 	const preset = currentAnchorPreset(design.footprint, design.facing, design.anchor);
-	return { preset, front: frontLabel(design.facing) };
+	const quarter = facingQuarter(design.facing);
+	const front = DIRECTIONS.find((direction) => direction.quarter === quarter)?.value ?? 'custom';
+	return { preset, front, preview: frontPreview(design) };
 });
 
 /**
- * Where the front points, in words. An off-axis facing falls back to its angle — still not a CAD
- * bearing, because the sentence says what the degrees are measured FROM.
+ * One facing edit for the chosen direction, or none: `Custom`, and the direction the shape the
+ * step was HANDED already faces (C03, C05), both answer `null`, which dispatches nothing.
+ *
+ * **Nothing here puts the select back after a refused write, and nothing needs to.** Setting
+ * `refusal` re-renders this component, and Vue re-patches a `value` binding on EVERY render —
+ * compared against the element's live value, not the previous vnode's — so the select returns to
+ * the stored direction by itself. Measured: with a hand-written reset removed, the refusal case in
+ * `designerFrontDirection.test.ts` still reads the stored direction.
  */
-function frontLabel(facing: number): string {
-	const quarter = facingQuarter(facing);
-	if (quarter === null) {
-		return tr('designer.placement.front.angle', { degrees: String(Math.round((facing * 180) / Math.PI)) });
-	}
-	return tr(FRONT_LABELS[quarter]);
+async function chooseFront(select: HTMLSelectElement): Promise<void> {
+	const quarter = DIRECTIONS.find((direction) => direction.value === select.value)?.quarter;
+	const result = await props.editShape((design) =>
+		quarter === undefined || facingQuarter(design.facing) === quarter ? null : setFacing(design, (quarter * Math.PI) / 2),
+	);
+	refusal.value = result.ok ? null : result.error;
 }
 
 async function choose(preset: AnchorPreset): Promise<void> {
@@ -133,10 +155,48 @@ async function choose(preset: AnchorPreset): Promise<void> {
 		<h3 class="rp-designer-panel-title rp-designer-section-title">
 			{{ tr('designer.placement') }}
 		</h3>
-		<dl class="rp-designer-reference-fields">
-			<dt>{{ tr('designer.placement.front') }}</dt>
-			<dd>{{ view.front }}</dd>
-		</dl>
+		<div class="rp-designer-front">
+			<label class="rp-designer-field rp-designer-front__field">
+				{{ tr('designer.placement.front') }}
+				<select
+					name="front-direction"
+					:value="view.front"
+					@change="(event) => void chooseFront(event.target as HTMLSelectElement)"
+				>
+					<option
+						v-for="direction in DIRECTIONS"
+						:key="direction.value"
+						:value="direction.value"
+					>
+						{{ tr(direction.label) }}
+					</option>
+					<option
+						value="custom"
+						disabled
+					>
+						{{ tr('designer.placement.front.option.custom') }}
+					</option>
+				</select>
+			</label>
+			<svg
+				class="rp-designer-front-preview"
+				:viewBox="view.preview.viewBox"
+				aria-hidden="true"
+			>
+				<path
+					class="rp-designer-front-preview__footprint"
+					:d="view.preview.footprint"
+				/>
+				<polyline
+					class="rp-designer-front-preview__shaft"
+					:points="view.preview.shaft.join(' ')"
+				/>
+				<polygon
+					class="rp-designer-front-preview__head"
+					:points="view.preview.head.join(' ')"
+				/>
+			</svg>
+		</div>
 		<!--
 			Task 8 (AD18-R16): board 01's `Back centre | Centre | Custom` segmented control, replacing
 			the old `Placement point: …` text row and its two plain buttons with a NAMED group of three

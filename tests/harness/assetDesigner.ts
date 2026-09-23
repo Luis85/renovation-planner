@@ -22,6 +22,7 @@ import { useEditorStore } from '../../src/presentation/stores/EditorStore';
 import { DEFAULT_VIEWPORT } from '../../src/presentation/editor/viewport/Viewport';
 import type { DesignerSelection, SelectionMode } from '../../src/presentation/designer/selection/designerSelection';
 import { installObsidianDom } from '../helpers/dom';
+import { accessibleName } from '../helpers/accessibleName';
 // `../helpers/settle` and not `../helpers/editor`, for the reason `itemKnob.ts` gives: this reaches a real browser.
 import { settleUntil } from '../helpers/settle';
 import { FakeLeaf } from '../helpers/workspace';
@@ -224,10 +225,19 @@ const TRACED_VERTICES = [[0.4, 0.4], [0.6, 0.4], [0.6, 0.6]] as const;
  * `console.error` rather than a throw, matching that function: `harness-shot` records a console
  * error as a failure, and a throw here would take down the whole page render instead of the one
  * capture. `designerRig.toolbarButton` throws because a suite has somewhere to put a stack trace.
+ *
+ * **Matched by ACCESSIBLE NAME (`../helpers/accessibleName`), not raw `textContent`, since a
+ * regression this same fix round found.** `textContent === tr(label)` was correct only because
+ * text and `aria-label` always agreed — true until Task 3 (AD18-R16) gave the Add rail's tile a
+ * VISIBLE label shorter than its accessible name (`DesignerToolButton`'s `visibleLabel`), which
+ * left `&draw=draw-rect`/`&draw=draw-circle` unable to find their own button and silently landing
+ * `editor.activeToolId: null` — `assetDesignerSelectKnob.test.ts` caught it. `designerRig.ts`'s
+ * `toolbarButton` broke identically for the same reason, so the fix is the shared module rather
+ * than a second copy of the rule here.
  */
 function pressTool(view: AssetDesignerView, label: StringKey): void {
 	const found = Array.from(view.contentEl.querySelectorAll<HTMLButtonElement>('.rp-designer-tools button, .rp-designer-add button')).find(
-		(candidate) => candidate.textContent?.trim() === tr(label),
+		(candidate) => accessibleName(candidate) === tr(label),
 	);
 	if (found === undefined) {
 		console.error(`no designer tool button labelled "${tr(label)}" in the toolbar or the Add rail`);

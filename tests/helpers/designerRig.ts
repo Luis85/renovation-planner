@@ -92,6 +92,7 @@ import { installResizeObserver, placeAt, resizeTo } from './layout';
 import { settle } from './editor';
 import { unwiredPlanUsage } from './designerQueries';
 import { editableShape } from './assetShapes';
+import { accessibleName } from './accessibleName';
 
 /**
  * The `PointerEvent.buttons` bit each `button` number stands for, per the DOM's own table —
@@ -135,19 +136,6 @@ function pointer(
 			bubbles: true,
 		}),
 	);
-}
-
-/**
- * A button's accessible name, for `toolbarButton` below — `aria-label` when the button carries
- * one, `.text()` when it does not, mirroring the browser's own computation (an explicit label
- * wins, text content is the fallback) rather than picking one attribute and breaking the button
- * that relies on the other. `.rp-designer-tools` holds both kinds: a `DesignerToolButton` always
- * sets `aria-label` (unaffected by Task 3's `visibleLabel`, which only changes what the SPAN
- * shows), and `DesignerSelectionModes.vue`'s mode buttons ("Edit points", "Bend edges") carry no
- * `aria-label` at all — their own docblock states the button's TEXT stays its accessible name.
- */
-function accessibleName(button: { attributes: (name: string) => string | undefined; text: () => string }): string {
-	return button.attributes('aria-label') ?? button.text();
 }
 
 export interface DesignerRig {
@@ -419,11 +407,13 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 			// shape by label went on compiling and started throwing when the button moved, which is
 			// a SELECTOR failure dressed as a missing label.
 			//
-			// Resolved against `accessibleName` (above) rather than `.text()` alone since Task 3's fix
-			// round — its own docblock carries why: the rail's tile now shows a shorter visible label
-			// than its accessible name, so `.text()` stopped equalling the string every caller here
-			// passes for a shape button specifically.
-			const found2 = wrapper.findAll('.rp-designer-tools button, .rp-designer-add button').find((button) => accessibleName(button) === label);
+			// Resolved against `./accessibleName` rather than `.text()` alone since Task 3's fix round
+			// — that module's own docblock carries why: the rail's tile now shows a shorter visible
+			// label than its accessible name, so `.text()` stopped equalling the string every caller
+			// here passes for a shape button specifically. Shared with `tests/harness/assetDesigner.ts`'s
+			// `pressTool`, which resolves the identical two homes by the identical rule — one
+			// definition rather than a second copy that broke the same way a fix round later.
+			const found2 = wrapper.findAll('.rp-designer-tools button, .rp-designer-add button').find((button) => accessibleName(button.element) === label);
 			if (found2 === undefined) throw new Error(`no designer toolbar button labelled ${label}`);
 			return found2.element as HTMLButtonElement;
 		},

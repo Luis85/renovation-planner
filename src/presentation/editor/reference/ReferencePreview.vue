@@ -13,7 +13,7 @@ const canvas = ref<HTMLCanvasElement | null>(null), size = ref({ width: 400, hei
 const view = ref<ReferenceViewport>(previewTransform(props.appearance)), panMode = ref(false), space = ref(false), dragging = ref(false), rotating = ref(false), overHandle = ref(false), nudging = ref(false);
 // The scale as of the last `fit()`: the readout and zoom limits hold still through a rotation. `atFit` until the user zooms or pans.
 const fitScale = ref(view.value.scale), announcement = ref('');
-let atFit = true;
+let atFit = true, nudgeTimer: ReturnType<typeof setTimeout> | undefined;
 const hintId = useId();
 const hint = computed(() => props.rotatable ? 'editor.reference.gestures-rotate' : props.measuring && !panMode.value && !space.value ? 'editor.reference.gestures-measure' : 'editor.reference.gestures');
 const zoomPercent = computed(() => Math.round(view.value.scale / fitScale.value * 100));
@@ -128,7 +128,7 @@ function start(event: PointerEvent): void {
 	if (gesture || (event.button !== 0 && event.button !== 1)) return;
 	const point = previewPointerPoint(event);
 	if (!point) return;
-	suppressClick = false;
+	suppressClick = false; stopNudge();
 	rotating.value = event.button === 0 && onHandle(point);
 	gesture = { id: event.pointerId, start: point, view: view.value, moved: false, navigationOnly: event.button === 1 || panMode.value || space.value || !props.measuring, rotate: rotating.value ? { rotation: props.appearance.rotation, from: fromCentre(point) } : undefined };
 	canvas.value?.setPointerCapture?.(event.pointerId);
@@ -163,7 +163,8 @@ const panKeys: Readonly<Record<string, Point>> = { arrowleft: { x: 1, y: 0 }, ar
 function rotateKey(event: KeyboardEvent): boolean {
 	if (!props.rotatable || !rotateKeys[event.key] || event.metaKey || ((event.altKey || event.ctrlKey) && !altGraph(event))) return false;
 	const rotation = nudgeRotation(props.appearance.rotation, rotateKeys[event.key] * (event.shiftKey ? 0.1 : 1));
-	nudging.value = true; emit('rotation', rotation); announce(rotation);
+	clearTimeout(nudgeTimer); nudging.value = true; nudgeTimer = setTimeout(stopNudge, 800);
+	emit('rotation', rotation); announce(rotation);
 	return true;
 }
 function keydown(event: KeyboardEvent): void {
@@ -180,13 +181,12 @@ function keydown(event: KeyboardEvent): void {
 	} else return;
 	event.preventDefault(); event.stopPropagation();
 }
-function keyup(event: KeyboardEvent): void {
-	if (rotateKeys[event.key]) nudging.value = false;
-	if (event.key === ' ') { space.value = false; event.preventDefault(); event.stopPropagation(); }
-}
-function blur(): void { space.value = false; nudging.value = false; end(); }
+function keyup(event: KeyboardEvent): void { if (event.key === ' ') { space.value = false; event.preventDefault(); event.stopPropagation(); } }
+/** The nudge label lingers 800ms after the last nudge, so a tap is visible; a held key re-arms it. Keyup is not asked: AltGr released first reports another key. */
+function stopNudge(): void { clearTimeout(nudgeTimer); nudgeTimer = undefined; nudging.value = false; }
+function blur(): void { space.value = false; stopNudge(); end(); }
 onMounted(() => { measure(); fit(); draw(); observer = new ResizeObserver(measure); observer.observe(canvas.value as HTMLCanvasElement); unsubscribe = props.onThemeChange?.(draw); });
-onBeforeUnmount(() => { observer?.disconnect(); unsubscribe?.(); end(); });
+onBeforeUnmount(() => { observer?.disconnect(); unsubscribe?.(); end(); stopNudge(); });
 watch(view, draw);
 watch(() => props.measuring, measuring => { end(); if (measuring) panMode.value = false; });
 // A rotation at fit refits, so a turned scan never spills past the corners. One watcher, so a change of source or crop always refits even when the rotation moved in the same tick.

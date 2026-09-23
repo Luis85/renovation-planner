@@ -82,4 +82,6 @@ it('formats an angle in the given language, one decimal at most and no grouping'
 	expect(formatDegrees(12.3, 'en')).toBe('12.3°');
 	expect(formatDegrees(12.3, 'de')).toBe('12,3°');
 	expect(formatDegrees(-90, 'en')).toBe('-90°');
+	expect(formatDegrees(-0, 'en')).toBe('0°');
+	expect(formatDegrees(-0.04, 'de')).toBe('0°');
 });

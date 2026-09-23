@@ -16,7 +16,7 @@ const centre = referenceScreenCentre(previewTransform(appearance), appearance), 
 const knob = rotationHandlePoint(centre, 0, radius);
 let wrapper: VueWrapper | undefined;
 beforeEach(() => { installCanvas(); installResizeObserver(); });
-afterEach(() => { wrapper?.unmount(); wrapper = undefined; vi.restoreAllMocks(); });
+afterEach(() => { wrapper?.unmount(); wrapper = undefined; vi.restoreAllMocks(); vi.useRealTimers(); });
 function setup(rotatable: boolean) {
 	const image = document.createElement('canvas'); image.width = 800; image.height = 600;
 	wrapper = mount(ReferencePreview, { attachTo: document.body, props: { raster: { kind: 'raster', image, width: 800, height: 600, worldOrigin: { x: 0, y: 0 }, worldScale: 1 }, appearance, points: [null, null], measuring: false, rotatable } });
@@ -180,10 +180,11 @@ it('refits a rotation that arrives at fit and measures the drag about the centre
 	pointer(canvas, 'pointerup', quarter);
 });
 
-it.each(['wheel', 'drag'])('keeps the zoom through a rotation once the view moved by %s, and refits again after F', async how => {
+it.each(['wheel', 'drag', 'keys'])('keeps the zoom through a rotation once the view moved by %s, and refits again after F', async how => {
 	const { w, canvas } = setup(true);
 	const { scale } = await spied(canvas);
 	if (how === 'wheel') canvas.dispatchEvent(new WheelEvent('wheel', { clientX: 200, clientY: 110, deltaY: -100, bubbles: true, cancelable: true }));
+	else if (how === 'keys') await w.get('canvas').trigger('keydown', { key: 'ArrowLeft' });
 	else { pointer(canvas, 'pointerdown', { x: 10, y: 10 }); pointer(canvas, 'pointermove', { x: 60, y: 40 }); pointer(canvas, 'pointerup', { x: 60, y: 40 }); }
 	await nextTick();
 	const before = expectDefined(scale.mock.calls.at(-1), 'moved scale');
@@ -232,8 +233,6 @@ it('labels the angle beside the knob, inside the canvas, only while dragging or 
 	const [text, x, y] = expectDefined(angles().at(-1), 'nudge label');
 	const [left, top, width] = expectDefined(fillRect.mock.calls.at(-1), 'label box');
 	expect(text).toBe('91°'); expect(x).toBeGreaterThan(left); expect(y).toBeGreaterThan(top); expect(left + width).toBeLessThanOrEqual(400); expect(top + 18).toBeLessThanOrEqual(220);
-	await w.get('canvas').trigger('keyup', { key: ']' }); fillText.mockClear();
-	await w.setProps({ appearance: { ...appearance, rotation: 91, opacity: 0.5 } }); expect(angles()).toEqual([]);
 	await w.get('canvas').trigger('keydown', { key: '[' }); await w.get('canvas').trigger('blur'); fillText.mockClear();
 	await w.setProps({ appearance: { ...appearance, rotation: 90 } }); expect(angles()).toEqual([]);
 });
@@ -251,4 +250,22 @@ it('announces the angle politely when a drag ends or a nudge lands, not on every
 	expect(region.text()).toBe(tr('editor.reference.rotation-announce', { angle: '1°' }));
 	pointer(canvas, 'pointerdown', knob); pointer(canvas, 'pointerup', knob); await nextTick();
 	expect(region.text()).toBe(tr('editor.reference.rotation-announce', { angle: '1°' }));
+});
+
+it('keeps a nudge label up briefly after the last nudge, whatever key is released, and drops it on a drag or unmount', async () => {
+	vi.useFakeTimers();
+	const { w, canvas } = setup(true);
+	const { fillText } = await spied(canvas);
+	const labelled = async () => { fillText.mockClear(); await w.setProps({ appearance: { ...appearance, opacity: Math.random() } }); return fillText.mock.calls.some(([text]) => text.endsWith('°')); };
+	await w.get('canvas').trigger('keydown', { key: '[', ctrlKey: true, altKey: true });
+	await w.get('canvas').trigger('keyup', { key: '8' });
+	expect(await labelled()).toBe(true);
+	vi.advanceTimersByTime(500); await w.get('canvas').trigger('keydown', { key: ']' });
+	vi.advanceTimersByTime(500); expect(await labelled()).toBe(true);
+	vi.advanceTimersByTime(300); expect(await labelled()).toBe(false);
+	await w.get('canvas').trigger('keydown', { key: ']' });
+	pointer(canvas, 'pointerdown', knob); pointer(canvas, 'pointerup', knob);
+	expect(vi.getTimerCount()).toBe(0); expect(await labelled()).toBe(false);
+	await w.get('canvas').trigger('keydown', { key: ']' }); expect(vi.getTimerCount()).toBe(1);
+	w.unmount(); wrapper = undefined; expect(vi.getTimerCount()).toBe(0);
 });

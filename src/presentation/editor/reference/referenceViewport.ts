@@ -57,7 +57,7 @@ export function nudgeRotation(rotation: number, delta: number): number {
 	return Math.round(normalizeRotation(rotation + delta) * 10) / 10;
 }
 
-/** An angle for display in `language`: at most one decimal, no grouping, with the degree sign. */
+/** An angle for display in `language`: at most one decimal, no grouping, with the degree sign. Rounded first, and `+ 0` turns a rounded `-0` into `0`. */
 export function formatDegrees(degrees: number, language: string): string {
-	return `${new Intl.NumberFormat(language, { maximumFractionDigits: 1, useGrouping: false }).format(degrees)}°`;
+	return `${new Intl.NumberFormat(language, { maximumFractionDigits: 1, useGrouping: false }).format(Math.round(degrees * 10) / 10 + 0)}°`;
 }

@@ -2,10 +2,11 @@
  * @vitest-environment jsdom
  *
  * The asset designer harness's knobs (`tests/harness/assetDesigner.ts`, read from the URL by `page.ts`):
- * `&select=` and `&mode=`, `&pending`, `&draw=` and `&camera=default` beside `&preset=`, and the fit an
- * opened design takes. Every preset-bearing fixed shot in `scripts/harness-shot.mjs` waits on the
- * `data-rp-harness-ready` mark `driveHarness` sets last, so this file is what makes that mark mean the
- * knobs landed rather than merely that a timer ran.
+ * `&select=` and `&mode=`, `&pending`, `&draw=`, `&camera=default` and `&stale` (Task 11,
+ * AD18-R13/R15) beside `&preset=`, and the fit an opened design takes. Every preset-bearing fixed
+ * shot in `scripts/harness-shot.mjs` waits on the `data-rp-harness-ready` mark `driveHarness` sets
+ * last, so this file is what makes that mark mean the knobs landed rather than merely that a timer
+ * ran.
  *
  * The canvas is sized as `designerRig` sizes it — jsdom lays nothing out, and a fit into 0 × 0 frames
  * nothing — and the leaf's Pinia is reached the way the harness itself reaches it.
@@ -173,4 +174,33 @@ it('refuses a &draw= tool whose button it cannot find, rather than capturing an 
 	const host = view.contentEl.querySelector('.renovation-asset-designer-view') as HTMLElement & { __vue_app__: App };
 	expect(error).toHaveBeenCalledWith(expect.stringContaining(tr('designer.toolbar.draw-rect')));
 	expect(useEditorStore(host.__vue_app__.config.globalProperties.$pinia).activeToolId).toBeNull();
+});
+
+/**
+ * `&stale` (Task 11, AD18-R13/R15): the knob `designerStaleRetry.test.ts`'s own docblock records
+ * as missing — no fixture could put the designer into this state, so AD18-R15's whole finding was
+ * measured through an injected probe rather than a capture. Driven through `AssetDesignStore.
+ * hydrate`'s real keep-previous door, exactly as that unit test's own `goStale` helper drives it,
+ * so this is the same episode a real vault fault produces rather than a shortcut past it.
+ */
+it('&stale re-hydrates through the store’s real door, landing on a notice and a retry over content that stays on screen', async () => {
+	const { view, store } = await mountKnobs('toilet', { stale: true });
+	await landed(view);
+
+	expect(store.stale).toBe(true);
+	// The canvas was never taken away: AD18-R13's whole point is that a non-authoritative read
+	// failure must not blank a design that is still perfectly drawable.
+	expect(store.design).not.toBeNull();
+	const notices = [...view.contentEl.querySelectorAll('.rp-designer-notice')].map((notice) => notice.textContent?.trim());
+	expect(notices).toContain(tr('designer.refresh-failed'));
+	expect(view.contentEl.querySelector('button[data-rp-action="retry"]')).not.toBeNull();
+});
+
+it('honours &stale only beside a preset: a shapeless fixture never goes stale', async () => {
+	const { view, store } = await mountKnobs(null, { stale: true });
+	await settleUntil(() => store.design !== null, 'the shapeless fixture');
+	await settle();
+
+	expect(store.stale).toBe(false);
+	expect(ready(view)).toBe(false);
 });

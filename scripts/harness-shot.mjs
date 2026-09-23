@@ -759,6 +759,15 @@ const SHOTS = [
 	// cannot prove the menu opened; `.rp-view-menu[open] .rp-view-menu__content` can only match once the
 	// native `open` attribute is set.
 	{ name: 'asset-designer-view-menu-narrow', query: '?view=asset-designer&preset=toilet&view-menu', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-view-menu[open] .rp-view-menu__content', '[data-rp-view="grid"]', '[data-rp-view="snap"]'], width: 460 },
+	// AD18-R13/R15's stale retry (Task 11): a re-read that fails NON-authoritatively over content
+	// already on screen, driven through the store's own real `hydrate` door by the `&stale` knob —
+	// the capture AD18-R15's own review found no fixture could reach, having measured the defect
+	// through an injected probe instead. Waits on the retry control itself
+	// (`[data-rp-action="retry"]`), which `AssetDesignerRoot.vue` renders only once `stale` is
+	// true, so a broken knob times out rather than photographing the resting designer under this
+	// name. Both schemes: AD18-R15's whole finding was about how the control LOOKS.
+	{ name: 'asset-designer-stale', query: '?view=asset-designer&preset=toilet&stale', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '[data-rp-action="retry"]'] },
+	{ name: 'asset-designer-stale-light', query: '?view=asset-designer&preset=toilet&stale&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '[data-rp-action="retry"]'] },
 	// THE ASSET LIBRARY (Task 17), and this is the surface with the largest gap between what was
 	// built and what has ever been looked at: sixteen tasks shipped the shelves, the rows, the
 	// marks, the inspector, the stylesheet, the keyboard and the narrow composition, and every
@@ -827,6 +836,14 @@ const SHOTS = [
 		selector: ASSET_LIBRARY_VIEW,
 		width: 460,
 	},
+	// AD18-R18's Grid view (Task 11): the tile layout with its category sidebar shown at rest, a
+	// URL nothing reached before this task — `mountAssetLibraryHarness` had no `&layout=` knob.
+	// `.rp-al-tile` is drawn by the Grid branch alone (`AssetLibraryBody.vue`'s `v-else`), so a
+	// knob that quietly stayed on List would time out rather than photograph the resting List
+	// under this name; `.rp-al-categories` is the sidebar the funnel controls, shown by default in
+	// Grid at this width (`useCategorySidebar.ts`'s `wanted`).
+	{ name: 'asset-library-grid', query: '?view=asset-library&layout=grid', selector: [ASSET_LIBRARY_VIEW, '.rp-al-tile', '.rp-al-categories'] },
+	{ name: 'asset-library-grid-light', query: '?view=asset-library&layout=grid&theme=light', selector: [ASSET_LIBRARY_VIEW, '.rp-al-tile', '.rp-al-categories'] },
 	// The harness's own index — the one surface here this command could not photograph. That is
 	// not a gap worth leaving in a tool whose whole argument is that a capture read by eye
 	// reaches defects no gate can: the index's own chrome went unlooked-at while it accumulated

@@ -411,8 +411,13 @@ export interface MountedAssetLibrary {
  * `assetId` is `null` for the resting pane and an id for §7's selected compositions — the same
  * `''`-means-nothing-selected sentinel `AssetLibraryView.getState` writes, translated here at
  * the one place a URL meets it.
+ *
+ * `layout` is `page.ts`'s `&layout=grid` (Task 11, AD18-R18): the one word `libraryBrowse.ts`'s
+ * `browseFrom` reads as Grid, everything else read as List — the default this fixture drew before
+ * the Grid view existed. Read exactly as `AssetLibraryView.setState` reads a restored leaf's own
+ * `layout` field, so a knob and a real workspace layout agree on what the word means.
  */
-export function mountAssetLibraryHarness(root: HTMLElement, assetId: string | null, empty = false): MountedAssetLibrary {
+export function mountAssetLibraryHarness(root: HTMLElement, assetId: string | null, empty = false, layout?: 'grid'): MountedAssetLibrary {
 	// Obsidian's DOM prototype extensions. Installed first, because the mount below uses them.
 	installObsidianDom();
 	root.empty();
@@ -430,7 +435,10 @@ export function mountAssetLibraryHarness(root: HTMLElement, assetId: string | nu
 	// State first, then open — the restored-leaf order `mountPlanEditorHarness` and
 	// `mountAssetDesignerHarness` both use. `void` rather than awaited: the page entry cannot
 	// await, and both do their work synchronously before resolving.
-	void view.setState({ assetId: assetId ?? '', expanded: HARNESS_EXPANDED }, {} as never);
+	void view.setState(
+		{ assetId: assetId ?? '', expanded: HARNESS_EXPANDED, ...(layout === 'grid' ? { layout: 'grid' } : {}) },
+		{} as never,
+	);
 	void view.onOpen();
 
 	return { leafEl, view };

@@ -6,14 +6,14 @@ import { ASSET_PRESETS } from '../../src/domain/asset/presets/catalogue';
 import { defaultValues } from '../../src/domain/asset/presets/presetGeometry';
 import { AssetDesignerView } from '../../src/presentation/designer/AssetDesignerView';
 import type { AssetDesignerDeps } from '../../src/presentation/designer/AssetDesignerContext';
-import type { AssetDesignDto } from '../../src/application/queries/GetAssetDesign';
+import type { AssetDesignDto, AssetDesignError } from '../../src/application/queries/GetAssetDesign';
 import { unavailableAssetDesignerCommands } from '../../src/presentation/designer/designerCommands';
 import type { BackgroundPicker } from '../../src/presentation/designer/ports';
 import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import type { Logger } from '../../src/application/ports/Logger';
 import type { ObservationToken } from '../../src/application/ports/versioning';
 import type { App } from 'vue';
-import { ok } from '../../src/core/result/Result';
+import { err, ok } from '../../src/core/result/Result';
 import { tr } from '../../src/presentation/i18n/strings';
 import type { StringKey } from '../../src/presentation/i18n/locales/en';
 import { useAssetDesignStore } from '../../src/presentation/designer/stores/assetDesignStore';
@@ -55,6 +55,14 @@ import { pointer } from './itemKnob';
 const HARNESS_ASSET_ID = createAssetId();
 
 const HARNESS_VERSION = { revision: 1, observed: 'harness-asset-design' as ObservationToken };
+
+/**
+ * `&stale` (Task 11, AD18-R13/R15): the one non-authoritative failure `assetDesignStore.hydrate`
+ * turns into `stale.value = true` — a re-read that fails while real content is already on
+ * screen. The identical shape `designerStaleRetry.test.ts`'s own `VAULT_FAILED` fixture uses,
+ * so the two doors agree about what "the vault could not be read" looks like.
+ */
+const STALE_READ_FAILURE: AssetDesignError = { category: 'Persistence', code: 'vault.unexpected-failure', message: 'the vault could not be read' };
 
 const HARNESS_ASSET_DESIGN: AssetDesignDto = {
 	assetId: HARNESS_ASSET_ID,
@@ -278,6 +286,10 @@ function drawInHarness(view: AssetDesignerView, canvas: HTMLElement, draw: strin
  * it would photograph the unframed camera. A bare `setTimeout(0)` promised neither.
  *
  * Then, in order:
+ * - `&stale` (Task 11, AD18-R13/R15), which re-hydrates through the store's own real `hydrate` door
+ *   with a read that fails NON-authoritatively over content that just landed — the identical shape
+ *   `runtime.refresh()` (the production `Try again`) drives, so `stale.value` becomes `true` the
+ *   same way a real vault fault would set it rather than through a test-only setter;
  * - `&select=`/`&mode=`, through the REAL Select button and the leaf's own store;
  * - `&camera=default`, which puts `DEFAULT_VIEWPORT` back — the camera a user zoomed out to, where the toilet
  *   is a few dozen pixels across. No fit is pressed otherwise: a capture shows the opening fit the product
@@ -291,10 +303,17 @@ function drawInHarness(view: AssetDesignerView, canvas: HTMLElement, draw: strin
  * shots wait on, since the view element itself is attached at mount, before any of this. The leaf's Pinia
  * is reached through the Vue app `AssetDesignerView` mounts on its host element. Harness-only: no
  * production seam exists for this, and none is added.
+ *
+ * **What pressing the real `Try again` button does in THIS page, once `&stale` has landed.** It
+ * calls `runtime.refresh()`, which re-reads through `context.queries.getAssetDesign` — the same
+ * bundle `assetDesignerHarnessDeps` built, whose `getAssetDesign` always answers `ok`. So a press
+ * in the harness succeeds immediately and clears the notice: a live look at AD18-R13's success
+ * arm rather than a second, scripted failure. Nothing here makes the retry fail twice in a row;
+ * the resting capture this knob exists for needs only the first failure on screen.
  */
 async function driveHarness(
 	view: AssetDesignerView,
-	knobs: { readonly select?: string; readonly mode?: string; readonly draw?: string; readonly camera?: string; readonly grid?: boolean; readonly viewMenu?: boolean },
+	knobs: { readonly select?: string; readonly mode?: string; readonly draw?: string; readonly camera?: string; readonly grid?: boolean; readonly viewMenu?: boolean; readonly stale?: boolean },
 ): Promise<void> {
 	const host = (): (HTMLElement & { __vue_app__: App }) | null => view.contentEl.querySelector('.renovation-asset-designer-view');
 	await settleUntil(() => host() !== null, 'the designer mount');
@@ -302,6 +321,13 @@ async function driveHarness(
 	const store = useAssetDesignStore(pinia);
 	const editor = useEditorStore(pinia);
 	await settleUntil(() => store.design !== null && editor.stageSize.width > 0, 'the ?preset design on a measured canvas');
+	if (knobs.stale === true) {
+		await store.hydrate(
+			{ getAssetDesign: () => Promise.resolve(err(STALE_READ_FAILURE)), listPlansUsingAsset: () => Promise.resolve(ok({ plans: [], unreadable: 0 })) },
+			HARNESS_ASSET_ID,
+			{ indexScanCompleted: true, keepPreviousOnFailure: true },
+		);
+	}
 	if (knobs.select !== undefined) {
 		pressTool(view, 'designer.toolbar.select');
 		store.select(harnessSelection(knobs.select));
@@ -316,14 +342,14 @@ async function driveHarness(
 }
 
 /**
- * `knobs` are `page.ts`'s `&select=`, `&mode=`, `&draw=`, `&camera=`, `&grid`, `&view-menu` and
- * `&pending`, honoured only beside a preset: a shapeless fixture has no part to select or draw beside,
- * and a capture of one would photograph a state nobody could reach.
+ * `knobs` are `page.ts`'s `&select=`, `&mode=`, `&draw=`, `&camera=`, `&grid`, `&view-menu`,
+ * `&pending` and `&stale`, honoured only beside a preset: a shapeless fixture has no part to
+ * select or draw beside, and a capture of one would photograph a state nobody could reach.
  */
 export function mountAssetDesignerHarness(
 	root: HTMLElement,
 	presetId: string | null = null,
-	knobs: { readonly select?: string; readonly mode?: string; readonly draw?: string; readonly camera?: string; readonly grid?: boolean; readonly viewMenu?: boolean; readonly pending?: boolean } = {},
+	knobs: { readonly select?: string; readonly mode?: string; readonly draw?: string; readonly camera?: string; readonly grid?: boolean; readonly viewMenu?: boolean; readonly pending?: boolean; readonly stale?: boolean } = {},
 ): MountedAssetDesigner {
 	// Obsidian's DOM prototype extensions. Installed first, because the mount below uses them.
 	installObsidianDom();

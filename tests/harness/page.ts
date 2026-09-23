@@ -18,7 +18,11 @@
  * its LIST state over a seeded vault of that size with the filter already carrying that query,
  * and `?index` (or an `?entry=`) opens the harness index. A query parameter rather than a second
  * page, for the same reason `?theme`, `?phone` and `?lang` are ones: a headless screenshot needs
- * a URL and nothing to click.
+ * a URL and nothing to click. The asset designer's `&stale` (Task 11, AD18-R13/R15) reaches a
+ * retry notice no capture could reach before it: a real re-hydration that fails
+ * non-authoritatively over content already on screen, through the store's own `hydrate` door —
+ * the same word the Plan Editor's own `&stale` knob spells, disambiguated by `view=`. The asset
+ * library's `&layout=grid` (Task 11, AD18-R18) opens Task 10's Grid view the same way.
  */
 import { createApp } from 'vue';
 import VueKonva from 'vue-konva';
@@ -259,9 +263,18 @@ if (wantsIndex) {
 					pending: params.has('pending'),
 					grid: params.has('grid'),
 					viewMenu: params.has('view-menu'),
+					// `&stale` is the same knob spelling `wantsStale` above reads for the Plan
+					// Editor: the two branches are mutually exclusive on `view=`, so one flag
+					// answers both without a second parse.
+					stale: wantsStale,
 				}).view
 			: wantsAssetLibrary
-				? mountAssetLibraryHarness(document.body, params.get('asset'), params.get('assets') === '0').view
+				? mountAssetLibraryHarness(
+						document.body,
+						params.get('asset'),
+						params.get('assets') === '0',
+						params.get('layout') === 'grid' ? 'grid' : undefined,
+					).view
 				: mountHarness(document.body, {
 						projectId: params.get('project'),
 						plans: Number.isFinite(askedPlans) ? askedPlans : undefined,

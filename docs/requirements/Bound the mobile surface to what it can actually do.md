@@ -127,7 +127,7 @@ Obsidian's order between the two is not a plugin's to assume. **Four palette com
 answer `false` to `checkCallback` on `Platform.isMobile`, the shape `new-project` already had; no
 command id changed, because a user's hotkey is bound to it.
 
-**Still open, and named rather than implied:**
+**Open unless marked done, and named rather than implied:**
 
 - **The Asset library's write controls — done for L-43 (2026-09-23).** `AssetLibraryView` puts
   `readOnly: Platform.isMobile` into its context at its `provide()`, and on a mobile device the

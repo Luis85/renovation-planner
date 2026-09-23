@@ -365,7 +365,7 @@ record requests rather than behaving, and the mock plugin base unregisters nothi
   blocked behind limitation L-15 until a human writes the second language, and the option's row
   says so.
 
-## 8. Other open owner questions, recorded in the tracker
+## 8. Other owner questions recorded in the tracker, open and decided since
 
 Added 2026-09-23 (session 17). These are owner questions the tracker records outside Q1 to Q3.
 This is a reading of the tracker on that date, not a census, and nothing here decides any of them.

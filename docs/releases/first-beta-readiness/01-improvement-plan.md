@@ -319,7 +319,7 @@ No calendar estimate is asserted. Size and sequence work after BP-00 using the a
 
 **User outcome:** know which parts of the plugin are supported on their device, with no route into an unusable editor.
 
-**Starting points:** `manifest.json`, platform guards in views/commands, `PRODUCT.md`, and `docs/tests/cases/Read projects on mobile.md`. The inspected scope is desktop editing and mobile read-only, which the owner's L-43 decision (2026-09-23) kept by guarding the Asset Library on mobile, in jsdom only (see the tracker's L-43 row); the mobile case explicitly lacked real-device results at the earlier review. [S09, S10]
+**Starting points:** `manifest.json`, platform guards in views/commands, `PRODUCT.md`, and `docs/tests/cases/Read projects on mobile.md`. The inspected scope is desktop editing and mobile read-only, which the owner's L-43 decision (2026-09-23) kept by guarding the Asset Library on mobile, in code, tested in jsdom only (see the tracker's L-43 row); the mobile case explicitly lacked real-device results at the earlier review. [S09, S10]
 
 **Actions**
 

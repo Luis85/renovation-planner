@@ -276,7 +276,7 @@ Three things worth copying, none of them oxlint-specific:
   is a sentence about an `ignorePatterns` array, and a pattern that swallows a directory
   makes the gate quieter, never redder — the one failure mode the gate cannot report on
   itself. Ask the tool which files it would lint (`oxlint --debug=files`) and compare that
-  against the tree on disk, whole rather than sampled: `tests/build/lint-scope.test.ts`.
+  against the tree on disk, whole rather than sampled: `tests/gates/lint-scope.test.ts`.
   Watch it fail in both directions — a directory dropped from scope, and a vendored tree
   pulled into it.
 - **Ban the inline suppression, in the directories the first linter never reached.** This
@@ -288,7 +288,7 @@ Three things worth copying, none of them oxlint-specific:
   turned a rule off with nothing anywhere reporting it. Two halves, and both are needed:
   the tool's own `reportUnusedDisableDirectives` catches a directive silencing nothing,
   and it cannot by construction see the one that IS doing its job — that half is a scan of
-  the linted files (`tests/build/suppressions.test.ts`). Build the needles from parts so
+  the linted files (`tests/gates/suppressions.test.ts`). Build the needles from parts so
   the gate can scan its own source, and prove the ban targets something real by driving a
   directive through the linter and watching a genuine finding disappear.
   **A scan for a directive keyword is not the whole class**, and this is the part a review

@@ -122,7 +122,7 @@ selection. Five added single-selection cases fail before the correction and pass
 all six targeted suites pass 99 tests. Edge keyboard verification also confirms clearing a
 single selection from its property row while retaining row focus.
 The first full follow-up run passed 6,588 tests but timed out in the unchanged
-`tests/build/test-environments.test.ts` (120-second limit). That test passed in isolation
+`tests/gates/test-environments.test.ts` (120-second limit). That test passed in isolation
 in about 65 seconds; no timeout, exclusion or quality threshold was changed.
 The complete retry with `VITEST_MAX_WORKERS=1 npm run test:coverage` passes all 473 files,
 6,589 tests (70 skipped) and the unchanged coverage thresholds (99.25% statements, 98.04%

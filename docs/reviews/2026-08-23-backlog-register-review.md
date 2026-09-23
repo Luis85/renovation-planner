@@ -232,6 +232,6 @@ paragraph now gives no count and defers its open vocabulary to the folder.
 
 Also noticed and deliberately not fixed: `docs/reviews/2026-08-23-design-docs-review.md` and
 `docs/tasks/17-presentation-layer-error-surfacing.md` have CRLF line endings where every other
-note has LF. Pre-existing, invisible to `tests/build/encoding.test.ts` (which guards the BOM and
+note has LF. Pre-existing, invisible to `tests/gates/encoding.test.ts` (which guards the BOM and
 the release files), and outside this review's subject — recorded here so the next person to see
 it knows it was seen.

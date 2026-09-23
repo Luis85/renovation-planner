@@ -5,6 +5,31 @@ import { createServer } from 'vite';
 import { resolveChromiumExecutable } from './chromium.mjs';
 import { makeCaptureManifest, recordScreenshots } from './editor-capture-files.mjs';
 
+/** A harness dev server, unless `RP_HARNESS_URL` names one already running. */
+export async function startHarness() {
+	const server = process.env.RP_HARNESS_URL ? null : await createServer({ configFile: 'vite.harness.config.ts', server: { host: '127.0.0.1', port: 0, open: false } });
+	await server?.listen();
+	return { server, base: process.env.RP_HARNESS_URL ?? server.resolvedUrls.local[0] };
+}
+/** Fonts loaded and two frames drawn, so a capture sees settled layout. */
+export async function settle(page) {
+	await page.evaluate(() => document.fonts.ready);
+	await page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => { requestAnimationFrame(resolve); }); }));
+}
+export async function closeInspectorDrawer(page) {
+	const close = page.locator('.rp-inspector-drawer__close');
+	if (await close.isVisible()) { await close.click(); await close.waitFor({ state: 'hidden' }); }
+}
+/** Each primary-action button's box, and whether it is hit-testable, against the canvas. */
+export function measurePrimaryActions(page) {
+	return page.locator('.rp-primary-actions').evaluate(bar => {
+		const canvas = bar.closest('.rp-plan-canvas').getBoundingClientRect();
+		return { canvas: canvas.toJSON(), buttons: [...bar.querySelectorAll('button')].map(button => {
+			const rect = button.getBoundingClientRect();
+			return { label: button.getAttribute('aria-label') ?? button.textContent, rect: rect.toJSON(), unobscured: button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)) };
+		}) };
+	});
+}
 /** Real keyboard navigation; no locator focus/fill shortcuts. */
 export async function tabTo(page, selector) {
 	const target = typeof selector === 'string' ? page.locator(selector) : selector;

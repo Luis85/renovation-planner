@@ -9,6 +9,7 @@ import type {
 	PlanGeometryDocument,
 	PlanGeometrySidecar,
 	PlanGeometrySnapshot,
+	SpatialObjectGeometry,
 } from '../../../application/ports/PlanGeometrySidecar';
 import type { PlanGeometryStore } from './PlanGeometryStore';
 import type { Structure } from '../../../domain/spatial/Structure';
@@ -19,6 +20,14 @@ import {
 
 function toTuples(points: readonly { x: number; y: number }[]): [number, number][] {
 	return points.map((point) => [point.x, point.y]);
+}
+/** An entry's optional fields, copied, and omitted rather than written `undefined` while absent. */
+function optionalObjectFields(object: Pick<SpatialObjectGeometry, 'bulges' | 'labelOffset' | 'color'>): Pick<PlanGeometryDTO['objects'][number], 'bulges' | 'labelOffset' | 'color'> {
+	return {
+		...(object.bulges ? { bulges: [...object.bulges] } : {}),
+		...(object.labelOffset ? { labelOffset: { ...object.labelOffset } } : {}),
+		...(object.color ? { color: object.color } : {}),
+	};
 }
 function toStructure(structure: Structure | undefined): PlanGeometryDTO['structure'] {
 	return structure ? {
@@ -58,9 +67,7 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 				calibration: dto.calibration ? calibrationFromPersistence(dto.calibration) : null,
 				objects: dto.objects.map((object) => ({
 					id: object.id,
-					...(object.bulges ? { bulges: [...object.bulges] } : {}),
-					...(object.labelOffset ? { labelOffset: { ...object.labelOffset } } : {}),
-					...(object.color ? { color: object.color } : {}),
+					...optionalObjectFields(object),
 					points: object.points.map(([x, y]) => ({ x, y })),
 				})),
 			},
@@ -86,9 +93,7 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 				// literal becomes a rewrite of every entry and must move into the port.
 				objects: document.objects.map((object): PlanGeometryDTO['objects'][number] => ({
 					id: object.id,
-					...(object.bulges ? { bulges: [...object.bulges] } : {}),
-					...(object.labelOffset ? { labelOffset: { ...object.labelOffset } } : {}),
-					...(object.color ? { color: object.color } : {}),
+					...optionalObjectFields(object),
 					type: 'polygon',
 					points: toTuples(object.points),
 				})),

@@ -243,7 +243,7 @@ door exists beside `check` for that reason, and it does not replace it:
 
 **Two gates at once do not cost 2x, they thrash — and the remedy is the WORKFLOW above
 rather than a mutex.** What contention produces is a WRONG red rather than a slow one: a
-destroyed `coverage/.tmp/coverage-N.json`, and `tests/build/` ESLint boots over their
+destroyed `coverage/.tmp/coverage-N.json`, and `tests/gates/` ESLint boots over their
 `beforeAll` budget, both named as hazards elsewhere in this file. So agents working in
 parallel run `check:fast` — which touches no `coverage/` and boots ESLint for one file at
 most — and the full `npm run check` runs in CI, on the pull request, rather than on the
@@ -259,7 +259,7 @@ under one core on average, with no child processes.
 Two things make the gate itself cheaper, and both are measured rather than argued.
 `tsconfig.json` is `incremental` with its build info under `node_modules/.cache/` — 14.3s
 cold against **3.8s warm**, including after touching a source file, so CI (always cold) is
-unchanged and the loop is not. And `vitest.config.ts` runs `tests/build/` as its own
+unchanged and the loop is not. And `vitest.config.ts` runs `tests/gates/` as its own
 project with `isolate: false`, which shares the eleven type-aware ESLint boots that
 directory pays per file: **34.6s to 20.8s** for that directory, 102.9s against 121.8s for
 the suite as a whole.
@@ -303,7 +303,7 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)`, `addCommand`'s `name` and
   `addRibbonIcon`'s title — and passes a call to `t`/`tr`
   untouched, since that is a `CallExpression`, not a `Literal`, at the position it checks.
-  `tests/build/i18n-literal-boundary.test.ts` asserts the selector's blind spots as blind
+  `tests/gates/i18n-literal-boundary.test.ts` asserts the selector's blind spots as blind
   spots: `id` stays a literal because a command id is DATA a hotkey binds to, and the ribbon
   selector keys on the ARGUMENT POSITION because the icon beside the title is a literal too —
   widen it to "a literal anywhere in the call" and two allow-cases go red, measured.
@@ -319,7 +319,7 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   name, or any door reached through a MEMBER EXPRESSION (`o.notify(e.message)`,
   `new n.Notice(e.message)`) — every selector keys on `callee.name`, which a member-expression
   callee has none of, and that is exactly why the four doors are bare functions rather than
-  `notify.success(...)`; `tests/build/notice-text-boundary.test.ts` drives all of that through real fixture
+  `notify.success(...)`; `tests/gates/notice-text-boundary.test.ts` drives all of that through real fixture
   paths, blind spots included, and drives BOTH blocks that carry the rule — dropping the
   repeat in the `infrastructure/obsidian/` block turns exactly two of its cases red,
   measured.
@@ -331,7 +331,7 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   rather than by this gate, the same way the write
   boundary below names the spellings its selectors see and the ones they cannot, rather
   than claiming to see more. Every one of those blind spots is asserted AS a blind spot in
-  `tests/build/i18n-literal-boundary.test.ts`, because a rule that had narrowed further
+  `tests/gates/i18n-literal-boundary.test.ts`, because a rule that had narrowed further
   would read exactly the same. It also runs the Obsidian plugin guidelines
   and the size and complexity budgets. Warnings fail too (`--max-warnings 0`) — the
   mobile-safety rule reports as a warning, and `isDesktopOnly: false` is a promise.
@@ -345,7 +345,7 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   with its own configuration**, so a local override would not travel and the rejection
   would arrive at submission rather than at `npm run check`. That guarantee rests on a
   wrapper (`rule-custom-message`) matching ESLint's own message text verbatim and
-  reporting NOTHING on a miss, so `tests/build/logging-carve-out.test.ts` pins the two
+  reporting NOTHING on a miss, so `tests/gates/logging-carve-out.test.ts` pins the two
   against each other — a reworded upstream message would otherwise turn the marketplace
   check off silently. **oxlint** runs first, in milliseconds, and adds the broad
   wrong-code ruleset ESLint never turned on, over a WIDER tree: the Obsidian ruleset is
@@ -372,10 +372,10 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   is correct. The mirror is not total, and the sentence has to say so — inside the carve-out
   ESLint still fails `console.log`/`console.info` through the obsidianmd wrapper, oxlint has
   no port of that ruleset, so exactly that case is invisible to the edit loop and is caught
-  by `npm run check` and `tests/build/logging-carve-out.test.ts`.
+  by `npm run check` and `tests/gates/logging-carve-out.test.ts`.
   Two things about it are claims rather than rules, so both have checks. Its SCOPE: an
   `ignorePatterns` edit that drops a directory makes the gate quieter rather than redder,
-  so `tests/build/lint-scope.test.ts` asks oxlint itself which files it lints and compares
+  so `tests/gates/lint-scope.test.ts` asks oxlint itself which files it lints and compares
   that against the tree. And its REACH: **no comment in a linted file turns a rule off.**
   Two halves, because the two linters read comments differently. ESLint takes
   `linterOptions.noInlineConfig`, which refuses the whole class — the disable directives
@@ -383,7 +383,7 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   carries no directive keyword. That form was the real exposure: `no-restricted-syntax`
   and `no-restricted-imports` are ESLint-only, so one comment turned the write boundary
   off and oxlint could not have backstopped it. oxlint's half is a scan of the files it
-  lints (`tests/build/suppressions.test.ts`) plus `reportUnusedDisableDirectives`, since
+  lints (`tests/gates/suppressions.test.ts`) plus `reportUnusedDisableDirectives`, since
   nothing in ESLint's configuration reaches oxlint's directive handling. A rule that does
   not fit is turned off in `.oxlintrc.json`, where the reason is written down and review
   sees it.
@@ -521,7 +521,7 @@ aimed at one surface and at the concept gallery, and neither replaces it either)
   styling the index after the designer opened something else.
   `src/prototypes/README.md` carries the one rule that IS relaxed there and why. **No prototype or fixture MODULE ever composes a built chunk**, refused
   twice: a per-layer `no-restricted-imports` ban makes it a one-way door, and
-  `tests/build/prototypes-not-bundled.test.ts` runs a real `vite build` in memory (`write:
+  `tests/gates/prototypes-not-bundled.test.ts` runs a real `vite build` in memory (`write:
   false`, so nothing is ever written to `dist/`) and asks Rolldown which modules composed
   each chunk. Neither is sufficient — lint reads static imports, the bundle scan reports
   after the fact — and the bundle scan is narrower than the wider claim it serves: a
@@ -530,7 +530,7 @@ aimed at one surface and at the concept gallery, and neither replaces it either)
 - `npm run harness-shot` drives that same page headlessly (`playwright-core`, a Chromium
   binary resolved from disk rather than a hard-coded revision) and writes one PNG per fixed
   shot — every surface the harness draws, most in both schemes and several at a sidebar's
-  width; `tests/build/harness-shot.test.ts` pins the table in both directions, so no count
+  width; `tests/gates/harness-shot.test.ts` pins the table in both directions, so no count
   of it is kept here — to a gitignored
   `harness-shots/`
   folder — a look at rendered layout, which jsdom cannot produce at all. Given an entry id
@@ -563,7 +563,7 @@ aimed at one surface and at the concept gallery, and neither replaces it either)
   failure this module exists to convert into an early one. The EXECUTABLE bit is deliberately
   not asked with it: Windows has no such bit and `accessSync(path, X_OK)` succeeds there for
   any file, so the check would hold on one CI platform and be theatre on the other.
-  `tests/build/chromium.test.ts` drives all of it. **The captures have caught ten defects the
+  `tests/gates/chromium.test.ts` drives all of it. **The captures have caught ten defects the
   whole of `npm run check` could not** — every one a measurement no layout engine in this
   repository performs (spacing, wrapping, overflow, contrast, hit size), which is the argument
   for running this on anything that draws. The ten, and the CI lessons `chromium.test.ts` and
@@ -643,7 +643,7 @@ Two rules that follow from it and are worth stating because breaking them is che
   written and stayed false for fifteen slices, since `planEditorCommands.ts` and
   `sampleProject.ts` each register commands through the `PluginCommandHost` seam. The layer
   bans cannot express the true claim — `obsidian` is importable in `infrastructure/` and a
-  `Plugin` travels as `host` — so `tests/build/registration-locality.test.ts` reads `src/` for
+  `Plugin` travels as `host` — so `tests/gates/registration-locality.test.ts` reads `src/` for
   nine registration members and requires every hit under `src/plugin/`. It reads source TEXT,
   so a differently-named wrapper is invisible to it, and it carries a finds-something-at-all
   case: a typo'd member list would otherwise pass by reaching nothing.
@@ -653,13 +653,13 @@ Two rules that follow from it and are worth stating because breaking them is che
 - **`src/prototypes/` is inside `src/` and outside the layering.** A mock may carry a script and
   a style block, composes real components and sibling mocks through the harness index's registry
   or — once it has a script — by importing them, and may be imported by NOTHING — a per-layer `no-restricted-imports` ban
-  makes that a one-way door and `tests/build/prototypes-not-bundled.test.ts` asks the real
+  makes that a one-way door and `tests/gates/prototypes-not-bundled.test.ts` asks the real
   build which modules composed each chunk. Its CSS has TWO homes and they differ in one thing,
   whether the rules ship: a `<style scoped>` block in the mock does not — nothing imports this
   tree — and does not travel at promotion either, while a `styles/` partial does both. `scoped`
   is required rather than preferred, because Vite never removes an injected block and an
   unscoped one would go on styling the index after the designer opened something else.
-  `tests/build/prototype-styles.test.ts` refuses a class NEITHER home declares, and refuses an
+  `tests/gates/prototype-styles.test.ts` refuses a class NEITHER home declares, and refuses an
   unscoped block. A real component is still drawn by the assembled sheet and by nothing else,
   which is what criterion 5 actually guarantees. `src/prototypes/README.md` carries the whole
   trade and the one lint rule that is relaxed there.
@@ -703,12 +703,12 @@ extended to `.ts`: oxlint answers for one SFC in about 110ms and ESLint in secon
 tracks the size of `src/`, not the size of the file** — the Vue ruleset is type-aware, so
 the project service loads the whole tree before it answers for one SFC. It was about 2.5s
 when this hook was built and is 5.4s now; the two SFC cases in
-`tests/build/lint-edited.test.ts` carry an explicit budget because growth alone pushed them
+`tests/gates/lint-edited.test.ts` carry an explicit budget because growth alone pushed them
 past vitest's 5000ms default, and that budget is the instrument for whether this hook is
 still cheap enough to sit in the edit loop at all.
 
 **The same cost has a second face, in the SUITE, and it looks like a regression when it is
-not one.** Every `tests/build/` file that drives ESLint boots its own instance — vitest gives
+not one.** Every `tests/gates/` file that drives ESLint boots its own instance — vitest gives
 each test file its own module registry — and each boot loads the whole type-aware project
 service. Under vitest's DEFAULT file-parallelism on Windows those boots contend, and
 `beforeAll(warmUpEslint)` can exceed even its deliberately large `ESLINT_BOOT_MS` (60s):
@@ -758,7 +758,7 @@ file back into the parallel group with the timeouts returning unexplained. The r
 own section above carries why the proposed fixed-list version of this turned the gate red.
 
 **What the fix EXPOSED rather than caused**, since deterministic worker placement is a stronger
-instrument than a lucky one: `tests/build/localeModuleSentenceCase.test.ts` called
+instrument than a lucky one: `tests/gates/localeModuleSentenceCase.test.ts` called
 `resolveConfig` under vitest's default 5s case budget with no `beforeAll(warmUpEslint)`, and had
 been passing only when the scheduler happened to drop it in a worker some sibling had already
 warmed. **A case whose pass depends on which sibling ran first is not a case anybody has
@@ -774,7 +774,7 @@ trigger for revisiting the mechanism; it is not a reason to describe this one as
 it is. (This paragraph exists because the first version of it claimed otherwise, and a
 review bot caught it against the reference in `.claude/skills/impeccable/`.)
 
-Four properties it is built to have, each with a test in `tests/build/lint-edited.test.ts`:
+Four properties it is built to have, each with a test in `tests/gates/lint-edited.test.ts`:
 
 - **Each linter runs in the edited FILE's own project root**, which is not always the root the
   hook itself runs in. A worktree is a full checkout carrying its own `.oxlintrc.json`, its own
@@ -899,7 +899,7 @@ The rules this suite is actually held to:
   bundled. Check what a new dependency writes to `window`, and check it in the BUILT bundle
   rather than in the dependency's docs.
 - **A test that writes into a directory another test WALKS is a race, and the exclusion has to
-  live with the walk rather than with whoever remembered it.** `tests/build/lint-edited.test.ts`
+  live with the walk rather than with whoever remembered it.** `tests/gates/lint-edited.test.ts`
   plants real `.vue` probes under `tests/harness/` — it must, because only a path matching
   ESLint's `VUE_FILES` exercises the Vue rules those cases exist for — and TWO other files walk
   that directory in parallel workers. `lint-scope.test.ts` excluded them and carried a careful
@@ -919,7 +919,7 @@ The rules this suite is actually held to:
   `ssr=false` under `client`. What it refuses is what reddened CI once with every test green:
   vitest compiles an SFC a node test reaches in SSR shape without rendering it, and the
   coverage merge counts those SSR-only arms as uncovered branches in files nobody touched —
-  84 of them in one instance. `tests/build/no-ssr-sfc.test.ts` drives the hook directly and
+  84 of them in one instance. `tests/gates/no-ssr-sfc.test.ts` drives the hook directly and
   then the real pipeline, through a child vitest over two fixture specs that import one
   `Probe.vue` — the node one must fail with the plugin's text and the jsdom one must pass.
   Nothing reads a test file, a directive or the config; whatever vitest decides the
@@ -944,7 +944,7 @@ The rules this suite is actually held to:
   twelve read the assembled sheet's text — eight its `@container` preludes, two its
   `container`/`container-name` declarations, two to strip comments — `taskBarPlacement`, `focusReach`,
   `harness.test.ts`, `cssVars.test.ts` under
-  `tests/build/` and `tests/harness/`; `projectRowStyles`, `projectListNarrowStyles`,
+  `tests/gates/` and `tests/harness/`; `projectRowStyles`, `projectListNarrowStyles`,
   `projectFilterStyles`, `projectListStyles`, `continueRowStyles`, `projectListOverlap`,
   `assetPriceList`, `viewRootOpenLibrary`, `projectList` under `tests/presentation/views/`;
   `assetMark` and `narrowComposition.ts` under `tests/presentation/library/`;
@@ -1055,7 +1055,7 @@ that was fixing the previous instance.
 
   So `lib` rests on a RUNTIME claim, and only half of that claim is checked. The Node half:
   `engines.node`'s floor, 22.22.2, is above Node 20, and that declared range is what
-  `tests/build/engines.test.ts` checks against every installed package — but nothing reads
+  `tests/gates/engines.test.ts` checks against every installed package — but nothing reads
   `lib` against the range, so the comparison is this sentence's and is redone by hand when
   either moves. The Electron an Obsidian at `minAppVersion` 1.13.0 ships is checked by
   NOTHING here: Chrome 110 is the floor this `lib` asserts without a check under it, and the
@@ -1068,7 +1068,7 @@ that was fixing the previous instance.
   support `^22.x` and `>=24` while excluding Node 23, so any unbounded floor claims a
   runtime the toolchain refuses. **A bound is not a range**, and a check that reads one
   bound only finds the defects living at that end.
-  `tests/build/engines.test.ts` compares the whole declared range against every installed
+  `tests/gates/engines.test.ts` compares the whole declared range against every installed
   package with npm's own `semver.subset` — the instrument that decides this in reality is
   the one that should decide it here. What it cannot see: a constraint stated anywhere but
   `engines.node`, and a package this platform did not install.
@@ -1098,7 +1098,7 @@ that was fixing the previous instance.
 - **PowerShell 5.1 writes a BOM** (`Set-Content`/`Out-File -Encoding utf8`), and
   `JSON.parse` refuses one — a BOM'd `manifest.json` broke every lint run here once, with
   an error pointing nowhere near the cause. Write files with node or an editor;
-  `tests/build/encoding.test.ts` refuses the BOM either way.
+  `tests/gates/encoding.test.ts` refuses the BOM either way.
 - **`private-type-leaks` is an `error` now, and it was ratcheted the way every floor here is:
   cleared to zero first.** Nineteen had accumulated under `warn` — an exported signature
   naming a type its own module does not export, so no caller can annotate one. That matters

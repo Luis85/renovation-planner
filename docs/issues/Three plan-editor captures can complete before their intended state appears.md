@@ -62,7 +62,7 @@ reasons from a picture that never reached the state named by its filename.
 
 Give the resting shots a readiness selector that appears only after hydration, and make the
 narrow shot wait for a constrained-layout element or attribute in addition to the ready editor.
-Extend `tests/build/harness-shot.test.ts` to assert that dark and light name a hydrated
+Extend `tests/gates/harness-shot.test.ts` to assert that dark and light name a hydrated
 floor-state selector and that narrow additionally names
 `.rp-editor-shell[data-layout="constrained"] .rp-panel-rail`; mutations back to
 `PLAN_EDITOR_VIEW` must fail those assertions.
@@ -80,9 +80,9 @@ is gone from `scripts/harness-shot.mjs` entirely — every Plan Editor shot now 
 proving its own state, so there is no bare-wrapper spelling left for a future shot to fall back
 to. Mutating `plan-editor-dark` back to a bare view-wrapper selector was run and watched red at
 exactly the predicted assertion before being reverted. Holding tests:
-`tests/build/harness-shot.test.ts` › 'the headless harness capture script' › 'waits for the
+`tests/gates/harness-shot.test.ts` › 'the headless harness capture script' › 'waits for the
 hydrated floor state on the resting plan-editor shots, and for the rail as well on the narrow
-one', and `tests/build/captureReadiness.test.ts` › 'waitUntilReady' › 'waits on every selector
+one', and `tests/gates/captureReadiness.test.ts` › 'waitUntilReady' › 'waits on every selector
 of a list for a fixed shot'. Commit "test(harness-shot): wait for the state each plan-editor
 shot names, derive the inventory from SHOTS, and measure the 320 px shell for horizontal
 overflow".

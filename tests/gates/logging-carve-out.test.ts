@@ -13,7 +13,7 @@ import { ESLINT_BOOT_MS, isIgnored, resolveConfig, severityOf, type ResolvedConf
  *
  * The first is that the carve-out's GLOB resolves to the directory it names, and only that
  * one. A glob is one edit from matching everything or nothing, and a wrong one makes the
- * gate quieter rather than redder — the same failure `tests/build/lint-scope.test.ts` was
+ * gate quieter rather than redder — the same failure `tests/gates/lint-scope.test.ts` was
  * written for. Checked through `tests/helpers/eslint.ts`, which asks ESLint itself to
  * resolve a configuration for a path under the carve-out and a path outside it — its own
  * resolution, not a re-reading of the config file.
@@ -125,7 +125,7 @@ describe('the logging carve-out', () => {
 	 */
 	it('does not ignore the trees it is the only linter for', async () => {
 		const ignored = await Promise.all(
-			[IN_CARVE_OUT, OUTSIDE, 'src/main.ts', 'tests/build/suppressions.test.ts'].map((file) => isIgnored(file)),
+			[IN_CARVE_OUT, OUTSIDE, 'src/main.ts', 'tests/gates/suppressions.test.ts'].map((file) => isIgnored(file)),
 		);
 
 		expect(ignored).toEqual([false, false, false, false]);

@@ -82,7 +82,7 @@ beforeAll(() => {
 			'node_modules/vitest/vitest.mjs',
 			'run',
 			'--config',
-			'tests/build/fixtures/sfcEnvironment/vitest.sfcEnvironment.config.ts',
+			'tests/gates/fixtures/sfcEnvironment/vitest.sfcEnvironment.config.ts',
 			'--reporter=json',
 			`--outputFile=${reportFile}`,
 		],

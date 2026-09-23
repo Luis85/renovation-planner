@@ -10,7 +10,7 @@ import { toPosix } from './posix.ts';
  * file reach by relative import". Counted by grepping `tests/` for `createSourceFile`,
  * `matchAll` and `import(` extractors in the same edit as this sentence: the two callers are
  * `tests/presentation/designer/regionsReachable.test.ts` (every designer component is reachable
- * from its view) and `tests/build/test-environments.test.ts` (a test reaching a repository
+ * from its view) and `tests/gates/test-environments.test.ts` (a test reaching a repository
  * contract runs in node). `tests/harness/harness.test.ts` has a walk of its own over
  * STYLESHEET specifiers and glob patterns, which is a different question and stays there.
  *

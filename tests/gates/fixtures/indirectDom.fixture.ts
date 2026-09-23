@@ -17,7 +17,7 @@
  * the whole graph.
  *
  * `*.fixture.ts` rather than `*.test.ts`: Vitest's `include` is `tests/**\/*.test.ts`, so
- * this is never collected, and `tests/build/spec-files.test.ts`'s naming rule bans
+ * this is never collected, and `tests/gates/spec-files.test.ts`'s naming rule bans
  * `.spec.ts` rather than this extension. `domGlobalReach.fixture.ts` is named the same way
  * for the same reason.
  *

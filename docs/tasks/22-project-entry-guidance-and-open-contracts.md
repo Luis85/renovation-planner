@@ -36,7 +36,7 @@ own documents are the authority: `interaction-concept.md` §6–§8, `states-and
 - No `obsidian` import outside `infrastructure/` and `plugin/`; `Platform` is reached in views
   only where `RenovationProjectView.ts:348` already reaches it, or through a `readOnly` prop.
 - No hard-coded colour in `styles/`; partials stay under 400 lines; every `<button>` class gets a
-  `:focus-visible` rule (`tests/build/buttonFocusRing.test.ts`).
+  `:focus-visible` rule (`tests/gates/buttonFocusRing.test.ts`).
 - Test files stay under 450 lines. Split beside an existing top-level `describe` when one would
   cross it.
 - Every `docs/requirements/*.md` note a task touches gets its "Project-surface implementation"
@@ -131,7 +131,7 @@ using Obsidian variables only.
 **Harness:** add a `?plans=<n>` knob (`tests/harness/page.ts` → `HarnessMountOptions.plans` in
 `tests/harness/mount.ts`) that seeds the detail fixture with that many plans instead of the
 default 26, and one capture `project-detail-new` (`?project=project-1&plans=0`) in
-`scripts/harness-shot.mjs`, keeping `tests/build/harness-shot.test.ts` and
+`scripts/harness-shot.mjs`, keeping `tests/gates/harness-shot.test.ts` and
 `tests/harness/harnessSurfaces.test.ts` green.
 
 **Tests** (jsdom, mounting `ProjectDetailState` through the existing helpers in

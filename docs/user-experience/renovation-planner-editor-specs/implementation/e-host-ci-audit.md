@@ -74,10 +74,10 @@ These behaviors and v7 usage were checked against the official
 [upload-artifact documentation](https://github.com/actions/upload-artifact) and
 [status-condition documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/expressions#status-check-functions).
 
-Existing contracts in `tests/build/ci-invokes-check.test.ts` cover the exact four matrix legs,
+Existing contracts in `tests/gates/ci-invokes-check.test.ts` cover the exact four matrix legs,
 Node setup order, single unchanged command and undiscounted check/job/workflow keys. The
 extra upload step can preserve those assertions. `tests/release/manifest.test.ts` pins the
-Node floor; `tests/build/engines.test.ts` checks dependency compatibility. A small additional
+Node floor; `tests/gates/engines.test.ts` checks dependency compatibility. A small additional
 CI contract should check upload ordering, failure-capable condition, the two exact paths and
 distinct matrix naming. Verify the actual artifact/download on the next required remote full
 run. No implementation or new task was opened by this audit.

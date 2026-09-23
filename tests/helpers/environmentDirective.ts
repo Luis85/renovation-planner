@@ -4,7 +4,7 @@
  * `/@(?:vitest|jest)-environment\s+([\w-]+)\b/` to the WHOLE file text — comments, strings and
  * prose alike — and takes the first match, falling back to the project's `environment` when
  * there is none. This is that rule spelled without a pattern, because
- * `tests/build/test-environments.test.ts` compares its answer against what vitest resolves, and
+ * `tests/gates/test-environments.test.ts` compares its answer against what vitest resolves, and
  * a reader that disagrees with vitest is a gate that misses an offender or reddens a clean file.
  *
  * The version this replaced read only the file's COMMENT ranges and split them on whitespace,

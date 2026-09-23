@@ -12,7 +12,7 @@ import { REPO } from '../helpers/repo';
  */
 const child = spawnSync(
 	process.execPath,
-	['node_modules/vitest/vitest.mjs', 'run', '--config', 'tests/build/fixtures/vitest.brokenFake.config.ts', '--reporter=json'],
+	['node_modules/vitest/vitest.mjs', 'run', '--config', 'tests/gates/fixtures/vitest.brokenFake.config.ts', '--reporter=json'],
 	{ cwd: REPO, encoding: 'utf8', timeout: 120_000 },
 );
 

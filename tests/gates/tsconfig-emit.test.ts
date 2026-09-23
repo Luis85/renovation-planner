@@ -5,7 +5,7 @@ import ts from 'typescript';
 import { REPO } from '../helpers/repo';
 
 /**
- * `allowJs` is on, and `tests/build/` imports the build scripts and `eslint.config.mjs`
+ * `allowJs` is on, and `tests/gates/` imports the build scripts and `eslint.config.mjs`
  * directly — so those files are program INPUTS, not merely files on disk. A `tsconfig.json`
  * declaring neither `noEmit` nor an `outDir` therefore names each of them as its own emit
  * target, which TypeScript refuses: TS5055, "Cannot write file X because it would overwrite

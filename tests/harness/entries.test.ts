@@ -424,7 +424,7 @@ function vueFilesUnder(directory: string, prefix = ''): string[] {
  * relative to `process.cwd()` is the one spelling that works in both environments. That trades
  * one hazard for its opposite rather than removing a hazard outright: `REPO` exists precisely
  * so a test is immune to another file's `chdir` (`tests/helpers/oxlint.ts`'s own comment —
- * `tests/build/styles.test.ts` chdirs, contained by its `afterEach` restore and vitest's
+ * `tests/gates/styles.test.ts` chdirs, contained by its `afterEach` restore and vitest's
  * per-file isolation), and `process.cwd()` here is exposed to exactly that hazard in exchange
  * for working under jsdom at all.
  */

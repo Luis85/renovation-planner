@@ -275,7 +275,7 @@ describe('read refusals reaching the diagnostics ledger', () => {
 
 	/**
 	 * The excluded kind, PINNED as an absence rather than left as a claim in the comment
-	 * above — the same shape `tests/build/network-boundary.test.ts` uses for the spellings its
+	 * above — the same shape `tests/gates/network-boundary.test.ts` uses for the spellings its
 	 * lint rule cannot see, and for the same reason: writing down that a gap exists is not an
 	 * endorsement of it, it is what stops the next reader believing the coverage is total.
 	 *

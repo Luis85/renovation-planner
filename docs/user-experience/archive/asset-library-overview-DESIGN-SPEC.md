@@ -312,7 +312,7 @@ the row.
 A row is a flattened `<button>` in the vocabulary `styles/list-row.css` already defines for the
 project and plan rows — which means it must be selected **under** its block class
 (`.rp-asset-shelf .rp-asset-row`), because Obsidian's own `button:not(.clickable-icon)` is (0,1,1)
-and a bare class is (0,1,0) and loses silently. `tests/build/buttonSpecificity.test.ts` is the
+and a bare class is (0,1,0) and loses silently. `tests/gates/buttonSpecificity.test.ts` is the
 category check for that, and it reads every shipping sheet, so this one is inside its scope the day
 it exists.
 
@@ -1524,7 +1524,7 @@ builder inheriting a promise nobody has tried.
 Every focus stop has a visible ring. Obsidian's global `:focus { outline: none }` reaches buttons, so
 each interactive class opts its own ring back in — `2px solid var(--interactive-accent)`, offset
 **negative** for the edge-to-edge rows (an outside ring would be clipped) and **positive** for the
-inset toolbar and inspector controls. `tests/build/buttonFocusRing.test.ts` is the check.
+inset toolbar and inspector controls. `tests/gates/buttonFocusRing.test.ts` is the check.
 
 ### 6.3 What the view remembers
 

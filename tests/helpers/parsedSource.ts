@@ -10,7 +10,7 @@ import { parse as parseSfc } from '@vue/compiler-sfc';
  * literal's fields, the identifiers a file names, the module specifiers it imports. A comment
  * spelling any of those is not a node, and a re-ordered property or a re-wrapped line is the same
  * node, which is the whole difference from the `toMatch(/…/)` pins these replaced
- * (`tests/build/harness-shot.test.ts`'s header carries the history). An SFC contributes its
+ * (`tests/gates/harness-shot.test.ts`'s header carries the history). An SFC contributes its
  * `<script>` and `<script setup>` blocks through `@vue/compiler-sfc`, the way
  * `importGraph.ts` reads one.
  *

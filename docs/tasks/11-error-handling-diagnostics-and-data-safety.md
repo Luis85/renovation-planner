@@ -628,7 +628,7 @@ dialog. Item 9 below is ticked on the command's tests, not on the flow's.
     no-raw-detail half and that one error reads differently under `'en'` and `'de'`.
     `NOTICE_TEXT_BAN` in `eslint.config.mjs` puts the rule at the two notice doors this
     repository has (`notify(...)`, `new Notice(...)`) rather than at the call sites someone
-    thought of; `tests/build/notice-text-boundary.test.ts` drives it through real fixture
+    thought of; `tests/gates/notice-text-boundary.test.ts` drives it through real fixture
     paths, blind spots included — a value one hop away, a template literal, a notice raised
     under a third name, and either door reached through a member expression. Slice 10's nine
     reachable coded refusals have entries of their own in both locales, bound to their raise
@@ -691,7 +691,7 @@ dialog. Item 9 below is ticked on the command's tests, not on the flow's.
     in `infrastructure/logging/` or the diagnostics query — and it is a lint rule over those
     two subtrees now (the node network modules, `obsidian`'s `request`/`requestUrl`, and the
     network globals) rather than a fact about today's imports.
-    `tests/build/network-boundary.test.ts` drives it through real virtual paths: each ban
+    `tests/gates/network-boundary.test.ts` drives it through real virtual paths: each ban
     with a snippet that MUST report, the shapes these directories actually use that must NOT,
     the spellings the rule cannot see pinned as absences, and each subtree's resolved ban
     compared against its parent layer's for superset — because two flat-config blocks

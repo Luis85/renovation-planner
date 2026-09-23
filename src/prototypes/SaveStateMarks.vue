@@ -18,12 +18,12 @@
 	photographable would be changing shipped code to suit the tool. The duplication is two
 	class names deep, and both are declared by the shipped stylesheet — the one home that
 	ships — so a renamed class breaks the picture rather than silently drawing the wrong thing.
-	`tests/build/prototype-promotion.test.ts` is scoped to the `ZoneSummary` pair and does not
+	`tests/gates/prototype-promotion.test.ts` is scoped to the `ZoneSummary` pair and does not
 	hold this file against anything; nothing here is intended for promotion.
 
 	Two things this file learned by being added, both from gates rather than from review.
 	It does NOT mirror the component's `rp-save-state-label` class, because
-	`tests/build/prototype-styles.test.ts` refuses a class no stylesheet declares and that one
+	`tests/gates/prototype-styles.test.ts` refuses a class no stylesheet declares and that one
 	is declared nowhere — a dead hook on the shipped component, left alone here because
 	removing it is not this change's business and a user's CSS snippet may key on it. And the
 	prose above must not put the word "from" directly before a backticked stylesheet path:

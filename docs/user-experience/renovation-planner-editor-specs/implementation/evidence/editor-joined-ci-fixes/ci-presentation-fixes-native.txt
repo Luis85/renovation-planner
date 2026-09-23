@@ -1,7 +1,7 @@
 
  RUN  v4.1.11 D:/Projects/renovation-planner/.worktrees/editor-object-ui
 
- ❯ |build| tests/build/buttonFocusRing.test.ts (96 tests | 1 failed) 1836ms
+ ❯ |build| tests/gates/buttonFocusRing.test.ts (96 tests | 1 failed) 1836ms
      × gives every flattened button a focus-visible rule, since suppressing the shadow removes the ring 1806ms
 stderr | tests/presentation/editor/backgroundInEditor.test.ts > a background that cannot be drawn > tells the user when the file is gone, rather than drawing an empty canvas
 Konva warning: The stage has 6 layers. Recommended maximum number of layers is 3-5. Adding more layers into the stage may drop the performance. Rethink your tree structure, you can use Konva.Group.
@@ -57,7 +57,7 @@ Konva warning: The stage has 7 layers. Recommended maximum number of layers is 3
 
 ⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
 
- FAIL  |build| tests/build/buttonFocusRing.test.ts > a flattened button and its focus ring > gives every flattened button a focus-visible rule, since suppressing the shadow removes the ring
+ FAIL  |build| tests/gates/buttonFocusRing.test.ts > a flattened button and its focus ring > gives every flattened button a focus-visible rule, since suppressing the shadow removes the ring
 AssertionError: expected [ …(2) ] to deeply equal []
 
 - Expected
@@ -69,7 +69,7 @@ AssertionError: expected [ …(2) ] to deeply equal []
 +   "styles/asset-shelf.css: .rp-al-shelf .rp-al-row--on:focus-visible",
 + ]
 
- ❯ tests/build/buttonFocusRing.test.ts:53:68
+ ❯ tests/gates/buttonFocusRing.test.ts:53:68
      51|   // Spread rather than `Iterator.toArray()`: that method is ES2025 an…
      52|   // stops at ES2023.Array, so it typed as `any` and took the callback…
      53|   expect([...offenders.values()].flat().map((site) => site.where)).toE…

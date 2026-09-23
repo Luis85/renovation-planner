@@ -257,7 +257,7 @@ const specSheet = computed((): string | null => {
 	three sections): this mock's classes are declared in `styles/asset-library-inspector.css`
 	now, which the harness's assembled sheet loads the same as a shipped component's. A scoped
 	block here would be a second, unreachable copy of those same rules, and
-	`tests/build/prototype-styles.test.ts` refuses a mock declaring a class a real component
+	`tests/gates/prototype-styles.test.ts` refuses a mock declaring a class a real component
 	uses — measured, it reported all twenty-six of them. `AssetShelf.vue` and `ZoneSummary.vue`,
 	this tree's other fully-promoted mocks, carry none for the identical reason.
 -->

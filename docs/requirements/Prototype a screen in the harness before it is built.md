@@ -179,7 +179,7 @@ shown without extending the fixture, and extending it changes what every other e
   question about those notes rather than about this harness.
 - **Asserting anything about what a prototype draws.** The harness draws; it does not check, and
   this note does not change that. The bundle test is a build test living with the others in
-  `tests/build/`, not a harness assertion.
+  `tests/gates/`, not a harness assertion.
 - **A prototype that outlives its promotion.** Nothing here says a mock must be deleted once its
   component exists. Whether a stale prototype is debt or a fixture worth keeping is a decision
   for whoever has two of them.
@@ -240,7 +240,7 @@ shown without extending the fixture, and extending it changes what every other e
    asserting those captures still exist kept passing.
 
    The precise predicate matters because it is what the code says: `tests/harness/page.ts` routes
-   on `params.has('index') || params.has('entry')`, and `tests/build/harness-shot.test.ts` guards
+   on `params.has('index') || params.has('entry')`, and `tests/gates/harness-shot.test.ts` guards
    the three as "URLs that do not request the index". A reader who took "no query parameter" as
    the rule could give the query-less capture an explicit `?view=project`, believe the hazard
    closed, and still send `?theme=light` and `?phone` to the index.

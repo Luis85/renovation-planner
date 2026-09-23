@@ -75,7 +75,7 @@ function swallow(): void {
  * calls between them. The claim that IS true is about the DIRECTORY, and it is worth having
  * because the layer bans cannot express it — `obsidian` is importable in `infrastructure/`,
  * and a `Plugin` is passed around as `host`, so nothing structural stops a view or a
- * repository from registering a command. `tests/build/registration-locality.test.ts` is
+ * repository from registering a command. `tests/gates/registration-locality.test.ts` is
  * that claim, measured by reading `src/` rather than asserted here.
  *
  * `onload` registers and nothing more. No domain logic belongs here, and neither does

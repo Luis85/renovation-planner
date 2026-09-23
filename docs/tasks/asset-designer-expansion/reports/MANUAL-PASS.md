@@ -110,9 +110,9 @@ its own text says so. Read this before walking any of them, across three cases.*
   text plus two plain buttons) is gone, replaced by AD18-R16 Task 8's three-button `role="group"`
   segmented control (Back centre, Centre, Custom); steps 20, 21 and 24 also lost their old field
   labels ("In front", "Behind", "To its left", "To its right" as VISIBLE text) to Task 5's compact
-  rows — the full sentences are now each field's accessible name only, and step 20's own text says so
-  generically rather than pinning the exact short word for "Behind", since a separate fixer was still
-  adjusting that one word for label-containment as this was written.
+  rows — the full sentences are now each field's accessible name, and the "Behind" field's full
+  sentence itself changed too, to "At the back" (a concurrent fixer's own label-containment pass);
+  the visible short labels are Front, Back, Left, Right.
 - **[[Compose an asset from parts]] steps 12, 18, 19, 21, 24, 26, 27, 28, 29 and 31**: step 12's
   "Select multiple parts" checkbox moved from the Inspector to the Parts panel (Task 7); steps 18,
   19, 21, 28 and 29 lost their align/distribute buttons' visible text to Task 10's icon-only row —

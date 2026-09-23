@@ -71,6 +71,27 @@ async function accessibility(page, scenario, out, suffix = '') {
  assert.deepEqual(violations, [], 'WCAG automated findings');
  return { violations: violations.length, incompleteChecks: result.incomplete.length, scope: 'real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate' };
 }
+/**
+ * Rooms-and-areas sits between the context bar and the Inspector; at 80 rows it is 160 sequential
+ * tab stops, past tabTo's 150-press budget. Closing it by keyboard first keeps a forward walk into
+ * the Inspector inside that budget, whatever the list holds; reopening it by keyboard afterward is
+ * what lets `action` still leave the list open for materialPan and every later largeFloor() step.
+ */
+async function pastRoomsList(page, action) {
+ const section = '[data-rp-section="rooms"] summary';
+ // Constrained widths show Layers and Details as mutually exclusive overlays (PanelRail); panel()
+ // is a no-op wherever both sit side by side, so the same two calls cover every scenario.
+ await panel(page, 'layers');
+ await tabTo(page, section); await page.keyboard.press('Enter');
+ assert.equal(await page.locator('[data-rp-section="rooms"]').evaluate(el => el.open), false, 'Rooms and areas closed by keyboard');
+ await panel(page, 'details');
+ const result = await action();
+ await panel(page, 'layers');
+ await tabBackTo(page, section); await page.keyboard.press('Enter');
+ assert.equal(await page.locator('[data-rp-section="rooms"]').evaluate(el => el.open), true, 'Rooms and areas reopened by keyboard');
+ await page.waitForFunction(() => document.querySelectorAll('[data-rp-region="layers"] .rp-room-list__row').length === 80);
+ return result;
+}
 async function largeFloor(page, scenario, out) {
  await page.reload(); await page.locator('[data-rp-empty="floor-start"]').waitFor();
  const fixture = await page.evaluate(() => window.planningRecovery.seedLarge());
@@ -87,28 +108,26 @@ async function largeFloor(page, scenario, out) {
  if (scenario.width === 460) await page.keyboard.press('Escape');
  const pan = await panFrames(page);
  await tabBackTo(page, '[data-rp-perspective][tabindex="0"]'); await activate(page, '[data-rp-perspective="renovate"]'); await panel(page, 'details');
- // Rooms-and-areas sits between the context bar and the Inspector; closing it by keyboard keeps
- // the forward walk to Materials inside tabTo's 150-press budget, whatever the list holds. Reopen
- // it before materialPan so the pan sees the same open list as the rest of largeFloor().
- await tabTo(page, '[data-rp-section="rooms"] summary'); await page.keyboard.press('Enter');
- assert.equal(await page.locator('[data-rp-section="rooms"]').evaluate(el => el.open), false, 'Rooms and areas closed by keyboard');
- await activate(page, '[data-rp-linked="materials"]'); await idle(page);
+ await pastRoomsList(page, async () => { await activate(page, '[data-rp-linked="materials"]'); await idle(page); });
  await page.waitForFunction(() => window.planningRecovery.scene()[0]?.materialMarkers === 3);
- await tabBackTo(page, '[data-rp-section="rooms"] summary'); await page.keyboard.press('Enter');
- assert.equal(await page.locator('[data-rp-section="rooms"]').evaluate(el => el.open), true, 'Rooms and areas reopened before materialPan');
- await page.waitForFunction(() => document.querySelectorAll('[data-rp-region="layers"] .rp-room-list__row').length === 80);
  assert.equal(await page.locator(room).getAttribute('aria-pressed'), 'true', 'selection survives the Rooms-and-areas close/reopen');
  if (scenario.width === 460) await page.keyboard.press('Escape');
  const materialPan = await panFrames(page);
  assert.equal(materialPan.sceneAfter.materialMarkers, 3, 'first Room retains its three material markers through pan/zoom');
  await panel(page, 'details');
- if (!await page.locator('[data-rp-mode="photos"]').isVisible()) await activate(page, '[data-rp-room-navigation]');
- await tabTo(page, '[data-rp-mode="photos"]');
- const inspectorStart = await page.evaluate(() => performance.now()); await page.keyboard.press('Enter');
- await page.waitForFunction(() => document.querySelectorAll('.rp-evidence-thumbnail').length === 40);
- const inspectorMs = await page.evaluate(start => performance.now() - start, inspectorStart);
- await page.locator('.rp-evidence-thumbnail').first().scrollIntoViewIfNeeded(); await page.waitForFunction(() => document.querySelector('.rp-evidence-thumbnail')?.naturalWidth === 1600);
- await recordShot(page, scenario, out, 'large-photos');
+ // The photos tab, its thumbnails and the shot all live in the Inspector, so they stay inside this
+ // crossing: pastRoomsList's own reopen switches back to the Layers overlay, and at a constrained
+ // width that would hide them again before they were read.
+ const inspectorMs = await pastRoomsList(page, async () => {
+  if (!await page.locator('[data-rp-mode="photos"]').isVisible()) await activate(page, '[data-rp-room-navigation]');
+  await tabTo(page, '[data-rp-mode="photos"]');
+  const inspectorStart = await page.evaluate(() => performance.now()); await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.querySelectorAll('.rp-evidence-thumbnail').length === 40);
+  const elapsed = await page.evaluate(start => performance.now() - start, inspectorStart);
+  await page.locator('.rp-evidence-thumbnail').first().scrollIntoViewIfNeeded(); await page.waitForFunction(() => document.querySelector('.rp-evidence-thumbnail')?.naturalWidth === 1600);
+  await recordShot(page, scenario, out, 'large-photos');
+  return elapsed;
+ });
  const resources = []; for (let count = 0; count < 3; count++) { const result = await page.evaluate(() => window.planningRecovery.close()); resources.push(result); assert.equal(result.stages, 0); assert.equal(result.listeners, 0); assert.equal(result.images, 0); assert.equal(result.objectUrls, 0); await page.evaluate(() => window.planningRecovery.reopen()); await page.locator('.rp-plan-canvas').waitFor(); }
  return { fixture, usableMs, selectionMs, inspectorMs, pan, materialPan, resources, targets: { usableMs: 1500, selectionMs: 100, inspectorMs: 200, fps: 'target60/min30' }, limitation: 'warm harness mount; synthetic images; timings include browser-driver round trips and are not live Obsidian measurements' };
 }

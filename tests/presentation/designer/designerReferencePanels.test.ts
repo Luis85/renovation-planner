@@ -210,6 +210,18 @@ describe('the placement presets', () => {
 		expect(wrapper.find('[role="group"]').attributes('aria-label')).toBe(t('en', 'designer.placement.point'));
 	});
 
+	/**
+	 * Fix round: board 01 panel 5 and the brief both spell the order `Back centre | Centre |
+	 * Custom`, verbatim — the first version of this file drew `Centre` first. Read off `name`
+	 * rather than off text, so a label wording change cannot make this pass for the wrong reason.
+	 */
+	it('draws the three segments in the board order: Back centre, Centre, Custom', () => {
+		const { editShape } = chain(baseShape());
+		const wrapper = mountPlacement(assetDesign(), editShape);
+		const names = wrapper.find('[role="group"]').findAll('button').map((button) => button.attributes('name'));
+		expect(names).toEqual(['placement-back-centre', 'placement-centre', 'placement-custom']);
+	});
+
 	it('moves the anchor to the back of the facing frame, and changes nothing else', async () => {
 		const shape = baseShape();
 		const { editShape, writes, written } = chain(shape);

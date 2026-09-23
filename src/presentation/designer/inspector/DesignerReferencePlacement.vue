@@ -62,11 +62,18 @@ const props = defineProps<{
 	activateAnchorTool: () => void;
 }>();
 
-/** Icons per AD18-R16 Task 8: `crosshair` for the geometric middle, `panel-bottom` for a point on
- * one edge of the box — see the report for why that glyph over another Lucide name. */
+/**
+ * Icons per AD18-R16 Task 8: `crosshair` for the geometric middle, `panel-bottom` for a point on
+ * one edge of the box — see the report for why that glyph over another Lucide name.
+ *
+ * **`back-centre` FIRST, matching the brief and board 01 panel 5's own order verbatim**
+ * (`Back centre | Centre | Custom`) — the fix round's own finding, this array having shipped
+ * `centre` first the first time. `designerReferencePanels.test.ts` pins the rendered ORDER,
+ * not just each button's presence, so a future re-ordering here is caught the same way.
+ */
 const PRESETS: readonly { readonly preset: AnchorPreset; readonly label: StringKey; readonly icon: IconName }[] = [
-	{ preset: 'centre', label: 'designer.placement.centre', icon: 'crosshair' },
 	{ preset: 'back-centre', label: 'designer.placement.back-centre', icon: 'panel-bottom' },
+	{ preset: 'centre', label: 'designer.placement.centre', icon: 'crosshair' },
 ];
 
 /** In quarter order — 0 is +x, and +y renders DOWN the sheet (`Viewport.sceneConfig` never flips it). */
@@ -137,9 +144,15 @@ async function choose(preset: AnchorPreset): Promise<void> {
 			`SetAnchorTool` the toolbar's own `Set anchor` button already activates, and the user's next
 			click is what places the point. It is pressed exactly when `view.preset` is `null`: neither
 			preset, which is the same "custom" `designer.placement.custom` already named as a readout.
+
+			**NOT `.rp-designer-selection-actions`** (the fix round removed it from this element): that
+			class's flex-wrap row is right for the two-button case `DesignerSelectionInspector` still
+			uses it for, and wrong for three EQUAL segments in one row — the integrator's browser
+			measurement found it wrapping to two rows at this rail's width. `.rp-designer-placement-modes`
+			alone carries its own `display: grid` instead (`designer-selection.css`).
 		-->
 		<div
-			class="rp-designer-selection-actions rp-designer-placement-modes"
+			class="rp-designer-placement-modes"
 			role="group"
 			:aria-label="tr('designer.placement.point')"
 		>

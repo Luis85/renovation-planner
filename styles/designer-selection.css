@@ -100,29 +100,51 @@
 /*
  * Each wrapped row of actions fills the column, as Edit dimensions and Start from preset below it do
  * (critique finding 22). Qualified with `.rp-designer-inspector` for the specificity reason above.
+ *
+ * **Does NOT reach the Placement point group any more** (AD18-R16 Task 8's fix round): that group
+ * dropped `.rp-designer-selection-actions` for its own `.rp-designer-placement-modes`, below — a
+ * `flex: 1 1 auto` this rule declares would be inert under `display: grid` in any case, but the
+ * class is gone rather than left wearing a rule that no longer does anything.
  */
 .rp-designer-inspector .rp-designer-selection-actions .rp-designer-selection-button {
 	flex: 1 1 auto;
 }
 
 /*
- * The Placement point group (AD18-R16 Task 8): icon above label, three segments in a ~208px
- * inspector column. Obsidian's own base `button { height: var(--input-height); white-space:
- * nowrap }` (`tests/harness/obsidian.css`) fits an icon beside one short word, not three toggle
- * buttons each carrying "Back centre" or "Custom" — the identical problem `designer-add.css`'s
- * tile rules solve for the `Add` rail's shape buttons, at the same precedent rather than a fresh
- * one: `flex-direction: column` turns the row `.rp-designer-selection-button` draws today into a
- * tile, `height: auto` and `white-space: normal` let a wrapped two-word label grow the button
- * rather than overflow it.
+ * The Placement point group's CONTAINER (AD18-R16 Task 8, fix round). The integrator's browser
+ * measurement of the first version — a flex-wrap row, the shape `.rp-designer-selection-actions`
+ * gives the panel's other button rows — found it wrapping at a 192px group width: Centre (80px)
+ * and Back centre (108px) on one row, Custom alone at 192px on a second, each 49px tall. Three
+ * segments that wrap unevenly read as loose buttons rather than one control.
+ *
+ * A grid with `minmax(0, 1fr)` columns is `designer-add.css`'s own fix for the identical
+ * overflow — its own comment: an `auto` minimum is each column's own min-content contribution,
+ * the width of its longest unbreakable run, which is what forced an uneven split there too.
+ * Three columns here for three segments rather than two.
+ *
+ * **No `align-items` override, DELIBERATELY UNLIKE `designer-add.css`'s grid** (`align-items:
+ * start` there, so a one-line tile does not stretch to a two-line neighbour's height). Here the
+ * opposite is wanted: grid's own default `stretch` gives every segment the row's own height, so
+ * "Back centre" wrapping to two lines does not leave "Centre" and "Custom" visibly shorter next
+ * to it — three DIFFERENT heights would read as three buttons again, not one control.
  */
-.rp-designer-placement-modes .rp-designer-selection-button {
-	display: inline-flex;
-	flex-direction: column;
-	align-items: center;
+.rp-designer-placement-modes {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: var(--size-4-1);
-	height: auto;
-	white-space: normal;
-	text-align: center;
+}
+
+/*
+ * The label may wrap ("Back centre" is two words in an approximately 61px-wide column) —
+ * `overflow-wrap: anywhere` on the SPAN, element-selected rather than through a shared class,
+ * because `designer-add.css`'s own `.rp-designer-tool-label` (which already carries this
+ * declaration for the `Add` rail) is reached, unqualified beyond `.renovation-asset-designer`, by
+ * `designer-toolbar.css`'s `display: none` below 80rem — a rule about the whole LEAF's width, not
+ * this group's own. Wearing that class here would hide these labels whenever the leaf narrows,
+ * which a segmented control with no icon-only fallback state must not do.
+ */
+.rp-designer-placement-modes .rp-designer-selection-button span {
+	overflow-wrap: anywhere;
 }
 
 /*

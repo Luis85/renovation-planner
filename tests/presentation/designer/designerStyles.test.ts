@@ -80,6 +80,70 @@ describe('the designer’s warnings, toolbar and selection actions', () => {
 	});
 });
 
+/**
+ * AD18-R16 Task 8's fix round: the integrator's browser measurement of the first version — a
+ * `flex-wrap` row, `.rp-designer-selection-actions`'s own shape — found three segments wrapping
+ * unevenly (Centre 80px and Back centre 108px on one row, Custom alone at 192px on a second, all
+ * 49px tall), which read as three loose buttons rather than a segmented control.
+ */
+describe('the placement point group’s three equal segments', () => {
+	/**
+	 * `minmax(0, 1fr)` rather than bare `1fr`, for `designer-add.css`'s own measured reason on its
+	 * two-column grid: an `auto` column minimum is each column's own min-content contribution — the
+	 * width of its longest unbreakable run — which is what forced the uneven split this fix answers.
+	 */
+	it('lays the group out as a three-column grid of equal-width segments', () => {
+		const rules = partial('designer-selection.css');
+
+		expect(declared(rules, '.rp-designer-placement-modes', 'display')).toEqual(parsed('display', 'grid'));
+		expect(declared(rules, '.rp-designer-placement-modes', 'grid-template-columns')).toEqual(
+			parsed('grid-template-columns', 'repeat(3, minmax(0, 1fr))'),
+		);
+	});
+
+	/**
+	 * No `align-items` here, DELIBERATELY UNLIKE `designer-add.css`'s own grid (`align-items:
+	 * start` there): grid's default `stretch` is what gives "Centre" and "Custom" the same height
+	 * as a two-line "Back centre" rather than leaving them visibly shorter — three different
+	 * heights would still read as three buttons rather than one control.
+	 */
+	it('sets no align-items on the group, so its segments stretch to an equal height', () => {
+		expect(declared(partial('designer-selection.css'), '.rp-designer-placement-modes', 'align-items')).toEqual([]);
+	});
+
+	/**
+	 * The icon-above-label shape is SHARED with `designer-add.css`'s `Add`-rail tile rule rather
+	 * than duplicated — the fix round's own second finding. Read from `designer-add.css`, not
+	 * `designer-selection.css`, because that is where the (now two-selector) rule actually lives;
+	 * a case reading the wrong partial would pass on an accidental empty result rather than on the
+	 * declared value, so `height` is asserted too as the instrument-reaches-something floor.
+	 */
+	it('reuses the Add rail’s tile layout for each segment rather than a second copy of it', () => {
+		const rules = partial('designer-add.css');
+		const selector = '.rp-designer-placement-modes .rp-designer-selection-button';
+
+		expect(declared(rules, selector, 'flex-direction')).toEqual(parsed('flex-direction', 'column'));
+		expect(declared(rules, selector, 'height')).toEqual(parsed('height', 'auto'));
+		expect(declared(rules, selector, 'white-space')).toEqual(parsed('white-space', 'normal'));
+		// The declared values must be the SAME as the Add rail's own tile, not merely equal by
+		// coincidence — read off the shared selector list rather than retyped, so the two cannot
+		// silently drift into two different tile shapes that happen to agree today.
+		const tile = '.rp-designer-add button.rp-designer-tool-button';
+		for (const property of ['display', 'flex-direction', 'align-items', 'gap', 'height', 'white-space']) {
+			expect(declared(rules, selector, property)).toEqual(declared(rules, tile, property));
+		}
+	});
+
+	/** A two-word segment ("Back centre") may wrap; the label span carries the fix, not the button. */
+	it('lets a segment’s label wrap anywhere', () => {
+		const rules = partial('designer-selection.css');
+
+		expect(declared(rules, '.rp-designer-placement-modes .rp-designer-selection-button span', 'overflow-wrap')).toEqual(
+			parsed('overflow-wrap', 'anywhere'),
+		);
+	});
+});
+
 describe('the inspector’s headings, hint and unavailable actions', () => {
 	/** Critique finding 4: the "Inspector" `<h2>` and the section `<h3>`s were styled alike, so a section added no hierarchy. */
 	it('sets the section headings in normal text at semibold, under the muted panel title', () => {

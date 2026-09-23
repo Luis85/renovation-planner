@@ -143,8 +143,18 @@
  * showed — "Draw rectangle" drawn over the circle tile's icon in the row underneath. `auto` lets
  * each button's box grow to whatever its own icon-plus-label needs, which is also what makes
  * `align-items: start` above meaningful rather than moot.
+ *
+ * **Shared with the Inspector's Placement point group since AD18-R16 Task 8's fix round** — the
+ * identical icon-above-label fix for the identical cause (Obsidian's base `button` rule), so the
+ * second occurrence is this selector EXTENDED rather than a second copy of the six declarations
+ * in `styles/designer-selection.css`. `.rp-designer-placement-modes` gives its OWN three-column
+ * grid and its OWN `align-items` answer (deliberately the opposite of this rule's neighbour
+ * above — see that file) around this shared tile shape; nothing here reaches `.rp-designer-add`'s
+ * two-column grid or its `start` alignment, since the two container rules are separate and only
+ * this per-tile rule is shared.
  */
-.rp-designer-add button.rp-designer-tool-button {
+.rp-designer-add button.rp-designer-tool-button,
+.rp-designer-placement-modes .rp-designer-selection-button {
 	display: inline-flex;
 	flex-direction: column;
 	align-items: center;

@@ -25,6 +25,14 @@ export const assetArrangeEn = {
 	'designer.arrange': 'Arrange',
 	'designer.arrange.group': 'Group',
 	'designer.arrange.ungroup': 'Ungroup',
+	// The canvas and Parts context menu (AD18-R16 Task 11). Its items reuse the Arrange panel's and the
+	// selection inspector's own labels; only the menu's name and the key hints are new. `{mod}` is
+	// resolved at the call site (`modifierLabel`), a fact about the machine and not the language.
+	'designer.menu': 'Part actions',
+	'designer.menu.shortcut.group': '{mod}+G',
+	'designer.menu.shortcut.ungroup': '{mod}+Shift+G',
+	'designer.menu.shortcut.duplicate': '{mod}+D',
+	'designer.menu.shortcut.delete': 'Del',
 	'designer.arrange.group-front': 'Bring group to front',
 	'designer.arrange.group-back': 'Send group to back',
 	'designer.arrange.reference': 'Align to',

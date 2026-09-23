@@ -59,6 +59,8 @@ import DesignerInspector from './inspector/DesignerInspector.vue';
 import DesignerAddPanel from './DesignerAddPanel.vue';
 import DesignerPartsPanel from './parts/DesignerPartsPanel.vue';
 import DesignerEntryPaths from './DesignerEntryPaths.vue';
+import DesignerContextMenu from './DesignerContextMenu.vue';
+import { useDesignerContextMenu } from './designerMenu';
 import AssetPresetForm from './presets/AssetPresetForm.vue';
 import { useViewPreferences } from '../editor/shell/useViewPreferences';
 import { STAGE_PIXELS, worldPerScreenPixel } from '../editor/viewport/Viewport';
@@ -87,6 +89,7 @@ const workspace = useWorkspaceStore(), editorStore = useEditorStore();
  * rather than from the old sentence.
  */
 const runtime = provideDesignerRuntime(context);
+const contextMenu = useDesignerContextMenu(runtime);
 const designStore = useAssetDesignStore();
 const { design, error, status, stale, selection, selected } = storeToRefs(designStore);
 
@@ -546,7 +549,7 @@ function onFailureAction(): void {
 }
 
 /**
- * Delete and Ctrl+D for the designer's selection (symbols spec, Decision 10), bound on the canvas
+ * Delete, Ctrl+D, Ctrl+G and Ctrl+Shift+G for the designer's selection (symbols spec, Decision 10), bound on the canvas
  * ELEMENT — `<DesignerCanvas @keydown>` falls through to `EditorSurface`'s focusable root — because
  * `EditorSurface` routes neither key. The inspector is a sibling region, so a Backspace typed in one
  * of its fields never reaches this listener.
@@ -561,15 +564,7 @@ function onFailureAction(): void {
 const keyActions = selectionKeyActions(designStore, runtime.editShape, runtime.activeToolId);
 function onCanvasKeyDown(event: KeyboardEvent): void {
 	if (event.target !== event.currentTarget || runtime.activeToolId.value !== 'select' || runtime.toolManager.activeToolHasDraft()) return;
-	designerShortcut(event, {
-		selection: designStore.selection,
-		deleteSelection: () => {
-			void keyActions.deleteSelection();
-		},
-		duplicateSelection: () => {
-			void keyActions.duplicateSelection();
-		},
-	});
+	designerShortcut(event, { selection: designStore.selection, ...keyActions });
 }
 
 onMounted(() => {
@@ -578,7 +573,13 @@ onMounted(() => {
 </script>
 
 <template>
-	<div class="renovation-asset-designer">
+	<div
+		class="renovation-asset-designer"
+		@contextmenu="contextMenu.context"
+		@keydown="contextMenu.key"
+		@pointerdown.capture="contextMenu.outside"
+		@focusout="contextMenu.leave"
+	>
 		<!--
 			AD18 item 2's header region, FIRST in the shell: the asset's name, the way back to the
 			catalogue, the save state and the way into a plan. `DesignerHeader` decides on its own
@@ -790,6 +791,7 @@ onMounted(() => {
 			its parent's OTHER children inert while a dialog is open, so every region has to be
 			a sibling of it for the background to actually go inert.
 		-->
+		<DesignerContextMenu :menu="contextMenu" />
 		<DialogHost />
 	</div>
 </template>

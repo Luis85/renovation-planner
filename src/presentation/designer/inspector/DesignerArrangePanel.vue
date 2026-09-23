@@ -55,6 +55,7 @@ import { trError } from '../../i18n/toUserMessage';
 import type { EditShape, ShapeEdit } from '../selection/editShape';
 import type { DesignerSelection } from '../selection/designerSelection';
 import { semanticLabel } from '../parts/partNames';
+import { canGroup, selectedGraphics } from '../designerKeys';
 import DesignerActionRow from './DesignerActionRow.vue';
 import DesignerSetTransform from './DesignerSetTransform.vue';
 import DesignerRepeatForm from './DesignerRepeatForm.vue';
@@ -119,13 +120,7 @@ const shape = computed(() => props.design.shape as AssetShape);
  * removed, and this covers the frame between the write and that read — the guard
  * `DesignerSelectionInspector` states for the same reason.
  */
-const graphics = computed(() =>
-	props.selected.flatMap((part) => (part.kind === 'detail' && onShape(part.id) ? [part.id] : [])),
-);
-
-function onShape(id: string): boolean {
-	return props.design.shape?.details.some((detail) => detail.id === id) === true;
-}
+const graphics = computed(() => selectedGraphics(props.design.shape, props.selected));
 
 const primary = computed(() => graphics.value.at(-1) ?? null);
 
@@ -172,10 +167,8 @@ function orderActions(groupId: string): Action[] {
 	];
 }
 
-/** Two or more graphics, none of them already grouped — the whole of what `groupDetails` can accept. */
-const groupable = computed(
-	() => graphics.value.length > 1 && graphics.value.every((id) => groupOfDetail(shape.value, id) === null),
-);
+/** `canGroup` is Ctrl+G's and the context menu's own rule too, so the three doors cannot disagree. */
+const groupable = computed(() => canGroup(shape.value, graphics.value));
 
 const groupActions = computed((): Action[] => [
 	...(groupable.value

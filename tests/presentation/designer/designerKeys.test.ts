@@ -12,7 +12,7 @@ import { ok, type Result } from '../../../src/core/result/Result';
 import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
 import type { AssetShape } from '../../../src/domain/asset/AssetShape';
 import type { ToolId } from '../../../src/presentation/editor/tools/editor-tool';
-import { designerShortcut, selectionKeyActions, type DesignerKeyPress } from '../../../src/presentation/designer/designerKeys';
+import { canGroup, designerShortcut, selectionKeyActions, type DesignerKeyPress } from '../../../src/presentation/designer/designerKeys';
 import type { DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
 import { activateNotices } from '../../../src/presentation/notices/notify';
 import { Notice } from '../../helpers/obsidian-mock';
@@ -23,9 +23,11 @@ import { TOILET, detailOutline } from '../../helpers/designerSelection';
 installObsidianDom();
 
 const DETAIL: DesignerSelection = { kind: 'detail', id: 'detail-2' };
+const GROUPED: AssetShape = { ...TOILET, groups: [{ id: 'group-1', members: ['detail-1', 'detail-2'] }] };
 
-function pressed(init: Partial<DesignerKeyPress>): { readonly event: DesignerKeyPress; readonly prevented: () => boolean } {
+function pressed(init: Partial<DesignerKeyPress>): { readonly event: DesignerKeyPress; readonly prevented: () => boolean; readonly stopped: () => boolean } {
 	let prevented = false;
+	let stopped = false;
 	const event: DesignerKeyPress = {
 		key: '',
 		ctrlKey: false,
@@ -38,8 +40,11 @@ function pressed(init: Partial<DesignerKeyPress>): { readonly event: DesignerKey
 		preventDefault: () => {
 			prevented = true;
 		},
+		stopPropagation: () => {
+			stopped = true;
+		},
 	};
-	return { event, prevented: () => prevented };
+	return { event, prevented: () => prevented, stopped: () => stopped };
 }
 
 function doors(selection: DesignerSelection | null): { readonly calls: string[]; readonly doors: Parameters<typeof designerShortcut>[1] } {
@@ -54,6 +59,12 @@ function doors(selection: DesignerSelection | null): { readonly calls: string[];
 			duplicateSelection: () => {
 				calls.push('duplicate');
 			},
+			groupSelection: () => {
+				calls.push('group');
+			},
+			ungroupSelection: () => {
+				calls.push('ungroup');
+			},
 		},
 	};
 }
@@ -64,6 +75,10 @@ const HANDLED: readonly (readonly [string, Partial<DesignerKeyPress>, DesignerSe
 	['Ctrl+D on a detail', { key: 'd', ctrlKey: true }, DETAIL, 'duplicate'],
 	['Cmd+D on a detail', { key: 'd', metaKey: true }, DETAIL, 'duplicate'],
 	['Ctrl+D with Caps Lock on', { key: 'D', ctrlKey: true }, DETAIL, 'duplicate'],
+	['Ctrl+G on a detail', { key: 'g', ctrlKey: true }, DETAIL, 'group'],
+	['Cmd+G on a detail', { key: 'g', metaKey: true }, DETAIL, 'group'],
+	['Ctrl+Shift+G on a detail', { key: 'G', ctrlKey: true, shiftKey: true }, DETAIL, 'ungroup'],
+	['Cmd+Shift+G on a detail', { key: 'G', metaKey: true, shiftKey: true }, DETAIL, 'ungroup'],
 ];
 
 const IGNORED: readonly (readonly [string, Partial<DesignerKeyPress>, DesignerSelection | null])[] = [
@@ -79,38 +94,58 @@ const IGNORED: readonly (readonly [string, Partial<DesignerKeyPress>, DesignerSe
 	['an autorepeated Ctrl+D', { key: 'd', ctrlKey: true, repeat: true }, DETAIL],
 	['Ctrl+D mid-composition', { key: 'd', ctrlKey: true, isComposing: true }, DETAIL],
 	['a bare d', { key: 'd' }, DETAIL],
+	['Ctrl+G on the clearance', { key: 'g', ctrlKey: true }, { kind: 'clearance' }],
+	['Ctrl+Shift+G on the footprint', { key: 'G', ctrlKey: true, shiftKey: true }, { kind: 'footprint' }],
+	['Ctrl+G with nothing selected', { key: 'g', ctrlKey: true }, null],
+	['Ctrl+Alt+G', { key: 'g', ctrlKey: true, altKey: true }, DETAIL],
+	['Ctrl+Alt+Shift+G', { key: 'G', ctrlKey: true, altKey: true, shiftKey: true }, DETAIL],
+	['an autorepeated Ctrl+G', { key: 'g', ctrlKey: true, repeat: true }, DETAIL],
+	['an autorepeated Ctrl+Shift+G', { key: 'G', ctrlKey: true, shiftKey: true, repeat: true }, DETAIL],
+	['Ctrl+G mid-composition', { key: 'g', ctrlKey: true, isComposing: true }, DETAIL],
+	['a bare g', { key: 'g' }, DETAIL],
+	['Shift+G', { key: 'G', shiftKey: true }, DETAIL],
 	['an unrelated key', { key: 'x' }, DETAIL],
 ];
 
 describe('designerShortcut', () => {
 	it.each(HANDLED)('handles %s', (_name, init, selection, door) => {
-		const { event, prevented } = pressed(init);
+		const { event, prevented, stopped } = pressed(init);
 		const recorded = doors(selection);
 
 		expect(designerShortcut(event, recorded.doors)).toBe(true);
 		expect(recorded.calls).toEqual([door]);
-		// Only the chord has a browser default worth taking away; a bare Delete on a focused canvas has none.
-		expect(prevented()).toBe(door === 'duplicate');
+		// Only a chord has a default worth taking away — the browser's, and the host's own hotkey
+		// (Obsidian binds Ctrl+G to its graph view); a bare Delete on a focused canvas has neither.
+		expect(prevented()).toBe(door !== 'delete');
+		expect(stopped()).toBe(door !== 'delete');
 	});
 
 	it.each(IGNORED)('ignores %s', (_name, init, selection) => {
-		const { event, prevented } = pressed(init);
+		const { event, prevented, stopped } = pressed(init);
 		const recorded = doors(selection);
 
 		expect(designerShortcut(event, recorded.doors)).toBe(false);
 		expect(recorded.calls).toEqual([]);
 		expect(prevented()).toBe(false);
+		expect(stopped()).toBe(false);
 	});
 });
 
 const REFUSED: DispatchResult = { ok: false, error: { category: 'Validation', code: 'asset.part-not-found', message: 'x' } as AppError };
 
-function actionsOver(selection: DesignerSelection | null, answer: DispatchResult = ok('wrote'), tool: ToolId | null = 'select', shape: AssetShape = TOILET) {
+function actionsOver(
+	selection: DesignerSelection | null,
+	answer: DispatchResult = ok('wrote'),
+	tool: ToolId | null = 'select',
+	shape: AssetShape = TOILET,
+	members: readonly DesignerSelection[] = selection === null ? [] : [selection],
+) {
 	const selected: (DesignerSelection | null)[] = [];
 	const edited: (Result<AssetShape, ValidationError> | null)[] = [];
 	const actions = selectionKeyActions(
 		{
 			selection,
+			selected: members,
 			select: (next) => {
 				selected.push(next);
 			},
@@ -222,5 +257,41 @@ describe('selectionKeyActions', () => {
 		await clearance.actions.nudgeSelection({ dx: 10, dy: 0 });
 
 		expect([...detail.edited, ...clearance.edited]).toEqual([null, null, null, null]);
+	});
+
+	it('groups the selected graphics, and writes nothing for a set it cannot group', async () => {
+		const both: DesignerSelection[] = [{ kind: 'detail', id: 'detail-1' }, DETAIL];
+		const pair = actionsOver(DETAIL, ok('wrote'), 'select', TOILET, both);
+		const single = actionsOver(DETAIL);
+		const grouped = actionsOver(DETAIL, ok('wrote'), 'select', GROUPED, both);
+
+		await pair.actions.groupSelection();
+		await single.actions.groupSelection();
+		await grouped.actions.groupSelection();
+
+		expect(shapeOf(pair.edited[0])?.groups).toEqual([{ id: 'group-1', members: ['detail-1', 'detail-2'] }]);
+		expect([...single.edited, ...grouped.edited]).toEqual([null, null]);
+	});
+
+	it("ungroups the focused graphic's group, and nothing for an ungrouped graphic or a non-graphic", async () => {
+		const grouped = actionsOver(DETAIL, ok('wrote'), 'select', GROUPED);
+		const loose = actionsOver(DETAIL);
+		const footprint = actionsOver({ kind: 'footprint' }, ok('wrote'), 'select', GROUPED);
+
+		await grouped.actions.ungroupSelection();
+		await loose.actions.ungroupSelection();
+		await footprint.actions.ungroupSelection();
+
+		expect(shapeOf(grouped.edited[0])?.groups).toEqual([]);
+		expect(loose.edited).toEqual([null]);
+		expect(footprint.edited).toEqual([]);
+	});
+});
+
+describe('canGroup', () => {
+	it('answers true only for two or more graphics none of which is grouped yet', () => {
+		expect(canGroup(TOILET, ['detail-1', 'detail-2'])).toBe(true);
+		expect(canGroup(TOILET, ['detail-2'])).toBe(false);
+		expect(canGroup(GROUPED, ['detail-1', 'detail-2'])).toBe(false);
 	});
 });

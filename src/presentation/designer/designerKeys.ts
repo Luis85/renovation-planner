@@ -2,6 +2,7 @@ import type { Vector } from '../../core/geometry/Vector';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import type { AssetShape } from '../../domain/asset/AssetShape';
 import { DUPLICATE_OFFSET_MM, deleteDetail, duplicateDetail, nextDetailId } from '../../domain/asset/detailEdits';
+import { groupDetails, groupOfDetail, ungroupDetails } from '../../domain/asset/groupEdits';
 import { moveAnchor, moveOutline, removeClearance } from '../../domain/asset/shapeEdits';
 import { notifyIfRefused } from '../editor/report-failure';
 import { plainPress } from '../editor/surface/keyboard';
@@ -10,7 +11,8 @@ import { selectionExists, type DesignerSelection } from './selection/designerSel
 import type { EditShape, ShapeEdit } from './selection/editShape';
 
 /**
- * The asset designer's selection keys (symbols spec, Decision 10). Delete and Ctrl+D are decided HERE
+ * The asset designer's selection keys (symbols spec, Decision 10). Delete, Ctrl+D, and Ctrl+G and
+ * Ctrl+Shift+G (group and ungroup, AD18-R16 Task 11) are decided HERE
  * and bound on the canvas element itself by `AssetDesignerRoot`, because `EditorSurface` routes neither
  * and leaves both to other listeners; the arrows are `EditorSurface`'s own nudge, which `DesignerCanvas` answers with
  * `selectionKeyActions(...).nudgeSelection`. Every edit is one `editShape`, so one conditional write
@@ -28,12 +30,15 @@ export interface DesignerKeyPress {
 	readonly repeat: boolean;
 	readonly isComposing: boolean;
 	preventDefault(): void;
+	stopPropagation(): void;
 }
 
 export interface DesignerKeyDoors {
 	readonly selection: DesignerSelection | null;
 	deleteSelection(): void;
 	duplicateSelection(): void;
+	groupSelection(): void;
+	ungroupSelection(): void;
 }
 
 /**
@@ -45,22 +50,47 @@ function deletes(event: DesignerKeyPress, kind: DesignerSelection['kind'] | unde
 	return plainPress(event) && !event.shiftKey && (event.key === 'Delete' || event.key === 'Backspace') && (kind === 'detail' || kind === 'clearance');
 }
 
-/** Ctrl+D, or Cmd+D, on a detail. The character rather than the physical key, so Caps Lock still reads as `d`. */
-function duplicates(event: DesignerKeyPress, kind: DesignerSelection['kind'] | undefined): boolean {
-	return (event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && !event.repeat && !event.isComposing && event.key.toLowerCase() === 'd' && kind === 'detail';
+/**
+ * The Ctrl, or Cmd, chords on a detail: D duplicates, G groups and Shift+G ungroups. The CHARACTER
+ * rather than the physical key, so Caps Lock still reads as `d` — and Shift turns `g` into `G`, which
+ * `toLowerCase` folds back. Never with Alt, never an autorepeat, never mid-composition.
+ */
+function chord(event: DesignerKeyPress, kind: DesignerSelection['kind'] | undefined): 'duplicateSelection' | 'groupSelection' | 'ungroupSelection' | null {
+	if (!(event.ctrlKey || event.metaKey) || event.altKey || event.repeat || event.isComposing || kind !== 'detail') return null;
+	const key = event.key.toLowerCase();
+	if (key === 'g') return event.shiftKey ? 'ungroupSelection' : 'groupSelection';
+	return key === 'd' && !event.shiftKey ? 'duplicateSelection' : null;
 }
 
-/** true when the press was one of these shortcuts (and was handled). Delete/Backspace with no modifiers on a detail or clearance → deleteSelection; Ctrl/Meta+D (no Alt, no Shift, not repeat) on a detail → duplicateSelection and preventDefault. Everything else → false. */
+/**
+ * true when the press was one of these shortcuts (and was handled). Delete/Backspace with no modifiers
+ * on a detail or clearance → deleteSelection; a `chord` on a detail → its door, with the default AND the
+ * propagation taken away: Obsidian binds Ctrl+G to its graph view, and a chord this canvas answered must
+ * not also reach the host's hotkeys (`historyShortcut.ts` stops Ctrl+Z for the same reason). Everything
+ * else → false.
+ */
 export function designerShortcut(event: DesignerKeyPress, doors: DesignerKeyDoors): boolean {
 	const kind = doors.selection?.kind;
 	if (deletes(event, kind)) {
 		doors.deleteSelection();
 		return true;
 	}
-	if (!duplicates(event, kind)) return false;
+	const door = chord(event, kind);
+	if (door === null) return false;
 	event.preventDefault();
-	doors.duplicateSelection();
+	event.stopPropagation();
+	doors[door]();
 	return true;
+}
+
+/** The selected GRAPHICS on `shape`, in selection order — a member whose part is gone is left out. */
+export function selectedGraphics(shape: AssetShape | null, selected: readonly DesignerSelection[]): string[] {
+	return selected.flatMap((part) => (part.kind === 'detail' && shape?.details.some((detail) => detail.id === part.id) === true ? [part.id] : []));
+}
+
+/** Two or more graphics, none of them already grouped — the whole of what `groupDetails` can accept. */
+export function canGroup(shape: AssetShape, ids: readonly string[]): boolean {
+	return ids.length > 1 && ids.every((id) => groupOfDetail(shape, id) === null);
 }
 
 /**
@@ -95,23 +125,26 @@ function whileItExists(selection: DesignerSelection, edit: ShapeEdit): (shape: A
 }
 
 /**
- * The three edits a selection key dispatches, over the leaf's store, its `editShape` and its active
+ * The five edits a selection key dispatches, over the leaf's store, its `editShape` and its active
  * tool. Arrow-function properties, so a component may destructure one without an unbound `this`.
  *
  * Each action reads the selection at the CALL and answers for itself what it can act on — a detail or
  * the clearance to delete, a detail to duplicate — rather than trusting its caller to have asked:
  * `designerShortcut` asks at the press, while `nudgeSelection` is reached through `EditorSurface`'s arrow
- * door, which asks nothing about the part. The inspector's buttons call none of these; they share only
- * `duplicateAndSelect` above. The selection clears itself after a delete: the
+ * door, which asks nothing about the part. `DesignerContextMenu`'s items call the same four that are not the nudge. The
+ * inspector's buttons call none of them; they share `duplicateAndSelect`, `selectedGraphics` and
+ * `canGroup` above, and show a refusal in their own alert rather than a notice. The selection clears itself after a delete: the
  * refresh re-reads a shape without the part, and the store prunes a selection that names nothing.
  */
 export function selectionKeyActions(
-	store: { readonly selection: DesignerSelection | null; select(next: DesignerSelection | null): void },
+	store: { readonly selection: DesignerSelection | null; readonly selected: readonly DesignerSelection[]; select(next: DesignerSelection | null): void },
 	editShape: EditShape,
 	activeToolId: { readonly value: ToolId | null },
 ): {
 	readonly deleteSelection: () => Promise<void>;
 	readonly duplicateSelection: () => Promise<void>;
+	readonly groupSelection: () => Promise<void>;
+	readonly ungroupSelection: () => Promise<void>;
 	readonly nudgeSelection: (by: Vector) => Promise<void>;
 } {
 	return {
@@ -125,6 +158,27 @@ export function selectionKeyActions(
 			const selection = store.selection;
 			if (selection?.kind !== 'detail') return;
 			await notifyIfRefused(duplicateAndSelect(editShape, selection.id, (next) => store.select(next)));
+		},
+		// Both read the SET at the call and ask the shape they are handed whether it can still be acted
+		// on, answering `null` — nothing to do, nothing said — when it cannot, as `whileItExists` does.
+		groupSelection: () => {
+			const selected = store.selected;
+			return notifyIfRefused(
+				editShape((shape) => {
+					const ids = selectedGraphics(shape, selected);
+					return canGroup(shape, ids) ? groupDetails(shape, ids) : null;
+				}),
+			);
+		},
+		ungroupSelection: () => {
+			const selection = store.selection;
+			if (selection?.kind !== 'detail') return Promise.resolve();
+			return notifyIfRefused(
+				editShape((shape) => {
+					const group = groupOfDetail(shape, selection.id);
+					return group === null ? null : ungroupDetails(shape, group.id);
+				}),
+			);
 		},
 		nudgeSelection: (by) => {
 			// The plan editor's `nudge.ts` rule: an arrow moves the selection only under Select, since every

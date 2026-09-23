@@ -105,3 +105,42 @@
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
 }
+
+/**
+ * **The asset card** (AD18-R16 Task 9, board 02): a decorative footprint thumbnail beside the
+ * category chip, drawn BEFORE the `Asset` heading — `DesignerAssetCard.vue`'s own header carries
+ * the placement argument. In this partial for the reason `.rp-designer-usage-scope` above is:
+ * both are the Inspector's OBJECT block, and `designer.css` is at its 400-line cap.
+ */
+.rp-designer-inspector .rp-designer-asset-card {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin: 0 0 var(--size-4-2);
+}
+
+/*
+ * `AssetMark.vue`'s own outline-only shape (`styles/asset-mark.css`), not a filled preview like
+ * the preset dialog's: this is a small `aria-hidden` mark beside a text chip, never the subject
+ * of its own attention. Every colour is an Obsidian variable (SDD §84).
+ */
+.rp-designer-inspector .rp-designer-asset-thumbnail {
+	width: 40px;
+	height: 40px;
+	flex: none;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+	stroke-linejoin: round;
+	color: var(--text-muted);
+}
+
+.rp-designer-inspector .rp-designer-asset-category {
+	display: inline-flex;
+	align-items: center;
+	padding: var(--size-2-1) var(--size-2-2);
+	background-color: var(--background-secondary);
+	border-radius: var(--radius-s);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}

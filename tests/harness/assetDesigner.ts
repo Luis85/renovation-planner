@@ -58,6 +58,7 @@ const HARNESS_VERSION = { revision: 1, observed: 'harness-asset-design' as Obser
 const HARNESS_ASSET_DESIGN: AssetDesignDto = {
 	assetId: HARNESS_ASSET_ID,
 	name: 'Kitchen island',
+	category: 'furniture',
 	height: null,
 	background: null,
 	calibration: null,

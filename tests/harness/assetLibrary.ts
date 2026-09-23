@@ -1,6 +1,7 @@
 import { ok } from '../../src/core/result/Result';
 import { currencyOf, type Currency } from '../../src/core/money/Money';
 import type { AssetId } from '../../src/domain/asset/AssetId';
+import { isAssetCategory } from '../../src/domain/asset/AssetCategory';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
 import type { PlanId } from '../../src/domain/plan/PlanId';
 import type { RequirementId } from '../../src/domain/requirement/RequirementId';
@@ -280,6 +281,11 @@ function designFor(assetId: AssetId): AssetDesignDto {
 	return {
 		assetId,
 		name: named?.name ?? '',
+		// `Seed.category` is a bare `string` because the library fixture deliberately includes an
+		// UNDECLARED one (`insulation`, §1a's eighth shelf) — a state `GetAssetDesign`'s real query
+		// can never answer, since `Asset.create`/`reconstitute` already refuse it. The guard is what
+		// keeps this fixture honest about that rather than casting past it.
+		category: isAssetCategory(named?.category) ? named.category : 'material',
 		height: named?.height ?? null,
 		background: named?.background ?? null,
 		calibration: null,

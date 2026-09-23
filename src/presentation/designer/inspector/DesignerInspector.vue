@@ -34,6 +34,7 @@ import DesignerReferencePlacement from './DesignerReferencePlacement.vue';
 import DesignerClearanceHelper from './DesignerClearanceHelper.vue';
 import DesignerClearanceReview from './DesignerClearanceReview.vue';
 import DesignerUsageScope from './DesignerUsageScope.vue';
+import DesignerAssetCard from './DesignerAssetCard.vue';
 import { useFieldCommit } from '../../composables/use-field-commit';
 import type { FieldErrorMap } from '../../errors/route-error';
 import { trError } from '../../i18n/toUserMessage';
@@ -389,6 +390,16 @@ function onTabKeydown(event: KeyboardEvent): void {
 				:edit-shape="editShape"
 				:locked="locked"
 			/>
+			<!--
+				**The asset card** (AD18-R16 Task 9, board 02): a decorative footprint thumbnail beside
+				the category chip, no name (AD18-R1). BEFORE the heading rather than after it, deliberately
+				— `DesignerAssetCard.vue`'s own header carries the full placement argument, and the short
+				form is that `designerUsageScope.test.ts` pins `DesignerUsageScope` as sitting directly
+				under this `<h3>` with nothing between, so a block placed AFTER the heading would break
+				that adjacency. Before it, the heading and the usage scope stay exactly as pinned, and
+				with nothing selected this card is still the true top of the tab.
+			-->
+			<DesignerAssetCard :design="design" />
 			<!--
 				The asset's own block gets a heading of its own, so its Dimensions never read as the size of the
 				part whose section sits right above them (selection polish critique, finding 4).

@@ -30,6 +30,7 @@ export function assetDesign(overrides: Partial<AssetDesignDto> = {}): AssetDesig
 	return {
 		assetId,
 		name: 'Base cabinet 600',
+		category: 'furniture',
 		height: 900,
 		// A default this thing HAS, not the absence `noBackground` cases explicitly opt into:
 		// several existing fixtures at `assetDesign({ shape: null })` rely on the background

@@ -53,6 +53,7 @@ function context(
 				return ok({
 					assetId: harness.assetId,
 					name: asset.entity.name,
+					category: asset.entity.category,
 					height: asset.entity.height,
 					background: asset.entity.background,
 					calibration: document.calibration,

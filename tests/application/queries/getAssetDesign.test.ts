@@ -19,6 +19,7 @@ import { createEventBus } from '../../../src/core/events/EventBus';
 import { ObsidianAssetGeometrySidecar } from '../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import { assetSidecarPathFor } from '../../../src/infrastructure/obsidian/repositories/paths';
 import { createAssetId, type AssetId } from '../../../src/domain/asset/AssetId';
+import type { AssetCategory } from '../../../src/domain/asset/AssetCategory';
 import type { AssetGeometryDocument } from '../../../src/application/ports/AssetGeometrySidecar';
 import type { AssetShape, FootprintOrigin } from '../../../src/domain/asset/AssetShape';
 import { footprintFromDimensions } from '../../../src/domain/asset/AssetShape';
@@ -59,11 +60,11 @@ const shapeWith = (footprintOrigin: FootprintOrigin, footprintPending: boolean):
  * The query is constructed HERE, once, for the reason Task A5a paid for: a query built
  * beside a case is a query a mutation run silently leaves un-mutated.
  */
-async function seeded(props: { readonly name?: string; readonly height?: number | null } = {}) {
+async function seeded(props: { readonly name?: string; readonly height?: number | null; readonly category?: AssetCategory } = {}) {
 	const stack = createRepositoryStack();
 	const saved = expectOk(
 		await stack.assets.save(
-			makeAsset({ name: props.name ?? 'Kitchen island', height: props.height ?? null }),
+			makeAsset({ name: props.name ?? 'Kitchen island', height: props.height ?? null, category: props.category ?? 'material' }),
 			'absent',
 		),
 	);
@@ -114,6 +115,17 @@ describe('GetAssetDesign', () => {
 		expect(design.height).toBe(900);
 		expect(design.calibration).toEqual(CALIBRATION);
 		expect(design.shape?.footprintOrigin).toBe('traced');
+	});
+
+	/**
+	 * The Inspector's asset card (Task 9) draws a category chip, and the DTO carries the entity's
+	 * OWN field rather than a second read of it — `asset.category` is already loaded by the
+	 * `getById` call this query makes, so widening the DTO costs no new port and no new query.
+	 */
+	it('carries the asset’s category, the entity’s own field', async () => {
+		const { query, assetId } = await seeded({ category: 'furniture' });
+
+		expect(expectOk(await query.execute(assetId)).category).toBe('furniture');
 	});
 
 	it('derives dimensions from the footprint rather than reading a stored pair', async () => {

@@ -139,6 +139,8 @@ async function zoomReflow(page, scenario, out) {
  return { layout, method: '200% CSS layout zoom with retained draft/focus and keyboard Cancel; native Obsidian zoom acceptance remains separate' };
 }
 async function journey(page, scenario, out) {
+ // ponytail: --performance-only skips the drifted planning, recovery, accessibility and reflow journeys, which still fail by default; repairing them is the upgrade path.
+ if (process.argv.includes('--performance-only')) return { performance: await largeFloor(page, scenario, out) };
  const normal = await planningJourney(page, scenario, out);
  const recovered = await recovery(page, scenario, out), axe = await accessibility(page, scenario, out);
  const reflow = await zoomReflow(page, scenario, out);

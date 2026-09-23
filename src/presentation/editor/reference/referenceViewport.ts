@@ -40,13 +40,15 @@ function normalizeRotation(degrees: number): number {
 	return ((degrees + 180) % 360 + 360) % 360 - 180;
 }
 
-/** New rotation from dragging the handle from `start` to `current` about `centre`, snapping to 15° when `snap`. */
-export function dragRotation(startRotation: number, centre: Point, start: Point, current: Point, snap: boolean): number {
-	const startVector = { x: start.x - centre.x, y: start.y - centre.y };
-	const currentVector = { x: current.x - centre.x, y: current.y - centre.y };
+/**
+ * New rotation from dragging the handle, snapping to 15° when `snap`. `start` and `current` are the
+ * pointer's offsets from the image centre AT THAT MOMENT — each measured about its own centre, since
+ * a rotation refits the preview and moves the centre mid-drag.
+ */
+export function dragRotation(startRotation: number, start: Point, current: Point, snap: boolean): number {
 	const epsilon = 1;
-	if (Math.hypot(startVector.x, startVector.y) < epsilon || Math.hypot(currentVector.x, currentVector.y) < epsilon) return startRotation;
-	const delta = (Math.atan2(currentVector.y, currentVector.x) - Math.atan2(startVector.y, startVector.x)) * 180 / Math.PI;
+	if (Math.hypot(start.x, start.y) < epsilon || Math.hypot(current.x, current.y) < epsilon) return startRotation;
+	const delta = (Math.atan2(current.y, current.x) - Math.atan2(start.y, start.x)) * 180 / Math.PI;
 	const rotation = normalizeRotation(startRotation + delta);
 	return snap ? Math.round(rotation / 15) * 15 : Math.round(rotation * 10) / 10;
 }

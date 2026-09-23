@@ -57,6 +57,33 @@ it('rotates by dragging the knob about the image centre, snapping with Shift, an
 	expect(w.emitted('point')).toBeUndefined();
 });
 
+it('measures the drag about the live image centre after a pan and the refit a rotation causes', async () => {
+	const { w, canvas } = setup(true);
+	await w.get('canvas').trigger('keydown', { key: 'ArrowLeft' }); await w.get('canvas').trigger('keydown', { key: 'ArrowUp' });
+	const panned = { x: centre.x + 32, y: centre.y + 32 }, tilt = 10 * Math.PI / 180;
+	pointer(canvas, 'pointerdown', { x: panned.x, y: panned.y - radius });
+	pointer(canvas, 'pointermove', { x: panned.x + radius * Math.sin(tilt), y: panned.y - radius * Math.cos(tilt) });
+	const first = expectDefined(rotations(w)[0], 'first drag rotation'); expect(first).toBeCloseTo(10, 0);
+	const turned = { ...appearance, rotation: first };
+	await w.setProps({ appearance: turned });
+	const live = referenceScreenCentre(previewTransform(turned), turned);
+	pointer(canvas, 'pointermove', { x: live.x + radius, y: live.y });
+	expect(rotations(w)[1]).toBeCloseTo(90, 5);
+	pointer(canvas, 'pointerup', { x: live.x + radius, y: live.y });
+});
+
+it('nudges with brackets typed through AltGr but keeps other shortcuts behind the modifier guard', async () => {
+	const { w } = setup(true);
+	await w.get('canvas').trigger('keydown', { key: ']', ctrlKey: true, altKey: true });
+	const altGraph = new KeyboardEvent('keydown', { key: '[', bubbles: true, cancelable: true });
+	Object.defineProperty(altGraph, 'getModifierState', { value: (key: string) => key === 'AltGraph' });
+	Object.defineProperty(altGraph, 'ctrlKey', { value: true });
+	w.get('canvas').element.dispatchEvent(altGraph);
+	for (const modifier of ['ctrlKey', 'altKey', 'metaKey']) await w.get('canvas').trigger('keydown', { key: ']', [modifier]: true });
+	await w.get('canvas').trigger('keydown', { key: 'f', ctrlKey: true, altKey: true });
+	expect(rotations(w)).toEqual([1, -1]); expect(w.get('output').text()).toBe('100%');
+});
+
 it('pans rather than rotates when the press misses the knob', async () => {
 	const { w, canvas } = setup(true);
 	pointer(canvas, 'pointerdown', { x: knob.x + 20, y: knob.y }); pointer(canvas, 'pointermove', { x: knob.x + 60, y: knob.y + 40 });

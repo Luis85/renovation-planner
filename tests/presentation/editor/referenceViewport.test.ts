@@ -49,31 +49,27 @@ it.each([
 });
 
 it('turns a quarter clockwise into +90', () => {
-	const centre = { x: 0, y: 0 };
 	const start = { x: 0, y: -10 };
 	const current = { x: 10, y: 0 };
-	expect(dragRotation(0, centre, start, current, false)).toBeCloseTo(90, 8);
+	expect(dragRotation(0, start, current, false)).toBeCloseTo(90, 8);
 });
 
 it('normalises the wrap-around into [-180, 180]', () => {
-	const centre = { x: 0, y: 0 };
 	const start = { x: 10, y: 0 };
 	const current = { x: 10 * Math.cos(20 * Math.PI / 180), y: 10 * Math.sin(20 * Math.PI / 180) };
-	expect(dragRotation(170, centre, start, current, false)).toBeCloseTo(-170, 8);
+	expect(dragRotation(170, start, current, false)).toBeCloseTo(-170, 8);
 });
 
 it('snaps to the nearest 15° when snap is set, else rounds to 0.1°', () => {
-	const centre = { x: 0, y: 0 };
 	const start = { x: 10, y: 0 };
 	const current = { x: 10 * Math.cos(37.4 * Math.PI / 180), y: 10 * Math.sin(37.4 * Math.PI / 180) };
-	expect(dragRotation(0, centre, start, current, true)).toBeCloseTo(30, 8);
-	expect(dragRotation(0, centre, start, current, false)).toBeCloseTo(37.4, 8);
+	expect(dragRotation(0, start, current, true)).toBeCloseTo(30, 8);
+	expect(dragRotation(0, start, current, false)).toBeCloseTo(37.4, 8);
 });
 
-it('leaves rotation unchanged when either pointer is within 1px of the centre', () => {
-	const centre = { x: 50, y: 50 };
-	expect(dragRotation(42, centre, { x: 50.5, y: 50 }, { x: 60, y: 50 }, false)).toBe(42);
-	expect(dragRotation(42, centre, { x: 60, y: 50 }, { x: 50.5, y: 50 }, false)).toBe(42);
+it('leaves rotation unchanged when either pointer is within 1px of its centre', () => {
+	expect(dragRotation(42, { x: 0.5, y: 0 }, { x: 10, y: 0 }, false)).toBe(42);
+	expect(dragRotation(42, { x: 10, y: 0 }, { x: 0.5, y: 0 }, false)).toBe(42);
 });
 
 it('nudges rotation by a step, wrapping into range and rounding away float drift', () => {

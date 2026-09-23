@@ -15,7 +15,7 @@ const hintId = useId();
 const hint = computed(() => props.rotatable ? 'editor.reference.gestures-rotate' : props.measuring && !panMode.value && !space.value ? 'editor.reference.gestures-measure' : 'editor.reference.gestures');
 const zoomPercent = computed(() => Math.round(view.value.scale / previewTransform(props.appearance, size.value).scale * 100));
 let observer: ResizeObserver | undefined, unsubscribe: (() => void) | undefined;
-let gesture: { id: number; start: Point; view: ReferenceViewport; moved: boolean; navigationOnly: boolean; rotate?: { rotation: number; centre: Point } } | null = null;
+let gesture: { id: number; start: Point; view: ReferenceViewport; moved: boolean; navigationOnly: boolean; rotate?: { rotation: number; from: Point } } | null = null;
 let suppressClick = false;
 function draw(): void {
 	const element = canvas.value, context = element?.getContext('2d');
@@ -70,6 +70,11 @@ function handle(): { centre: Point; knob: Point } {
 	const centre = referenceScreenCentre(view.value, props.appearance);
 	return { centre, knob: rotationHandlePoint(centre, props.appearance.rotation, Math.min(size.value.width, size.value.height) / 2 - 16) };
 }
+/** `point` relative to the image's live on-screen centre, which a rotation's refit moves. */
+function fromCentre(point: Point): Point {
+	const centre = referenceScreenCentre(view.value, props.appearance);
+	return { x: point.x - centre.x, y: point.y - centre.y };
+}
 function onHandle(point: Point): boolean {
 	const { knob } = handle();
 	return props.rotatable && Math.hypot(point.x - knob.x, point.y - knob.y) <= 12;
@@ -109,7 +114,7 @@ function start(event: PointerEvent): void {
 	if (!point) return;
 	suppressClick = false;
 	rotating.value = event.button === 0 && onHandle(point);
-	gesture = { id: event.pointerId, start: point, view: view.value, moved: false, navigationOnly: event.button === 1 || panMode.value || space.value || !props.measuring, rotate: rotating.value ? { rotation: props.appearance.rotation, centre: handle().centre } : undefined };
+	gesture = { id: event.pointerId, start: point, view: view.value, moved: false, navigationOnly: event.button === 1 || panMode.value || space.value || !props.measuring, rotate: rotating.value ? { rotation: props.appearance.rotation, from: fromCentre(point) } : undefined };
 	canvas.value?.setPointerCapture?.(event.pointerId);
 	if (event.button === 1) event.preventDefault();
 }
@@ -117,7 +122,7 @@ function move(event: PointerEvent): void {
 	const point = previewPointerPoint(event);
 	if (!gesture) { overHandle.value = !!point && onHandle(point); return; }
 	if (gesture.id !== event.pointerId || !point) return;
-	if (gesture.rotate) { emit('rotation', dragRotation(gesture.rotate.rotation, gesture.rotate.centre, gesture.start, point, event.shiftKey)); return; }
+	if (gesture.rotate) { emit('rotation', dragRotation(gesture.rotate.rotation, gesture.rotate.from, fromCentre(point), event.shiftKey)); return; }
 	const dx = point.x - gesture.start.x, dy = point.y - gesture.start.y;
 	if (!gesture.moved && Math.hypot(dx, dy) < 3) return;
 	gesture.moved = true; dragging.value = true;
@@ -132,16 +137,23 @@ function end(event?: PointerEvent): void {
 	if (canvas.value?.hasPointerCapture?.(ended.id)) canvas.value.releasePointerCapture(ended.id);
 }
 const rotateKeys: Readonly<Record<string, number>> = { '[': -1, ']': 1, '{': -1, '}': 1 };
+function altGraph(event: KeyboardEvent): boolean { return (event.ctrlKey && event.altKey) || event.getModifierState('AltGraph'); }
 const panKeys: Readonly<Record<string, Point>> = { arrowleft: { x: 1, y: 0 }, arrowright: { x: -1, y: 0 }, arrowup: { x: 0, y: 1 }, arrowdown: { x: 0, y: -1 } };
 
+/** `[`/`]` nudge rotation. AltGr arrives as Ctrl+Alt (or as AltGraph), and it is how they are typed on e.g. a German layout. */
+function rotateKey(event: KeyboardEvent): boolean {
+	if (!props.rotatable || !rotateKeys[event.key] || event.metaKey || ((event.altKey || event.ctrlKey) && !altGraph(event))) return false;
+	emit('rotation', nudgeRotation(props.appearance.rotation, rotateKeys[event.key] * (event.shiftKey ? 0.1 : 1)));
+	return true;
+}
 function keydown(event: KeyboardEvent): void {
+	if (rotateKey(event)) { event.preventDefault(); event.stopPropagation(); return; }
 	if (event.altKey || event.ctrlKey || event.metaKey) return;
 	const key = event.key.toLowerCase();
 	if (key === ' ') space.value = true;
 	else if (key === 'f') fit();
 	else if (key === '+' || key === '=') zoom(1.25);
 	else if (key === '-') zoom(1 / 1.25);
-	else if (props.rotatable && rotateKeys[key]) emit('rotation', nudgeRotation(props.appearance.rotation, rotateKeys[key] * (event.shiftKey ? 0.1 : 1)));
 	else if (panKeys[key]) {
 		const distance = event.shiftKey ? 80 : 32;
 		view.value = { ...view.value, x: view.value.x + panKeys[key].x * distance, y: view.value.y + panKeys[key].y * distance };

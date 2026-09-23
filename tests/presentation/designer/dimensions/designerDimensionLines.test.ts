@@ -187,7 +187,10 @@ const declared = (file: string, selector: string, property: string): unknown[] =
 const zIndex = (file: string, selector: string): unknown[] => declared(file, selector, 'z-index');
 
 /** The properties that make an element a stacking context, beside a `z-index` on a positioned one. */
-const STACKING = ['z-index', 'isolation', 'transform', 'opacity', 'filter', 'will-change', 'contain', 'mix-blend-mode'];
+const STACKING = [
+	'z-index', 'isolation', 'transform', 'opacity', 'filter', 'will-change', 'contain', 'mix-blend-mode',
+	'clip-path', 'mask', 'backdrop-filter', 'perspective', 'container-type',
+];
 
 /** How this parser reads `z-index: value`, so no case spells lightningcss's own AST by hand. */
 const zValue = (value: number): unknown => stylesheetRules(`.reference { z-index: ${String(value)}; }`)[0]?.declarations[0]?.value;

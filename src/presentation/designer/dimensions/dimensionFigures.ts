@@ -687,8 +687,10 @@ const distance = (one: ScreenPoint, other: ScreenPoint): number => Math.hypot(on
  * **A slot must lie inside the stage and clear of the rulers' strip** because `.rp-plan-canvas` is
  * `overflow: hidden`: a label moved off it is clipped, which is worse than the overlap it was moved
  * for — and one moved onto the strip covers the scale (`RULER_PX`). When no slot is free
- * the label stays on its anchor and the overlap stands — honest rather than hidden, and it did not
- * happen on any frame of the measurement above.
+ * the label stays on its anchor and the overlap stands — honest rather than hidden. It happens on
+ * no fit-camera frame of 280 px or more in `RESTING_ROWS`' measurement; it does happen on the two
+ * 260 px frames that docblock records, and at the zoomed-out camera `dimensionCollision.test.ts`
+ * pins by name.
  *
  * `spreadLabels` stays the rule for `All dimensions`, whose floor is a different one: 26 labels
  * cannot all be kept apart at the camera the designer opens with, and AD18-R14 asks only that none

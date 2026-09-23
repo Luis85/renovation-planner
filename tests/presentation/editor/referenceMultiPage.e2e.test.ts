@@ -29,7 +29,7 @@ async function rig() {
 	installCanvas();
 	const workspace = referenceWorkspace(harnessDeps(), HARNESS_PLAN); await workspace.ready;
 	// The workspace fetches `scan.pdf` from the committed one-page fixture; this serves the
-	// synthetic two-page one instead. Only a PDF load reaches `readBinary`.
+	// synthetic two-page one instead.
 	const bytes = pdfFixture(TWO_PAGE_PDF);
 	workspace.deps.vault.readBinary = () => Promise.resolve(bytes.slice().buffer);
 	const load = vi.spyOn(backgrounds, 'loadBackground');
@@ -83,8 +83,10 @@ describe('a PDF reference whose chosen page is not page 1', () => {
 		expect(await lastDecoded(r.load)).toEqual(PAGE_2);
 	});
 
-	it('refuses page 3 of a two-page PDF in the form, and draws no preview', async () => {
-		const r = await rig(); await choosePage(r.harness, '3');
+	it('refuses page 3 of a two-page PDF after page 2 drew, and leaves no preview behind', async () => {
+		const r = await rig(); await choosePage(r.harness, '2');
+		await settleUntil(() => r.harness.wrapper.find('.rp-reference-preview').exists(), 'the page-2 preview');
+		await field(r.harness, 'page', '3'); await r.harness.wrapper.get('[data-rp-action="load-reference"]').trigger('click'); await settle();
 		expect(await lastDecoded(r.load)).toEqual({ kind: 'unavailable', reason: 'unreadable' });
 		expect(r.harness.wrapper.text()).toContain('Cannot read this image or PDF page');
 		expect(r.harness.wrapper.find('.rp-reference-preview').exists()).toBe(false);

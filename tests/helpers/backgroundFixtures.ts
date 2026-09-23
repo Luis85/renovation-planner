@@ -36,7 +36,7 @@ export const TWO_PAGE_PDF = [
 ] as const;
 
 /** One page of `pdfFixture`: its MediaBox in points, and the `rg` fill of its rectangle. */
-interface PdfFixturePage {
+export interface PdfFixturePage {
 	readonly width: number;
 	readonly height: number;
 	readonly fill: string;

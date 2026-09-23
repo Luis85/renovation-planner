@@ -140,7 +140,7 @@ export interface DesignerRuntime {
 	readonly showLegend: Ref<boolean>;
 	/**
 	 * The Clearance section's `Show clearance` switch (AD18-R17, board 01), which shows or hides the
-	 * canvas's clearance LAYER — the boundary itself, not the legend's row for it.
+	 * canvas's clearance LAYER.
 	 *
 	 * **`showLegend`'s kind of row exactly, by the same AD18-R12 precedent** — leaf-local, written
 	 * NOWHERE, default `true` because a clearance the design has is a clearance the canvas shows until
@@ -148,8 +148,9 @@ export interface DesignerRuntime {
 	 * does not survive a reopened leaf. A component that is also mounted BARE reads it through
 	 * `useShowClearance` below; anything else reads it off this runtime.
 	 *
-	 * It hides the clearance from the canvas's pixels, presses and legend, but NOT from the fit: `designFrame`
-	 * stays the one fit definition and reads no view state, the precedent Parts-hidden graphics already set.
+	 * It hides the clearance from the canvas's pixels, presses and legend, but NOT from the fit:
+	 * `designFrame` stays the one fit definition and reads no view state, the precedent Parts-hidden
+	 * graphics already set.
 	 */
 	readonly showClearance: Ref<boolean>;
 	/**
@@ -770,9 +771,10 @@ export function useDesignerRuntime(): DesignerRuntime {
  * The leaf's `showClearance`, or `null` where no runtime is provided — for `DesignerClearanceHelper`,
  * which sits inside `DesignerInspector`. Several test files mount that inspector BARE on purpose, and
  * its `removeBackground` docblock says why; `grep -rln "mount(DesignerInspector" tests/` lists them.
- * `useDesignerRuntime()` in the helper would make every one of those mounts throw. Inside a leaf the runtime is always provided, so the `null` arm is a bare mount
- * and nothing else: the switch is simply not drawn there, and `designerClearanceHelper.test.ts`
- * drives the real wiring to prove it IS drawn in a leaf.
+ * `useDesignerRuntime()` in the helper would make every one of those mounts throw. Inside a leaf the
+ * runtime is always provided, so the `null` arm is a bare mount and nothing else: the switch is
+ * simply not drawn there, and `designerClearanceHelper.test.ts` drives the real wiring to prove it
+ * IS drawn in a leaf.
  */
 export function useShowClearance(): Ref<boolean> | null {
 	const runtime = inject(DESIGNER_RUNTIME, null);

@@ -129,9 +129,16 @@ command id changed, because a user's hotkey is bound to it.
 
 **Still open, and named rather than implied:**
 
-- **The Asset library's write controls.** Out of scope deliberately: they have their own design
-  package and their own hook, and pulling them in here would have been one task guessing at
-  another's surface.
+- **The Asset library's write controls — done for L-43 (2026-09-23).** `AssetLibraryView` puts
+  `readOnly: Platform.isMobile` into its context at its `provide()`, and on a mobile device the
+  library draws one `.rp-view-notice.rp-mobile-notice` with `view.mobile.read-only`. `New asset`
+  (the toolbar and the empty catalogue's action), `Open designer`, `Delete`, the definition fields
+  and `Save` stay drawn, refused (`disabled`, `aria-disabled` or `readonly`) and described by that
+  notice, and each gesture's handler refuses as well. Search, selection, the shelves, `Open note`
+  and the `Used in` links stay live. `tests/presentation/library/assetLibraryMobile.test.ts`
+  drives those gestures over the real view against a spy on every command door and on the
+  designer launch, with the same gestures on desktop as its positive control. Not measured on a
+  device, which the last item below still covers.
 - **`ProjectWorkState` and `QuoteComparisonState`'s `blocked`-disabled controls carry no
   per-control `aria-describedby`.** Those two states disable on their own `blocked` computed
   (`readOnly` is one of its inputs in `QuoteComparisonState`), and the notice draws above them

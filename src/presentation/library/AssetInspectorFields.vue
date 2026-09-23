@@ -12,7 +12,7 @@ import { tr } from '../i18n/strings';
 import { DEFINITION_LABELS, type DefinitionDraft } from './definitionDraft';
 import { useDefinitionDraft } from './useDefinitionDraft';
 
-const props = defineProps<{ entry: CatalogueEntryDto }>();
+const props = defineProps<{ entry: CatalogueEntryDto; readOnlyReasonId?: string }>();
 const form = useDefinitionDraft(() => props.entry);
 const selectFields = new Set<keyof DefinitionDraft>(['category', 'unit', 'planPattern']);
 const fields = Object.keys(DEFINITION_LABELS) as (keyof DefinitionDraft)[];
@@ -42,6 +42,10 @@ function optionLabel(key: keyof DefinitionDraft, option: string): string {
 function fieldLabel(key: keyof DefinitionDraft): string {
 	const suffix: Partial<Record<keyof DefinitionDraft, string>> = { unitCost: ` (${props.entry.currency})`, waste: ' (%)', height: ' (mm)' };
 	return tr(DEFINITION_LABELS[key]) + (suffix[key] ?? '');
+}
+/** The read-only notice and a field error, together — `aria-describedby` is an id list. */
+function describedBy(aria: { 'aria-describedby'?: string }): string | undefined {
+	return [props.readOnlyReasonId, aria['aria-describedby']].filter((id) => id !== undefined).join(' ') || undefined;
 }
 const formEl = ref<HTMLFormElement | null>(null);
 form.onKeep(() => {
@@ -98,6 +102,7 @@ form.onKeep(() => {
 							v-if="selectFields.has(key)"
 							v-bind="aria"
 							v-model="form.values.value[key]"
+							:aria-describedby="describedBy(aria)"
 							class="rp-al-fields__select"
 							:data-field="key"
 							:aria-label="fieldLabel(key)"
@@ -116,6 +121,7 @@ form.onKeep(() => {
 							v-else
 							v-bind="aria"
 							v-model="form.values.value[key]"
+							:aria-describedby="describedBy(aria)"
 							type="text"
 							class="rp-al-fields__input"
 							:data-field="key"
@@ -135,6 +141,7 @@ form.onKeep(() => {
 			<button
 				type="submit"
 				:disabled="!form.canSave.value"
+				:aria-describedby="readOnlyReasonId"
 			>
 				{{ tr('view.asset-library.draft.save') }}
 			</button>

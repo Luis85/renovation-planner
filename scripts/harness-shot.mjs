@@ -118,10 +118,10 @@ const PROJECT_DIAGNOSTICS_BUTTON = '.rp-project-detail [data-rp-action="open-dia
 const PROJECT_SCHEDULE_DIAGNOSTICS_BUTTON = '.rp-project-work [data-rp-action="open-diagnostics"]';
 
 /**
- * The asset the four selected shots open on — `tests/harness/assetLibrary.ts`'s one DESIGNED
+ * The asset the selected shots open on — `tests/harness/assetLibrary.ts`'s one DESIGNED
  * seed, so §3.5's Shape section draws a footprint, a clearance and a spec sheet rather than
- * three "nothing yet" lines. Named once here because four shots share it and a fifth would
- * otherwise be a fifth place to keep in step.
+ * three "nothing yet" lines. Named once here because several shots share it and each would
+ * otherwise be one more place to keep in step.
  */
 const LIBRARY_SELECTED_ASSET = 'base-cabinet-600';
 
@@ -849,11 +849,7 @@ const SHOTS = [
 	//     shipped selector, which is a stand-in and not evidence the query fires.
 	{ name: 'asset-library-dark', query: '?view=asset-library', selector: ASSET_LIBRARY_VIEW },
 	{ name: 'asset-library-light', query: '?view=asset-library&theme=light', selector: ASSET_LIBRARY_VIEW },
-	{
-		name: 'asset-library-selected',
-		query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`,
-		selector: ASSET_LIBRARY_VIEW,
-	},
+	{ name: 'asset-library-selected', query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`, selector: ASSET_LIBRARY_VIEW },
 	{
 		name: 'asset-library-middle',
 		query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`,
@@ -884,6 +880,10 @@ const SHOTS = [
 		selector: ASSET_LIBRARY_VIEW,
 		width: 460,
 	},
+	// L-43: the library on a phone, read-only. It waits on the mobile notice rather than on the
+	// view, so a dropped `phone` cannot photograph the writable library under this name, and it
+	// scrolls to the Actions row so `Open designer` and `Delete` are in the picture.
+	{ name: 'asset-library-phone', query: `?view=asset-library&phone&theme=light&asset=${LIBRARY_SELECTED_ASSET}`, selector: `${ASSET_LIBRARY_VIEW} .rp-mobile-notice`, width: 360, scrollTo: '.rp-al-actions' },
 	// The harness's own index — the one surface here this command could not photograph. That is
 	// not a gap worth leaving in a tool whose whole argument is that a capture read by eye
 	// reaches defects no gate can: the index's own chrome went unlooked-at while it accumulated

@@ -581,6 +581,7 @@ describe('the headless harness capture script', () => {
 			'asset-library-middle',
 			'asset-library-narrow',
 			'asset-library-narrow-selected',
+			'asset-library-phone',
 			'asset-library-selected',
 			'dark',
 			'home-filter-focus',
@@ -678,26 +679,26 @@ describe('the headless harness capture script', () => {
 	 *
 	 * What each pin is FOR, because "pin the fields" is not an argument:
 	 *
-	 * - **`&asset=` on the four selected shots.** Every one of them waits on
+	 * - **`&asset=` on the selected shots.** Every one of them waits on
 	 *   `.renovation-asset-library`, which the RESTING pane satisfies just as well — so a dropped
-	 *   parameter photographs the shelves under a name promising the inspector, four times, and
+	 *   parameter photographs the shelves under a name promising the inspector, once per shot, and
 	 *   exits 0. `tests/harness/assetLibraryPage.test.ts` closes that hazard for the jsdom mount
 	 *   and could not close it for the shots.
-	 * - **`width` on the three that carry one.** 460 is §7's third rung and 700 its middle one;
+	 * - **`width` on the ones that carry one.** 460 is §7's third rung and 700 its middle one;
 	 *   without the field each becomes a byte-identical duplicate of a 1280 shot under a second
 	 *   name. The middle rung has already shipped MISSING once with nothing to notice.
 	 * - **`scrollTo` on `asset-library-actions`.** That shot exists because the Actions row sits
 	 *   below the fold in the 280px rail; without the field it is a second copy of
 	 *   `asset-library-selected`, and `Delete` — this surface's one destructive control — goes
 	 *   back to being photographed by nothing.
-	 * - **`theme=light` on the four selected shots.** Chosen by MEASUREMENT rather than taste:
+	 * - **`theme=light` on the selected shots.** Chosen by MEASUREMENT rather than taste:
 	 *   the one control here with a colour argument is `Delete`, whose border is `--text-error`,
 	 *   and this script's own recorded pair for that variable puts it at 3.89:1 light against
 	 *   4.27:1 dark. A scheme chosen by measurement and recorded only in prose is a scheme that
 	 *   silently flips back — the sentence the index shots' own scheme case already makes.
 	 *
-	 * The asset those four open on is `LIBRARY_SELECTED_ASSET`, named once in the script so a
-	 * fifth selected shot cannot introduce a second spelling: each query is checked against the
+	 * The asset those shots open on is `LIBRARY_SELECTED_ASSET`, named once in the script so
+	 * another selected shot cannot introduce a second spelling: each query is checked against the
 	 * constant's VALUE, and each is checked to have been spelled THROUGH it.
 	 */
 	it('pins what makes each asset library shot different from its siblings', () => {
@@ -708,23 +709,26 @@ describe('the headless harness capture script', () => {
 		expect(String(asset).length, 'LIBRARY_SELECTED_ASSET is empty').toBeGreaterThan(0);
 		expect([...String(asset)].every((character) => isIdCharacter(character)), 'LIBRARY_SELECTED_ASSET is not an id').toBe(true);
 
-		// The four that open on a selection: the route AND the measured scheme — reported as the
+		// The shots that open on a selection: the route AND the measured scheme — reported as the
 		// names that fail each check, so a failure says which shot.
-		const selected = ['asset-library-selected', 'asset-library-middle', 'asset-library-actions', 'asset-library-narrow-selected'];
+		const selected = ['asset-library-selected', 'asset-library-middle', 'asset-library-actions', 'asset-library-narrow-selected', 'asset-library-phone'];
 
 		expect(selected.filter((name) => query(name).get('asset') !== asset)).toEqual([]);
 		expect(selected.filter((name) => !namesIn(name, 'query').includes('LIBRARY_SELECTED_ASSET'))).toEqual([]);
 		expect(selected.filter((name) => query(name).get('theme') !== 'light')).toEqual([]);
 
-		// The three widths of §7's ladder, and the two resting shots that hold the palette.
+		// The widths of §7's ladder plus the phone's, and the two resting shots that hold the palette.
 		expect(shot('asset-library-middle').width).toBe(700);
-		expect(shot('asset-library-narrow').width).toBe(460);
-		expect(shot('asset-library-narrow-selected').width).toBe(460);
+		expect([shot('asset-library-narrow').width, shot('asset-library-narrow-selected').width, shot('asset-library-phone').width]).toEqual([460, 460, 360]);
 		expect(shot('asset-library-dark').query).toBe('?view=asset-library');
 		expect(query('asset-library-light').get('theme')).toBe('light');
 
 		// The one shot whose subject is below the fold.
 		expect(shot('asset-library-actions').scrollTo).toBe('.rp-al-actions');
+
+		// L-43's phone shot, also in `selected` and the widths above: the phone knob, the Actions
+		// row, and a wait only the read-only library satisfies.
+		expect([query('asset-library-phone').has('phone'), shot('asset-library-phone').scrollTo, shot('asset-library-phone').selector]).toEqual([true, '.rp-al-actions', '.renovation-asset-library .rp-mobile-notice']);
 	});
 
 	/**

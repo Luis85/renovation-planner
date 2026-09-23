@@ -10,12 +10,13 @@ import AssetInspectorFields from './AssetInspectorFields.vue';
 import AssetInspectorShape from './AssetInspectorShape.vue';
 import AssetInspectorUsedIn from './AssetInspectorUsedIn.vue';
 
-const props = defineProps<{ assetId: AssetId | null }>();
+const props = defineProps<{ assetId: AssetId | null; readOnlyReasonId?: string }>();
 
 const emit = defineEmits<{ back: []; delete: [assetId: AssetId] }>();
 
 const context = useAssetLibraryContext();
 const draftGuard = useLibraryDraftGuard();
+const readOnly = context.readOnly === true;
 const library = useAssetLibraryStore();
 const selection = useAssetSelectionStore();
 
@@ -65,7 +66,7 @@ const canOpenDesigner = computed(
 
 const canOpenNote = computed(() => state.value === 'ready' || state.value === 'note-unreadable');
 
-const canDelete = computed(() => state.value === 'ready' && selection.usedInStatus === 'ready');
+const canDelete = computed(() => !readOnly && state.value === 'ready' && selection.usedInStatus === 'ready');
 
 const deleteReason = computed((): string | null =>
 	selection.usedInStatus === 'failed' ? tr('view.asset-library.used-in.failed') : null,
@@ -74,7 +75,8 @@ const deleteReason = computed((): string | null =>
 const deleteReasonId = useId();
 const deleteAttributes = computed(() => ({
 	'aria-disabled': canDelete.value ? undefined : 'true' as const,
-	'aria-describedby': deleteReason.value === null ? undefined : deleteReasonId,
+	'aria-describedby': [props.readOnlyReasonId, deleteReason.value === null ? undefined : deleteReasonId]
+		.filter((id) => id !== undefined).join(' ') || undefined,
 }));
 
 
@@ -94,7 +96,7 @@ async function openNote(): Promise<void> {
 
 function onOpenDesigner(): void {
 	const assetId = props.assetId;
-	if (assetId !== null) void draftGuard.leave(() => context.openDesigner(assetId));
+	if (!readOnly && assetId !== null) void draftGuard.leave(() => context.openDesigner(assetId));
 }
 
 function onDelete(): void {
@@ -157,6 +159,7 @@ async function onOpenNote(): Promise<void> {
 			<AssetInspectorFields
 				:key="assetId"
 				:entry="entry"
+				:read-only-reason-id="readOnlyReasonId"
 			/>
 			<AssetInspectorShape
 				:design="selection.design"
@@ -183,6 +186,8 @@ async function onOpenNote(): Promise<void> {
 				v-if="canOpenDesigner"
 				type="button"
 				class="rp-al-action rp-al-action--designer"
+				:disabled="readOnly"
+				:aria-describedby="readOnlyReasonId"
 				@click="onOpenDesigner"
 			>
 				{{ tr('view.asset-library.open-designer') }}

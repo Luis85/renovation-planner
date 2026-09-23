@@ -17,22 +17,18 @@
  */
 
 /**
- * How many parts are selected, and the control that builds the set (AD08). The count is a status
- * line under the panel title — muted, like the title itself, because it describes the panel rather
- * than labelling a field. The checkbox sits with the object's own actions and reads as one row.
+ * How many parts are selected (AD08). The count is a status line under the panel title — muted,
+ * like the title itself, because it describes the panel rather than labelling a field.
+ *
+ * **The multi-select checkbox that used to sit beside this rule moved to the Parts panel**
+ * (AD18-R16 Task 7 — `designer-parts.css`'s `.rp-designer-parts .rp-designer-multi-select`): it is
+ * a selection affordance rather than an asset fact, and AD08-R1 already blesses that panel as the
+ * selection surface.
  */
 .rp-designer-inspector .rp-designer-selection-count {
 	margin: 0 0 var(--size-4-2);
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
-}
-
-.rp-designer-inspector .rp-designer-multi-select {
-	display: flex;
-	gap: var(--size-4-2);
-	align-items: center;
-	font-size: var(--font-ui-small);
-	color: var(--text-normal);
 }
 
 /**

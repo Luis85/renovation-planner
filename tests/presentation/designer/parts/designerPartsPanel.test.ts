@@ -17,6 +17,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { ref, type Ref } from 'vue';
 import DesignerPartsPanel from '../../../../src/presentation/designer/parts/DesignerPartsPanel.vue';
 import { ok, type Result } from '../../../../src/core/result/Result';
 import type { ValidationError } from '../../../../src/core/errors/AppError';
@@ -35,7 +36,9 @@ type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError>;
 
 const BOWL: DesignerSelection = { kind: 'detail', id: 'detail-2' };
 
-function mountPanel(options: { shape?: AssetShape | null; selected?: readonly DesignerSelection[] } = {}) {
+function mountPanel(
+	options: { shape?: AssetShape | null; selected?: readonly DesignerSelection[]; mode?: Ref<boolean> } = {},
+) {
 	const shape = options.shape === undefined ? editableShape() : options.shape;
 	let live = shape;
 	const applied: AssetShape[] = [];
@@ -50,11 +53,31 @@ function mountPanel(options: { shape?: AssetShape | null; selected?: readonly De
 	const select = vi.fn<(next: DesignerSelection | null) => void>();
 	const view = createPartView();
 	const wrapper = mount(DesignerPartsPanel, {
-		props: { design: assetDesign({ shape }), selected: options.selected ?? [], select, editShape, view },
+		props: {
+			design: assetDesign({ shape }),
+			selected: options.selected ?? [],
+			select,
+			editShape,
+			view,
+			// A value down and a setter up, exactly as `DesignerInspector` took it before AD18-R16
+			// Task 7 moved the control here: `v-model` on a prop is a mutation of one, which
+			// `vue/no-mutating-props` refuses.
+			...(options.mode === undefined
+				? {}
+				: {
+						multiSelectionMode: options.mode.value,
+						setMultiSelectionMode: (next: boolean): void => {
+							if (options.mode !== undefined) options.mode.value = next;
+						},
+					}),
+		},
 		attachTo: document.body,
 	});
 	return { wrapper, select, editShape, applied, view, shape, latest: (): AssetShape => live as AssetShape };
 }
+
+/** A single-graphic shape: what makes composing a set of two impossible (AD08). */
+const oneDetail = (): AssetShape => expectOk(validateAssetShape({ ...editableShape(), details: editableShape().details.slice(0, 1) }));
 
 /** jsdom resolves no CSS, so every token comes back as the same empty string — which is all these cases need: they compare one reading against another. */
 const TOKENS = resolveThemeTokens(document.documentElement);
@@ -418,5 +441,49 @@ describe('the Parts panel', () => {
 			expect(event.defaultPrevented).toBe(false);
 			expect(document.activeElement).toBe(focused);
 		});
+	});
+});
+
+/**
+ * AD08 / C05: the control that lets a keyboard or a touch user build a selection without a
+ * modifier — moved here from the Inspector's Asset block at AD18-R16 Task 7, since it is a
+ * selection affordance rather than an asset fact and AD08-R1 already blesses this panel as C05's
+ * accessible alternative to an overlap chooser. `designerInspector.test.ts` owned these cases
+ * before this task; they are moved rather than copied, because a case left behind asserting the
+ * Inspector still draws this control would be the second answer to "how do I select more than
+ * one part" the move exists to prevent.
+ */
+describe('select multiple parts', () => {
+	it('sits under the panel’s own heading, before the part list', () => {
+		const { wrapper } = mountPanel({ mode: ref(false) });
+		const heading = wrapper.get('h2');
+		const control = wrapper.get('.rp-designer-multi-select');
+		const list = wrapper.get('.rp-designer-part-list');
+
+		expect(Boolean(heading.element.compareDocumentPosition(control.element) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+		expect(Boolean(control.element.compareDocumentPosition(list.element) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+	});
+
+	it('offers the control where the design has more than one graphic', () => {
+		const { wrapper } = mountPanel({ mode: ref(false) });
+		expect(wrapper.find('[data-rp-action="multiple-selection"]').exists()).toBe(true);
+	});
+
+	it('turns the mode on through the control, so a canvas press extends rather than replaces', async () => {
+		const mode = ref(false);
+		const { wrapper } = mountPanel({ mode });
+		await wrapper.find('[data-rp-action="multiple-selection"]').setValue(true);
+		expect(mode.value).toBe(true);
+	});
+
+	/** Slice 14's Amendment 1 again: no runtime bound, no control. */
+	it('draws no control where no mode is bound', () => {
+		expect(mountPanel().wrapper.find('[data-rp-action="multiple-selection"]').exists()).toBe(false);
+	});
+
+	/** Nor where there is nothing to compose: one graphic cannot be part of a set of two. */
+	it('draws no control for a design with one graphic, until the mode is already on', () => {
+		expect(mountPanel({ shape: oneDetail(), mode: ref(false) }).wrapper.find('[data-rp-action="multiple-selection"]').exists()).toBe(false);
+		expect(mountPanel({ shape: oneDetail(), mode: ref(true) }).wrapper.find('[data-rp-action="multiple-selection"]').exists()).toBe(true);
 	});
 });

@@ -253,7 +253,8 @@ describe('a sweep made additive', () => {
 	/**
 	 * The sticky control is the point of the other route: C05 requires that no modifier is needed
 	 * for the only available way to compose a set, so this is the keyboard and touch route and it is
-	 * driven through the real checkbox the inspector draws.
+	 * driven through the real checkbox the Parts panel draws (AD18-R16 Task 7 moved it there from
+	 * the Inspector).
 	 */
 	it('adds under the sticky select-multiple control, with no modifier held', async () => {
 		const rig = await selecting();

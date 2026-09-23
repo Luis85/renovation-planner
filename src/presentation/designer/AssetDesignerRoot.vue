@@ -629,6 +629,8 @@ onMounted(() => {
 					:select="designStore.select"
 					:edit-shape="runtime.editShape"
 					:view="runtime.partView"
+					:multi-selection-mode="runtime.multiSelectionMode.value"
+					:set-multi-selection-mode="(next: boolean) => (runtime.multiSelectionMode.value = next)"
 				/>
 			</div>
 			<!--
@@ -706,8 +708,6 @@ onMounted(() => {
 					:select="designStore.select"
 					:selected="selected"
 					:locked-graphics="runtime.partView.locked.value"
-					:multi-selection-mode="runtime.multiSelectionMode.value"
-					:set-multi-selection-mode="(next: boolean) => (runtime.multiSelectionMode.value = next)"
 				/>
 			</div>
 		</div>

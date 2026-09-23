@@ -52,10 +52,37 @@ const props = defineProps<{
 	select: (next: DesignerSelection | null) => void;
 	editShape: (edit: ShapeEdit) => Promise<DispatchResult>;
 	view: PartView;
+	/**
+	 * Whether the sticky "select multiple" mode is on (AD08). Moved here from
+	 * `DesignerInspector`'s Asset block at AD18-R16 Task 7: it is a selection affordance rather
+	 * than an asset fact, and AD08-R1 already blesses this panel as C05's accessible alternative
+	 * to an overlap chooser.
+	 */
+	multiSelectionMode?: boolean;
+	/**
+	 * Turn that mode on or off, or `undefined` where no runtime binds one — the same value-down,
+	 * callback-up shape `DesignerInspector` took it in before this task, and for the same reason:
+	 * `v-model` on a prop is a mutation of it, which `vue/no-mutating-props` refuses.
+	 */
+	setMultiSelectionMode?: (next: boolean) => void;
 }>();
 
 /** The row the roving tabindex is on. A KEY rather than an index, so a reorder or a rename moves it with its row. */
 const focusedKey = ref<string | null>(null);
+
+/** How many graphics this design has — what decides whether composing a set is even possible. */
+const graphicCount = computed(() => props.design.shape?.details.length ?? 0);
+
+/**
+ * Whether the multiple-selection toggle can be drawn: the host has to have passed the setter, and
+ * either there is more than one graphic to compose or the mode is already on — it STAYS while on,
+ * for that control's own reason, since the mode also governs canvas presses and must never be left
+ * unreachable. Named rather than inlined for the same GATE `DesignerInspector` named it for before
+ * this task moved it: `fallow`'s `maxCognitive` counts every boolean operator inside a `v-if`.
+ */
+const showMultiSelectToggle = computed(
+	() => props.setMultiSelectionMode !== undefined && (graphicCount.value > 1 || props.multiSelectionMode === true),
+);
 
 const rows = computed(() => partRows(props.design.shape, { hasReference: props.design.background !== null }));
 
@@ -156,6 +183,28 @@ function reorder(id: string, direction: 'forward' | 'backward'): void {
 		<h2 class="rp-designer-panel-title">
 			{{ tr('designer.parts') }}
 		</h2>
+		<!--
+			C05 / AD08: the control that lets a keyboard or a touch user build a selection without a
+			modifier — moved here from the Inspector's Asset block (AD18-R16 Task 7), since it is a
+			selection affordance rather than an asset fact and AD08-R1 already blesses this panel as
+			C05's accessible alternative to an overlap chooser. The Plan Editor's own "Select multiple
+			elements" checkbox, in the panel that governs the same gesture — same shape, same binding,
+			so the two surfaces behave alike (C12). It STAYS while on, for that control's own reason:
+			the mode also governs canvas presses, so it must never be left unreachable. Under the
+			heading and above every other control here, so it reads as governing the whole list below.
+		-->
+		<label
+			v-if="showMultiSelectToggle"
+			class="rp-designer-multi-select"
+		>
+			<input
+				type="checkbox"
+				data-rp-action="multiple-selection"
+				:checked="multiSelectionMode === true"
+				@change="setMultiSelectionMode?.(($event.target as HTMLInputElement).checked)"
+			>
+			{{ tr('designer.selection.toggle-mode') }}
+		</label>
 		<!--
 			The way back from any hidden graphic, drawn only while something IS hidden (criterion 4):
 			one press restores everything, whether it was hidden one at a time or by an isolation.

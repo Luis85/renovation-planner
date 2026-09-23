@@ -21,6 +21,23 @@
 	border-right: 1px solid var(--background-modifier-border);
 }
 
+/**
+ * C05 / AD08: the checkbox that lets a keyboard or touch user compose a selection without a
+ * modifier — moved here from the Inspector's Asset block (AD18-R16 Task 7), because it is a
+ * selection affordance rather than an asset fact and AD08-R1 already blesses this panel as C05's
+ * accessible alternative to an overlap chooser. Same declarations as the rule it replaces
+ * (`designer-object.css`'s former `.rp-designer-inspector .rp-designer-multi-select`), just
+ * scoped to this panel instead.
+ */
+.rp-designer-parts .rp-designer-multi-select {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin-block-end: var(--size-4-1);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+}
+
 .rp-designer-parts-empty {
 	margin: 0;
 	font-size: var(--font-ui-smaller);

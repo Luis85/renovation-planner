@@ -78,25 +78,15 @@ const props = defineProps<{
 	 */
 	/** Every selected part, in selection order — the last is the one whose fields show (AD08). */
 	selected: readonly DesignerSelection[];
-	/** Whether the sticky "select multiple" mode is on (AD08). */
-	multiSelectionMode?: boolean;
-	/**
-	 * Turn that mode on or off, or `undefined` where no runtime binds one.
-	 *
-	 * A value down and a callback up, rather than the runtime's `Ref` handed over as a prop:
-	 * `v-model` on a prop is a mutation of it, which `vue/no-mutating-props` refuses — measured,
-	 * the first version of this control failed exactly there. The Plan Editor's own checkbox
-	 * escapes the question by reading its runtime directly; this panel takes everything as props,
-	 * so it takes this one the same way.
-	 */
-	setMultiSelectionMode?: (next: boolean) => void;
 	/**
 	 * The graphic ids this leaf has LOCKED (AD09's `PartView.locked`), which the Arrange block hands
 	 * the domain as `immovable` so a composition cannot move a part the user pinned.
 	 *
-	 * **REQUIRED, unlike `openLibrary` and `setMultiSelectionMode` beside it, and the difference is
-	 * what ABSENCE would mean.** Those two are optional because their absence says something true:
-	 * no runtime behind this mount, therefore no navigation to offer. Absence says nothing here —
+	 * **REQUIRED, unlike an optional prop's absence would be, and the difference is what ABSENCE
+	 * would mean.** `openLibrary` left this component for `DesignerHeader` at AD18-R1, and
+	 * `setMultiSelectionMode` left it for `DesignerPartsPanel` at AD18-R16 Task 7 — both were
+	 * optional here because their absence said something true: no runtime behind this mount,
+	 * therefore no navigation (or no selection mode) to offer. Absence says nothing here —
 	 * "this leaf has no locks" and "nobody told me about the locks" are different states, and an
 	 * `?? new Set()` default collapses them into the permissive one. So a mount that forgot to bind
 	 * it would compose a locked part like any other, silently, with all four gates green and a
@@ -112,24 +102,23 @@ const props = defineProps<{
 /** The locks this panel passes on. Required above, so there is no default to write and none to hide behind. */
 const locked = computed(() => props.lockedGraphics);
 
-/** How many graphics this design has — what decides whether composing a set is even possible. */
-const graphicCount = computed(() => props.design.shape?.details.length ?? 0);
-
 /**
- * The two conditions below are computeds rather than the expressions they replace in the
+ * `showUnscaledDimensions` below is a computed rather than the expression it replaces in the
  * template, and the reason is the GATE rather than taste. `fallow`'s `maxCognitive` is 15, and
- * AD18-R2's two tabpanels took this template to 17 — every boolean operator inside a `v-if`
- * counts. Naming them moves the operators into one-line functions that are nowhere near any
- * threshold, which is the move this repository has taken at every other complexity finding it
- * has met (`AssetInspectorActions.vue`, `UnreadableStrip.vue` and `DesignerUsagePlans.vue` each
- * refuse the `fallow-ignore-next-line complexity` the report itself offers, and say so where
- * they refuse it).
+ * AD18-R2's two tabpanels already took this template to 17 — every boolean operator inside a
+ * `v-if` counts, which is the move this repository has taken at every other complexity finding
+ * it has met (`AssetInspectorActions.vue`, `UnreadableStrip.vue` and `DesignerUsagePlans.vue`
+ * each refuse the `fallow-ignore-next-line complexity` the report itself offers, and say so
+ * where they refuse it). It carries no operator of its own any more — the paragraph below says
+ * why — so naming it costs nothing against that budget; it stays a named computed regardless,
+ * because the name is where the reason for having no second term is written down, and that
+ * reason is what a reader who met a bare `v-if` in the template would otherwise re-derive
+ * wrongly and re-add.
  *
- * **Of the two, `showMultiSelectToggle` is the one that still carries an operator** — a claim
- * about the two declarations immediately below and nothing wider — since `showUnscaledDimensions`
- * lost its one conjunct. It stays a named computed regardless: the name is where the
- * reason for having no second term is written down, and that reason is what a reader who met
- * a bare `v-if` in the template would otherwise re-derive wrongly and re-add.
+ * **`showMultiSelectToggle`, the sibling that DID carry an operator, moved to
+ * `DesignerPartsPanel` at AD18-R16 Task 7** along with the control it gated: the checkbox is a
+ * selection affordance rather than an asset fact, and AD08-R1 already blesses that panel as the
+ * selection surface. What is left here is the one condition below.
  */
 
 /**
@@ -159,23 +148,6 @@ const graphicCount = computed(() => props.design.shape?.details.length ?? 0);
  * rather than claiming a component-level one.
  */
 const showUnscaledDimensions = computed(() => props.design.dimensionsUnscaled);
-
-/**
- * Whether the multiple-selection toggle can be drawn: the host has to have passed the setter, and
- * either there is more than one graphic to compose or the mode is already on — it STAYS while on,
- * for that control's own reason, since the mode also governs canvas presses and must never be left
- * unreachable.
- *
- * **Hoisting it costs the call site its narrowing, and that is why the handler below calls
- * `setMultiSelectionMode?.(…)`.** While the `undefined` check sat inline in the `v-if`, `vue-tsc`
- * narrowed the prop for everything inside the element; a computed hides that, and the bare call
- * fails with `error TS2722: Cannot invoke an object which is possibly 'undefined'` (measured — it
- * turned `npm run check` red before the `?.` was added). The optional call is a no-op in the only
- * state that draws this control, since the computed is false whenever the prop is absent.
- */
-const showMultiSelectToggle = computed(
-	() => props.setMultiSelectionMode !== undefined && (graphicCount.value > 1 || props.multiSelectionMode === true),
-);
 
 /**
  * Both codes are `SetAssetHeightCommand`'s own — `Asset.ts`'s `checkHeight`, through
@@ -461,49 +433,15 @@ function onTabKeydown(event: KeyboardEvent): void {
 			>
 				{{ tr('designer.inspector.dimensions.unscaled') }}
 			</p>
-			<button
-				type="button"
-				class="rp-designer-edit-dimensions"
-				@click="() => void editDimensions()"
-			>
-				{{ dimensionsLabel }}
-			</button>
 			<!--
-				**The way into a PRESET left this panel too (AD18-R6)** and is in the `Add` rail,
-				beside the shape buttons — one place answering "how do I start this object" instead
-				of two standing controls at opposite edges of the leaf. `startFromPreset` itself is
-				unchanged and still lives in `AssetDesignerRoot`; what moved is the button, and the
-				prop it needed went with it. `DesignerEntryPaths`'s copy of the same gesture stays,
-				because an empty state and a standing control are never both on screen for one asset
-				in one state — which is the distinction that makes AD18-R6 a rule rather than a
-				preference.
+				**Height sits directly with Dimensions now** (AD18-R16 Task 7): board 01 groups Width,
+				Depth and Height as one fact block, and used to draw here only once `Edit dimensions`
+				and the select-multiple checkbox sat between it and the W × D row above. The checkbox
+				moved out entirely, to the Parts panel's own region — a selection affordance rather
+				than an asset fact (AD08-R1) — and `Edit dimensions` stays where it was, as the control
+				that REWRITES the block this field is part of, drawn after the facts rather than
+				between two of them.
 			-->
-			<!--
-				**The way BACK and the way FORWARD both left this panel in AD18** and are in the header
-				(`DesignerHeader.vue`), which is where AD06 item 1 asks for them. They are still one pair
-				drawn side by side, for the reason they were a pair here: they are this surface's only
-				navigations, and a user looking for one looks where the other is.
-			-->
-			<!--
-				C05: adding to a selection needs a control a keyboard and a touch user can reach, not a
-				modifier alone. The Plan Editor's own "Select multiple elements" checkbox, in the panel
-				that governs the same gesture — same shape, same binding, so the two surfaces behave
-				alike (C12). It STAYS while on, for that control's own reason: the mode also governs
-				canvas presses, so it must never be left unreachable.
-			-->
-			<label
-				v-if="showMultiSelectToggle"
-				class="rp-designer-multi-select"
-			>
-				<input
-					type="checkbox"
-					data-rp-action="multiple-selection"
-					:checked="multiSelectionMode === true"
-					@change="setMultiSelectionMode?.(($event.target as HTMLInputElement).checked)"
-				>
-				{{ tr('designer.selection.toggle-mode') }}
-			</label>
-
 			<FieldError
 				v-slot="{ aria }"
 				:message="height.error.value"
@@ -528,6 +466,29 @@ function onTabKeydown(event: KeyboardEvent): void {
 					>
 				</DesignerFieldRowShell>
 			</FieldError>
+			<button
+				type="button"
+				class="rp-designer-edit-dimensions"
+				@click="() => void editDimensions()"
+			>
+				{{ dimensionsLabel }}
+			</button>
+			<!--
+				**The way into a PRESET left this panel too (AD18-R6)** and is in the `Add` rail,
+				beside the shape buttons — one place answering "how do I start this object" instead
+				of two standing controls at opposite edges of the leaf. `startFromPreset` itself is
+				unchanged and still lives in `AssetDesignerRoot`; what moved is the button, and the
+				prop it needed went with it. `DesignerEntryPaths`'s copy of the same gesture stays,
+				because an empty state and a standing control are never both on screen for one asset
+				in one state — which is the distinction that makes AD18-R6 a rule rather than a
+				preference.
+			-->
+			<!--
+				**The way BACK and the way FORWARD both left this panel in AD18** and are in the header
+				(`DesignerHeader.vue`), which is where AD06 item 1 asks for them. They are still one pair
+				drawn side by side, for the reason they were a pair here: they are this surface's only
+				navigations, and a user looking for one looks where the other is.
+			-->
 			<!--
 				**Placement and reserved space** (AD12), siblings of the asset's own block rather than
 				rows inside it: each answers a different question — which point a plan positions this

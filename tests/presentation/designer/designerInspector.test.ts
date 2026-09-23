@@ -21,8 +21,6 @@ import { recorder } from '../../helpers/logger';
 import { assetDesign } from '../../helpers/assetDesign';
 import { t } from '../../../src/presentation/i18n/strings';
 import type { DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
-import { ref, type Ref } from 'vue';
-import { editableShape } from '../../helpers/assetShapes';
 
 let setHeight: ReturnType<typeof vi.fn<(height: number | null) => Promise<DispatchResult>>>;
 let editDimensions: ReturnType<typeof vi.fn<() => Promise<void>>>;
@@ -49,11 +47,8 @@ function buildDesign(options: {
 	readonly dimensionsUnscaled?: boolean;
 	readonly origin?: 'typed' | 'traced';
 	readonly height?: number | null;
-	/** A shape with two graphics, which is what makes composing a set possible at all (AD08). */
-	readonly manyGraphics?: boolean;
 } = {}): AssetDesignDto {
 	const base = assetDesign();
-	if (options.manyGraphics === true) return { ...base, shape: editableShape() };
 	return {
 		...base,
 		...(options.height !== undefined ? { height: options.height } : {}),
@@ -69,20 +64,10 @@ function buildDesign(options: {
 function mountInspector(
 	options: Parameters<typeof buildDesign>[0] = {},
 	selection: DesignerSelection | null = null,
-	extras: { selected?: readonly DesignerSelection[]; mode?: Ref<boolean> } = {},
+	extras: { selected?: readonly DesignerSelection[] } = {},
 ) {
 	return mount(DesignerInspector, {
 		props: {
-			// A value down and a setter up, which is how the component takes it: `v-model` on a prop
-			// is a mutation of one, and `vue/no-mutating-props` refuses it.
-			...(extras.mode === undefined
-				? {}
-				: {
-						multiSelectionMode: extras.mode.value,
-						setMultiSelectionMode: (next: boolean): void => {
-							if (extras.mode !== undefined) extras.mode.value = next;
-						},
-					}),
 			// Defaults to the primary alone, which is what a single-part selection IS (AD08).
 			selected: extras.selected ?? (selection === null ? [] : [selection]),
 			// Required rather than defaulted, deliberately: this file mounts the inspector for
@@ -191,6 +176,21 @@ describe('the designer’s inspector', () => {
 		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
 
 		expect(editDimensions).toHaveBeenCalledTimes(1);
+	});
+
+	/**
+	 * AD18-R16 Task 7: board 01 groups Width, Depth and Height as one fact block, so Height now
+	 * sits directly after the W × D row rather than after `Edit dimensions` — the control that
+	 * REWRITES the block, drawn once the facts in it are stated rather than in the middle of them.
+	 */
+	it('places Height directly with Dimensions, before Edit dimensions', () => {
+		const wrapper = mountInspector({ dimensions: { width: 1200, depth: 800 }, height: 900 });
+		const dimensions = wrapper.get('.rp-designer-inspector-fields');
+		const height = wrapper.get('input[name="height"]');
+		const editButton = wrapper.get('.rp-designer-edit-dimensions');
+
+		expect(Boolean(dimensions.element.compareDocumentPosition(height.element) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
+		expect(Boolean(height.element.compareDocumentPosition(editButton.element) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
 	});
 
 	/**
@@ -316,8 +316,10 @@ describe('the designer’s inspector', () => {
  */
 
 /**
- * AD08 / C05: the panel says how many parts are selected, and carries the control that lets a
- * keyboard or a touch user build the set — a modifier alone is not a route.
+ * AD08 / C05: the panel says how many parts are selected. The control that let a keyboard or
+ * touch user build the set MOVED to `DesignerPartsPanel` at AD18-R16 Task 7 —
+ * `designerPartsPanel.test.ts`'s own "select multiple parts" describe block is where its cases
+ * live now, unmoved apart from mounting the other component.
  */
 describe('a selection of several parts', () => {
 	const two: readonly DesignerSelection[] = [{ kind: 'detail', id: 'detail-1' }, { kind: 'detail', id: 'detail-2' }];
@@ -331,28 +333,5 @@ describe('a selection of several parts', () => {
 	it('counts nothing for a single part, or for none', () => {
 		expect(mountInspector({}, { kind: 'detail', id: 'detail-1' }).find('.rp-designer-selection-count').exists()).toBe(false);
 		expect(mountInspector().find('.rp-designer-selection-count').exists()).toBe(false);
-	});
-
-	it('offers the select-multiple control where the design has more than one graphic', () => {
-		const wrapper = mountInspector({ manyGraphics: true }, null, { mode: ref(false) });
-		expect(wrapper.find('[data-rp-action="multiple-selection"]').exists()).toBe(true);
-	});
-
-	it('turns the mode on through the control, so a canvas press extends rather than replaces', async () => {
-		const mode = ref(false);
-		const wrapper = mountInspector({ manyGraphics: true }, null, { mode });
-		await wrapper.find('[data-rp-action="multiple-selection"]').setValue(true);
-		expect(mode.value).toBe(true);
-	});
-
-	/** Slice 14's Amendment 1 again: no runtime bound, no control. */
-	it('draws no control where no mode is bound', () => {
-		expect(mountInspector({ manyGraphics: true }).find('[data-rp-action="multiple-selection"]').exists()).toBe(false);
-	});
-
-	/** Nor where there is nothing to compose: one graphic cannot be part of a set of two. */
-	it('draws no control for a design with one graphic, until the mode is already on', () => {
-		expect(mountInspector({}, null, { mode: ref(false) }).find('[data-rp-action="multiple-selection"]').exists()).toBe(false);
-		expect(mountInspector({}, null, { mode: ref(true) }).find('[data-rp-action="multiple-selection"]').exists()).toBe(true);
 	});
 });

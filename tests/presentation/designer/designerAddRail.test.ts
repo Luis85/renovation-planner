@@ -297,11 +297,12 @@ describe('what the Add rail’s stylesheet declares', () => {
 	 * **Task 3: the rail shows its tile text at EVERY width now, and the rule is unconditional.**
 	 * Board 01's tiles carry a visible label under the icon, so this rule inverts wave 11's — which
 	 * hid the same class unconditionally for the toolbar-shaped reason recorded in this partial's own
-	 * header. `designer-toolbar.css` still hides `.rp-designer-tool-label` below 80rem for the
-	 * TOOLBAR, and that rule reaches this class too since it is unqualified beyond
-	 * `.renovation-asset-designer` — so this rule has to win at equal specificity by import order
-	 * (`designer-add.css` after `designer-toolbar.css` in `styles/index.css`) rather than merely
-	 * existing, which is why `display: block` is asserted rather than the property's mere presence.
+	 * header. `designer-toolbar.css` hides `.rp-designer-tool-label` at every width for the TOOLBAR
+	 * too now (AD18-R17 Task 2 dropped the 80rem condition that rule used to sit under), and that
+	 * rule reaches this class as well since it is unqualified beyond `.renovation-asset-designer` —
+	 * so this rule has to win at equal specificity by import order (`designer-add.css` after
+	 * `designer-toolbar.css` in `styles/index.css`) rather than merely existing, which is why
+	 * `display: block` is asserted rather than the property's mere presence.
 	 *
 	 * Declared and unrendered: jsdom applies no container query and computes no width, so this is a
 	 * statement about the stylesheet and never about a rendered rail.

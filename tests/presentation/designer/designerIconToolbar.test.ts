@@ -8,9 +8,12 @@
  * width, so not one case here is a measurement of a rendered toolbar. What the mounted cases read
  * is the MARKUP — the accessible name, the glyph each button asked the host for, the grouping —
  * and what the stylesheet cases read is what a rule DECLARES, through lightningcss
- * (`tests/helpers/selectors.ts`), exactly as `designerStyles.test.ts` does. Whether the labelled
- * toolbar still occupies one row at 80rem, and whether the capped rails leave the canvas the half
- * the arithmetic promises, are questions for a browser.
+ * (`tests/helpers/selectors.ts`), exactly as `designerStyles.test.ts` does. The toolbar is never
+ * labelled now (AD18-R17 Task 2 hides `.rp-designer-tool-label` at every width) — whether the
+ * icon-only row still fits one line at 1280px is a question for a browser regardless, and whether
+ * the capped rails leave the canvas the half the arithmetic promises is another one this file
+ * cannot see either. (The integrator's own capture of this task's commit read one 33px row at
+ * 1280px with a part selected.)
  *
  * The four small readers below (`onlyRule`, `spelled`, `parsed`, `declared`) are a deliberate
  * clone of `designerStyles.test.ts`'s, and the clone is deliberate because that file is not this
@@ -112,19 +115,20 @@ describe('every toolbar button is an icon with a name', () => {
 	});
 
 	/**
-	 * **No two buttons wear the same glyph.** Below the toolbar's own 80rem the text is hidden and
-	 * the glyph is the ONLY thing that tells two buttons apart on screen, so a table that reused
-	 * one — the cheapest possible edit, and the one a reader adding a twelfth tool would reach
-	 * for — would ship two controls that look identical and do different things at that width.
+	 * **No two buttons wear the same glyph.** The toolbar's text is hidden at every width now
+	 * (AD18-R17 Task 2) and the glyph is the ONLY thing that tells two buttons apart on screen, so
+	 * a table that reused one — the cheapest possible edit, and the one a reader adding a twelfth
+	 * tool would reach for — would ship two controls that look identical and do different things.
 	 * Nothing else in this repository can see that: the labels would still differ, so every
 	 * existing toolbar case stays green.
 	 *
 	 * **Asked across BOTH homes since AD18-R3**, which is the widening the ruling forces rather
 	 * than a convenience. **Task 3's fix round gave the rail's four a visible tile label**
 	 * (`designer.add.tile-*`), so the rail is no longer the "neither control has any text at all"
-	 * case this paragraph used to name — but the toolbar's OWN icon-only state below 80rem still
-	 * is, and a glyph shared between a toolbar button and a rail button would still be reused
-	 * copy-paste, so the case is kept for the half of the claim that is still true.
+	 * case this paragraph used to name — but the toolbar's OWN icon-only state, now unconditional
+	 * rather than only below 80rem, still is, and a glyph shared between a toolbar button and a
+	 * rail button would still be reused copy-paste, so the case is kept for the half of the claim
+	 * that is still true.
 	 */
 	it('asks for a distinct glyph per button across both homes, which is all that tells them apart once the text is hidden', async () => {
 		const rig = await designerRig();

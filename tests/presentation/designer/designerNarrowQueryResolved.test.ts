@@ -23,13 +23,16 @@
  * declaration, not a discovery, and every sentence in this file is written that way.
  *
  * **What changed, recorded here rather than left for the next reader to discover.** AD18 item 3
- * shipped the FIRST `display: none` in this repository that reaches a designer toolbar control at
- * a narrow leaf: `styles/designer-toolbar.css` hides `.rp-designer-tool-label` under
- * `@container rp-designer (width < 80rem)`, so at 520 px a label is hidden by a partial this file
- * does not read. Nothing here is red and nothing should be — the control keeps its accessible name
- * through `aria-label` at every width, and a label is not itself a control, which is the whole
- * reason that design is allowed. But the sentence above used to read as "no rule hides anything on
- * this surface", and that is now false; it is narrowed to what this file actually measures.
+ * shipped the FIRST `display: none` in this repository that reaches a designer toolbar control:
+ * `styles/designer-toolbar.css` hid `.rp-designer-tool-label` under `@container rp-designer
+ * (width < 80rem)`, so at 520 px a label was hidden by a partial this file does not read.
+ * **AD18-R17 Task 2 then dropped that condition** — the rule hides the label at EVERY width now,
+ * not only below 80rem — so the hiding declaration outside this partial is no longer specific to
+ * the narrow leaf this file resolves at; it reaches 520 px, 900 px and everywhere else alike.
+ * Nothing here is red and nothing should be — the control keeps its accessible name through
+ * `aria-label` at every width, and a label is not itself a control, which is the whole reason
+ * that design is allowed. But the sentence above used to read as "no rule hides anything on this
+ * surface", and that is now false; it is narrowed to what this file actually measures.
  *
  * **Widening the read to every `styles/designer*.css` partial was considered and is NOT taken
  * here**, because it changes what this instrument IS. This file resolves ONE partial's container

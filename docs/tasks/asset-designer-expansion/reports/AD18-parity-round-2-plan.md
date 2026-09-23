@@ -279,6 +279,11 @@ Requirements:
   with `&select=detail-2` and with nothing selected. `All dimensions` keeps AD18-R14's floor of zero
   unclickable labels at the fit camera at 1280.
 - When Task 7's `Show clearance` ref is off, the clearance dimensions are not drawn.
+- **Routed from Task 6's review:** resting `.rp-designer-dimension` buttons are `z-index: auto` and the
+  canvas key (legend and scale bar, bottom-left, opaque, `pointer-events: none`) is drawn after them in the
+  overlay, so at a non-fit camera the key paints over a dimension button: an invisible click target and an
+  obscured focus (WCAG 2.4.11). Resting labels must paint above the key; an open inline form stays above
+  both. Verify at a zoom that puts a label in the bottom-left corner.
 - Predict the four resting overlap counts in your report. The integrator measures them.
 
 **Owns:** `dimensions/DesignerDimensions.vue`, `dimensions/dimensionFigures.ts`, new `dimensions/`

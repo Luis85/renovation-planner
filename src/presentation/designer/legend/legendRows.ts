@@ -49,8 +49,10 @@ const PLACEMENT_LABELS: Record<AnchorPreset | 'custom', StringKey> = {
  *
  * **Two rows say something about THIS design (AD18-R17, board 01).** The placement point names
  * its preset through `currentAnchorPreset` — the SAME call `DesignerReferencePlacement` makes for
- * its segment's pressed state, so the legend and the segment cannot disagree about which one is
- * pressed. The clearance names a figure only through {@link uniformSetback}.
+ * its segment's pressed state, so the two agree whenever no gesture is live. During an anchor or
+ * footprint drag they do NOT: `DesignerLegend` hands this function the preview, as AD18-R11
+ * requires, while the segment reads the committed shape, so the legend runs ahead until release.
+ * The clearance names a figure only through {@link uniformSetback}.
  */
 export function legendRows(shape: AssetShape | null): readonly LegendRow[] {
 	if (shape === null) return [];

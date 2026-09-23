@@ -32,7 +32,7 @@ import { editableShape } from '../../../helpers/assetShapes';
 import { expectOk } from '../../../helpers/domain';
 import { resolveThemeTokens } from '../../../../src/presentation/editor/theme/themeTokens';
 
-type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError>;
+type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError> | null;
 
 const BOWL: DesignerSelection = { kind: 'detail', id: 'detail-2' };
 
@@ -44,7 +44,8 @@ function mountPanel(
 	const applied: AssetShape[] = [];
 	const editShape = vi.fn<(edit: ShapeEdit) => Promise<DispatchResult>>((edit) => {
 		const result = edit(live as AssetShape);
-		if (result.ok) {
+		// `null` is the real `editShape`'s nothing-to-do; no case here hands it one.
+		if (result?.ok) {
 			live = result.value;
 			applied.push(result.value);
 		}

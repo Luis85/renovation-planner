@@ -35,6 +35,11 @@ const props = defineProps<{
 	/** Every graphic id in draw order, handed through to the controls. */
 	graphicIds: readonly string[];
 	choose: () => void;
+	/**
+	 * The selection keys, bound on the part's own BUTTON (AD18-R17 Task 3) — so a key typed in the Label
+	 * field beneath it, a sibling rather than a child, never reaches it and edits the text instead.
+	 */
+	shortcut: (event: KeyboardEvent) => void;
 	reorder: (id: string, direction: 'forward' | 'backward') => void;
 	rename: (id: string, label: string) => void;
 }>();
@@ -92,6 +97,7 @@ const groupId = computed(() => (props.row.kind === 'group' ? props.row.groupId :
 			:aria-pressed="pressed"
 			:tabindex="tabIndex"
 			@click="choose"
+			@keydown="shortcut"
 		>
 			<span class="rp-designer-part-name">{{ name }}</span>
 			<span

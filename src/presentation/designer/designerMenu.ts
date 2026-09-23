@@ -60,6 +60,9 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToo
 	 * Read only while `focused` is non-null — `DesignerContextMenu` draws the list under that condition —
 	 * and a selection implies a design: `AssetDesignStore.fail` empties the set, so the cast below stands
 	 * on nothing the store does not already hold. Greyed by `selectionAbilities`, the keys' own answer.
+	 *
+	 * TWO groups, so `CanvasMenuList` draws ONE separator, between Ungroup and Duplicate (board 02 panel 7,
+	 * AD18-R17 Task 3): a group is only where the shared list draws a line, and this menu has one.
 	 */
 	const items = computed((): CanvasMenuAction[] => {
 		const can = selectionAbilities((store.design as AssetDesignDto).shape, store.selected), mod = modifierLabel();
@@ -67,7 +70,7 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToo
 			{ id: 'group', label: 'designer.arrange.group', group: 'arrange', icon: 'group', shortcut: tr('designer.menu.shortcut.group', { mod }), disabled: !can.group, run: actions.groupSelection },
 			{ id: 'ungroup', label: 'designer.arrange.ungroup', group: 'arrange', icon: 'ungroup', shortcut: tr('designer.menu.shortcut.ungroup', { mod }), disabled: !can.ungroup, run: actions.ungroupSelection },
 			{ id: 'duplicate', label: 'designer.selection.duplicate', group: 'edit', icon: 'copy', shortcut: tr('designer.menu.shortcut.duplicate', { mod }), disabled: !can.duplicate, run: actions.duplicateSelection },
-			{ id: 'delete', label: 'designer.selection.delete', group: 'destructive', icon: 'trash', shortcut: tr('designer.menu.shortcut.delete'), disabled: !can.delete, run: actions.deleteSelection },
+			{ id: 'delete', label: 'designer.selection.delete', group: 'edit', icon: 'trash', shortcut: tr('designer.menu.shortcut.delete'), disabled: !can.delete, run: actions.deleteSelection },
 		];
 	});
 

@@ -36,11 +36,11 @@
 import { computed, ref } from 'vue';
 import { rovingIndex } from '../../components/rovingIndex';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
-import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import { reorderDetail, updateDetail } from '../../../domain/asset/detailEdits';
 import { tr } from '../../i18n/strings';
-import type { ShapeEdit } from '../selection/editShape';
+import type { EditShape } from '../selection/editShape';
 import { partKey, type DesignerSelection } from '../selection/designerSelection';
+import { designerShortcut, selectionKeyActions } from '../designerKeys';
 import { partRows, type PartRow } from './partRows';
 import type { PartView } from './partView';
 import DesignerPartRow from './DesignerPartRow.vue';
@@ -50,7 +50,8 @@ const props = defineProps<{
 	/** Every selected part, in selection order (AD08) — every one of them lights its row. */
 	selected: readonly DesignerSelection[];
 	select: (next: DesignerSelection | null) => void;
-	editShape: (edit: ShapeEdit) => Promise<DispatchResult>;
+	/** The leaf's `editShape`, whose edit may answer `null` for nothing to do — the selection keys' edits do. */
+	editShape: EditShape;
 	view: PartView;
 	/**
 	 * Whether the sticky "select multiple" mode is on (AD08). Moved here from
@@ -154,6 +155,41 @@ function onKeydown(event: KeyboardEvent): void {
 	list.value?.querySelector<HTMLElement>(`[data-key="${CSS.escape(next.key)}"] button`)?.focus();
 }
 
+/**
+ * Delete, Ctrl+D, Ctrl+G and Ctrl+Shift+G on a focused part row (AD18-R17 Task 3): the canvas's own
+ * `designerShortcut` over `selectionKeyActions`, built here from the props the root hands this panel —
+ * its store's `selected` and `select`, and the leaf's `editShape` — as `DesignerCanvas` builds its own
+ * instance for the arrows. One function per action, never a copy. The panel is a SIBLING of the canvas,
+ * so a key handled here never reaches `onCanvasKeyDown` as well.
+ *
+ * **Only on the row of the FOCUSED part**, the last selected member: every per-part action acts on
+ * that one, so a key on any other row — one the arrows moved focus to without pressing it — would act
+ * on a part other than the row under the keyboard. There it is not claimed, and the host keeps it. The
+ * context menu's right-click makes a row's part the focused one first; a key cannot, holding no store.
+ *
+ * No tool refusal, unlike the canvas's: a tool owns the CANVAS's keyboard, and a key here never went
+ * there. `null` for the active tool is therefore never read — it answers only the nudge, which no key
+ * here reaches.
+ */
+const keyActions = selectionKeyActions(
+	{
+		get selected() {
+			return props.selected;
+		},
+		// Read only by an action a claim ran, and a claim needs a focused part, so there is always one.
+		get selection() {
+			return props.selected.at(-1) as DesignerSelection;
+		},
+		select: (next) => props.select(next),
+	},
+	(edit) => props.editShape(edit),
+	{ value: null },
+);
+
+function shortcut(event: KeyboardEvent, row: PartRow): void {
+	if (props.selected.slice(-1).some((last) => partKey(last) === row.key)) designerShortcut(event, props, keyActions);
+}
+
 function rename(id: string, label: string): void {
 	void props.editShape((shape) => updateDetail(shape, id, { label }));
 }
@@ -239,6 +275,7 @@ function reorder(id: string, direction: 'forward' | 'backward'): void {
 				:view="view"
 				:graphic-ids="graphicIds"
 				:choose="() => choose(row)"
+				:shortcut="(event: KeyboardEvent) => shortcut(event, row)"
 				:reorder="reorder"
 				:rename="rename"
 			/>

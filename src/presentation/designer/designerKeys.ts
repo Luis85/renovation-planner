@@ -14,7 +14,8 @@ import type { EditShape, ShapeEdit } from './selection/editShape';
  * The asset designer's selection keys (symbols spec, Decision 10). Delete, Ctrl+D, and Ctrl+G and
  * Ctrl+Shift+G (group and ungroup, AD18-R16 Task 11) are decided HERE and bound on the canvas element
  * itself by `AssetDesignerRoot`, because `EditorSurface` routes none of them and leaves them to other
- * listeners; the arrows are `EditorSurface`'s own nudge, which `DesignerCanvas` answers with
+ * listeners, and on the focused part's Parts row by `DesignerPartsPanel` (AD18-R17 Task 3); the
+ * arrows are `EditorSurface`'s own nudge, which `DesignerCanvas` answers with
  * `selectionKeyActions(...).nudgeSelection`. Every edit is one `editShape`, so one conditional write
  * and one undo entry, and every refusal goes through `notifyIfRefused` — except a nudge or a Delete whose
  * part is already gone when its step runs, which is skipped and says nothing (`whileItExists`).

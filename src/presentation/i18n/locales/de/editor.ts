@@ -41,6 +41,10 @@ import type {
  * (`...editorDe`).
  */
 import { structureDe } from './structure';
+import { designerSelectionLayoutDe } from './designerSelectionLayout';
+import { designerPlacementSourceDe } from './designerPlacementSource';
+import { designerClearanceHelperDe } from './designerClearanceHelper';
+import { saveStateRelativeDe } from './saveStateRelative';
 export const editorDe: Record<keyof typeof editorEn, string> = {
 	...curvesDe,
 	...assetSymbolsDe,
@@ -53,6 +57,10 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	...designerRulersDe,
 	...assetDimensionsOnCanvasDe,
 	...designerLegendDe,
+	...saveStateRelativeDe,
+	...designerClearanceHelperDe,
+	...designerPlacementSourceDe,
+	...designerSelectionLayoutDe,
 	...designerAddDe,
 	...designerRecoveryDe,
 	...groupsDe,

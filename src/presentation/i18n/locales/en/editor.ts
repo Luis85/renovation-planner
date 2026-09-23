@@ -53,6 +53,10 @@ import { assetWorkflowEn } from './assetWorkflow';
  * `editor.room.default-name` in the source file's reading order. They stayed in `en.ts`.
  */
 import { structureEn } from './structure';
+import { designerSelectionLayoutEn } from './designerSelectionLayout';
+import { designerPlacementSourceEn } from './designerPlacementSource';
+import { designerClearanceHelperEn } from './designerClearanceHelper';
+import { saveStateRelativeEn } from './saveStateRelative';
 export const editorEn = {
 	...curvesEn,
 	...assetSymbolsEn,
@@ -65,6 +69,10 @@ export const editorEn = {
 	...designerRulersEn,
 	...assetDimensionsOnCanvasEn,
 	...designerLegendEn,
+	...saveStateRelativeEn,
+	...designerClearanceHelperEn,
+	...designerPlacementSourceEn,
+	...designerSelectionLayoutEn,
 	...designerAddEn,
 	...designerRecoveryEn,
 	...groupsEn,

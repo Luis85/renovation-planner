@@ -1392,6 +1392,99 @@ user rather than taking one.
 
 The work plan is [`reports/AD18-parity-round-plan.md`](../reports/AD18-parity-round-plan.md).
 
+### AD18-R17 — a second parity round: fifteen board gaps approved, one declined. (2026-09-23)
+
+**Taken by the user**, in session sixteen, after a fresh audit of the running harness against both
+concept boards at 1280 and 460 px in both schemes. The gaps were put as four batched multi-select
+questions, and **fifteen of sixteen were approved**. Each is outside AD18's *Deliberately absent*
+table and does not contradict AD18-R1…R16:
+
+| Gap | Board | Shipped before |
+|---|---|---|
+| Icon-only toolbar tools at every width, with the label kept as accessible name and tooltip | 01, 02 | labels shown at wide widths; with a part selected the toolbar wraps to 2 rows at 1280 (71 px) and 3 at 460 |
+| Magnifier zoom icons (`zoom-out` / `zoom-in`) | 01 | `circle-minus` / `circle-plus` |
+| Scale bar (`0 250 500 mm`), stepped by `designerGrid` | 02 | none |
+| Dimension lines with arrows and extension lines, value with unit | 01 | a boxed number |
+| Corner radius SURVIVES a Width/Depth edit: a detected rounded rectangle is rebuilt through `roundedRect` with its radius clamped | 02 | radius field vanishes because the corners stop being circular |
+| Corner radius as a slider beside its number field | 02 | number field only |
+| Position X \| Y and Size W \| D paired on one row each; `Appearance` and `Order` folds | 01 | one field per row, always open |
+| Front direction as a picker with a mini preview, through the existing facing edit | 01 | a sentence plus the Set-facing tool |
+| Clearance: `Show clearance` view toggle, a link/uniform control, the four fields folded under `Advanced` | 01 | four fields and Generate, always open |
+| Legend detail: `Clearance (300 mm)` only when all four sides are equal; `Placement point (back centre)` | 01 | bare labels |
+| Context menu with ONE separator; Group/Ungroup/Duplicate/Delete keys also bound on Parts rows | 02 | two separators; keys bound on the canvas element only |
+| Relative save time (`Saved just now`) — see AD18-R19 | 02 | `Saved` |
+| Harness `&stale` knob for the designer, with a capture of the Try-again retry | — | none; AD18-R15 measured it only through an injected probe |
+| `Source & scale` block: Source and `Dimensions set`, READ-ONLY and derived | 01 | none |
+| Asset Library tile grid — see AD18-R18 | 01 | shelves of price rows |
+
+**Declined: `Preview in plan`** (boards 01 and 02). It would be a new read-only surface. The use-in-plan
+door already ships, and §4 row 6's refusal of the green *"fits well"* card would leave the preview
+nothing to say about fit.
+
+**Three board elements are carved OUT of approved rows, because each needs a stored field and this
+ruling authorizes no schema change** (C09; AD18-R16's own stop condition):
+- board 01 panel 4's `Shape` dropdown, because changing a part's kind REPLACES its geometry, which C03
+  refuses to disguise as an edit;
+- board 02's `Show direction in plan`, a per-asset render flag;
+- board 01's `Mark as needs verification`, a durable review state beside AD14-R1's one boolean.
+
+A card that finds any approved row needs a stored field returns to the user rather than taking one.
+
+**Two bindings that come from the contract rather than from the boards:**
+- **The Front direction picker shows no degree figure copied from the board.** Board 01 reads
+  `Top (0°)` and C04 says *"'up/down = 0 degrees' is not copied from a mockup"*. `facing` is radians
+  anticlockwise from +x, so the picker names drawing-relative directions (up, right, down, left of the
+  drawing), plus `Custom` for any other angle. The labels follow the existing sentence's convention.
+- **`Clearance (300 mm)` is stated only when the four sides agree.** A clearance is an arbitrary traced
+  boundary (C07), and a single figure over an asymmetric one would be a false measurement. §4 row 7's
+  fixed values stay refused; the figure is the user's own.
+
+**Corner radius survives a resize under AD11 item 2's own condition.** That item says *"store parameter
+intent only if subsequent edits can maintain it"*, and this row is the subsequent edit maintaining it.
+Nothing is stored: the radius is read back by `cornerRadiusOf`, as AD18-R16 shipped it.
+
+**Three defects in AD18-R16's own work were found by the same audit and are fixed without a ruling**,
+because each breaks a ruling that already stands. They are recorded here so nobody credits this round
+with deciding them:
+- the Placement segment's `Custom` label breaks mid-word (`Custo`/`m`) at a 1280 leaf, a 35 px label
+  in a 61 px button;
+- the asset card's thumbnail is invisible: `stroke-width: 1.5` in an 880-unit `viewBox` drawn at 40 px
+  renders a **0.07 px** stroke;
+- at a 460 px leaf the RESTING dimension labels overlap in **5 pairs** (`360/126`, `360/800`,
+  `270/220`, `220/450`, `126/800`), against AD18-R14's floor that the resting state stays at zero.
+  That floor was only ever measured at 1280.
+
+The work plan is [`reports/AD18-parity-round-2-plan.md`](../reports/AD18-parity-round-2-plan.md).
+
+### AD18-R18 — the Asset Library gains a GRID view beside its list; the list is not replaced. (2026-09-23)
+
+**Taken by the user**, asked separately because the library has its own authority,
+`docs/user-experience/archive/asset-library-overview-DESIGN-SPEC.md`, and board 01's right-hand
+column contradicts it. That spec draws shelves of rows carrying unit cost, waste and supplier, and its
+§10 refuses a sort control (*"the shelves are the only other axis"*).
+
+**A Grid | List toggle, with List unchanged.** Grid draws board 01's tiles: the existing geometry mark
+at tile size, the name and the measured size. It adds board 01's category sidebar with icons as a
+FILTER over the same shelves, a `Create your own` card calling the existing `New asset` door, and the
+filter button. The chosen view lives in Obsidian's own view state beside the expanded categories, per the spec's
+§6.3. A change to it is not a navigation.
+
+**The losing arms.** Replacing the list with tiles would drop the price columns off the browsing surface
+and rewrite the spec's §3.2/§3.3. Adding the sidebar and card without tiles would leave the board's
+defining element out. **What this does NOT reopen:** §10's anti-goals stand (no totals, no bulk edit,
+no sort control, no placement); the sidebar filters by the categories the vault already has and
+manages none (§10's *"No category management"*). The inspector and the unreadable-notes notice are
+unchanged.
+
+### AD18-R19 — relative save time shows on BOTH surfaces that share the indicator. (2026-09-23)
+
+**Taken by the user.** `SaveStateIndicator.vue` is shared by the Plan Editor's status bar and the
+designer's header. A designer-only prop would give one state two spellings across surfaces, which is
+the shape this repository refuses. So `Saved just now` / `Saved 2 min ago` reads the same in both
+places. **The cost this accepts:** the change reaches the Plan Editor, and needs a saved-at time in
+the save-state store. The derived `Saved · refresh needed` qualifier keeps its precedence, because a
+stale canvas must never read as freshly saved (C08).
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

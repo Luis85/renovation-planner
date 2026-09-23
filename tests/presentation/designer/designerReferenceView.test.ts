@@ -193,3 +193,26 @@ describe('removing the reference', () => {
 		}
 	});
 });
+
+describe('the placement group’s Custom segment (AD18-R16 Task 8)', () => {
+	/**
+	 * Proves the `activateAnchorTool` prop chain is really BOUND at the composition root —
+	 * `DesignerInspector.vue`'s own docblock names the failure mode this case exists to catch:
+	 * "an unwired callback is invisible to every one of this repository's six gates". A unit
+	 * mount of `DesignerReferencePlacement` can only prove the component CALLS the prop it is
+	 * handed; only the real mounted designer proves `AssetDesignerRoot` wires that prop to the
+	 * same `set-anchor` tool the toolbar's own `Set anchor` button activates.
+	 */
+	it('switches the canvas to the existing Set-anchor tool, reached the way a user reaches it', async () => {
+		const rig = await designerRig({ shape: toiletShape() });
+		try {
+			expect(rig.activeToolId()).toBeNull();
+
+			await rig.wrapper.get('[name="placement-custom"]').trigger('click');
+
+			expect(rig.activeToolId()).toBe('set-anchor');
+		} finally {
+			rig.unmount();
+		}
+	});
+});

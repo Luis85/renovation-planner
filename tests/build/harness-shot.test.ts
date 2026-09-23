@@ -728,7 +728,7 @@ describe('the headless harness capture script', () => {
 
 		// L-43's phone shot, also in `selected` and the widths above: the phone knob, the Actions
 		// row, and a wait only the read-only library satisfies.
-		expect([query('asset-library-phone').has('phone'), shot('asset-library-phone').scrollTo, shot('asset-library-phone').selector]).toEqual([true, '.rp-al-actions', '.renovation-asset-library .rp-mobile-notice']);
+		expect([query('asset-library-phone').has('phone'), shot('asset-library-phone').scrollTo, shot('asset-library-phone').selector]).toEqual([true, '.rp-al-actions', '.renovation-asset-library [data-rp-notice="mobile-read-only"]']);
 	});
 
 	/**

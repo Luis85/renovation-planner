@@ -883,7 +883,7 @@ const SHOTS = [
 	// L-43: the library on a phone, read-only. It waits on the mobile notice rather than on the
 	// view, so a dropped `phone` cannot photograph the writable library under this name, and it
 	// scrolls to the Actions row so `Open designer` and `Delete` are in the picture.
-	{ name: 'asset-library-phone', query: `?view=asset-library&phone&theme=light&asset=${LIBRARY_SELECTED_ASSET}`, selector: `${ASSET_LIBRARY_VIEW} .rp-mobile-notice`, width: 360, scrollTo: '.rp-al-actions' },
+	{ name: 'asset-library-phone', query: `?view=asset-library&phone&theme=light&asset=${LIBRARY_SELECTED_ASSET}`, selector: `${ASSET_LIBRARY_VIEW} [data-rp-notice="mobile-read-only"]`, width: 360, scrollTo: '.rp-al-actions' },
 	// The harness's own index — the one surface here this command could not photograph. That is
 	// not a gap worth leaving in a tool whose whole argument is that a capture read by eye
 	// reaches defects no gate can: the index's own chrome went unlooked-at while it accumulated

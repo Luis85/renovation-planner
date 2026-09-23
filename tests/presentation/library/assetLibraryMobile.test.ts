@@ -171,7 +171,7 @@ describe('the Asset library on mobile', () => {
 		expect(wrapper.get(`[data-asset-id="${ENTRY.assetId}"]`).text()).toContain(ENTRY.name);
 		expect(wrapper.get('.rp-al-inspector__name').text()).toBe(ENTRY.name);
 		expect(wrapper.get<HTMLInputElement>('.rp-al-search__input').element.disabled).toBe(false);
-		expect(wrapper.findAll('.rp-mobile-notice')).toHaveLength(1);
+		expect(wrapper.findAll('[data-rp-notice="mobile-read-only"]')).toHaveLength(1);
 	});
 
 	// No selection, so no draft: a dirty draft's own leave prompt would otherwise stand in front
@@ -219,7 +219,7 @@ describe('the same gestures on desktop', () => {
 			'setAssetFootprintFromDimensions.execute',
 			'updateAsset.execute',
 		]);
-		expect(wrapper.find('.rp-mobile-notice').exists()).toBe(false);
+		expect(wrapper.find('[data-rp-notice="mobile-read-only"]').exists()).toBe(false);
 	});
 
 	it("reaches the dialog from the empty catalogue's New asset action", async () => {

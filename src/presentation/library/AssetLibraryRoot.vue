@@ -23,6 +23,7 @@ const dialogs = useDialogStore();
 const draftGuard = useLibraryDraftGuard();
 
 // One notice per surface, and the id every refused control points at — `ViewRoot.vue`'s shape.
+// Hooked by `data-rp-notice`, not `ViewRoot`'s rule-less class: this tree may emit no unstyled class.
 const readOnly = context.readOnly === true;
 const noticeId = useId();
 const readOnlyReasonId = readOnly ? noticeId : undefined;
@@ -245,7 +246,8 @@ watch(context.assetId, async (assetId) => {
 		<p
 			v-if="readOnly"
 			:id="noticeId"
-			class="rp-view-notice rp-mobile-notice"
+			class="rp-view-notice"
+			data-rp-notice="mobile-read-only"
 		>
 			{{ tr('view.mobile.read-only') }}
 		</p>

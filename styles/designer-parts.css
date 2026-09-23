@@ -8,7 +8,7 @@
  * Obsidian variables only (SDD §84), so a themed vault stays themed; the build refuses a literal
  * colour here. Every button rule that sets a property Obsidian's own `button:not(.clickable-icon)`
  * sets is qualified with `.rp-designer-parts`, which puts it at (0,2,0) against that rule's (0,1,1)
- * — `tests/build/buttonSpecificity.test.ts`'s category check, and the defect it has caught three
+ * — `tests/gates/buttonSpecificity.test.ts`'s category check, and the defect it has caught three
  * times is a colour nobody chose appearing only in a vault.
  */
 .rp-designer-parts {
@@ -154,7 +154,7 @@
  * **Flattening a button takes its focus ring with it.** The three rules above beat Obsidian's own
  * `button:not(.clickable-icon)` on `box-shadow`, and that shadow is where a button's focus ring
  * comes from — its global `:focus { outline: none }` has already taken the outline, so a keyboard
- * user would be left with nothing at all. `tests/build/buttonFocusRing.test.ts` is the check, and
+ * user would be left with nothing at all. `tests/gates/buttonFocusRing.test.ts` is the check, and
  * it reported all three of these before this block existed. `--interactive-accent` is the token
  * `styles/editor.css` already measured both schemes against.
  */

@@ -9,11 +9,10 @@ import type {
 	PlanGeometryDocument,
 	PlanGeometrySidecar,
 	PlanGeometrySnapshot,
+	SpatialObjectGeometry,
 } from '../../../application/ports/PlanGeometrySidecar';
 import type { PlanGeometryStore } from './PlanGeometryStore';
 import type { Structure } from '../../../domain/spatial/Structure';
-import type { ItemColor } from '../../../domain/spatial/ItemColor';
-import type { Vector } from '../../../core/geometry/Vector';
 import {
 	calibrationFromPersistence,
 	calibrationToPersistence,
@@ -22,29 +21,14 @@ import {
 function toTuples(points: readonly { x: number; y: number }[]): [number, number][] {
 	return points.map((point) => [point.x, point.y]);
 }
-/**
- * The fields a spatial object carries IDENTICALLY in both directions, copied rather than aliased.
- *
- * `read` and `write` below each mapped these four by hand, which `npm run analyze` reported as a
- * clone group inside this one file — and a clone in a MAPPER is the pair most worth closing: the
- * two copies are what makes "the document that goes out is the document that came back" true, so a
- * field added to one and forgotten in the other is silent data loss rather than a type error.
- *
- * Generic, because the two sides are different types that happen to agree about these four: the DTO
- * object and the port's `SpatialObjectGeometry`. Each caller adds what its own side needs — `points`
- * in its own shape, and the writer's `type` literal.
- */
-function carriedObjectFields<T extends { readonly id: string; readonly bulges?: readonly number[]; readonly labelOffset?: Vector; readonly color?: ItemColor }>(
-	object: T,
-): { id: string; bulges?: number[]; labelOffset?: Vector; color?: ItemColor } {
+/** An entry's optional fields, copied, and omitted rather than written `undefined` while absent. */
+function optionalObjectFields(object: Pick<SpatialObjectGeometry, 'bulges' | 'labelOffset' | 'color'>): Pick<PlanGeometryDTO['objects'][number], 'bulges' | 'labelOffset' | 'color'> {
 	return {
-		id: object.id,
 		...(object.bulges ? { bulges: [...object.bulges] } : {}),
 		...(object.labelOffset ? { labelOffset: { ...object.labelOffset } } : {}),
 		...(object.color ? { color: object.color } : {}),
 	};
 }
-
 function toStructure(structure: Structure | undefined): PlanGeometryDTO['structure'] {
 	return structure ? {
 		...(structure.elements?.length ? { elements: structure.elements.map(element => ({ ...element, points: element.points.map(point => ({ ...point })) })) } : {}),
@@ -82,7 +66,8 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 				...(dto.structure ? { structure: dto.structure } : {}),
 				calibration: dto.calibration ? calibrationFromPersistence(dto.calibration) : null,
 				objects: dto.objects.map((object) => ({
-					...carriedObjectFields(object),
+					id: object.id,
+					...optionalObjectFields(object),
 					points: object.points.map(([x, y]) => ({ x, y })),
 				})),
 			},
@@ -107,7 +92,8 @@ export class ObsidianPlanGeometrySidecar implements PlanGeometrySidecar {
 				// knows — the day the schema grows a second spatial-object type, this
 				// literal becomes a rewrite of every entry and must move into the port.
 				objects: document.objects.map((object): PlanGeometryDTO['objects'][number] => ({
-					...carriedObjectFields(object),
+					id: object.id,
+					...optionalObjectFields(object),
 					type: 'polygon',
 					points: toTuples(object.points),
 				})),

@@ -22,7 +22,7 @@
  * contract keeps the two mutually exclusive), so that selector cannot match inside it.
  *
  * Every button rule here names its parent class as well as its own — `(0,2,0)` against
- * Obsidian's `button:not(.clickable-icon)` at `(0,1,1)`, which `tests/build/buttonSpecificity.
+ * Obsidian's `button:not(.clickable-icon)` at `(0,1,1)`, which `tests/gates/buttonSpecificity.
  * test.ts` checks for every button this project renders rather than trusting this comment.
  */
 

@@ -427,7 +427,7 @@ describe('what the Add rail’s stylesheet declares', () => {
 
 	/**
 	 * Every rule here that flattens a button gives its focus indicator back, which is the category
-	 * `tests/build/buttonFocusRing.test.ts` holds across the project — repeated at this file's own
+	 * `tests/gates/buttonFocusRing.test.ts` holds across the project — repeated at this file's own
 	 * two controls because the pair is easy to add one of and forget the other, and this partial
 	 * introduced both in one edit.
 	 */

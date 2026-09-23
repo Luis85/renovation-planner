@@ -46,7 +46,7 @@ elsewhere in this codebase each have their own module.
 
 Splitting the settings-persistence half out (`saveSettings`, `persistLibraryFolder`, and the
 `settingsFrom` boundary they compose) into its own module is the improvement named in the
-brief. `tests/build/registration-locality.test.ts`'s existing scan (the nine registration
+brief. `tests/gates/registration-locality.test.ts`'s existing scan (the nine registration
 members it holds to `src/plugin/`) is what a split would need to keep passing without
 widening — the extracted module would still need to live under `src/plugin/` for that gate to
 hold.

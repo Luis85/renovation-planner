@@ -11,7 +11,7 @@
  * whether a renovator can find what they already defined.
  *
  * A `.ts` beside the two `.vue` files rather than data inside either: `src/prototypes/` may hold
- * one (`tests/build/prototypes-one-way-door.test.ts` drives `.ts` and `.js` alongside `.vue`),
+ * one (`tests/gates/prototypes-one-way-door.test.ts` drives `.ts` and `.js` alongside `.vue`),
  * `max-lines` is 400 per file here as everywhere in `src/`, and this repository's own record of
  * `WorkPackages.vue` at 506 lines is what says to decide that before writing the screen rather
  * than after.

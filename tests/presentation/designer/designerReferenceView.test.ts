@@ -153,7 +153,7 @@ describe('removing the reference', () => {
 	 * The control lives in `DesignerReferenceStatus.vue`; the props of that component are bound by
 	 * `DesignerInspector.vue`, which this card does not own and must not edit. So the callback is
 	 * built here and bound by nobody, and this is the assertion that says so out loud — the idiom
-	 * `tests/build/lint-edited.test.ts` uses for its own hook registration, for the same reason: an
+	 * `tests/gates/lint-edited.test.ts` uses for its own hook registration, for the same reason: an
 	 * unwired callback is invisible to every one of this repository's six gates, and that exact
 	 * defect shipped last wave.
 	 *

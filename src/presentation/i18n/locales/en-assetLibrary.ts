@@ -13,7 +13,7 @@
  * a bare `en.ts`, an `en-` prefix, an `en_` prefix, or a path under an `en` directory — and
  * there is no glob for a DOT separator. A first version of this file was named
  * `en.assetLibrary.ts` and matched none of those, which silently dropped every one of these 59
- * strings out of the sentence-case gate; `tests/build/localeModuleSentenceCase.test.ts` is what
+ * strings out of the sentence-case gate; `tests/gates/localeModuleSentenceCase.test.ts` is what
  * would have caught it, and now does, by asking `calculateConfigForFile` rather than by reading
  * this comment.
  *

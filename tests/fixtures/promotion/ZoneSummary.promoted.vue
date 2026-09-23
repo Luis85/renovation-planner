@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * The promoted form of `src/prototypes/ZoneSummary.vue`, kept as a FIXTURE rather than as a
- * component: `tests/build/prototype-promotion.test.ts` diffs its template against the mock's,
+ * component: `tests/gates/prototype-promotion.test.ts` diffs its template against the mock's,
  * and that diff is the whole claim the prototypes tree rests on.
  *
  * Written by hand, not generated from the mock. A generated copy would agree with the mock by

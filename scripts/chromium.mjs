@@ -33,9 +33,9 @@ import { chromium } from 'playwright-core';
  * and it differs from hunting in both halves: a person names the build, and the capture says
  * out loud that it is not the pinned one.
  *
- * `tests/build/harness-shot.test.ts` holds the rule this rests on: no browser-layout literal
+ * `tests/gates/harness-shot.test.ts` holds the rule this rests on: no browser-layout literal
  * is written down in this file, or in either script that calls it. What it ANSWERS is
- * `tests/build/chromium.test.ts`, which drives the function against a temporary
+ * `tests/gates/chromium.test.ts`, which drives the function against a temporary
  * `PLAYWRIGHT_BROWSERS_PATH` rather than against whatever this machine has installed.
  */
 

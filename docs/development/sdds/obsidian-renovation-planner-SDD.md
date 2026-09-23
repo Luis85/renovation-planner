@@ -2119,7 +2119,7 @@ no literal reaches the six i18n call sites; no message/stack reaches a notice
 ```
 
 Tooling: ESLint `no-restricted-imports` and `no-restricted-syntax` (with `noInlineConfig`, so no
-comment turns a rule off), plus `tests/build/` reading the tree for the claims lint cannot
+comment turns a rule off), plus `tests/gates/` reading the tree for the claims lint cannot
 express. `dependency-cruiser` was not needed.
 
 ---

@@ -27,7 +27,7 @@
  *
  * `align-self: flex-start` is the whole fix and is the declaration here that may not be tidied
  * away: it opts this one child out of the stretch, so its inline size is its label's.
- * `tests/build/designerRecoveryStyles.test.ts` is red without it.
+ * `tests/gates/designerRecoveryStyles.test.ts` is red without it.
  *
  * The margins are the ASSOCIATION, and they are the notice's own padding restated rather than
  * numbers chosen here — `designer.css` gives `.rp-designer-notice` exactly

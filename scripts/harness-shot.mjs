@@ -150,7 +150,7 @@ const FOCUS_TAB_LIMIT = 12;
  * that found this. No number here and NO CENSUS COMMAND either, deliberately twice over: what a
  * reader needs is that the field is OPTIONAL, and a grep quoted inside the very file it counts
  * matches its own quoting line — measured, `grep -c "focus: "` went from 2 to 3 the moment this
- * paragraph named it. `tests/build/harness-shot.test.ts` is what actually holds the field on the
+ * paragraph named it. `tests/gates/harness-shot.test.ts` is what actually holds the field on the
  * shots that carry it; a sentence here cannot.
  *
  * Out here rather than as a branch inside `captureOne` for the reason `viewportFor` gives above:

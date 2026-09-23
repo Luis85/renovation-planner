@@ -96,7 +96,7 @@
  * Every one of these is DOUBLED (`.rp-project-detail__entry .rp-…`) so it scores (0,2,0) and
  * outranks Obsidian's own `button:not(.clickable-icon)` at (0,1,1) — which sets
  * `background-color`, `color` and `box-shadow`, and would otherwise repaint all three ranks
- * identically grey. `tests/build/buttonSpecificity.test.ts` is the check for exactly that, and
+ * identically grey. `tests/gates/buttonSpecificity.test.ts` is the check for exactly that, and
  * this is the third shape of the defect it exists to reject.
  */
 .rp-project-detail__entry .rp-project-detail__entry-action {

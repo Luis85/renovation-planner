@@ -1,24 +1,29 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { closeInspectorDrawer, settled, tabTo, taskbarMetrics, usabilityHarness } from './editor-area-browser.mjs';
+import { chromium } from 'playwright-core';
+import { resolveChromiumExecutable } from './chromium.mjs';
+import { closeInspectorDrawer, measurePrimaryActions, settle, startHarness, tabTo } from './editor-area-browser.mjs';
 
 // Bounded visual evidence over the same production/FakeVault harness as harness-shot.
 // Screenshots require separate human/agent inspection; passing geometry checks is not visual acceptance.
 const phase = process.argv[2] ?? 'after';
 assert.ok(['round1', 'after'].includes(phase));
 const out = `docs/user-experience/editor-usability-increment/astra-ui-fidelity/${phase}`;
-const { server, browser, base } = await usabilityHarness(out);
+await mkdir(out, { recursive: true });
+const { server, base } = await startHarness();
+const browser = await chromium.launch({ executablePath: resolveChromiumExecutable(), headless: true });
 const records = [], errors = [], findings = [];
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 page.setDefaultTimeout(120_000);
 page.setDefaultNavigationTimeout(120_000);
 page.on('pageerror', error => errors.push(error.message));
 const route = theme => `${base}?view=plan-editor&bare&reference&planning&fidelity&theme=${theme}`;
+const stable = () => settle(page);
 async function shot(name) {
 	if (process.argv.includes('--continue') && existsSync(`${out}/${name}.png`)) return;
-	await settled(page);
+	await stable();
 	await page.screenshot({ path: `${out}/${name}.png` });
 	records.push({ image: `${name}.png`, url: page.url(), viewport: page.viewportSize() });
 }
@@ -26,6 +31,7 @@ async function panel() {
 	const rail = page.locator('[data-rp-rail="details"]');
 	if (await rail.isVisible() && await rail.getAttribute('aria-expanded') !== 'true') await rail.click();
 }
+const closePanel = () => closeInspectorDrawer(page);
 async function draft(theme = 'light', german = false) {
 	await page.goto(`${route(theme)}&room=4000x3000${german ? '&lang=de' : ''}`);
 	await page.locator('.rp-task-banner__finish[aria-disabled="false"]').waitFor();
@@ -38,16 +44,14 @@ async function create() {
 }
 async function mode(value) {
 	await page.locator(`[data-rp-perspective="${value}"]`).click();
-	await settled(page);
+	await stable();
 }
 async function taskbarBounds(width) {
 	await page.setViewportSize({ width, height: 800 });
-	await settled(page);
-	await closeInspectorDrawer(page);
-	await settled(page);
-	// By ACCESSIBLE NAME here; the combined script asserts on the words a user reads instead. That
-	// argument is the whole of what used to make two copies of this block.
-	const measurement = await taskbarMetrics(page, 'aria-label');
+	await stable();
+	await closePanel();
+	await stable();
+	const measurement = await measurePrimaryActions(page);
 	for (const { label, rect, unobscured } of measurement.buttons) {
 		if (rect.left < measurement.canvas.left || rect.right > measurement.canvas.right) findings.push(`${width}: ${label} outside canvas`);
 		if (rect.width < 44 || rect.height < 44) findings.push(`${width}: ${label} target below 44 × 44`);
@@ -89,7 +93,7 @@ try {
 	await contrast('.rp-renovation-overview-actions .mod-cta');
 	await page.locator('[data-rp-mode="work"]').click(); await shot('05-renovate-work');
 	await page.setViewportSize({ width: 460, height: 800 }); await panel(); await shot('06-narrow-work');
-	await closeInspectorDrawer(page);
+	await closePanel();
 	for (const width of [1280, 1024, 900, 899, 640, 460, 400]) await taskbarBounds(width);
 	await page.setViewportSize({ width: 460, height: 800 }); await shot('07-narrow-canvas');
 	await draft('dark', true); await shot('08-de-dark-draft');
@@ -97,7 +101,7 @@ try {
 	await page.locator('.rp-new-room [aria-invalid="true"]').waitFor(); await shot('10-de-invalid-draft');
 	assert.equal(await page.locator('.rp-new-room__create').getAttribute('aria-disabled'), 'true');
 	await page.locator('.rp-new-room input[name="width"]').fill('4'); await page.locator('.rp-new-room input[name="depth"]').click();
-	await create(); await closeInspectorDrawer(page); await mode('renovate'); await taskbarBounds(460); await shot('11-de-renovate-canvas');
+	await create(); await closePanel(); await mode('renovate'); await taskbarBounds(460); await shot('11-de-renovate-canvas');
 	await page.setViewportSize({ width: 1280, height: 800 });
 	await draft('dark'); await create(); await shot('12-dark-plan'); await contrast('[data-rp-action="resize-room"]');
 	await mode('renovate'); await shot('13-dark-renovate'); await contrast('.rp-renovation-overview-actions .mod-cta');

@@ -5,6 +5,31 @@ import { createServer } from 'vite';
 import { resolveChromiumExecutable } from './chromium.mjs';
 import { makeCaptureManifest, recordScreenshots } from './editor-capture-files.mjs';
 
+/** A harness dev server, unless `RP_HARNESS_URL` names one already running. */
+export async function startHarness() {
+	const server = process.env.RP_HARNESS_URL ? null : await createServer({ configFile: 'vite.harness.config.ts', server: { host: '127.0.0.1', port: 0, open: false } });
+	await server?.listen();
+	return { server, base: process.env.RP_HARNESS_URL ?? server.resolvedUrls.local[0] };
+}
+/** Fonts loaded and two frames drawn, so a capture sees settled layout. */
+export async function settle(page) {
+	await page.evaluate(() => document.fonts.ready);
+	await page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => { requestAnimationFrame(resolve); }); }));
+}
+export async function closeInspectorDrawer(page) {
+	const close = page.locator('.rp-inspector-drawer__close');
+	if (await close.isVisible()) { await close.click(); await close.waitFor({ state: 'hidden' }); }
+}
+/** Each primary-action button's box, and whether it is hit-testable, against the canvas. */
+export function measurePrimaryActions(page) {
+	return page.locator('.rp-primary-actions').evaluate(bar => {
+		const canvas = bar.closest('.rp-plan-canvas').getBoundingClientRect();
+		return { canvas: canvas.toJSON(), buttons: [...bar.querySelectorAll('button')].map(button => {
+			const rect = button.getBoundingClientRect();
+			return { label: button.getAttribute('aria-label') ?? button.textContent, rect: rect.toJSON(), unobscured: button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)) };
+		}) };
+	});
+}
 /** Real keyboard navigation; no locator focus/fill shortcuts. */
 export async function tabTo(page, selector) {
 	const target = typeof selector === 'string' ? page.locator(selector) : selector;
@@ -149,60 +174,4 @@ export async function runAreaBrowserMatrix(directory, query, journey, ready = '.
 		await browser?.close();
 		await server.close();
 	}
-}
-
-/**
- * The two `editor-usability-*-check.mjs` capture scripts share a bootstrap, two waits and one
- * measurement, and `npm run analyze` reported them as this repository's clone family — three groups
- * across those two files. The four helpers below are that family extracted, behaviour for behaviour;
- * neither script's own journey moved.
- *
- * Read the limit with them: **no gate runs either script.** They are evidence tools, driven by hand
- * against a Chromium this environment cannot always resolve, so this extraction is held by lint and
- * by the clone report and by nothing that executes them. The next person to run one owns confirming
- * it still captures what it captured.
- */
-
-/** The harness server and browser both scripts open, plus the base URL the pages are driven against. */
-export async function usabilityHarness(out) {
-	await mkdir(out, { recursive: true });
-	const server = process.env.RP_HARNESS_URL ? null : await createServer({ configFile: 'vite.harness.config.ts', server: { host: '127.0.0.1', port: 0, open: false } });
-	await server?.listen();
-	const browser = await chromium.launch({ executablePath: resolveChromiumExecutable(), headless: true });
-	return { server, browser, base: process.env.RP_HARNESS_URL ?? server.resolvedUrls.local[0] };
-}
-
-/** Fonts loaded and two frames painted — what makes a screenshot or a measurement mean anything. */
-export async function settled(page) {
-	await page.evaluate(() => document.fonts.ready);
-	await page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => { requestAnimationFrame(resolve); }); }));
-}
-
-/** Close the inspector drawer if it is open, and wait until it really is gone. */
-export async function closeInspectorDrawer(page) {
-	const close = page.locator('.rp-inspector-drawer__close');
-	if (await close.isVisible()) {
-		await close.click();
-		await close.waitFor({ state: 'hidden' });
-	}
-}
-
-/**
- * The primary action bar measured against the canvas it sits in: each button's rectangle, and
- * whether the element at its own centre is the button (which is what "unobscured" means).
- *
- * `labelledBy` is `'text'` or `'aria-label'` because the two scripts name a button differently —
- * one asserts on the words a user reads, the other on the accessible name — and that is the ONLY
- * difference between the two copies this replaces. It is an argument rather than a callback because
- * the body is serialised into the page and cannot close over anything here.
- */
-export function taskbarMetrics(page, labelledBy) {
-	return page.locator('.rp-primary-actions').evaluate((bar, from) => {
-		const canvas = bar.closest('.rp-plan-canvas').getBoundingClientRect();
-		return { canvas: canvas.toJSON(), buttons: [...bar.querySelectorAll('button')].map(button => {
-			const rect = button.getBoundingClientRect();
-			const label = from === 'text' ? button.textContent : button.getAttribute('aria-label');
-			return { label, rect: rect.toJSON(), unobscured: button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)) };
-		}) };
-	}, labelledBy);
 }

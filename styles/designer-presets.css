@@ -34,7 +34,7 @@
  * above scores (0,3,0) and sets `box-shadow` unconditionally, so on the one button in the gallery
  * carrying `aria-pressed="true"` it REPLACES the host's ring: that button then looks identical at
  * rest and when tabbed to, and a keyboard user cannot see where they are. It is the same defect
- * `styles/asset-row.css` records for `.rp-al-row--on`, and `tests/build/buttonFocusRing.test.ts`
+ * `styles/asset-row.css` records for `.rp-al-row--on`, and `tests/gates/buttonFocusRing.test.ts`
  * reported this file's own selector by name before this rule existed.
  *
  * An `outline` rather than a layered shadow, which is the spelling every other control in `styles/`
@@ -75,7 +75,7 @@
  * **No gate here can see any of it**, which is why a user found it: jsdom computes no layout, so
  * every `.rp-preset-choice` case in `tests/presentation/designer/assetPresetForm.test.ts` passes
  * either way — that file's 20 tests are green with this rule and without it, measured.
- * `tests/build/buttonBoxNeutralised.test.ts` therefore checks the DECLARATIONS rather than the
+ * `tests/gates/buttonBoxNeutralised.test.ts` therefore checks the DECLARATIONS rather than the
  * picture, and says so in its own header — it is a narrower claim than "the thumbnail fits" and is
  * written as one. That file was watched failing on all three declarations with this rule reverted.
  */

@@ -63,7 +63,7 @@
  * container. Measured in a real browser: the label rendered centred in a full-pane bar.
  *
  * DOUBLED so the background/colour declarations score (0,2,0) and beat Obsidian's own
- * `button:not(.clickable-icon)` at (0,1,1) — `tests/build/buttonSpecificity.test.ts`'s category.
+ * `button:not(.clickable-icon)` at (0,1,1) — `tests/gates/buttonSpecificity.test.ts`'s category.
  */
 .rp-project-detail__header .rp-project-detail__back {
 	grid-column: 1 / -1;

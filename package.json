@@ -32,18 +32,18 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@napi-rs/canvas": "^1.0.9",
-		"@types/node": "^22.20.1",
+		"@types/node": "^22.20.3",
 		"@types/semver": "^7.8.0",
 		"@typescript-eslint/parser": "^8.68.0",
 		"@vitejs/plugin-vue": "^6.0.8",
-		"@vitest/coverage-v8": "^4.1.10",
+		"@vitest/coverage-v8": "^5.0.1",
 		"@vue/compiler-sfc": "^3.5.42",
 		"@vue/test-utils": "^2.4.11",
 		"axe-core": "^4.13.0",
 		"eslint": "^10.10.0",
 		"eslint-plugin-obsidianmd": "^0.4.2",
 		"eslint-plugin-vue": "^10.10.0",
-		"fallow": "^3.24.1",
+		"fallow": "^3.26.0",
 		"jsdom": "^30.0.1",
 		"lightningcss": "^1.33.0",
 		"mdast-util-from-markdown": "^2.0.3",
@@ -55,7 +55,7 @@
 		"typescript": "~6.0.3",
 		"typescript-eslint": "^8.67.0",
 		"vite": "^8.2.2",
-		"vitest": "^4.1.10",
+		"vitest": "^5.0.1",
 		"vue-eslint-parser": "^10.4.1",
 		"vue-tsc": "^3.3.11",
 		"yaml": "^2.9.0"
@@ -68,8 +68,8 @@
 		"konva": "^10.3.2",
 		"pinia": "^4.0.3",
 		"ulid": "^3.0.2",
-		"vue": "^3.5.41",
+		"vue": "^3.5.42",
 		"vue-konva": "^4.0.1",
-		"zod": "^4.5.4"
+		"zod": "^4.6.5"
 	}
 }

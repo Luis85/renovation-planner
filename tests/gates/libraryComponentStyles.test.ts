@@ -10,7 +10,7 @@ import { assembleStyles } from '../../scripts/styles-assemble.mjs';
  * This exists because of the defect it was written to catch, measured at `e3d2e8bc`:
  * `AssetInspector.vue` emitted `rp-al-action--delete`, `rp-al-action--designer` and
  * `rp-al-action--note`, and no partial declared any of the three — found by a one-off `comm`
- * between two greps, not by any gate. **`tests/build/prototype-styles.test.ts` does not say so
+ * between two greps, not by any gate. **`tests/gates/prototype-styles.test.ts` does not say so
  * in its own header, and does not ask this question at all — corrected here rather than left
  * standing, because the first version of this sentence presented an invented quotation as that
  * file's own words.** It DOES walk `src/presentation` (its `componentClasses` constant), but

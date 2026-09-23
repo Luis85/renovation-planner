@@ -176,7 +176,7 @@ describe('axe against the mounted view', () => {
 	 * `<img>` with no `alt` is exactly the "semantic label" gap
 	 * `docs/requirements/Accessibility.md` names, independent of any styling this project
 	 * cannot verify here. Kept as a permanent case rather than a one-off manual run: the
-	 * project's own hook test (`tests/build/lint-edited.test.ts`) pairs "flags an offence"
+	 * project's own hook test (`tests/gates/lint-edited.test.ts`) pairs "flags an offence"
 	 * with "says nothing about clean code" for the same reason — a green suite proves
 	 * nothing about a checker that would also be green with the checker disabled.
 	 *

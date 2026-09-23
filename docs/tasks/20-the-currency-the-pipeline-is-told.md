@@ -712,7 +712,7 @@ nobody will find it otherwise.
   than a defect of the work; dedup when a third caller appears.
 - **`.fallowrc.json`'s comment still says `tsconfig.json` "names each one directly"**, and the
   `include` is a glob. Pre-existing, passed over by this increment's edit to that file.
-- **The provenance of `tests/build/tsconfig-emit.test.ts` is UNRESOLVED.** It appeared untracked
+- **The provenance of `tests/gates/tsconfig-emit.test.ts` is UNRESOLVED.** It appeared untracked
   in the working tree during the pipeline task; the implementer that committed the
   `tsconfig.json` change it checks states it authored neither, and no agent dispatched for this
   increment was writable at the time. The content is sound and was verified before being

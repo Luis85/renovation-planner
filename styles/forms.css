@@ -216,7 +216,7 @@
 /*
  * Scoped under `.rp-project-list`, not a bare `.rp-project-list__row`: Obsidian's own
  * `button:not(.clickable-icon)` is (0,1,1), a single class here is (0,1,0), and
- * `tests/build/buttonSpecificity.test.ts` refuses the loss — the same reason
+ * `tests/gates/buttonSpecificity.test.ts` refuses the loss — the same reason
  * `.rp-dialog-button-danger` (design slice 15) is written `.rp-dialog .rp-dialog-button-danger`.
  */
 .rp-project-list .rp-project-list__row {

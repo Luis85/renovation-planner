@@ -64,7 +64,7 @@
 
 /*
  * Every selector's subject carries a class, `dt` and `dd` included. That is
- * `tests/build/prototype-styles.test.ts`'s rule and it is not pedantry: Vue applies the
+ * `tests/gates/prototype-styles.test.ts`'s rule and it is not pedantry: Vue applies the
  * PARENT's scope attribute to a composed child's root element, so an element-subject rule in a
  * scoped block can still restyle a component this file merely mounts. Checked at the forbidden
  * shape rather than at the cases someone thought of, which is why it fires on markup that is
@@ -167,7 +167,7 @@
 /*
  * §3.5 item 4's Actions row: `Open designer` · `Open note` · `Delete`. Measured at `e3d2e8bc`,
  * all three reached the shipped app with no rule of their own — `.rp-al-action`'s only
- * declaration anywhere is the `:focus-visible` one above — and `tests/build/
+ * declaration anywhere is the `:focus-visible` one above — and `tests/gates/
  * libraryComponentStyles.test.ts` is the category check that now refuses that silently
  * happening again.
  *
@@ -211,7 +211,7 @@
  * ITS OWN RING, EXPLICITLY, even though `.rp-al-action:focus-visible` above already matches
  * every element wearing this modifier — the button carries both classes at once. Written out
  * anyway, per `.rp-inspector-danger > button:focus-visible`'s explicit ring and for the reason
- * `tests/build/buttonFocusRing.test.ts`'s own `covers` check states: it proves a ring for a
+ * `tests/gates/buttonFocusRing.test.ts`'s own `covers` check states: it proves a ring for a
  * flattening rule by comparing the two selectors' SUBJECT TEXT, never by knowing that
  * `rp-al-action` and `rp-al-action--delete` land on one element, so `.rp-al-action:focus-visible`
  * alone left this rule reported as an offender — measured, not assumed. Over-reporting is the

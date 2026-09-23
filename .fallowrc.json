@@ -3,7 +3,7 @@
 	// Process entry points, not import roots. `scripts/lint-edited.mjs` is the third
 	// kind: nothing imports it and no npm script runs it — Claude Code spawns it per edit,
 	// named in `.claude/settings.json`. Declared here rather than given a contrived npm
-	// script, and `tests/build/lint-edited.test.ts` is what checks the naming still resolves.
+	// script, and `tests/gates/lint-edited.test.ts` is what checks the naming still resolves.
 	// `scripts/harness-shot.mjs` is the same shape from the other direction: an npm script
 	// (`harness-shot`) does run it, but fallow's import graph starts from `entry` and this
 	// file imports nothing under `src/` or `tests/` — nothing else in the graph reaches it
@@ -67,19 +67,19 @@
 	// `src/prototypes/README.md` records that same claim going stale in three other places; this
 	// was the fourth, and it survived them because nothing in any gate reads a comment.
 	// `tests/fixtures/promotion/ZoneSummary.promoted.vue` is a sixth kind: Task 7's
-	// `tests/build/prototype-promotion.test.ts` reads it with `readFileSync`, not `import`, so
+	// `tests/gates/prototype-promotion.test.ts` reads it with `readFileSync`, not `import`, so
 	// no import graph — static or dynamic — can ever reach it, the same way
 	// `type-safety.test-d.ts` above is read by `vue-tsc` rather than imported. Named rather
 	// than globbing `tests/fixtures/**`, for the reason `dynamicallyLoaded`'s own comment gives
 	// about the concept stylesheets: a glob absorbs the next fixture and tells nobody.
-	// `tests/build/fixtures/brokenFake.fixture.ts` and its `vitest.brokenFake.config.ts` are a
+	// `tests/gates/fixtures/brokenFake.fixture.ts` and its `vitest.brokenFake.config.ts` are a
 	// seventh kind: a deliberately failing spec run by a SPAWNED CHILD vitest, reachable only
 	// through that child's own `include` glob. Nothing imports either and no npm script runs
-	// them — `tests/build/contractDiscriminates.test.ts` spawns the child and reads its exit
+	// them — `tests/gates/contractDiscriminates.test.ts` spawns the child and reads its exit
 	// code — so fallow's import graph reaches neither and reports both dead. Named rather than
-	// globbed `tests/build/fixtures/**`, for the reason `dynamicallyLoaded`'s own comment gives:
-	// a glob absorbs the next fixture and tells nobody. `tests/build/fixtures/sfcEnvironment/` is
-	// the same kind again: `tests/build/no-ssr-sfc.test.ts` spawns a child vitest over its own
+	// globbed `tests/gates/fixtures/**`, for the reason `dynamicallyLoaded`'s own comment gives:
+	// a glob absorbs the next fixture and tells nobody. `tests/gates/fixtures/sfcEnvironment/` is
+	// the same kind again: `tests/gates/no-ssr-sfc.test.ts` spawns a child vitest over its own
 	// config there, and the two fixture specs and the `Probe.vue` they import are reached by
 	// nothing but that child's `include`.
 	"entry": [
@@ -131,12 +131,12 @@
 		"tests/core/geometry/geometryBrands.test-d.ts",
 		"src/prototypes/**/*.vue",
 		"tests/fixtures/promotion/ZoneSummary.promoted.vue",
-		"tests/build/fixtures/brokenFake.fixture.ts",
-		"tests/build/fixtures/vitest.brokenFake.config.ts",
-		"tests/build/fixtures/sfcEnvironment/Probe.vue",
-		"tests/build/fixtures/sfcEnvironment/nodeImportsSfc.fixture.ts",
-		"tests/build/fixtures/sfcEnvironment/jsdomImportsSfc.fixture.ts",
-		"tests/build/fixtures/sfcEnvironment/vitest.sfcEnvironment.config.ts"
+		"tests/gates/fixtures/brokenFake.fixture.ts",
+		"tests/gates/fixtures/vitest.brokenFake.config.ts",
+		"tests/gates/fixtures/sfcEnvironment/Probe.vue",
+		"tests/gates/fixtures/sfcEnvironment/nodeImportsSfc.fixture.ts",
+		"tests/gates/fixtures/sfcEnvironment/jsdomImportsSfc.fixture.ts",
+		"tests/gates/fixtures/sfcEnvironment/vitest.sfcEnvironment.config.ts"
 	],
 	// Loaded by a page, never imported by a module — which is what this key is for.
 	// `docs/user-experience/archive/concepts/*.css` are the concept mocks' sheets: the static HTML
@@ -197,7 +197,7 @@
 		// The one clone group this repository WANTS: `src/prototypes/ZoneSummary.vue`'s
 		// `<template>` block and `tests/fixtures/promotion/ZoneSummary.promoted.vue`'s are
 		// byte-identical on purpose — that is the whole criterion
-		// `tests/build/prototype-promotion.test.ts` holds, so a clone-detector finding here is
+		// `tests/gates/prototype-promotion.test.ts` holds, so a clone-detector finding here is
 		// the feature working, not copy-paste to refactor away. `ignoredClones` rather than
 		// `ignore`, so only this REVIEWED pair is silenced and the two files still get every
 		// other duplication check a future edit to either might trip.

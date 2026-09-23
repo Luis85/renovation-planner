@@ -800,7 +800,7 @@ states only what follows from it.
 - **Every rule that competes with Obsidian's `button:not(.clickable-icon)` is written with a
   descendant selector.** That rule is (0,1,1) and sets `background-color`, `color` and
   `box-shadow`; a single class is (0,1,0) and loses silently.
-  `tests/build/buttonSpecificity.test.ts` refuses the loss.
+  `tests/gates/buttonSpecificity.test.ts` refuses the loss.
 - **One spacing rhythm**, on Obsidian's own `--size-*` scale, with more space above a group
   heading than below it.
 - **Motion**: the row's hover and focus background, and nothing else. No list transitions, no

@@ -17,7 +17,7 @@ describe('the node default environment', () => {
 	 * module's body.
 	 */
 	it('rejects an indirect DOM reach with the ReferenceError for the planted global', async () => {
-		await expect(import('../build/fixtures/indirectDom.fixture')).rejects.toThrow(ReferenceError);
-		await expect(import('../build/fixtures/indirectDom.fixture')).rejects.toThrow(/document/u);
+		await expect(import('../gates/fixtures/indirectDom.fixture')).rejects.toThrow(ReferenceError);
+		await expect(import('../gates/fixtures/indirectDom.fixture')).rejects.toThrow(/document/u);
 	});
 });

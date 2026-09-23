@@ -42,7 +42,7 @@
 	 * where nothing did — the identical defect under a second name, three files away from its
 	 * own write-up. `Back to library` was `display: none` at every width, which also takes it
 	 * out of the tab order, and neither rung of §7's ladder fired.
-	 * `tests/build/styles.test.ts`'s container case is what makes a third instance fail a gate
+	 * `tests/gates/styles.test.ts`'s container case is what makes a third instance fail a gate
 	 * rather than a capture.
 	 */
 	container: rp-al / inline-size;

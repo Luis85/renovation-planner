@@ -346,11 +346,11 @@ Requirements:
   notice and `Try again` render. Do not edit `src/` to do it. If that is impossible, report
   NEEDS_CONTEXT.
 - `?view=asset-library&layout=grid` (or the name Task 10's view state uses) opens the Grid view.
-- `harness-shot` gains the fixed shots for both, in both schemes. `tests/build/harness-shot.test.ts`
+- `harness-shot` gains the fixed shots for both, in both schemes. `tests/gates/harness-shot.test.ts`
   pins the table in both directions.
 
 **Owns:** `tests/harness/page.ts`, `tests/harness/assetDesigner.ts`, `tests/harness/assetLibrary*.ts`,
-`scripts/harness-shot.mjs`, `tests/build/harness-shot.test.ts`, and the harness tests for those knobs.
+`scripts/harness-shot.mjs`, `tests/gates/harness-shot.test.ts`, and the harness tests for those knobs.
 
 ## Task 12: Manual-pass steps for the second parity round
 

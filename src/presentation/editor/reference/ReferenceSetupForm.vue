@@ -169,7 +169,9 @@ onMounted(() => { if (path.value) void load(); });
 				:on-theme-change="onThemeChange"
 				:points="previewPoints"
 				:measuring="step === 2 && !paused"
+				:rotatable="step === 1 && !paused"
 				@point="pick"
+				@rotation="appearance.rotation = $event"
 			/>
 			<div class="rp-reference-controls">
 				<ReferencePrepare

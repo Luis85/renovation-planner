@@ -4,6 +4,7 @@ import { openingOffsetAt, resizedOpening } from '../../../domain/spatial/opening
 import { CLICK_EPSILON_PX } from '../handleMetrics';
 import type { EditorContext } from '../tools/editor-context';
 import type { EditorPointerEvent } from '../tools/editor-tool';
+import { PreviewedDrag } from '../tools/previewed-drag';
 
 /** Which of a selected opening's three circle grips is being dragged; the arrows are taps, not drags. */
 export type OpeningDragGrip = 'width-start' | 'width-end' | 'move';
@@ -19,7 +20,7 @@ export interface OpeningResizeDeps {
 	readonly commitOpening?: (id: string, original: Opening, next: Opening) => void;
 }
 
-interface Gesture {
+export interface OpeningResizeGesture {
 	readonly id: string;
 	readonly grip: OpeningDragGrip;
 	readonly opening: Opening;
@@ -45,10 +46,8 @@ interface Gesture {
  * already uses, so a drag and a click put the opening in the same place rather than two places that
  * agree by coincidence.
  */
-export class OpeningResize {
-	private gesture: Gesture | null = null;
-	constructor(private readonly deps: OpeningResizeDeps) {}
-	get active(): boolean { return this.gesture !== null; }
+export class OpeningResize extends PreviewedDrag<OpeningResizeGesture, Opening> {
+	constructor(private readonly deps: OpeningResizeDeps) { super(); }
 
 	start(context: EditorContext, event: EditorPointerEvent, id: string, grip: OpeningDragGrip): void {
 		const found = this.deps.openingTarget?.(id);
@@ -57,7 +56,7 @@ export class OpeningResize {
 	}
 
 	/** The opening at `event`: `null` below the click epsilon, or where the transform itself refuses. */
-	private proposed(gesture: Gesture, event: EditorPointerEvent): Opening | null {
+	protected proposed(gesture: OpeningResizeGesture, event: EditorPointerEvent): Opening | null {
 		const scale = gesture.context.viewport.worldPerScreenPixel();
 		if (Math.hypot(event.worldPoint.x - gesture.start.x, event.worldPoint.y - gesture.start.y) > CLICK_EPSILON_PX * scale) gesture.dragging = true;
 		if (!gesture.dragging) return null;
@@ -69,22 +68,13 @@ export class OpeningResize {
 		return resizedOpening(gesture.opening, gesture.host, gesture.grip === 'width-start' ? 'start' : 'end', at);
 	}
 
-	move(context: EditorContext, event: EditorPointerEvent): void {
-		const gesture = this.gesture;
-		if (!gesture) return;
-		if (context.writesBlocked()) { this.cancel(); return; }
-		const next = this.proposed(gesture, event);
-		if (next) this.deps.previewOpening?.(gesture.id, next);
+	protected preview(gesture: OpeningResizeGesture, next: Opening): void {
+		this.deps.previewOpening?.(gesture.id, next);
 	}
 
-	finish(context: EditorContext, event: EditorPointerEvent): void {
-		const gesture = this.gesture;
-		if (!gesture || event.button !== 'primary') return;
-		const next = context.writesBlocked() ? null : this.proposed(gesture, event);
-		if (!next) { this.cancel(); return; }
+	protected drop(gesture: OpeningResizeGesture, next: Opening): void {
 		// Left previewing at the drop; the write clears it once read back, as `ElementResize` does.
-		this.gesture = null;
-		this.deps.previewOpening?.(gesture.id, next);
+		this.preview(gesture, next);
 		this.deps.commitOpening?.(gesture.id, gesture.opening, next);
 	}
 

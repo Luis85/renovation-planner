@@ -99,7 +99,7 @@
  *
  * This project's flat button is written once per COMPONENT and cannot be written once for all
  * of them. A shared `.rp-flat-button` scores (0,1,0) and loses outright to Obsidian's own
- * `button:not(.clickable-icon)` at (0,1,1) — the contest `tests/build/buttonSpecificity.test.ts`
+ * `button:not(.clickable-icon)` at (0,1,1) — the contest `tests/gates/buttonSpecificity.test.ts`
  * holds as a CATEGORY, after it bit three times — so each of these rules must be a two-class
  * compound naming its own component's class.
  *

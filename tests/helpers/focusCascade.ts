@@ -16,7 +16,7 @@ import { buttonClassesOn, subjectOf, targetsAButton } from './buttonRules';
  * THE CASCADE A FOCUS RING COMPETES IN, simulated far enough to answer one question: does a button
  * whose host ring was taken away get one back.
  *
- * Split out of `tests/build/buttonFocusRing.test.ts`, which grew past its line budget carrying both
+ * Split out of `tests/gates/buttonFocusRing.test.ts`, which grew past its line budget carrying both
  * the simulation and the cases — the same seam that file was itself split along, and the same one
  * `selectors.ts`, `indicators.ts` and `buttonRules.ts` already sit on: a reader lives in
  * `tests/helpers/`, and what it must ANSWER lives in the test beside it. `flattenedWithoutRing` is

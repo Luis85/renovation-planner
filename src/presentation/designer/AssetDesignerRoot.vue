@@ -149,7 +149,7 @@ const staleMessage = computed<StringKey>(() => (retriesFailed.value > 0 ? 'desig
  * `useId` is unique only PER APP — its counter lives on the `AppContext` and every app defaults
  * to the prefix `v` — so two designer leaves would otherwise mint the same `v-…-N`. What makes
  * this unique across leaves is `AssetDesignerView`'s `app.config.idPrefix = nextAppIdPrefix()`,
- * pinned by `tests/build/appIdPrefix.test.ts`. `DialogHost.vue` and `PropertyTreeNode.vue` state
+ * pinned by `tests/gates/appIdPrefix.test.ts`. `DialogHost.vue` and `PropertyTreeNode.vue` state
  * the same pairing; this comment claimed per-app uniqueness was the reason, which is the reason
  * the collision exists rather than the reason it does not.
  */

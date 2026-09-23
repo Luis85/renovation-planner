@@ -45,7 +45,7 @@ export function t(language: string, key: StringKey, params?: Readonly<Record<str
  * **Narrower than "the language is decided once"**: the rule sees the two doors
  * `getLanguage` comes through, not a language decided some other way — a hard-coded `'de'`,
  * or the plugin-local language setting that is a recurring review rejection. Those stay a
- * review catch. `tests/build/language-resolution-boundary.test.ts` pins both halves.
+ * review catch. `tests/gates/language-resolution-boundary.test.ts` pins both halves.
  *
  * Resolved per call rather than once: cheap, and what keeps a rendered-per-open surface
  * correct after the app language changes.

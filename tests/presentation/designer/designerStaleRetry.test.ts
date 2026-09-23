@@ -256,7 +256,7 @@ describe('the stale notice’s way out', () => {
 	 * 1024 x 30 at a 1024 px leaf.
 	 *
 	 * The class is the hook and nothing else; `styles/designer-recovery.css` carries what hangs on
-	 * it, and `tests/build/designerRecoveryStyles.test.ts` is what fails when that rule is
+	 * it, and `tests/gates/designerRecoveryStyles.test.ts` is what fails when that rule is
 	 * tidied away. Two instruments because a rename breaks one end at a time.
 	 *
 	 * **This asserts NOTHING about the rendered box and cannot.** jsdom resolves no CSS, and no

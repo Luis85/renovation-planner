@@ -63,7 +63,7 @@ const placeable = computed(() => props.design.dimensions !== null && !props.desi
 <template>
 	<!--
 		**The class and its rules landed together, which was the whole of the ask**, and it had to
-		be one change: `tests/build/libraryComponentStyles.test.ts` refuses a class the assembled
+		be one change: `tests/gates/libraryComponentStyles.test.ts` refuses a class the assembled
 		sheet does not declare, so the class alone would have been a red gate and the rules alone
 		would have styled nothing.
 

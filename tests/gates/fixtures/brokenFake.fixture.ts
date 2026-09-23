@@ -1,6 +1,6 @@
 /**
  * A DELIBERATELY FAILING spec. It exists to be run by a CHILD vitest process and to fail
- * there, which is what `tests/build/contractDiscriminates.test.ts` reads.
+ * there, which is what `tests/gates/contractDiscriminates.test.ts` reads.
  *
  * `*.fixture.ts` rather than `*.test.ts`, and the choice had to satisfy three gates at
  * once — two rounds of design weighed only the first two:
@@ -9,7 +9,7 @@
  *     collected by the OUTER `npm run check`, which would then fail before the meta-test
  *     could interpret the child's exit code — the fixture would break the very gate it is
  *     part of.
- *  2. `tests/build/spec-files.test.ts`, which bans `.spec.ts` outright. That is not the
+ *  2. `tests/gates/spec-files.test.ts`, which bans `.spec.ts` outright. That is not the
  *     escape either.
  *  3. `npm run analyze`. A file reachable only through a spawned child's `include` glob is
  *     seeded by nothing and imported by nothing, so fallow reports it and the child config

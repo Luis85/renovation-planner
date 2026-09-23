@@ -470,14 +470,16 @@ describe('interpolation', () => {
 	 * AD13's lease, and the pin's own paragraph above records that the guarantee here is *the
 	 * count cannot move silently*, never *the spec was amended*.
 	 *
-	 * 100 → 103: AD18-R18's Grid view added the toolbar's `Grid | List` switch —
-	 * `view.asset-library.layout.label`, `.layout.grid` and `.layout.list`. The ruling amends §3.1
-	 * ("no view switcher"), and the §8 amendment is OWED and not made: the spec is outside Task 10's
-	 * files.
+	 * 100 → 108: AD18-R18's Grid view added eight — the toolbar's `Grid | List` switch
+	 * (`view.asset-library.layout.label`, `.layout.grid`, `.layout.list`), the category sidebar and
+	 * its funnel (`view.asset-library.filter`, `.categories`, `.category.all`) and the grid's
+	 * `Create your own` card (`view.asset-library.create-card.title`, `.create-card.hint`). The
+	 * ruling amends §3.1 ("no view switcher … no filter menu"), and the §8 amendment is OWED and not
+	 * made: the spec is outside Task 10's files.
 	 */
-	it('pins the Asset library inventory at 103 keys in both locales', () => {
-		expect(assetLibraryKeys(en)).toHaveLength(103);
-		expect(assetLibraryKeys(de)).toHaveLength(103);
+	it('pins the Asset library inventory at 108 keys in both locales', () => {
+		expect(assetLibraryKeys(en)).toHaveLength(108);
+		expect(assetLibraryKeys(de)).toHaveLength(108);
 	});
 });
 

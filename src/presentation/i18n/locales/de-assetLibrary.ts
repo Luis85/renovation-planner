@@ -142,4 +142,9 @@ export const deAssetLibrary = {
 	'view.asset-library.layout.label': 'Ansicht',
 	'view.asset-library.layout.grid': 'Raster',
 	'view.asset-library.layout.list': 'Liste',
+	'view.asset-library.filter': 'Nach Kategorie filtern',
+	'view.asset-library.categories': 'Kategorien',
+	'view.asset-library.category.all': 'Alle',
+	'view.asset-library.create-card.title': 'Eigenes erstellen',
+	'view.asset-library.create-card.hint': 'Nicht gefunden, was Sie suchen? Entwerfen Sie Ihr eigenes Objekt.',
 } satisfies Partial<Record<StringKey, string>>;

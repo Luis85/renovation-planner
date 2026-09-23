@@ -6,6 +6,8 @@ import ViewFailure from '../components/ViewFailure.vue';
 import AssetInspector from './AssetInspector.vue';
 import AssetLibraryBody from './AssetLibraryBody.vue';
 import AssetLibraryBrowseControls from './AssetLibraryBrowseControls.vue';
+import AssetCategoryNav from './AssetCategoryNav.vue';
+import { shelvesOf } from './shelfList';
 import { DEFAULT_BROWSE, type LibraryBrowse, type LibraryLayout } from './libraryBrowse';
 import { useAssetLibraryContext } from './AssetLibraryContext';
 import { focusRowAt, focusWithin, rowPositionOf, shelvesWithdrawn } from './shelfFocus';
@@ -146,6 +148,22 @@ function setLayout(next: LibraryLayout): void {
 	publish(selectedId.value, expandedCategories.value);
 }
 
+function chooseCategory(next: string): void {
+	categoryFilter.value = next;
+	publish(selectedId.value, expandedCategories.value);
+}
+
+// The funnel's press is leaf-local and deliberately not view state. Until the first press the
+// sidebar follows the view: open in Grid (board 01), and open on a filter so a filtered catalogue
+// shows why, but closed over an unfiltered List, which is the List exactly as it was.
+const filterShown = ref<boolean | null>(null);
+const sidebarOpen = computed(() => filterShown.value ?? (layout.value === 'grid' || categoryFilter.value !== ''));
+function toggleFilter(): void {
+	filterShown.value = !sidebarOpen.value;
+}
+// The sidebar's list is the shelves' own derivation, over what the search leaves drawn.
+const shelves = computed(() => shelvesOf(store.visibleEntries));
+
 function toggleShelf(category: string): void {
 	const next = new Set(expandedCategories.value);
 	if (!next.delete(category)) next.add(category);
@@ -222,6 +240,9 @@ async function createAsset(): Promise<void> {
 		if (created !== null) {
 			store.query = '';
 			expandedCategories.value = new Set([...expandedCategories.value, created.category]);
+			// The same reason the query is cleared: the created asset is about to be selected, so a
+			// filter to another category would hide it.
+			if (categoryFilter.value !== created.category) categoryFilter.value = '';
 		}
 	}
 	performSelect(outcome.assetId);
@@ -284,7 +305,10 @@ watch(context.assetId, async (assetId) => {
 				</div>
 				<AssetLibraryBrowseControls
 					:layout="layout"
+					:category="categoryFilter"
+					:sidebar-open="sidebarOpen"
 					@layout="setLayout"
+					@toggle-filter="toggleFilter"
 				/>
 				<button
 					type="button"
@@ -302,11 +326,18 @@ watch(context.assetId, async (assetId) => {
 					<p>{{ tr('view.asset-library.loading') }}</p>
 				</div>
 				<template v-else>
+					<AssetCategoryNav
+						:open="sidebarOpen"
+						:shelves="shelves"
+						:category="categoryFilter"
+						@choose="chooseCategory"
+					/>
 					<AssetLibraryBody
 						ref="bodyRef"
 						:expanded="expandedCategories"
 						:selected-id="selectedId"
 						:layout="layout"
+						:category="categoryFilter"
 						@toggle="toggleShelf"
 						@select="onSelect"
 						@create="onCreateAsset"

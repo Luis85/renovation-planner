@@ -1,6 +1,10 @@
 <!--
-	The toolbar's AD18-R18 controls, beside §3.1's search field and `New asset`: the `Grid | List`
-	switch.
+	The toolbar's AD18-R18 controls, beside §3.1's search field and `New asset`: the funnel that
+	shows and hides the category sidebar, and the `Grid | List` switch.
+
+	**The funnel names an active filter in WORDS**, beside its own visually hidden name, because
+	the sidebar can be closed while a filter holds and a catalogue quietly missing most of its
+	assets must say why, and not by colour alone. `aria-expanded` carries whether the sidebar shows.
 
 	A component of its own so the root's template grows by one tag rather than by a conditional
 	region, which is the budget `AssetLibraryBody.vue`'s header records the root running short of.
@@ -14,10 +18,16 @@
 import HostIcon from '../components/HostIcon.vue';
 import { tr } from '../i18n/strings';
 import type { LibraryLayout } from './libraryBrowse';
+import { categoryLabel } from './shelfList';
 
-defineProps<{ layout: LibraryLayout }>();
+defineProps<{
+	layout: LibraryLayout;
+	/** The sidebar's filter, `''` for All. */
+	category: string;
+	sidebarOpen: boolean;
+}>();
 
-const emit = defineEmits<{ layout: [layout: LibraryLayout] }>();
+const emit = defineEmits<{ layout: [layout: LibraryLayout]; 'toggle-filter': [] }>();
 
 const LAYOUTS = [
 	{ layout: 'grid', icon: 'grid-2x-2', label: 'view.asset-library.layout.grid' },
@@ -26,6 +36,20 @@ const LAYOUTS = [
 </script>
 
 <template>
+	<button
+		type="button"
+		class="rp-al-filter"
+		:class="{ 'rp-al-filter--on': category !== '' }"
+		:aria-expanded="sidebarOpen"
+		@click="emit('toggle-filter')"
+	>
+		<HostIcon name="funnel" />
+		<span class="rp-al-filter__label">{{ tr('view.asset-library.filter') }}</span>
+		<span
+			v-if="category !== ''"
+			class="rp-al-filter__category"
+		>{{ categoryLabel(category) }}</span>
+	</button>
 	<div
 		class="rp-al-layout"
 		role="group"

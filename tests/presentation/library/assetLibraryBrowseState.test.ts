@@ -86,6 +86,33 @@ describe('the layout in Obsidian\'s view state', () => {
 		expect(view.contentEl.querySelector('.renovation-asset-library')).toBe(shell);
 	});
 
+	it('carries a category into getState, and drops the key again on All', async () => {
+		const view = await openLibrary();
+		button(view, tr('view.asset-library.layout.grid')).click();
+		await settle();
+
+		button(view, tr('form.new-asset.category.furniture')).click();
+		await settle();
+		expect(view.getState()).toEqual({ assetId: '', expanded: [], layout: 'grid', category: 'furniture' });
+
+		button(view, tr('view.asset-library.category.all')).click();
+		await settle();
+		expect(view.getState()).toEqual({ assetId: '', expanded: [], layout: 'grid' });
+	});
+
+	/** A leaf restored filtered opens its sidebar on the filter, even in the List. */
+	it('opens the sidebar on a restored category and filters the list to it', async () => {
+		const view = await openLibrary();
+
+		await view.setState({ assetId: '', category: 'furniture' }, {} as never);
+		await settle();
+
+		expect(view.contentEl.querySelector<HTMLElement>('.rp-al-categories')?.style.display).toBe('');
+		expect([...view.contentEl.querySelectorAll('.rp-al-shelf__name')].map((el) => el.textContent)).toEqual([
+			tr('form.new-asset.category.furniture'),
+		]);
+	});
+
 	it('never records a layout or a category change as a navigation', async () => {
 		const view = await openLibrary();
 		const result = {} as never as { history?: boolean };

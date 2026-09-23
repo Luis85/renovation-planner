@@ -61,6 +61,7 @@ import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
 import { tr } from '../i18n/strings';
 import type { AssetId } from '../../domain/asset/AssetId';
+import type { CatalogueEntryDto } from '../../application/queries/ListCatalogueEntries';
 import type { LibraryLayout } from './libraryBrowse';
 
 const props = defineProps<{
@@ -70,6 +71,8 @@ const props = defineProps<{
 	selectedId: AssetId | null;
 	/** AD18-R18's `Grid | List`, the root's for the same reason `expanded` is. */
 	layout: LibraryLayout;
+	/** AD18-R18's sidebar filter, `''` for every category — the root's, likewise. */
+	category: string;
 }>();
 
 const emit = defineEmits<{
@@ -145,7 +148,7 @@ function onEmptyStateAction(): void {
  * (*prefer the fix whose result a gate can see to the one whose correctness lives where no gate
  * reaches*). What ships is a strict SUPERSET of the viewport: every row an open shelf draws, or
  * every match when §6.1's flat Results list has replaced the shelves, or every tile when
- * AD18-R18's Grid view draws them all.
+ * AD18-R18's Grid view draws them all — each set narrowed to the sidebar's category first.
  *
  * What that costs, exactly, so the next reader does not have to derive it: a shelf holding 34
  * entries reads 34 sidecars to draw the six rows a pane can show — §5.3's own named objection to
@@ -184,10 +187,14 @@ function onEmptyStateAction(): void {
  * afterwards; a NAME survives every edit that does not delete its subject. Fourteenth instance
  * of this class on the branch, and the second inside a round fixing an instance of it.)
  */
+const inCategory = computed((): readonly CatalogueEntryDto[] =>
+	props.category === '' ? store.visibleEntries : store.visibleEntries.filter((entry) => entry.category === props.category),
+);
+
 const drawnAssetIds = computed((): readonly AssetId[] =>
 	(store.searching || props.layout === 'grid'
-		? store.visibleEntries
-		: store.visibleEntries.filter((entry) => props.expanded.has(entry.category))
+		? inCategory.value
+		: inCategory.value.filter((entry) => props.expanded.has(entry.category))
 	).map((entry) => entry.assetId),
 );
 
@@ -261,15 +268,17 @@ defineExpose({ shelvesElement });
 			:expanded="expanded"
 			:selected-id="selectedId"
 			:outline-for="store.markFor"
+			:category="category"
 			@toggle="emit('toggle', $event)"
 			@select="emit('select', $event)"
 		/>
 		<AssetGrid
 			v-else
-			:entries="store.visibleEntries"
+			:entries="inCategory"
 			:selected-id="selectedId"
 			:outline-for="store.markFor"
 			@select="emit('select', $event)"
+			@create="emit('create')"
 		/>
 	</div>
 </template>

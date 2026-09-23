@@ -10,6 +10,11 @@
 	focus model): `←`/`→` step one stop with `moveFocus`, `↑`/`↓` one row with `moveFocusByRow`,
 	both bound once on the grid.
 
+	**The `Create your own` card ends the list** (board 01) and calls the existing `New asset` door
+	through the same `create` emit §4's empty state uses, so there is still one door. It spans the
+	full row, and it is the last arrow-key stop, which `moveFocusByRow`'s clamp makes reachable
+	from any column.
+
 	The tiles come in the order `AssetLibraryStore.visibleEntries` gives, which is by name across
 	categories, §6.1's order for a flat list. §10 refuses a sort control, so there is no other order.
 -->
@@ -19,6 +24,8 @@ import type { AssetOutline } from '../../application/queries/ListAssetOutlines';
 import type { AssetId } from '../../domain/asset/AssetId';
 import { moveFocus, moveFocusByRow } from './shelfFocus';
 import AssetTile from './AssetTile.vue';
+import HostIcon from '../components/HostIcon.vue';
+import { tr } from '../i18n/strings';
 
 defineProps<{
 	entries: readonly CatalogueEntryDto[];
@@ -26,7 +33,7 @@ defineProps<{
 	outlineFor: (assetId: AssetId) => AssetOutline | null;
 }>();
 
-const emit = defineEmits<{ select: [assetId: AssetId] }>();
+const emit = defineEmits<{ select: [assetId: AssetId]; create: [] }>();
 </script>
 
 <template>
@@ -47,6 +54,25 @@ const emit = defineEmits<{ select: [assetId: AssetId] }>();
 				:ordinal="ordinal"
 				@select="emit('select', $event)"
 			/>
+			<li class="rp-al-create-card">
+				<HostIcon name="pencil" />
+				<div class="rp-al-create-card__body">
+					<p class="rp-al-create-card__title">
+						{{ tr('view.asset-library.create-card.title') }}
+					</p>
+					<p class="rp-al-create-card__hint">
+						{{ tr('view.asset-library.create-card.hint') }}
+					</p>
+					<button
+						type="button"
+						class="rp-al-create-card__action"
+						@click="emit('create')"
+					>
+						<HostIcon name="plus" />
+						{{ tr('view.asset-library.new-asset') }}
+					</button>
+				</div>
+			</li>
 		</ul>
 	</div>
 </template>

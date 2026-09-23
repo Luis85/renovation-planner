@@ -208,4 +208,12 @@ export const enAssetLibrary = {
 	'view.asset-library.layout.label': 'View',
 	'view.asset-library.layout.grid': 'Grid',
 	'view.asset-library.layout.list': 'List',
+	// AD18-R18's category sidebar and the funnel that shows it. The funnel's name is visually
+	// hidden beside its icon; `All` is the sidebar's first choice.
+	'view.asset-library.filter': 'Filter by category',
+	'view.asset-library.categories': 'Categories',
+	'view.asset-library.category.all': 'All',
+	// AD18-R18's `Create your own` card at the end of the grid, over the `New asset` door.
+	'view.asset-library.create-card.title': 'Create your own',
+	'view.asset-library.create-card.hint': 'Cannot find what you need? Design your own asset.',
 } as const;

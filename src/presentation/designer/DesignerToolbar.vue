@@ -54,11 +54,11 @@
  * this file because a `<script setup>` binding is not a module export and AD18 item 5's `Add`
  * rail has to be able to import it — which, since this card, it does.
  *
- * **No button here carries a `title`.** Its label is its accessible name — as visible text and
- * as `aria-label`, the same string — so a tooltip repeating it shows a sighted user nothing new
- * and may be announced twice (selection polish critique, finding 24). That reason survived
- * iconification rather than being quietly re-taken: Obsidian draws its own tooltip from
- * `aria-label`, so the icon-only state is not a state with no tooltip. The mode buttons'
+ * **No button here carries a `title`.** Its label is its accessible name, carried by
+ * `aria-label` alone now that the toolbar is icon-only at every width (AD18-R17 Task 2), and
+ * Obsidian draws its own tooltip from that same `aria-label` — so a `title` would be a second
+ * tooltip repeating it, and may be announced twice (selection polish critique, finding 24). The
+ * icon-only state is therefore not a state with no tooltip. The mode buttons'
  * `title`s describe a gesture, which is why `DesignerSelectionModes` keeps them. Undo and Redo
  * are ONE group, `.rp-designer-history`, which `designer.css` ends on whichever row it wraps
  * to — the `flex: 1` spacer it replaces stopped pushing once the toolbar wrapped (finding 5).

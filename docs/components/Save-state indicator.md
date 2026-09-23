@@ -74,8 +74,8 @@ qualifier on the Saved word, not a fifth state:
 | An hour or more | `Saved at HH:MM`, in the host language's own clock format |
 
 The time is counted from a `savedAt` the save-state store stamps when a write lands, on a minute
-tick that starts at that save (so *just now* lasts exactly the first minute) and only once there
-is one. **Saved · refresh needed** keeps precedence and carries no time: a stale canvas must never
+tick that starts at that save (so *just now* lasts the first minute, or up to a second less: the
+reading tolerates that much clock jitter at a tick) and only once there is one. **Saved · refresh needed** keeps precedence and carries no time: a stale canvas must never
 read as freshly saved (contract C08).
 
 ## Contract
@@ -89,7 +89,8 @@ triggers, and this indicator is where a user learns it held.
 
 ## Where it appears
 
-[[Status bar]], third region, per SDD §60. It has no other home today — and if the bar turns out
+[[Status bar]], third region, per SDD §60, in the Plan Editor — and the Asset designer's header
+(`DesignerHeader.vue`), since AD18 moved it there. Those are its two homes — and if the bar turns out
 not to exist in project mode, this component needs one, because autosave does not stop when the
 mode changes.
 

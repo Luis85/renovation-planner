@@ -90,8 +90,16 @@ const label = computed(() =>
 
 const MINUTE = 60_000;
 /**
+ * The interval runs on the monotonic clock and `elapsed` is read off `Date.now`, so a tick can
+ * land a few milliseconds short of its minute by the wall clock, and `floor` would then hold every
+ * reading one minute too long. A second of lead is far wider than that jitter and far narrower
+ * than the minute the display resolves: readings happen only on a save (elapsed 0) or on a tick
+ * (nominally a whole minute), so it can never show a minute more than a second early.
+ */
+const TICK_TOLERANCE = 1000;
+/**
  * The minute tick the relative phrase moves on, ALIGNED TO THE SAVE rather than to the mount: each
- * new `savedAt` resets `now` and restarts the interval from there, so "just now" lasts exactly the
+ * new `savedAt` resets `now` and restarts the interval from there, so "just now" lasts the
  * first minute. A mount-aligned tick let a save landing just after it read "just now" for ~119 s.
  * Nothing runs until this session has saved — a leaf with nothing to say does not wake every
  * minute — and the interval is cleared with the component so no leaf leaks it. `immediate`
@@ -116,7 +124,7 @@ onBeforeUnmount(() => window.clearInterval(tick));
 /** `null` means "say the label alone". */
 const relative = computed(() => {
 	if (shown.value !== 'saved' || savedAt.value === null) return null;
-	const minutes = Math.floor((now.value - savedAt.value) / MINUTE);
+	const minutes = Math.floor((now.value - savedAt.value + TICK_TOLERANCE) / MINUTE);
 	if (minutes < 1) return tr('save-state.saved-just-now');
 	if (minutes < 60) return tr('save-state.saved-minutes-ago', { minutes: String(minutes) });
 	return tr('save-state.saved-at', {

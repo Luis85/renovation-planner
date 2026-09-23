@@ -166,6 +166,21 @@ describe('the relative save time', () => {
 		expect(shown(wrapper)).toBe('Saved 1 min ago');
 	});
 
+	/**
+	 * The interval runs on the monotonic clock and the elapsed time is read off `Date.now`, so a
+	 * tick can land a hair short of the minute by the wall clock. `setSystemTime` moves `Date`
+	 * without moving the timers, which puts the first tick at 59 999 ms after the stamp.
+	 */
+	it('counts a tick that lands a millisecond short of the minute as the minute', async () => {
+		const wrapper = mount(SaveStateIndicator);
+		saved();
+		await nextTick();
+		vi.setSystemTime(Date.now() - 1);
+
+		await advance(MINUTE);
+		expect(shown(wrapper)).toBe('Saved 1 min ago');
+	});
+
 	it('ticks for a leaf that mounts after its store already saw a save', async () => {
 		saved();
 		const wrapper = mount(SaveStateIndicator);

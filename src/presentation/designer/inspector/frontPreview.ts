@@ -26,7 +26,7 @@ const HEAD = 0.25;
  *
  * **Two departures from the canvas, both about fitting a thumbnail rather than about direction.**
  * The arrow starts at the outline's MIDDLE rather than at the anchor, because an anchor on the back
- * edge would push the tip out of a picture sized to the outline; and the picture is a SQUARE around
+ * edge would push the tip out of a picture sized to the outline; and the picture is FITTED around
  * the outline and the arrow TOGETHER, because a long thin object facing across its short side would
  * otherwise clip the tip. Fitting both rather than a fixed square lets the box below the picker
  * (`designer-placement.css`, full width by about 112 px) draw the object as large as it fits.

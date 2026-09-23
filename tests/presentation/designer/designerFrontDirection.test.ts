@@ -7,6 +7,7 @@
  * angles written here. So "Top" is proven to mean "the arrow on the canvas points up the screen",
  * which is C04's rule that a direction label agree with actual placement.
  */
+import axe from 'axe-core';
 import { describe, expect, it, vi } from 'vitest';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import DesignerReferencePlacement from '../../../src/presentation/designer/inspector/DesignerReferencePlacement.vue';
@@ -102,10 +103,21 @@ describe('the front direction picker', () => {
 		]);
 	});
 
-	it('is labelled Front direction', () => {
+	/**
+	 * The ACCESSIBLE NAME, computed by axe-core rather than read off the label's text: the select sits
+	 * inside its `<label>`, so the label's `textContent` also carries every option's text, and a
+	 * check on containment would pass whatever the name computation made of that.
+	 */
+	it('is named exactly Front direction', () => {
 		const { wrapper } = mountPicker(baseShape());
-		expect(wrapper.find('label').text()).toContain(t('en', 'designer.placement.front'));
-		expect(wrapper.find('label').find('select[name="front-direction"]').exists()).toBe(true);
+		document.body.append(wrapper.element);
+		axe.setup(document);
+		try {
+			expect(axe.commons.text.accessibleText(picker(wrapper))).toBe(t('en', 'designer.placement.front'));
+		} finally {
+			axe.teardown();
+			wrapper.element.remove();
+		}
 	});
 
 	it.each([0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2])('selects the option the canvas arrow agrees with at facing %s', (facing) => {

@@ -5,8 +5,10 @@
  * would be a stored review state and the ruling carves it out.
  *
  * **Both rows are reads of stored facts, never a join.** `Source` is `shape.footprintOrigin`, the
- * provenance `SetAssetFootprint` records at capture: `typed` for a Width and Depth (or a preset's
- * values) entered in millimetres, `traced` for an outline drawn on the canvas. `Dimensions set` is
+ * provenance recorded at capture, and the row names what the value MEANS rather than a gesture:
+ * `typed` is "authored in millimetres" (`validateAssetShape`'s own words), which four writers
+ * produce — typed dimensions, a preset, `fitFootprintToDetails`, and `NewAssetForm`'s outline copied
+ * off a plan item (`measured: true`); `traced` is an outline drawn on the canvas, sheet or none. `Dimensions set` is
  * `design.dimensionsUnscaled` negated — `GetAssetDesign`'s own docblock says why that flag and
  * not "is there a calibration": a replaced sheet must not re-flag measured millimetres. The two
  * are independent, which is the point of showing both: a trace a calibration has converted is

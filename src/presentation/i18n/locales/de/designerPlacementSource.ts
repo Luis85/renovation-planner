@@ -9,7 +9,7 @@ export const designerPlacementSourceDe: Record<keyof typeof designerPlacementSou
 	'designer.placement.front.option.custom': 'Eigene Richtung',
 	'designer.source.title': 'Quelle und Maßstab',
 	'designer.source': 'Quelle',
-	'designer.source.typed': 'Eingegebene Maße',
+	'designer.source.typed': 'In Millimetern erfasst',
 	'designer.source.traced': 'Auf der Zeichenfläche nachgezeichnet',
 	'designer.source.dimensions-set': 'Maße festgelegt',
 	'designer.source.dimensions-set.yes': 'Ja',

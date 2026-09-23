@@ -117,8 +117,12 @@ const view = computed(() => {
 });
 
 /**
- * One facing edit for the chosen direction, or none: `Custom`, and the direction the shape the
- * step was HANDED already faces (C03, C05), both answer `null`, which dispatches nothing.
+ * One facing edit for the chosen direction, or none. **On Windows Chromium/Electron, arrow keys on a
+ * CLOSED select fire `change` at every step**, so stepping from Top to Left is several edits, one
+ * undo entry each — the same as every house `<select>` in this inspector, and not specific to this one.
+ *
+ * `Custom`, and the direction the shape the step was HANDED already faces (C03, C05), both answer
+ * `null`, which dispatches nothing.
  *
  * **Nothing here puts the select back after a refused write, and nothing needs to.** Setting
  * `refusal` re-renders this component, and Vue re-patches a `value` binding on EVERY render —

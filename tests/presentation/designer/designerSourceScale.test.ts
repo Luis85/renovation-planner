@@ -14,11 +14,13 @@ import { ok } from '../../../src/core/result/Result';
 import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
 import type { AssetDesignDto } from '../../../src/application/queries/GetAssetDesign';
 import type { AssetShape } from '../../../src/domain/asset/AssetShape';
+import { fitFootprintToDetails } from '../../../src/domain/asset/detailEdits';
 import type { DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
 import type { EditShape } from '../../../src/presentation/designer/selection/editShape';
 import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
 import { recorder } from '../../helpers/logger';
+import { expectOk } from '../../helpers/domain';
 
 function shapeWith(overrides: Partial<AssetShape>): AssetShape {
 	const { shape } = assetDesign();
@@ -37,6 +39,22 @@ describe('the Source & scale block', () => {
 			[t('en', 'designer.source'), t('en', 'designer.source.typed')],
 			[t('en', 'designer.source.dimensions-set'), t('en', 'designer.source.dimensions-set.yes')],
 		]);
+	});
+
+	/**
+	 * `typed` is what the value MEANS (authored in millimetres, `validateAssetShape`'s own words),
+	 * not the gesture "typed dimensions": Fit footprint to graphics writes it around a traced outline
+	 * that nobody typed, and so does an outline copied off a plan item. The row must still be true.
+	 */
+	it('names a footprint fitted to its graphics as authored in millimetres, not as typed dimensions', () => {
+		const traced = shapeWith({
+			footprintOrigin: 'traced',
+			details: [{ id: 'detail-1', name: 'top', line: 'solid', pending: false, outline: { points: [{ x: -300, y: -200 }, { x: 300, y: -200 }, { x: 300, y: 200 }, { x: -300, y: 200 }] } }],
+		});
+		const fitted = expectOk(fitFootprintToDetails(traced));
+		expect(fitted.footprintOrigin).toBe('typed');
+		expect(rows(assetDesign({ shape: fitted }))[0]).toEqual([t('en', 'designer.source'), t('en', 'designer.source.typed')]);
+		expect(t('en', 'designer.source.typed')).toBe('Authored in millimetres');
 	});
 
 	it('names a traced footprint still awaiting a scale as not yet measured', () => {

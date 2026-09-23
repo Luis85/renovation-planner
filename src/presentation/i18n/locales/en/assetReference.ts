@@ -7,9 +7,10 @@
  *
  * **Every direction word is about the DRAWING and not about the object's own left and right**,
  * which are two different readings of the same arrow and the exact confusion C04 refuses to
- * let a mockup settle. `designer.placement.front.*` names where the front arrow points on the
- * sheet; `designer.clearance.left` and `.right` name the object's own sides, derived from that
- * arrow in `DesignerReferenceFrame.ts` and pinned there by a fixture.
+ * let a mockup settle. The Front direction picker's options (`designer.placement.front.option.*`,
+ * in `designerPlacementSource.ts`) name where the front arrow points on the sheet;
+ * `designer.clearance.left` and `.right` name the object's own sides, derived from that arrow
+ * in `DesignerReferenceFrame.ts` and pinned there by a fixture.
  *
  * **One key per pending group rather than one key holding a list**, because a list assembled
  * in a component is a translated fragment concatenated with another — the thing `strings.ts`

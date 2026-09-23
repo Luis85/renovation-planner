@@ -33,7 +33,9 @@
  * with its open state its own. And `Show clearance` is a switch over the leaf runtime's
  * `showClearance`, which hides the canvas's clearance layer: a VIEW preference (AD18-R12's kind),
  * drawn only when there is a clearance to hide, and outside the `supported` arm because hiding a
- * traced curve means as much as hiding a generated rectangle.
+ * traced curve means as much as hiding a generated rectangle. The switch and the fold are drawn by
+ * `DesignerClearanceToggle` and `DesignerClearanceSides`, split out to keep this template under
+ * fallow's cognitive threshold; the drafts and the switch-on after Generate stay here.
  */
 import { computed, reactive, ref } from 'vue';
 import { useShowClearance } from '../runtime';
@@ -46,6 +48,8 @@ import { trError } from '../../i18n/toUserMessage';
 import type { EditShape } from '../selection/editShape';
 import { clearanceRectangle, facingQuarter, rectangularFootprint, type ClearanceSetbacks } from '../../../domain/asset/referenceFrame';
 import DesignerFieldRowShell from './DesignerFieldRowShell.vue';
+import DesignerClearanceToggle from './DesignerClearanceToggle.vue';
+import DesignerClearanceSides from './DesignerClearanceSides.vue';
 
 const props = defineProps<{ design: AssetDesignDto; editShape: EditShape }>();
 
@@ -68,6 +72,9 @@ const draft = reactive<Record<Side, string>>({ front: '', back: '', left: '', ri
 const allSides = computed(() => (SIDES.every(({ side }) => draft[side] === draft.front) ? draft.front : ''));
 function fillAllSides(value: string): void {
 	for (const { side } of SIDES) draft[side] = value;
+}
+function setSide(side: Side, value: string): void {
+	draft[side] = value;
 }
 /** `null` on a bare mount with no leaf runtime — see `useShowClearance`. */
 const showClearance = useShowClearance();
@@ -119,18 +126,7 @@ async function generate(): Promise<void> {
 		<h3 class="rp-designer-panel-title rp-designer-section-title">
 			{{ tr('designer.clearance') }}
 		</h3>
-		<label
-			v-if="showClearance !== null && replaces"
-			class="rp-designer-clearance-toggle"
-		>
-			<input
-				v-model="showClearance"
-				type="checkbox"
-				role="switch"
-				name="show-clearance"
-			>
-			{{ tr('designer.clearance.show') }}
-		</label>
+		<DesignerClearanceToggle v-if="replaces" />
 		<template v-if="supported">
 			<p class="rp-designer-field-hint">
 				{{ tr('designer.clearance.hint') }}
@@ -149,29 +145,11 @@ async function generate(): Promise<void> {
 					@input="fillAllSides(($event.target as HTMLInputElement).value)"
 				>
 			</DesignerFieldRowShell>
-			<details class="rp-designer-collapsible">
-				<summary>
-					<h4 class="rp-designer-panel-title rp-designer-section-title">
-						{{ tr('designer.clearance.advanced') }}
-					</h4>
-				</summary>
-				<DesignerFieldRowShell
-					v-for="entry in SIDES"
-					:key="entry.side"
-					:short="entry.short"
-					unit="mm"
-				>
-					<input
-						type="number"
-						step="any"
-						inputmode="decimal"
-						:name="`clearance-${entry.side}`"
-						:aria-label="tr(entry.label)"
-						:value="draft[entry.side]"
-						@input="draft[entry.side] = ($event.target as HTMLInputElement).value"
-					>
-				</DesignerFieldRowShell>
-			</details>
+			<DesignerClearanceSides
+				:sides="SIDES"
+				:draft="draft"
+				:on-side="setSide"
+			/>
 			<p
 				v-if="replaces"
 				class="rp-designer-unscaled"

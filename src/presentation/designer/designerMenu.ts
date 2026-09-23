@@ -1,7 +1,5 @@
 import { computed, nextTick, reactive, ref } from 'vue';
 import type { AssetDesignDto } from '../../application/queries/GetAssetDesign';
-import type { AssetShape } from '../../domain/asset/AssetShape';
-import { groupOfDetail } from '../../domain/asset/groupEdits';
 import { useDialogStore } from '../dialogs/dialog-store';
 import { pointerOutside } from '../editor/selection/menuKeyboard';
 import type { CanvasMenuAction } from '../editor/selection/useCanvasMenuActions';
@@ -9,14 +7,15 @@ import { STAGE_PIXELS, screenPoint, screenToWorld, worldPerScreenPixel } from '.
 import { tr } from '../i18n/strings';
 import { useEditorStore } from '../stores/EditorStore';
 import { modifierLabel } from '../views/platformModifier';
-import { canGroup, selectedGraphics, selectionKeyActions } from './designerKeys';
+import { selectionAbilities, type SelectionKeyActions } from './designerKeys';
 import { partRows, type PartRow } from './parts/partRows';
 import type { DesignerRuntime } from './runtime';
 import { hitDesign } from './selection/hitTest';
-import { sameSelection, type DesignerSelection } from './selection/designerSelection';
+import type { DesignerSelection } from './selection/designerSelection';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 
 const MENU = '.rp-canvas-context-menu';
+const CONTROLS = '.rp-plan-overlay, button, a, input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="menu"]';
 
 /**
  * The asset designer's context menu (AD18-R16 Task 11, board 02 panel 7): Group, Ungroup, Duplicate
@@ -34,24 +33,23 @@ const MENU = '.rp-canvas-context-menu';
  * of `CanvasContextMenu` that is Plan-Editor-specific. The one widening the list took is
  * `CanvasMenuAction.shortcut`, the key hint at a row's end.
  *
- * **Every item is a selection KEY's own action** (`selectionKeyActions`): Group and Ungroup are what
- * Ctrl+G and Ctrl+Shift+G call, Duplicate and Delete what Ctrl+D and Delete call — one write through
- * `editShape`, a refusal through `notifyIfRefused`. An item is `aria-disabled` exactly where that
- * action would do nothing: Group by `canGroup`, the Arrange panel's own rule; Ungroup unless the
- * focused graphic is in a group; Duplicate unless it is a graphic; Delete unless it is a graphic or the
- * clearance.
+ * **Every item is a selection KEY's own action**, on the very `selectionKeyActions` instance the root
+ * builds for the keys: Group and Ungroup are what Ctrl+G and Ctrl+Shift+G call, Duplicate and Delete
+ * what Ctrl+D and Delete call — one write through `editShape`, a refusal through `notifyIfRefused`. An
+ * item is `aria-disabled` exactly where `selectionAbilities` says its action would do nothing, which
+ * is the same answer that decides whether its key is claimed.
  *
- * **A right-click on a part that is not selected selects it first**, as the Plan Editor's does; one
- * that IS selected keeps the whole set, so a multi-selection can be grouped from the menu. The canvas
- * keys' refusals apply (`AssetDesignerRoot`'s `onCanvasKeyDown`): only under Select, never with a press
- * still held, never over a dialog. Empty canvas, a group row and anything else open nothing, and the
- * browser keeps its own event. A right press claims no camera and no tool gesture: `EditorSurface`
+ * **A right-click on a part makes it the FOCUSED part** (`AssetDesignStore.focus`, the Plan Editor's
+ * `selection.focus`): a part outside the selection is selected alone, and a member keeps the whole set
+ * but becomes the member every per-part item acts on. The canvas keys' refusals apply
+ * (`AssetDesignerRoot`'s `onCanvasKeyDown`): only under Select, never with a press still held, never
+ * over a dialog. Empty canvas, a group row, a control or the canvas overlay, and a part none of the
+ * four can act on open nothing, and the browser keeps its own event. A right press claims no camera and no tool gesture: `EditorSurface`
  * forwards only a primary press, and its pan override claims only the middle button or a space-held
  * primary.
  */
-export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'editShape' | 'activeToolId' | 'toolManager' | 'partView'>) {
+export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToolId' | 'toolManager' | 'partView'>, actions: SelectionKeyActions) {
 	const store = useAssetDesignStore(), editor = useEditorStore(), dialogs = useDialogStore();
-	const actions = selectionKeyActions(store, runtime.editShape, runtime.activeToolId);
 	const open = ref(false), position = ref({ left: '0px', top: '0px' });
 	let root!: HTMLElement, opener!: HTMLElement;
 
@@ -60,17 +58,16 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'editShape
 
 	/**
 	 * Read only while `focused` is non-null — `DesignerContextMenu` draws the list under that condition —
-	 * and a selection implies a shape: `AssetDesignStore.hydrate` prunes every member its shape lacks, and
-	 * `fail` empties the set, so neither cast below stands on anything the store does not already hold.
+	 * and a selection implies a design: `AssetDesignStore.fail` empties the set, so the cast below stands
+	 * on nothing the store does not already hold. Greyed by `selectionAbilities`, the keys' own answer.
 	 */
 	const items = computed((): CanvasMenuAction[] => {
-		const shape = (store.design as AssetDesignDto).shape as AssetShape, part = focused.value as DesignerSelection;
-		const detail = part.kind === 'detail' ? part.id : null, mod = modifierLabel();
+		const can = selectionAbilities((store.design as AssetDesignDto).shape, store.selected), mod = modifierLabel();
 		return [
-			{ id: 'group', label: 'designer.arrange.group', group: 'arrange', icon: 'group', shortcut: tr('designer.menu.shortcut.group', { mod }), disabled: !canGroup(shape, selectedGraphics(shape, store.selected)), run: actions.groupSelection },
-			{ id: 'ungroup', label: 'designer.arrange.ungroup', group: 'arrange', icon: 'ungroup', shortcut: tr('designer.menu.shortcut.ungroup', { mod }), disabled: detail === null || groupOfDetail(shape, detail) === null, run: actions.ungroupSelection },
-			{ id: 'duplicate', label: 'designer.selection.duplicate', group: 'edit', icon: 'copy', shortcut: tr('designer.menu.shortcut.duplicate', { mod }), disabled: detail === null, run: actions.duplicateSelection },
-			{ id: 'delete', label: 'designer.selection.delete', group: 'destructive', icon: 'trash', shortcut: tr('designer.menu.shortcut.delete'), disabled: detail === null && part.kind !== 'clearance', run: actions.deleteSelection },
+			{ id: 'group', label: 'designer.arrange.group', group: 'arrange', icon: 'group', shortcut: tr('designer.menu.shortcut.group', { mod }), disabled: !can.group, run: actions.groupSelection },
+			{ id: 'ungroup', label: 'designer.arrange.ungroup', group: 'arrange', icon: 'ungroup', shortcut: tr('designer.menu.shortcut.ungroup', { mod }), disabled: !can.ungroup, run: actions.ungroupSelection },
+			{ id: 'duplicate', label: 'designer.selection.duplicate', group: 'edit', icon: 'copy', shortcut: tr('designer.menu.shortcut.duplicate', { mod }), disabled: !can.duplicate, run: actions.duplicateSelection },
+			{ id: 'delete', label: 'designer.selection.delete', group: 'destructive', icon: 'trash', shortcut: tr('designer.menu.shortcut.delete'), disabled: !can.delete, run: actions.deleteSelection },
 		];
 	});
 
@@ -81,7 +78,9 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'editShape
 		// Only a row with a part draws this button, so the lookup always finds it.
 		if (row !== null) return (partRows(shape, { hasReference: false }).find((each) => each.key === row.name) as PartRow).selection;
 		const canvas = target.closest<HTMLElement>('.rp-plan-canvas');
-		if (canvas === null) return null;
+		// The canvas's own overlay (rulers, the dimension buttons and their fields, the legend) and any
+		// control keep their own context menu and keys — the Plan Editor refuses the same targets.
+		if (canvas === null || target.closest(CONTROLS) !== null) return null;
 		if (event instanceof KeyboardEvent) return store.selection;
 		if (shape === null) return null;
 		const bounds = canvas.getBoundingClientRect();
@@ -94,11 +93,17 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'editShape
 	async function show(event: MouseEvent | KeyboardEvent): Promise<void> {
 		if (dialogs.current !== null || runtime.activeToolId.value !== 'select' || runtime.toolManager.activeToolHasDraft()) return;
 		const target = event.target as HTMLElement, part = partAt(event, target);
-		if (part === null) return;
+		// A part none of the four can act on (the footprint, the anchor, the facing) opens nothing: a menu
+		// of greyed items is a dead control, and the browser keeps its own event. Asked of the part ALONE,
+		// which is exact — a graphic can always be duplicated, and a non-graphic is only ever selected alone.
+		// A part was only found on a drawn design, hence the cast.
+		if (part === null || !Object.values(selectionAbilities((store.design as AssetDesignDto).shape, [part])).includes(true)) return;
 		event.preventDefault();
 		event.stopPropagation();
 		root = event.currentTarget as HTMLElement;
-		if (!store.selected.some((member) => sameSelection(member, part))) store.select(part);
+		// The right-clicked part becomes the FOCUSED one — every per-part item reads the focused member —
+		// and a set it already belongs to is kept (the Plan Editor's `selection.focus`).
+		store.focus(part);
 		// The row's own button or the canvas: where focus goes back to, and where a key's menu opens.
 		opener = target.closest<HTMLElement>('.rp-designer-part-row, .rp-plan-canvas') as HTMLElement;
 		const from = opener.getBoundingClientRect(), host = root.getBoundingClientRect();
@@ -117,6 +122,22 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'editShape
 		if (restore) opener.focus();
 	}
 
+	/**
+	 * Focus goes back to the opener at once, and the action runs. A write can then unmount the opener —
+	 * Delete removes its Parts row, and a group re-nests rows — and a browser drops focus to `<body>`
+	 * when the focused element goes. So once the action has settled and redrawn, focus that has left the
+	 * designer is handed to the CANVAS: it is the one control every one of these writes leaves standing
+	 * (a Parts row may be the very thing removed, and the list itself is not a focus target), and it is
+	 * where the same four actions' keys work, so the next keystroke still means something. It is always
+	 * there: a failed read-back after a write keeps the previous design drawn (`runtime.refresh`).
+	 */
+	async function runAndRefocus(action: CanvasMenuAction): Promise<void> {
+		close();
+		await action.run();
+		await nextTick();
+		if (!root.contains(document.activeElement)) (root.querySelector('.rp-plan-canvas') as HTMLElement).focus();
+	}
+
 	return reactive({
 		open,
 		position,
@@ -124,8 +145,7 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'editShape
 		items,
 		close,
 		run(action: CanvasMenuAction): void {
-			close();
-			void action.run();
+			void runAndRefocus(action);
 		},
 		context(event: MouseEvent): void {
 			void show(event);

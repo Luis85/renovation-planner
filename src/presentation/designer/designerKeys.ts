@@ -12,9 +12,9 @@ import type { EditShape, ShapeEdit } from './selection/editShape';
 
 /**
  * The asset designer's selection keys (symbols spec, Decision 10). Delete, Ctrl+D, and Ctrl+G and
- * Ctrl+Shift+G (group and ungroup, AD18-R16 Task 11) are decided HERE
- * and bound on the canvas element itself by `AssetDesignerRoot`, because `EditorSurface` routes neither
- * and leaves both to other listeners; the arrows are `EditorSurface`'s own nudge, which `DesignerCanvas` answers with
+ * Ctrl+Shift+G (group and ungroup, AD18-R16 Task 11) are decided HERE and bound on the canvas element
+ * itself by `AssetDesignerRoot`, because `EditorSurface` routes none of them and leaves them to other
+ * listeners; the arrows are `EditorSurface`'s own nudge, which `DesignerCanvas` answers with
  * `selectionKeyActions(...).nudgeSelection`. Every edit is one `editShape`, so one conditional write
  * and one undo entry, and every refusal goes through `notifyIfRefused` — except a nudge or a Delete whose
  * part is already gone when its step runs, which is skipped and says nothing (`whileItExists`).
@@ -33,53 +33,82 @@ export interface DesignerKeyPress {
 	stopPropagation(): void;
 }
 
+/** What a key's claim is decided over — the design store satisfies it structurally. */
+export interface DesignerKeyState {
+	readonly selected: readonly DesignerSelection[];
+	readonly design: { readonly shape: AssetShape | null } | null;
+}
+
 export interface DesignerKeyDoors {
-	readonly selection: DesignerSelection | null;
 	deleteSelection(): void;
 	duplicateSelection(): void;
 	groupSelection(): void;
 	ungroupSelection(): void;
 }
 
-/**
- * A bare Delete or Backspace on a part that can go: a detail, or the clearance. The footprint cannot
- * be deleted (spec Decision 9), and the anchor and the facing are not parts one removes. An autorepeat
- * is refused too — a held key would dispatch a second, stale delete before the first refresh landed.
- */
-function deletes(event: DesignerKeyPress, kind: DesignerSelection['kind'] | undefined): boolean {
-	return plainPress(event) && !event.shiftKey && (event.key === 'Delete' || event.key === 'Backspace') && (kind === 'detail' || kind === 'clearance');
+/** What each selection action would act on right now; `false` is an action that would do nothing. */
+export interface SelectionAbilities {
+	readonly group: boolean;
+	readonly ungroup: boolean;
+	readonly duplicate: boolean;
+	readonly delete: boolean;
 }
 
 /**
- * The Ctrl, or Cmd, chords on a detail: D duplicates, G groups and Shift+G ungroups. The CHARACTER
- * rather than the physical key, so Caps Lock still reads as `d` — and Shift turns `g` into `G`, which
- * `toLowerCase` folds back. Never with Alt, never an autorepeat, never mid-composition.
+ * The ONE answer to "would this action do anything", which the keys' claim and the context menu's
+ * greying both read, so a key never claims what the menu greys or the reverse. Over the FOCUSED part
+ * (the last member): Group needs `canGroup` over the whole set; Ungroup a focused graphic in a group;
+ * Duplicate a focused graphic; Delete a focused graphic or the clearance. The footprint cannot be
+ * deleted (spec Decision 9), and the anchor and the facing are not parts one removes.
  */
-function chord(event: DesignerKeyPress, kind: DesignerSelection['kind'] | undefined): 'duplicateSelection' | 'groupSelection' | 'ungroupSelection' | null {
-	if (!(event.ctrlKey || event.metaKey) || event.altKey || event.repeat || event.isComposing || kind !== 'detail') return null;
+export function selectionAbilities(shape: AssetShape | null, selected: readonly DesignerSelection[]): SelectionAbilities {
+	const focused = selected.at(-1), detail = focused?.kind === 'detail' ? focused.id : null;
+	return {
+		group: shape !== null && canGroup(shape, selectedGraphics(shape, selected)),
+		ungroup: shape !== null && detail !== null && groupOfDetail(shape, detail) !== null,
+		duplicate: detail !== null,
+		delete: detail !== null || focused?.kind === 'clearance',
+	};
+}
+
+/** A bare Delete or Backspace. An autorepeat is refused: a held key would dispatch a second, stale delete before the first refresh landed. */
+function deletes(event: DesignerKeyPress): boolean {
+	return plainPress(event) && !event.shiftKey && (event.key === 'Delete' || event.key === 'Backspace');
+}
+
+/**
+ * The Ctrl, or Cmd, chords: D duplicates, G groups and Shift+G ungroups. The CHARACTER rather than the
+ * physical key, so Caps Lock still reads as `d`, and Shift turns `g` into `G`, which `toLowerCase`
+ * folds back. Never with Alt, never an autorepeat, never mid-composition.
+ */
+function chord(event: DesignerKeyPress): 'duplicate' | 'group' | 'ungroup' | null {
+	if (!(event.ctrlKey || event.metaKey) || event.altKey || event.repeat || event.isComposing) return null;
 	const key = event.key.toLowerCase();
-	if (key === 'g') return event.shiftKey ? 'ungroupSelection' : 'groupSelection';
-	return key === 'd' && !event.shiftKey ? 'duplicateSelection' : null;
+	if (key === 'g') return event.shiftKey ? 'ungroup' : 'group';
+	return key === 'd' && !event.shiftKey ? 'duplicate' : null;
 }
 
+const DOOR = { duplicate: 'duplicateSelection', group: 'groupSelection', ungroup: 'ungroupSelection' } as const;
+
 /**
- * true when the press was one of these shortcuts (and was handled). Delete/Backspace with no modifiers
- * on a detail or clearance → deleteSelection; a `chord` on a detail → its door, with the default AND the
- * propagation taken away: Obsidian binds Ctrl+G to its graph view, and a chord this canvas answered must
- * not also reach the host's hotkeys (`historyShortcut.ts` stops Ctrl+Z for the same reason). Everything
- * else → false.
+ * true when the press was one of these shortcuts AND its action would act (`selectionAbilities`), and
+ * it was handled. **A key that would do nothing is not claimed**, which is `historyShortcut.ts`'s rule
+ * ("a chord that does nothing here stays the host's"), so Obsidian's own Ctrl+G, its graph view, still
+ * works whenever there is nothing here to group. A chord that DOES act has its default AND its
+ * propagation taken away, so the host's hotkey does not fire as well; a bare Delete has no default
+ * worth taking.
  */
-export function designerShortcut(event: DesignerKeyPress, doors: DesignerKeyDoors): boolean {
-	const kind = doors.selection?.kind;
-	if (deletes(event, kind)) {
+export function designerShortcut(event: DesignerKeyPress, state: DesignerKeyState, doors: DesignerKeyDoors): boolean {
+	const can = selectionAbilities(state.design?.shape ?? null, state.selected);
+	if (deletes(event) && can.delete) {
 		doors.deleteSelection();
 		return true;
 	}
-	const door = chord(event, kind);
-	if (door === null) return false;
+	const action = chord(event);
+	if (action === null || !can[action]) return false;
 	event.preventDefault();
 	event.stopPropagation();
-	doors[door]();
+	doors[DOOR[action]]();
 	return true;
 }
 
@@ -92,6 +121,9 @@ export function selectedGraphics(shape: AssetShape | null, selected: readonly De
 export function canGroup(shape: AssetShape, ids: readonly string[]): boolean {
 	return ids.length > 1 && ids.every((id) => groupOfDetail(shape, id) === null);
 }
+
+/** The key actions one leaf builds once, for its canvas keys and its context menu alike. */
+export type SelectionKeyActions = ReturnType<typeof selectionKeyActions>;
 
 /**
  * Duplicate one detail and select the copy once the write lands. The copy's id is read from the shape
@@ -131,9 +163,10 @@ function whileItExists(selection: DesignerSelection, edit: ShapeEdit): (shape: A
  * Each action reads the selection at the CALL and answers for itself what it can act on — a detail or
  * the clearance to delete, a detail to duplicate — rather than trusting its caller to have asked:
  * `designerShortcut` asks at the press, while `nudgeSelection` is reached through `EditorSurface`'s arrow
- * door, which asks nothing about the part. `DesignerContextMenu`'s items call the same four that are not the nudge. The
- * inspector's buttons call none of them; they share `duplicateAndSelect`, `selectedGraphics` and
- * `canGroup` above, and show a refusal in their own alert rather than a notice. The selection clears itself after a delete: the
+ * door, which asks nothing about the part. The context menu (`designerMenu.ts`) calls the four that are
+ * not the nudge, on the SAME instance `AssetDesignerRoot` builds for the keys. The inspector's buttons
+ * call none of them; they share `duplicateAndSelect`, `selectedGraphics` and `canGroup` above, and show
+ * a refusal in their own alert rather than a notice. The selection clears itself after a delete: the
  * refresh re-reads a shape without the part, and the store prunes a selection that names nothing.
  */
 export function selectionKeyActions(

@@ -139,6 +139,22 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 		selected.value = without.length === selected.value.length ? [...selected.value, next] : without;
 	}
 
+	/**
+	 * Make `next` the FOCUSED part: a member moves to the end without the set changing, and a part that
+	 * is not a member is selected alone (`select`). The context menu's right-click (AD18-R16 Task 11),
+	 * and the Plan Editor's own `selection.focus` for the same gesture — every per-part action reads the
+	 * focused member, so a right-click on one member of three must make THAT one the subject.
+	 */
+	function focus(next: DesignerSelection): void {
+		const others = selected.value.filter((member) => !sameSelection(member, next));
+		if (others.length === selected.value.length) {
+			select(next);
+			return;
+		}
+		if (!sameSelection(selection.value, next)) mode.value = 'transform';
+		selected.value = [...others, next];
+	}
+
 	function setMode(next: SelectionMode): void {
 		mode.value = next;
 	}
@@ -281,5 +297,5 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 		stale.value = false;
 	}
 
-	return { design, error, status, stale, hydrate, selected, selection, mode, preview, select, extend, setMode, setPreview };
+	return { design, error, status, stale, hydrate, selected, selection, mode, preview, select, extend, focus, setMode, setPreview };
 });

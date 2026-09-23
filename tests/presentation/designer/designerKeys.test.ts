@@ -47,12 +47,16 @@ function pressed(init: Partial<DesignerKeyPress>): { readonly event: DesignerKey
 	return { event, prevented: () => prevented, stopped: () => stopped };
 }
 
-function doors(selection: DesignerSelection | null): { readonly calls: string[]; readonly doors: Parameters<typeof designerShortcut>[1] } {
+const PAIR: readonly DesignerSelection[] = [{ kind: 'detail', id: 'detail-1' }, DETAIL];
+const NO_DESIGN = Symbol('no design read yet');
+
+type Case = readonly [string, Partial<DesignerKeyPress>, readonly DesignerSelection[], AssetShape | typeof NO_DESIGN];
+
+function doors(): { readonly calls: string[]; readonly doors: Parameters<typeof designerShortcut>[2] } {
 	const calls: string[] = [];
 	return {
 		calls,
 		doors: {
-			selection,
 			deleteSelection: () => {
 				calls.push('delete');
 			},
@@ -69,50 +73,63 @@ function doors(selection: DesignerSelection | null): { readonly calls: string[];
 	};
 }
 
-const HANDLED: readonly (readonly [string, Partial<DesignerKeyPress>, DesignerSelection, string])[] = [
-	['Delete on a detail', { key: 'Delete' }, DETAIL, 'delete'],
-	['Backspace on the clearance', { key: 'Backspace' }, { kind: 'clearance' }, 'delete'],
-	['Ctrl+D on a detail', { key: 'd', ctrlKey: true }, DETAIL, 'duplicate'],
-	['Cmd+D on a detail', { key: 'd', metaKey: true }, DETAIL, 'duplicate'],
-	['Ctrl+D with Caps Lock on', { key: 'D', ctrlKey: true }, DETAIL, 'duplicate'],
-	['Ctrl+G on a detail', { key: 'g', ctrlKey: true }, DETAIL, 'group'],
-	['Cmd+G on a detail', { key: 'g', metaKey: true }, DETAIL, 'group'],
-	['Ctrl+Shift+G on a detail', { key: 'G', ctrlKey: true, shiftKey: true }, DETAIL, 'ungroup'],
-	['Cmd+Shift+G on a detail', { key: 'G', metaKey: true, shiftKey: true }, DETAIL, 'ungroup'],
+function state(selected: readonly DesignerSelection[], shape: AssetShape | typeof NO_DESIGN): Parameters<typeof designerShortcut>[1] {
+	return { selected, design: shape === NO_DESIGN ? null : { shape } };
+}
+
+const HANDLED: readonly (readonly [...Case, string])[] = [
+	['Delete on a detail', { key: 'Delete' }, [DETAIL], TOILET, 'delete'],
+	['Backspace on the clearance', { key: 'Backspace' }, [{ kind: 'clearance' }], TOILET, 'delete'],
+	['Ctrl+D on a detail', { key: 'd', ctrlKey: true }, [DETAIL], TOILET, 'duplicate'],
+	['Cmd+D on a detail', { key: 'd', metaKey: true }, [DETAIL], TOILET, 'duplicate'],
+	['Ctrl+D with Caps Lock on', { key: 'D', ctrlKey: true }, [DETAIL], TOILET, 'duplicate'],
+	['Ctrl+G on two ungrouped details', { key: 'g', ctrlKey: true }, PAIR, TOILET, 'group'],
+	['Cmd+G on two ungrouped details', { key: 'g', metaKey: true }, PAIR, TOILET, 'group'],
+	['Ctrl+Shift+G on a grouped detail', { key: 'G', ctrlKey: true, shiftKey: true }, [DETAIL], GROUPED, 'ungroup'],
+	['Cmd+Shift+G on a grouped detail', { key: 'G', metaKey: true, shiftKey: true }, [DETAIL], GROUPED, 'ungroup'],
 ];
 
-const IGNORED: readonly (readonly [string, Partial<DesignerKeyPress>, DesignerSelection | null])[] = [
-	['Delete on the footprint', { key: 'Delete' }, { kind: 'footprint' }],
-	['Delete on the anchor', { key: 'Delete' }, { kind: 'anchor' }],
-	['Delete with nothing selected', { key: 'Delete' }, null],
-	['Shift+Delete', { key: 'Delete', shiftKey: true }, DETAIL],
-	['Ctrl+Backspace', { key: 'Backspace', ctrlKey: true }, DETAIL],
-	['an autorepeated Delete', { key: 'Delete', repeat: true }, DETAIL],
-	['Ctrl+D on the clearance', { key: 'd', ctrlKey: true }, { kind: 'clearance' }],
-	['Ctrl+Shift+D', { key: 'D', ctrlKey: true, shiftKey: true }, DETAIL],
-	['Ctrl+Alt+D', { key: 'd', ctrlKey: true, altKey: true }, DETAIL],
-	['an autorepeated Ctrl+D', { key: 'd', ctrlKey: true, repeat: true }, DETAIL],
-	['Ctrl+D mid-composition', { key: 'd', ctrlKey: true, isComposing: true }, DETAIL],
-	['a bare d', { key: 'd' }, DETAIL],
-	['Ctrl+G on the clearance', { key: 'g', ctrlKey: true }, { kind: 'clearance' }],
-	['Ctrl+Shift+G on the footprint', { key: 'G', ctrlKey: true, shiftKey: true }, { kind: 'footprint' }],
-	['Ctrl+G with nothing selected', { key: 'g', ctrlKey: true }, null],
-	['Ctrl+Alt+G', { key: 'g', ctrlKey: true, altKey: true }, DETAIL],
-	['Ctrl+Alt+Shift+G', { key: 'G', ctrlKey: true, altKey: true, shiftKey: true }, DETAIL],
-	['an autorepeated Ctrl+G', { key: 'g', ctrlKey: true, repeat: true }, DETAIL],
-	['an autorepeated Ctrl+Shift+G', { key: 'G', ctrlKey: true, shiftKey: true, repeat: true }, DETAIL],
-	['Ctrl+G mid-composition', { key: 'g', ctrlKey: true, isComposing: true }, DETAIL],
-	['a bare g', { key: 'g' }, DETAIL],
-	['Shift+G', { key: 'G', shiftKey: true }, DETAIL],
-	['an unrelated key', { key: 'x' }, DETAIL],
+/**
+ * A chord that would do nothing is NOT claimed — `historyShortcut.ts`'s rule, "a chord that does
+ * nothing here stays the host's" — so Obsidian's own Ctrl+G still opens its graph view whenever
+ * there is nothing here to group.
+ */
+const IGNORED: readonly Case[] = [
+	['Delete on the footprint', { key: 'Delete' }, [{ kind: 'footprint' }], TOILET],
+	['Delete on the anchor', { key: 'Delete' }, [{ kind: 'anchor' }], TOILET],
+	['Delete with nothing selected', { key: 'Delete' }, [], TOILET],
+	['Shift+Delete', { key: 'Delete', shiftKey: true }, [DETAIL], TOILET],
+	['Ctrl+Backspace', { key: 'Backspace', ctrlKey: true }, [DETAIL], TOILET],
+	['an autorepeated Delete', { key: 'Delete', repeat: true }, [DETAIL], TOILET],
+	['Ctrl+D on the clearance', { key: 'd', ctrlKey: true }, [{ kind: 'clearance' }], TOILET],
+	['Ctrl+Shift+D', { key: 'D', ctrlKey: true, shiftKey: true }, [DETAIL], TOILET],
+	['Ctrl+Alt+D', { key: 'd', ctrlKey: true, altKey: true }, [DETAIL], TOILET],
+	['an autorepeated Ctrl+D', { key: 'd', ctrlKey: true, repeat: true }, [DETAIL], TOILET],
+	['Ctrl+D mid-composition', { key: 'd', ctrlKey: true, isComposing: true }, [DETAIL], TOILET],
+	['a bare d', { key: 'd' }, [DETAIL], TOILET],
+	['Ctrl+G on a single detail, which cannot be grouped', { key: 'g', ctrlKey: true }, [DETAIL], TOILET],
+	['Ctrl+G on a pair already grouped', { key: 'g', ctrlKey: true }, PAIR, GROUPED],
+	['Ctrl+G on the clearance', { key: 'g', ctrlKey: true }, [{ kind: 'clearance' }], TOILET],
+	['Ctrl+G with nothing selected', { key: 'g', ctrlKey: true }, [], TOILET],
+	['Ctrl+G before any design is read', { key: 'g', ctrlKey: true }, PAIR, NO_DESIGN],
+	['Ctrl+Shift+G on an ungrouped detail', { key: 'G', ctrlKey: true, shiftKey: true }, [DETAIL], TOILET],
+	['Ctrl+Shift+G on the footprint', { key: 'G', ctrlKey: true, shiftKey: true }, [{ kind: 'footprint' }], GROUPED],
+	['Ctrl+Alt+G', { key: 'g', ctrlKey: true, altKey: true }, PAIR, TOILET],
+	['Ctrl+Alt+Shift+G', { key: 'G', ctrlKey: true, altKey: true, shiftKey: true }, [DETAIL], GROUPED],
+	['an autorepeated Ctrl+G', { key: 'g', ctrlKey: true, repeat: true }, PAIR, TOILET],
+	['an autorepeated Ctrl+Shift+G', { key: 'G', ctrlKey: true, shiftKey: true, repeat: true }, [DETAIL], GROUPED],
+	['Ctrl+G mid-composition', { key: 'g', ctrlKey: true, isComposing: true }, PAIR, TOILET],
+	['a bare g', { key: 'g' }, PAIR, TOILET],
+	['Shift+G', { key: 'G', shiftKey: true }, [DETAIL], GROUPED],
+	['an unrelated key', { key: 'x' }, [DETAIL], TOILET],
 ];
 
 describe('designerShortcut', () => {
-	it.each(HANDLED)('handles %s', (_name, init, selection, door) => {
+	it.each(HANDLED)('handles %s', (_name, init, selected, shape, door) => {
 		const { event, prevented, stopped } = pressed(init);
-		const recorded = doors(selection);
+		const recorded = doors();
 
-		expect(designerShortcut(event, recorded.doors)).toBe(true);
+		expect(designerShortcut(event, state(selected, shape), recorded.doors)).toBe(true);
 		expect(recorded.calls).toEqual([door]);
 		// Only a chord has a default worth taking away — the browser's, and the host's own hotkey
 		// (Obsidian binds Ctrl+G to its graph view); a bare Delete on a focused canvas has neither.
@@ -120,11 +137,11 @@ describe('designerShortcut', () => {
 		expect(stopped()).toBe(door !== 'delete');
 	});
 
-	it.each(IGNORED)('ignores %s', (_name, init, selection) => {
+	it.each(IGNORED)('ignores %s', (_name, init, selected, shape) => {
 		const { event, prevented, stopped } = pressed(init);
-		const recorded = doors(selection);
+		const recorded = doors();
 
-		expect(designerShortcut(event, recorded.doors)).toBe(false);
+		expect(designerShortcut(event, state(selected, shape), recorded.doors)).toBe(false);
 		expect(recorded.calls).toEqual([]);
 		expect(prevented()).toBe(false);
 		expect(stopped()).toBe(false);

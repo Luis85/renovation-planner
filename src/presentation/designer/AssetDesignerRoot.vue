@@ -76,7 +76,8 @@ const workspace = useWorkspaceStore(), editorStore = useEditorStore();
 /**
  * The leaf's live machinery (Task B3a), provided here so the regions later tasks mount can
  * inject it. The return value is used immediately: this file performs THREE reads through it,
- * and they are not all the same door.
+ * and they are not all the same door — and it hands the runtime on, to the selection keys and the
+ * context menu (`onCanvasKeyDown` below), which read no design through it.
  *
  * `runtime.hydrate` (blank on failure) is the mount and `onFailureAction`'s retry — a leaf with
  * nothing on screen has nothing to keep. `runtime.refresh` (keep-previous) is `onRetry`, the
@@ -89,7 +90,6 @@ const workspace = useWorkspaceStore(), editorStore = useEditorStore();
  * rather than from the old sentence.
  */
 const runtime = provideDesignerRuntime(context);
-const contextMenu = useDesignerContextMenu(runtime);
 const designStore = useAssetDesignStore();
 const { design, error, status, stale, selection, selected } = storeToRefs(designStore);
 
@@ -549,10 +549,11 @@ function onFailureAction(): void {
 }
 
 /**
- * Delete, Ctrl+D, Ctrl+G and Ctrl+Shift+G for the designer's selection (symbols spec, Decision 10), bound on the canvas
- * ELEMENT — `<DesignerCanvas @keydown>` falls through to `EditorSurface`'s focusable root — because
- * `EditorSurface` routes neither key. The inspector is a sibling region, so a Backspace typed in one
- * of its fields never reaches this listener.
+ * Delete, Ctrl+D, Ctrl+G and Ctrl+Shift+G for the designer's selection (symbols spec, Decision 10;
+ * AD18-R16 Task 11), bound on the canvas ELEMENT — `<DesignerCanvas @keydown>` falls through to
+ * `EditorSurface`'s focusable root — because `EditorSurface` routes none of them. The inspector is a
+ * sibling region, so a Backspace typed in one of its fields never reaches this listener. `keyActions`
+ * is ALSO the context menu's (`designerMenu.ts`), so an item and its key are one function.
  *
  * Three refusals, each someone else's key:
  * - a key whose target is not that element itself — `keyDoors.ts`'s `isCanvasKey` rule, so a
@@ -562,9 +563,10 @@ function onFailureAction(): void {
  * - a press still held on the selection (`hasDraft`), whose release is about to write that very part.
  */
 const keyActions = selectionKeyActions(designStore, runtime.editShape, runtime.activeToolId);
+const contextMenu = useDesignerContextMenu(runtime, keyActions);
 function onCanvasKeyDown(event: KeyboardEvent): void {
 	if (event.target !== event.currentTarget || runtime.activeToolId.value !== 'select' || runtime.toolManager.activeToolHasDraft()) return;
-	designerShortcut(event, { selection: designStore.selection, ...keyActions });
+	designerShortcut(event, designStore, keyActions);
 }
 
 onMounted(() => {

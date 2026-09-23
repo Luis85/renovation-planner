@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Point } from '../../../src/core/geometry/Point';
 import type { AssetShape } from '../../../src/domain/asset/AssetShape';
+import { DUPLICATE_OFFSET_MM } from '../../../src/domain/asset/detailEdits';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { selectionHandles } from '../../../src/presentation/designer/selection/handles';
 import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
@@ -21,8 +22,11 @@ import { designerRig, selecting, type DesignerRig } from '../../helpers/designer
 import { TOILET, detailOutline, justInsideBottom } from '../../helpers/designerSelection';
 
 const BOWL = justInsideBottom(detailOutline('detail-2'));
-const TANK = justInsideBottom(detailOutline('detail-1'));
+// Inside the tank's far corner, well clear of every handle the bowl draws once it is selected.
+const TANK: Point = { x: -170, y: -330 };
 const FOOTPRINT: Point = { x: TOILET.footprint.points[1].x - 15, y: 0 };
+const DETAIL_1 = { kind: 'detail', id: 'detail-1' } as const;
+const DETAIL_2 = { kind: 'detail', id: 'detail-2' } as const;
 const GROUPED: AssetShape = { ...TOILET, groups: [{ id: 'group-1', members: ['detail-1', 'detail-2'] }] };
 
 /** A right-click at a world point: the secondary press, then the `contextmenu` it raises. Answers the event. */
@@ -80,15 +84,21 @@ describe('opening on the canvas', () => {
 		rig.unmount();
 	});
 
-	it('opens at the pointer, pulled back inside the leaf', async () => {
+	it('opens at the pointer, and is pulled back inside the leaf where the pointer is near its edge', async () => {
 		const rig = await selecting(TOILET);
+		const at = rig.at(BOWL);
 		placeAt(rig.wrapper.element as HTMLElement, 0, 0, 800, 600);
 		rightClick(rig, BOWL);
 		await settle();
-		const at = rig.at(BOWL);
+		expect([(menu(rig) as HTMLElement).style.left, (menu(rig) as HTMLElement).style.top]).toEqual([`${at.x}px`, `${at.y}px`]);
 
-		expect((menu(rig) as HTMLElement).style.left).toBe(`${at.x}px`);
-		expect((menu(rig) as HTMLElement).style.top).toBe(`${at.y}px`);
+		// A leaf whose right edge IS the pointer: the menu is pulled left, its own width plus 8px clear of that edge.
+		const width = (menu(rig) as HTMLElement).offsetWidth;
+		key(document.activeElement as Element, { key: 'Escape' });
+		placeAt(rig.wrapper.element as HTMLElement, 0, 0, at.x, 600);
+		rightClick(rig, BOWL);
+		await settle();
+		expect([(menu(rig) as HTMLElement).style.left, (menu(rig) as HTMLElement).style.top]).toEqual([`${at.x - width - 8}px`, `${at.y}px`]);
 		rig.unmount();
 	});
 
@@ -145,13 +155,14 @@ describe('opening on the canvas', () => {
 		rig.unmount();
 	});
 
-	it('greys all four for the footprint, and all but Delete for the clearance', async () => {
+	it('opens nothing for a part none of the four can act on, and greys all but Delete for the clearance', async () => {
 		const rig = await selecting(TOILET);
-		rightClick(rig, FOOTPRINT);
+		const footprint = rightClick(rig, FOOTPRINT);
+		const anchor = rightClick(rig, TOILET.anchor);
 		await settle();
-		expect(live(rig)).toEqual([['group', false], ['ungroup', false], ['duplicate', false], ['delete', false]]);
+		expect([menu(rig), footprint.defaultPrevented, anchor.defaultPrevented]).toEqual([null, false, false]);
+		expect(useAssetDesignStore(rig.pinia).selection).toBeNull();
 
-		key(document.activeElement as Element, { key: 'Escape' });
 		const corner = TOILET.clearance?.points[2] as Point;
 		rightClick(rig, { x: corner.x - 50, y: corner.y - 50 });
 		await settle();
@@ -266,7 +277,7 @@ describe('when it refuses to open', () => {
 		const rig = await selecting(TOILET);
 		void useDialogStore(rig.pinia).openDialog({ kind: 'confirm', title: 'T', message: 'M' });
 		await settle();
-		row(rig, 'footprint').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		row(rig, 'clearance').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
 		await settle();
 
 		expect(menu(rig)).toBeNull();
@@ -353,6 +364,103 @@ describe('Ctrl+G and Ctrl+Shift+G on the canvas', () => {
 		key(rig.canvasEl, { key: 'G', ctrlKey: true, shiftKey: true });
 		await settle();
 		expect((await rig.document()).shape?.groups ?? []).toEqual([]);
+		rig.unmount();
+	});
+
+	it('leaves Ctrl+G and Ctrl+Shift+G to the host when there is nothing to group or ungroup', async () => {
+		const rig = await selecting(TOILET);
+		useAssetDesignStore(rig.pinia).select(DETAIL_2);
+		const before = await rig.document();
+
+		const group = key(rig.canvasEl, { key: 'g', ctrlKey: true });
+		const ungroup = key(rig.canvasEl, { key: 'G', ctrlKey: true, shiftKey: true });
+		await settle();
+
+		expect([group.defaultPrevented, ungroup.defaultPrevented]).toEqual([false, false]);
+		expect(await rig.document()).toEqual(before);
+		rig.unmount();
+	});
+});
+
+describe('a multi-selection', () => {
+	/** Both members selected with the BOWL focused, then a right-click on the TANK. */
+	async function onTheTank(): Promise<DesignerRig> {
+		const rig = await selecting(TOILET);
+		const store = useAssetDesignStore(rig.pinia);
+		store.select(DETAIL_1);
+		store.extend(DETAIL_2);
+		rightClick(rig, TANK);
+		await settle();
+		return rig;
+	}
+
+	it('makes the right-clicked member the focused one, keeping the set', async () => {
+		const rig = await onTheTank();
+		expect(useAssetDesignStore(rig.pinia).selected).toEqual([DETAIL_2, DETAIL_1]);
+		rig.unmount();
+	});
+
+	it('deletes the right-clicked member, not the member focused before', async () => {
+		const rig = await onTheTank();
+		item(rig, 'delete').click();
+		await settle();
+		expect((await rig.document()).shape?.details.map((each) => each.id)).toEqual(['detail-2']);
+		rig.unmount();
+	});
+
+	it('duplicates the right-clicked member, not the member focused before', async () => {
+		const rig = await onTheTank();
+		item(rig, 'duplicate').click();
+		await settle();
+		const copy = (await rig.document()).shape?.details.find((each) => each.id === 'detail-3');
+		expect(copy?.outline.points).toEqual(detailOutline('detail-1').points.map((point) => ({ x: point.x + DUPLICATE_OFFSET_MM, y: point.y + DUPLICATE_OFFSET_MM })));
+		rig.unmount();
+	});
+});
+
+describe('focus after an action from a Parts row', () => {
+	it('goes to the canvas when Delete removed the row it came from', async () => {
+		const rig = await selecting(TOILET);
+		row(rig, 'detail:detail-2').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		await settle();
+		item(rig, 'delete').click();
+		await settle();
+
+		expect(row(rig, 'detail:detail-2')).toBeNull();
+		expect(document.activeElement).toBe(rig.canvasEl);
+		rig.unmount();
+	});
+
+	it('stays in the designer when Group re-nests the rows', async () => {
+		const rig = await selecting(TOILET);
+		const store = useAssetDesignStore(rig.pinia);
+		store.select(DETAIL_1);
+		store.extend(DETAIL_2);
+		await settle();
+		row(rig, 'detail:detail-1').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		await settle();
+		item(rig, 'group').click();
+		await settle();
+
+		expect((await rig.document()).shape?.groups).toHaveLength(1);
+		expect((rig.wrapper.element as HTMLElement).contains(document.activeElement)).toBe(true);
+		rig.unmount();
+	});
+});
+
+describe("the canvas overlay's own controls", () => {
+	it('keep their own context menu and keys', async () => {
+		const rig = await selecting(TOILET);
+		useAssetDesignStore(rig.pinia).select(DETAIL_2);
+		await settle();
+		const control = (rig.wrapper.element as HTMLElement).querySelector('.rp-plan-overlay button') as HTMLElement;
+
+		const right = new MouseEvent('contextmenu', { bubbles: true, cancelable: true });
+		control.dispatchEvent(right);
+		const shiftF10 = key(control, { key: 'F10', shiftKey: true });
+		await settle();
+
+		expect([menu(rig), right.defaultPrevented, shiftF10.defaultPrevented]).toEqual([null, false, false]);
 		rig.unmount();
 	});
 });

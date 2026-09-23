@@ -43,6 +43,20 @@ describe('the designer selection in the design store', () => {
 		expect([store.selection, store.mode]).toEqual([BOWL, 'transform']);
 	});
 
+	it('focuses a member without changing the set, and selects a part that is not one alone', () => {
+		const store = useAssetDesignStore();
+		const tank = { kind: 'detail', id: 'detail-1' } as const;
+		store.select(tank);
+		store.extend(BOWL);
+		store.setMode('points');
+		store.focus(BOWL);
+		expect([store.selected, store.mode]).toEqual([[tank, BOWL], 'points']);
+		store.focus(tank);
+		expect([store.selected, store.selection, store.mode]).toEqual([[BOWL, tank], tank, 'transform']);
+		store.focus({ kind: 'clearance' });
+		expect(store.selected).toEqual([{ kind: 'clearance' }]);
+	});
+
 	/**
 	 * A preview belongs to the gesture that drew it, which clears it itself — a drag's commit once its
 	 * write has settled. A click landing while that write is in flight must not wipe it, or the canvas

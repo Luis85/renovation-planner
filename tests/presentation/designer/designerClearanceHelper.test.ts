@@ -170,6 +170,16 @@ async function hiding(): Promise<DesignerRig> {
 	return rig;
 }
 
+/** A real right-click: the button's down and up, then the `contextmenu` event the menu listens for. */
+function rightClick(rig: DesignerRig, world: Point): MouseEvent {
+	const at = rig.at(world);
+	rig.canvasEl.dispatchEvent(new PointerEvent('pointerdown', { button: 2, buttons: 2, pointerId: 1, clientX: at.x, clientY: at.y, bubbles: true }));
+	rig.canvasEl.dispatchEvent(new PointerEvent('pointerup', { button: 2, buttons: 0, pointerId: 1, clientX: at.x, clientY: at.y, bubbles: true }));
+	const event = new MouseEvent('contextmenu', { button: 2, clientX: at.x, clientY: at.y, bubbles: true, cancelable: true });
+	rig.canvasEl.dispatchEvent(event);
+	return event;
+}
+
 const selection = (rig: DesignerRig) => useAssetDesignStore(rig.pinia).selection;
 const legendKinds = (rig: DesignerRig) => rig.wrapper.findAll('.rp-designer-legend__swatch').map((swatch) => swatch.classes().find((name) => name.startsWith('rp-designer-legend__swatch--')));
 
@@ -196,6 +206,33 @@ describe('with Show clearance off', () => {
 		try {
 			click(rig, BAND);
 			await settle();
+			expect(selection(rig)).toBeNull();
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	/**
+	 * The context menu's own door (`designerMenu.ts`'s `partAt`) asks `hitDesign` too, so a hidden
+	 * clearance falls through there exactly as a Parts-hidden graphic does: the hit is `null`, no
+	 * menu opens and the browser keeps its own event. The control case proves the right-click reaches
+	 * the menu at all.
+	 */
+	it('opens no context menu on a right-click on the band, where a drawn clearance opens one', async () => {
+		const drawn = await selecting(editableShape());
+		try {
+			expect(rightClick(drawn, BAND).defaultPrevented).toBe(true);
+			await settle();
+			expect(drawn.wrapper.find('.rp-canvas-context-menu').exists()).toBe(true);
+		} finally {
+			drawn.unmount();
+		}
+
+		const rig = await hiding();
+		try {
+			expect(rightClick(rig, BAND).defaultPrevented).toBe(false);
+			await settle();
+			expect(rig.wrapper.find('.rp-canvas-context-menu').exists()).toBe(false);
 			expect(selection(rig)).toBeNull();
 		} finally {
 			rig.unmount();

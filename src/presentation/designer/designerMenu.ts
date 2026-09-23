@@ -48,7 +48,7 @@ const CONTROLS = '.rp-plan-overlay, button, a, input, textarea, select, [content
  * forwards only a primary press, and its pan override claims only the middle button or a space-held
  * primary.
  */
-export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToolId' | 'toolManager' | 'partView'>, actions: SelectionKeyActions) {
+export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToolId' | 'toolManager' | 'partView' | 'showClearance'>, actions: SelectionKeyActions) {
 	const store = useAssetDesignStore(), editor = useEditorStore(), dialogs = useDialogStore();
 	const open = ref(false), position = ref({ left: '0px', top: '0px' });
 	let root!: HTMLElement, opener!: HTMLElement;
@@ -88,7 +88,7 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToo
 		if (shape === null) return null;
 		const bounds = canvas.getBoundingClientRect();
 		const world = screenToWorld(screenPoint(event.clientX - bounds.left, event.clientY - bounds.top), editor.viewport, STAGE_PIXELS);
-		const hit = hitDesign(shape, world, { selection: store.selection, mode: store.mode, worldPerPixel: worldPerScreenPixel(editor.viewport, STAGE_PIXELS), hidden: runtime.partView.hidden.value });
+		const hit = hitDesign(shape, world, { selection: store.selection, mode: store.mode, worldPerPixel: worldPerScreenPixel(editor.viewport, STAGE_PIXELS), hidden: runtime.partView.hidden.value, clearanceHidden: !runtime.showClearance.value });
 		// A handle belongs to the focused part, so a right-click on one is about that part.
 		return hit === null ? null : hit.kind === 'handle' ? store.selection : hit.selection;
 	}

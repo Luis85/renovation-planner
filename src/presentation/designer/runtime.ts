@@ -147,6 +147,9 @@ export interface DesignerRuntime {
 	 * somebody asks otherwise. It reaches no command, no note, no sidecar and no undo entry, and it
 	 * does not survive a reopened leaf. A component that is also mounted BARE reads it through
 	 * `useShowClearance` below; anything else reads it off this runtime.
+	 *
+	 * It hides the clearance from the canvas's pixels, presses and legend, but NOT from the fit: `designFrame`
+	 * stays the one fit definition and reads no view state, the precedent Parts-hidden graphics already set.
 	 */
 	readonly showClearance: Ref<boolean>;
 	/**

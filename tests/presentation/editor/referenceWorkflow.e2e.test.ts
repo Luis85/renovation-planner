@@ -334,6 +334,15 @@ describe('M05 → M06 in the real editor with FakeVault repository commands', ()
 		expect(r.harness.wrapper.get('[name="ax"]').element).toHaveProperty('value', '500'); expect([...r.stack.vault.entries]).toEqual(before);
 		await cancel(r);
 	});
+	it('offers the rotation handle only while preparing and writes a dragged angle into the rotation field', async () => {
+		const r = await rig(); await open(r); await prepare(r); const preview = r.harness.wrapper.getComponent(ReferencePreview);
+		expect(preview.props('rotatable')).toBe(true);
+		preview.vm.$emit('rotation', 12.3); await settle();
+		expect(r.harness.wrapper.get('input[name="rotation"]').element).toHaveProperty('value', '12.3');
+		expect(r.harness.wrapper.get<HTMLInputElement>('input[name="rotation"]').element.validity.valid).toBe(true);
+		await submit(r); expect(r.harness.wrapper.getComponent(ReferencePreview).props('rotatable')).toBe(false);
+		await cancel(r);
+	});
 	it('does not focus a retired heading when the modal is disposed during a setup-step transition', async () => {
 		const r = await rig(); await open(r); await prepare(r); const before = [...r.stack.vault.entries];
 		const transition = r.harness.wrapper.get(FORM).trigger('submit'); r.harness.unmount(); await transition;

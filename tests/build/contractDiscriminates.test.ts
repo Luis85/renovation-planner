@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { REPO } from '../helpers/repo';
 
 /**
@@ -9,14 +12,23 @@ import { REPO } from '../helpers/repo';
  * on a two-core runner, and timing out a sibling file's cold Vite transform. A spawn per
  * case is what turns a green suite red on the busiest machine, so the child runs once in a
  * `describe`-level constant and every `it` reads the result back.
+ *
+ * The JSON report goes to a temporary file: vitest 5's JSON reporter writes to
+ * `.vitest/json/output.json` rather than stdout when no `--outputFile` is named, which left
+ * this file parsing a run with no report in it.
  */
+const out = mkdtempSync(join(tmpdir(), 'rp-contract-'));
+const reportFile = join(out, 'report.json');
 const child = spawnSync(
 	process.execPath,
-	['node_modules/vitest/vitest.mjs', 'run', '--config', 'tests/build/fixtures/vitest.brokenFake.config.ts', '--reporter=json'],
+	['node_modules/vitest/vitest.mjs', 'run', '--config', 'tests/build/fixtures/vitest.brokenFake.config.ts', '--reporter=json', `--outputFile=${reportFile}`],
 	{ cwd: REPO, encoding: 'utf8', timeout: 120_000 },
 );
 
-const output = `${child.stdout ?? ''}${child.stderr ?? ''}`;
+let report = '';
+try { report = readFileSync(reportFile, 'utf8'); } catch { /* no report: the cases below say what is missing */ }
+rmSync(out, { recursive: true, force: true });
+const output = `${child.stdout ?? ''}${child.stderr ?? ''}${report}`;
 
 /**
  * How many contract cases the planted `name` mismatch breaks — MEASURED by running the child

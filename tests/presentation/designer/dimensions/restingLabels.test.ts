@@ -50,12 +50,20 @@ function frame(shape: AssetShape): { min: { x: number; y: number }; max: { x: nu
 	};
 }
 
-/** One resting frame at the fit camera: the anchors, where the rule draws them, and their values. */
+/**
+ * One resting frame at the fit camera: the anchors, where the rule draws them, and their values.
+ * The anchors are the ones `DesignerDimensions.vue` hands the rule — the overall pair first run
+ * through `outsideAnchor` — so this is the frame the component draws, not an earlier one.
+ */
 function resting(shape: AssetShape, selection: DesignerSelection | null, stage: StageSize) {
 	const camera = expectDefined(fitViewport(frame(shape), stage, 48, 1), 'the fit camera');
 	const figures = dimensionFigures(shape, selection, false, new Set());
-	const anchors = figures.map((figure) => ({ at: worldToScreen(figure.at, camera, STAGE_PIXELS), value: figure.value }));
-	return { anchors: anchors.map((one) => one.at), placed: separateLabels(anchors, stage), values: figures.map((figure) => figure.value) };
+	const raw = figures.map((figure) => worldToScreen(figure.at, camera, STAGE_PIXELS));
+	const anchors = figures.map((figure, index) => {
+		const point = raw[index];
+		return { at: figure.outside ? outsideAnchor(figure.axis, point, figure.value) : point, value: figure.value };
+	});
+	return { raw, placed: separateLabels(anchors, stage), values: figures.map((figure) => figure.value) };
 }
 
 const preset = (id: string): AssetShape => {
@@ -82,15 +90,29 @@ describe('where a resting label is drawn', () => {
 	});
 
 	/**
-	 * **A slot off the stage is refused**, because the canvas clips it. On a stage one label high the
-	 * rows above and below are both outside, a whole width sideways still touches, and the slot to
-	 * the LEFT at one and a half widths runs off the stage's left edge — so the label goes right.
+	 * **A slot off the stage is refused**, because the canvas clips it. On a stage one label high
+	 * below the 18 px ruler strip the rows above and below are both out, a whole width sideways still
+	 * touches, and the slot to the LEFT at one and a half widths runs onto the left ruler and off the
+	 * stage — so the label goes right.
 	 */
 	it('refuses a slot the stage would clip, and shifts sideways instead', () => {
-		const [, moved] = separateLabels([at(100, 30), at(100, 30)], { width: 260, height: 60 });
+		const [, moved] = separateLabels([at(100, 33), at(100, 33)], { width: 260, height: 63 });
 
 		expect(moved?.x).toBeCloseTo(100 + 1.5 * width(100));
-		expect(moved?.y).toBe(30);
+		expect(moved?.y).toBe(33);
+	});
+
+	/**
+	 * **A slot on the rulers' strip is refused too**, as `outsideAnchor` refuses one: a label paints
+	 * above the rulers and would cover the scale. The row one height up — nearer than any free
+	 * sideways slot, and inside the stage — would put this label's box at 5 to 35 px, over the 18 px
+	 * strip, so it goes one and a half widths right instead.
+	 */
+	it('refuses a slot on the rulers’ strip', () => {
+		const [, moved] = separateLabels([at(100, 50), at(100, 50)], { width: 260, height: 90 });
+
+		expect(moved?.x).toBeCloseTo(100 + 1.5 * width(100));
+		expect(moved?.y).toBe(50);
 	});
 
 	/** With no free slot at all it stays on its anchor: an overlap drawn honestly, not a label hidden. */
@@ -129,13 +151,14 @@ describe('where an overall dimension stands', () => {
 describe('the resting floor at the fit camera', () => {
 	/**
 	 * **AD18-R17's measured defect, reproduced and closed.** 458 x 330 approximates the canvas at a
-	 * 460 leaf (the regions stack and the canvas takes half the body); at it the vanity's basin
-	 * draws every pair the browser found, and the rule leaves none.
+	 * 460 leaf (the regions stack and the canvas takes half the body); at it the vanity's basin, drawn
+	 * as the surface drew it before this card — every label on its raw anchor — has every pair the
+	 * browser found, and the frame the component draws now has none.
 	 */
 	it('separates the five pairs a 460 leaf overlapped with the vanity’s basin selected', () => {
-		const { anchors, placed, values } = resting(preset('vanity'), { kind: 'detail', id: 'detail-2' }, { width: 458, height: 330 });
+		const { raw, placed, values } = resting(preset('vanity'), { kind: 'detail', id: 'detail-2' }, { width: 458, height: 330 });
 
-		expect(overlapping(anchors, values)).toEqual(expect.arrayContaining(['360/126', '360/800', '270/220', '220/450', '126/800']));
+		expect(overlapping(raw, values)).toEqual(expect.arrayContaining(['360/126', '360/800', '270/220', '220/450', '126/800']));
 		expect(overlapping(placed, values)).toEqual([]);
 	});
 
@@ -157,5 +180,20 @@ describe('the resting floor at the fit camera', () => {
 		});
 
 		expect(failures).toEqual([]);
+	});
+
+	/**
+	 * **The frames that set `RESTING_ROWS` at five.** With the overall pair outside the footprint
+	 * and moved labels kept off the rulers, an armchair's or a sofa's second detail on a canvas under
+	 * 640 px crowds the top band so that three or four rows of reach leave its `600/800` or `700/900`
+	 * pair touching. Five rows separate them; this case goes red below that.
+	 */
+	it.each([
+		['armchair', 320, 340],
+		['sofa', 480, 300],
+	] as const)('separates the %s’s second detail on a %i x %i canvas, where a shorter reach could not', (id, stageWidth, stageHeight) => {
+		const { placed, values } = resting(preset(id), { kind: 'detail', id: 'detail-2' }, { width: stageWidth, height: stageHeight });
+
+		expect(overlapping(placed, values)).toEqual([]);
 	});
 });

@@ -390,14 +390,17 @@ describe('what the mounted overlay draws once the rule has run', () => {
 	 * by exact array in DOM order rounded to a tenth of a pixel, so a retune cannot move one quietly,
 	 * and asserts the property itself with this file's own box model.
 	 *
-	 * The first label keeps its anchor (earlier wins). A MOVED label never leaves the stage, which is
-	 * why `detail-1`'s depth and left offset jump right, off the left edge.
+	 * The first label keeps its anchor (earlier wins). A MOVED label never leaves the stage or lands on
+	 * the rulers' 18 px strip, which is why `detail-1`'s depth and left offset jump right, off the left
+	 * edge and past the left ruler.
 	 *
-	 * `overall-depth`, placed last, finds every nearer slot taken or off the stage and goes five rows
-	 * down — the whole of `RESTING_ROWS`' reach, and the price of the floor at a camera this far out.
-	 * (At three rows it found no slot and stayed on its anchor, touching `detail-1`'s width.)
+	 * **And this camera shows the rule's one residual, pinned rather than hidden.** `overall-depth`,
+	 * placed last, finds every slot within five rows either taken, off the stage or on a ruler, so it
+	 * stays on its anchor and touches `detail-1`'s width — `separateLabels`' "no slot is free" arm.
+	 * (Before moved labels were kept off the rulers it found one five rows down.) At the camera the
+	 * designer OPENS with, the floor AD18-R17 names, `restingLabels.test.ts` finds no such frame.
 	 */
-	it('keeps the eight labels a selected part draws from touching at all, and names where', async () => {
+	it('keeps a selected part’s labels apart but for one the zoomed-out camera leaves no slot', async () => {
 		const rig = await designer();
 		try {
 			useAssetDesignStore(rig.pinia).select({ kind: 'detail', id: 'detail-1' });
@@ -406,19 +409,19 @@ describe('what the mounted overlay draws once the rule has run', () => {
 			const labels = drawn(rig).map(([name, left, top]) => [name, Math.round(Number.parseFloat(left) * 10) / 10, Number.parseFloat(top)] as const);
 			expect(labels).toEqual([
 				['detail-detail-1-width', 28, 38],
-				['detail-detail-1-depth', 36.6, 78],
-				['detail-detail-1-offset-left', 31.6, 108],
+				['detail-detail-1-depth', 65.2, 78],
+				['detail-detail-1-offset-left', 60.2, 108],
 				['detail-detail-1-offset-right', 101.6, 48],
-				['detail-detail-1-offset-top', 113.8, 88],
-				['detail-detail-1-offset-bottom', 56.6, 158],
-				['overall-width', 111.6, 18],
-				['overall-depth', 55.2, 198],
+				['detail-detail-1-offset-top', 56.6, 148],
+				['detail-detail-1-offset-bottom', 56.6, 188],
+				['overall-width', 143.4, 78],
+				['overall-depth', -2, 48],
 			]);
 			const values = [400, 200, 100, 500, 200, 200, 1000, 600];
 			const touching = labels.flatMap(([name, x, y], index) => labels.slice(index + 1)
 				.filter(([, ox, oy], offset) => Math.abs(x - ox) < (width(values[index]) + width(values[index + 1 + offset])) / 2 && Math.abs(y - oy) < 30)
 				.map(([other]) => `${name} / ${other}`));
-			expect(touching).toEqual([]);
+			expect(touching).toEqual(['detail-detail-1-width / overall-depth']);
 		} finally {
 			rig.unmount();
 		}

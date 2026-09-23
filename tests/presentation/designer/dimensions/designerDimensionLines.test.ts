@@ -166,6 +166,9 @@ describe('the clearance’s figures under Show clearance', () => {
 			expect(marks(rig).map(([name]) => name)).toEqual(['overall-width', 'overall-depth']);
 
 			await rig.wrapper.get('.rp-designer-tools [data-rp-view="all-dimensions"]').setValue(true);
+			await settle();
+			// The toggle took: every drawable detail is measured now — and still no clearance.
+			expect(names(rig)).toContain('detail-detail-1-width');
 			expect(names(rig).some((name) => name.startsWith('clearance-'))).toBe(false);
 
 			await rig.wrapper.get('[name="show-clearance"]').setValue(true);
@@ -177,10 +180,14 @@ describe('the clearance’s figures under Show clearance', () => {
 	});
 });
 
-/** Every `z-index` a partial declares on exactly `selector`, as lightningcss parses it. */
-const zIndex = (file: string, selector: string): unknown[] => stylesheetRules(readFileSync(`styles/${file}`, 'utf8'))
+/** Every value `property` takes in a partial's rules on exactly `selector`, as lightningcss parses it. */
+const declared = (file: string, selector: string, property: string): unknown[] => stylesheetRules(readFileSync(`styles/${file}`, 'utf8'))
 	.filter((rule) => rule.condition === '' && rule.selectors.map((one) => show(one)).join(', ') === selector)
-	.flatMap((rule) => rule.declarations.filter((entry) => propertyOf(entry) === 'z-index').map((entry) => entry.value));
+	.flatMap((rule) => rule.declarations.filter((entry) => propertyOf(entry) === property).map((entry) => entry.value));
+const zIndex = (file: string, selector: string): unknown[] => declared(file, selector, 'z-index');
+
+/** The properties that make an element a stacking context, beside a `z-index` on a positioned one. */
+const STACKING = ['z-index', 'isolation', 'transform', 'opacity', 'filter', 'will-change', 'contain', 'mix-blend-mode'];
 
 /** How this parser reads `z-index: value`, so no case spells lightningcss's own AST by hand. */
 const zValue = (value: number): unknown => stylesheetRules(`.reference { z-index: ${String(value)}; }`)[0]?.declarations[0]?.value;
@@ -197,5 +204,15 @@ describe('where a resting label paints', () => {
 		expect(zIndex('designer-dimensions.css', '.rp-designer-dimension')).toEqual([zValue(1)]);
 		expect(zIndex('designer-dimensions.css', '.rp-designer-dimension:has(.rp-designer-dimension__form)')).toEqual([zValue(2)]);
 		expect(zIndex('designer-legend.css', '.rp-designer-key')).toEqual([]);
+	});
+
+	/**
+	 * **The ordering above rests on the CONTAINER making no stacking context.** A label's `z-index: 1`
+	 * is compared with the key's only if both sit in one stacking context; a container that made its
+	 * own would confine the labels inside it, and the container itself, at `auto`, would paint UNDER
+	 * the key again. So `.rp-designer-dimensions` declares none of the properties that make one.
+	 */
+	it('makes no stacking context of the container the labels sit in', () => {
+		expect(STACKING.flatMap((property) => declared('designer-dimensions.css', '.rp-designer-dimensions', property))).toEqual([]);
 	});
 });

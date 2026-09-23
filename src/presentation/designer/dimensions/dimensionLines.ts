@@ -5,11 +5,13 @@
  * case on. `DesignerDimensions.vue` hands it a figure's span and the point its label was PLACED at,
  * and writes the two strings into an `aria-hidden` SVG.
  *
- * **The line runs through the PLACED label, not the anchor.** AD18-R14's rule moves a label down or
- * up a whole box when another would cover it; a width's line moves with it and its extension lines
- * grow to meet it, which is how a drafted dimension chain stacks — and why a moved label still reads
- * as measuring the two edges it measures rather than whatever it has been pushed over. A depth is
- * moved ALONG its own line, so there the line is simply run on to the label.
+ * **The line runs through the PLACED label, not the anchor.** The placement rules move a label
+ * off its anchor in either direction — `spreadLabels` and `separateLabels` up or down by whole
+ * boxes, `separateLabels` sideways by fractions of its width, `outsideAnchor` up or left off the
+ * footprint. A move ACROSS a figure's own line takes the line with it, and its extension lines grow
+ * to meet it, which is how a drafted dimension chain stacks — and why a moved label still reads as
+ * measuring the two edges it measures rather than whatever it has been pushed over. A move ALONG the
+ * line leaves the line where it is, and runs it on to a label that has gone past either end.
  *
  * **No colour and no stroke here.** The paths carry geometry only; `styles/designer-dimensions.css`
  * strokes and fills them from a host variable (SDD §84).
@@ -20,9 +22,10 @@ import type { ScreenPoint } from '../../editor/viewport/Viewport';
 const ARROW_PX = 6;
 const ARROW_HALF_PX = 3;
 /**
- * How far an extension line runs past the dimension line. It starts AT the edge when the line stands
- * off it, since a drafted extension line never runs back into the object; a line left on its edge
- * gets a tick this far to each side instead.
+ * How far an extension line runs past the dimension line. When the line stands off its edge the
+ * extension line starts AT that edge and runs to the line, whichever side of the edge the line is
+ * on — so a label a rule moved over the drawing gets extension lines across the drawing. A line left
+ * on its edge gets a tick this far to each side instead.
  */
 const EXTENSION_PX = 4;
 

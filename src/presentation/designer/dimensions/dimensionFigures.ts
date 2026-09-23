@@ -628,6 +628,16 @@ export function spreadLabels(labels: readonly LabelAnchor[], stage: StageSize): 
 }
 
 /**
+ * The rulers' strip along the canvas's top and left edges, in stage pixels —
+ * `--rp-designer-ruler-size` in `designer-rulers.css`, restated because a stylesheet variable is not
+ * readable from here; `restingLabels.test.ts` pins the two together. No label is PLACED on it: a
+ * label paints above the rulers, so one standing there would cover the scale it is read against.
+ * `separateLabels` and `outsideAnchor` both keep a label they move clear of it. A label whose own
+ * anchor lies there is still drawn there — the camera put its edge there, not the rule.
+ */
+const RULER_PX = 18;
+
+/**
  * How far a RESTING label may be moved to clear another: up to five whole label heights up or
  * down (150 px), each at no shift or at a half, one or one and a half of its own width either side.
  *
@@ -643,13 +653,15 @@ export function spreadLabels(labels: readonly LabelAnchor[], stage: StageSize): 
  * | two rows, shifts to one and a half widths | 45 |
  * | three rows, shifts to one and a half widths | 0 |
  *
- * **Then again once `outsideAnchor` stood the overall pair outside the footprint**, which crowds a
- * narrow canvas's top band: three rows left 9 frames overlapping and four left 6, all an armchair's
- * or a sofa's detail at a stage under 560 px; **five rows leave none**, down to 260 x 240, and when
- * the labels are drawn up to four pixels wider than `labelWidth` models — the `APART_GAP_PX` margin,
- * spent. Two widths either side added nothing. The cost is movement: a moved label travels 38 px on
- * average and at most 150, and 158 of the 45,347 moves exceeded 100 px — each a label whose nearer
- * slots were all taken or off the stage.
+ * **Then again once `outsideAnchor` stood the overall pair outside the footprint and a moved label
+ * was kept off the rulers' strip**, which together crowd a narrow canvas's top band: three rows left
+ * 74 frames overlapping and four left 16, every one an armchair's or a sofa's second detail on a
+ * stage under 640 px; **five rows leave none**, and none either when the labels are drawn up to
+ * four pixels wider than `labelWidth` models — the `APART_GAP_PX` margin, spent. Below 280 px two
+ * frames still collide (a toilet's and a tree's detail at 260 wide). `restingLabels.test.ts` holds
+ * two of the failing frames, which three or four rows turn red. The cost is movement: a moved label
+ * travels 42 px on average and at most 150, and 654 of the 44,850 moves exceeded 100 px — each a
+ * label whose nearer slots were all taken, off the stage or on the rulers.
  */
 const RESTING_ROWS = 5;
 const RESTING_SHIFTS: readonly number[] = [0, 0.5, -0.5, 1, -1, 1.5, -1.5];
@@ -672,8 +684,9 @@ const distance = (one: ScreenPoint, other: ScreenPoint): number => Math.hypot(on
  * line, and a depth the other way round. A label nothing would touch is returned UNMOVED, which is
  * what keeps the nothing-selected pair exactly where it has always been drawn.
  *
- * **A slot must lie inside the stage** because `.rp-plan-canvas` is `overflow: hidden`: a label
- * moved off it is clipped, which is worse than the overlap it was moved for. When no slot is free
+ * **A slot must lie inside the stage and clear of the rulers' strip** because `.rp-plan-canvas` is
+ * `overflow: hidden`: a label moved off it is clipped, which is worse than the overlap it was moved
+ * for — and one moved onto the strip covers the scale (`RULER_PX`). When no slot is free
  * the label stays on its anchor and the overlap stands — honest rather than hidden, and it did not
  * happen on any frame of the measurement above.
  *
@@ -683,8 +696,8 @@ const distance = (one: ScreenPoint, other: ScreenPoint): number => Math.hypot(on
  */
 export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize): ScreenPoint[] {
 	const placed: LabelBox[] = [];
-	const inside = (box: LabelBox): boolean => box.at.x - box.width / 2 >= 0 && box.at.x + box.width / 2 <= stage.width
-		&& box.at.y - LABEL_HEIGHT_PX / 2 >= 0 && box.at.y + LABEL_HEIGHT_PX / 2 <= stage.height;
+	const inside = (box: LabelBox): boolean => box.at.x - box.width / 2 >= RULER_PX && box.at.x + box.width / 2 <= stage.width
+		&& box.at.y - LABEL_HEIGHT_PX / 2 >= RULER_PX && box.at.y + LABEL_HEIGHT_PX / 2 <= stage.height;
 	for (const label of labels) {
 		const width = labelWidth(label.value);
 		const own: LabelBox = { at: label.at, width };
@@ -698,12 +711,6 @@ export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize)
 	return placed.map((box) => box.at);
 }
 
-/**
- * The rulers' strip, in stage pixels — `--rp-designer-ruler-size` in `designer-rulers.css`, restated
- * because a stylesheet variable is not readable from here; `restingLabels.test.ts` pins the two
- * together. A label may not stand under it, since the strip is opaque.
- */
-const RULER_PX = 18;
 /**
  * How far an OVERALL dimension line stands outside the footprint (board 01), in stage pixels.
  *

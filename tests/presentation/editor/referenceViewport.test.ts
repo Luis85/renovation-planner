@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import { referencePoint, type ReferenceAppearance } from '../../../src/domain/plan/ReferenceAppearance';
 import { previewTransform } from '../../../src/presentation/editor/reference/referenceSetup';
-import { dragRotation, formatDegrees, nudgeRotation, referenceScreenCentre, referenceSourcePoint, rotationHandlePoint, zoomReference } from '../../../src/presentation/editor/reference/referenceViewport';
+import { dragRotation, formatDegrees, nudgeRotation, reachableHandlePoint, referenceScreenCentre, referenceSourcePoint, rotationHandlePoint, zoomReference } from '../../../src/presentation/editor/reference/referenceViewport';
 
 const appearance: ReferenceAppearance = { crop: { x: 20, y: 30, width: 800, height: 600 }, rotation: 0, opacity: 0.65, visible: true, locked: true };
 it.each([0, 45, 90, -15, -180])('keeps the original source pixel under the pointer through pan and zoom at %s°', rotation => {
@@ -84,4 +84,17 @@ it('formats an angle in the given language, one decimal at most and no grouping'
 	expect(formatDegrees(-90, 'en')).toBe('-90°');
 	expect(formatDegrees(-0, 'en')).toBe('0°');
 	expect(formatDegrees(-0.04, 'de')).toBe('0°');
+});
+
+function near(point: { x: number; y: number }, x: number, y: number): void { expect(point.x).toBeCloseTo(x, 9); expect(point.y).toBeCloseTo(y, 9); }
+it('keeps the knob where it is when on-screen, and pulls it along its direction line into the inset canvas when not', () => {
+	const size = { width: 400, height: 220 };
+	expect(reachableHandlePoint({ x: 200, y: 110 }, 30, 94, size, 16)).toEqual(rotationHandlePoint({ x: 200, y: 110 }, 30, 94));
+	near(reachableHandlePoint({ x: -100, y: 110 }, 90, 94, size, 16), 16, 110);
+	near(reachableHandlePoint({ x: 10, y: 110 }, 90, 1000, size, 16), 384, 110);
+	near(reachableHandlePoint({ x: 500, y: 110 }, 90, 94, size, 16), 384, 110);
+	near(reachableHandlePoint({ x: -100, y: 300 }, 0, 94, size, 16), 16, 204);
+	near(reachableHandlePoint({ x: 100, y: 300 }, 0, 20, size, 16), 100, 204);
+	const collapsed = reachableHandlePoint({ x: 0, y: 0 }, 45, -16, { width: 0, height: 0 }, 16);
+	expect(Number.isFinite(collapsed.x) && Number.isFinite(collapsed.y)).toBe(true);
 });

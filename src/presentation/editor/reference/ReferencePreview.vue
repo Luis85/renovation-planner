@@ -5,7 +5,7 @@ import type { ReferenceAppearance } from '../../../domain/plan/ReferenceAppearan
 import { referencePoint } from '../../../domain/plan/ReferenceAppearance';
 import type { BackgroundRenderModel } from '../layers/background/BackgroundRenderModel';
 import { previewTransform } from './referenceSetup';
-import { dragRotation, formatDegrees, nudgeRotation, referenceScreenCentre, referenceSourcePoint, rotationHandlePoint, zoomReference, type ReferenceViewport } from './referenceViewport';
+import { dragRotation, formatDegrees, nudgeRotation, reachableHandlePoint, referenceScreenCentre, referenceSourcePoint, zoomReference, type ReferenceViewport } from './referenceViewport';
 import { currentLanguage, tr } from '../../i18n/strings';
 const props = defineProps<{ raster: Extract<BackgroundRenderModel, { kind: 'raster' }>; appearance: ReferenceAppearance; points: readonly (Point | null)[]; measuring: boolean; rotatable?: boolean; onThemeChange?: (listener: () => void) => () => void }>();
 const emit = defineEmits<{ point: [point: Point]; rotation: [degrees: number] }>();
@@ -65,11 +65,13 @@ function drawHandle(context: CanvasRenderingContext2D, ink: Ink): void {
 	context.strokeStyle = ink.accent; context.fillStyle = active ? ink.accent : ink.surface; context.lineWidth = 1;
 	context.beginPath();
 	if (rotating.value) {
-		context.moveTo(0, centre.y); context.lineTo(size.value.width, centre.y);
-		context.moveTo(centre.x, 0); context.lineTo(centre.x, size.value.height);
+		// Through the centre clamped into the canvas, so they stay visible when the centre is panned away.
+		const x = Math.max(0, Math.min(size.value.width, centre.x)), y = Math.max(0, Math.min(size.value.height, centre.y));
+		context.moveTo(0, y); context.lineTo(size.value.width, y);
+		context.moveTo(x, 0); context.lineTo(x, size.value.height);
 		context.stroke(); context.beginPath();
 	}
-	context.lineWidth = 2; context.moveTo(centre.x, centre.y); context.lineTo(knob.x, knob.y);
+	context.lineWidth = 2; context.moveTo(knob.x, knob.y); context.lineTo(centre.x, centre.y);
 	context.stroke();
 	context.beginPath(); context.arc(knob.x, knob.y, active ? 9 : 7, 0, 2 * Math.PI); context.fill();
 	if (!active) context.stroke();
@@ -79,7 +81,7 @@ function drawHandle(context: CanvasRenderingContext2D, ink: Ink): void {
 }
 function handle(): { centre: Point; knob: Point } {
 	const centre = referenceScreenCentre(view.value, props.appearance);
-	return { centre, knob: rotationHandlePoint(centre, props.appearance.rotation, Math.min(size.value.width, size.value.height) / 2 - 16) };
+	return { centre, knob: reachableHandlePoint(centre, props.appearance.rotation, Math.min(size.value.width, size.value.height) / 2 - 16, size.value, 16) };
 }
 /** `point` relative to the image's live on-screen centre, which a rotation's refit moves. */
 function fromCentre(point: Point): Point {

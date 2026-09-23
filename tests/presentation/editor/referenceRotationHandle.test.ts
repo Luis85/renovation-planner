@@ -5,7 +5,7 @@ import { nextTick } from 'vue';
 import type { Point } from '../../../src/core/geometry/Point';
 import ReferencePreview from '../../../src/presentation/editor/reference/ReferencePreview.vue';
 import { previewTransform } from '../../../src/presentation/editor/reference/referenceSetup';
-import { formatDegrees, referenceScreenCentre, rotationHandlePoint, zoomReference } from '../../../src/presentation/editor/reference/referenceViewport';
+import { dragRotation, formatDegrees, referenceScreenCentre, rotationHandlePoint, zoomReference } from '../../../src/presentation/editor/reference/referenceViewport';
 import { expectDefined } from '../../helpers/domain';
 import { backingCanvas, installCanvas } from '../../helpers/canvas';
 import { installResizeObserver, placeAt } from '../../helpers/layout';
@@ -162,7 +162,7 @@ async function spied(canvas: HTMLCanvasElement) {
 	const backing = expectDefined(backingCanvas(canvas), 'preview backing canvas');
 	backing.width = canvas.width; backing.height = canvas.height;
 	const context = backing.getContext('2d');
-	return { arc: vi.spyOn(context, 'arc'), scale: vi.spyOn(context, 'scale'), stroke: vi.spyOn(context, 'stroke'), fillText: vi.spyOn(context, 'fillText'), fillRect: vi.spyOn(context, 'fillRect') };
+	return { arc: vi.spyOn(context, 'arc'), scale: vi.spyOn(context, 'scale'), stroke: vi.spyOn(context, 'stroke'), fillText: vi.spyOn(context, 'fillText'), fillRect: vi.spyOn(context, 'fillRect'), lineTo: vi.spyOn(context, 'lineTo') };
 }
 const quarter = { x: centre.x + radius, y: centre.y };
 
@@ -268,4 +268,22 @@ it('keeps a nudge label up briefly after the last nudge, whatever key is release
 	expect(vi.getTimerCount()).toBe(0); expect(await labelled()).toBe(false);
 	await w.get('canvas').trigger('keydown', { key: ']' }); expect(vi.getTimerCount()).toBe(1);
 	w.unmount(); wrapper = undefined; expect(vi.getTimerCount()).toBe(0);
+});
+
+it('pulls the knob on-screen when the image centre is panned away, and drags it about the true centre', async () => {
+	const { w, canvas } = setup(true);
+	await w.setProps({ appearance: { ...appearance, rotation: 90 } });
+	for (let index = 0; index < 4; index++) await w.get('canvas').trigger('keydown', { key: 'ArrowRight', shiftKey: true });
+	const { arc, lineTo } = await spied(canvas);
+	await w.setProps({ appearance: { ...appearance, rotation: 90, opacity: 0.5 } });
+	const drawn = expectDefined(arc.mock.calls.at(-1), 'knob drawn'), off = { x: centre.x - 320, y: centre.y };
+	expect(drawn[0]).toBeCloseTo(16, 6); expect(drawn[1]).toBeCloseTo(110, 6);
+	pointer(canvas, 'pointerdown', { x: 16, y: 110 }); await nextTick();
+	expect(w.get('canvas').classes()).toContain('is-rotating');
+	expect(lineTo.mock.calls).toContainEqual([0, 220]); expect(lineTo.mock.calls).toContainEqual([400, off.y]);
+	pointer(canvas, 'pointermove', { x: 16, y: 150 });
+	const turned = expectDefined(rotations(w)[0], 'dragged rotation');
+	expect(turned).toBeGreaterThan(90);
+	expect(turned).toBe(dragRotation(90, { x: 16 - off.x, y: 110 - off.y }, { x: 16 - off.x, y: 150 - off.y }, false));
+	pointer(canvas, 'pointerup', { x: 16, y: 150 });
 });

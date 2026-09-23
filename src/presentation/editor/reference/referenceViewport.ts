@@ -35,6 +35,30 @@ export function rotationHandlePoint(centre: Point, rotation: number, radius: num
 	return { x: centre.x + radius * Math.sin(angle), y: centre.y - radius * Math.cos(angle) };
 }
 
+const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
+
+/** The `t` range where `c + t·d` lies within [min, max]; empty (enter > exit) when it never does. */
+function slab(c: number, d: number, min: number, max: number): [number, number] {
+	if (d === 0) return c >= min && c <= max ? [-Infinity, Infinity] : [Infinity, -Infinity];
+	const a = (min - c) / d, b = (max - c) / d;
+	return [Math.min(a, b), Math.max(a, b)];
+}
+
+/**
+ * Where the knob is drawn and hit: `rotationHandlePoint` when that is inside the canvas inset by `inset`,
+ * else pulled along its direction line to the nearest in-canvas point, else (the line misses) clamped per axis.
+ */
+export function reachableHandlePoint(centre: Point, rotation: number, radius: number, size: { width: number; height: number }, inset: number): Point {
+	const ideal = rotationHandlePoint(centre, rotation, radius), right = size.width - inset, bottom = size.height - inset;
+	if (ideal.x >= inset && ideal.x <= right && ideal.y >= inset && ideal.y <= bottom) return ideal;
+	const angle = rotation * Math.PI / 180, dx = Math.sin(angle), dy = -Math.cos(angle);
+	const [xIn, xOut] = slab(centre.x, dx, inset, right), [yIn, yOut] = slab(centre.y, dy, inset, bottom);
+	const enter = Math.max(0, xIn, yIn), exit = Math.min(xOut, yOut);
+	if (enter > exit) return { x: clamp(ideal.x, inset, right), y: clamp(ideal.y, inset, bottom) };
+	const t = clamp(radius, enter, exit);
+	return { x: centre.x + t * dx, y: centre.y + t * dy };
+}
+
 /** Degrees to [-180, 180]. */
 function normalizeRotation(degrees: number): number {
 	return ((degrees + 180) % 360 + 360) % 360 - 180;

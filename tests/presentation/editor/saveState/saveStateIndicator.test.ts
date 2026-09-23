@@ -53,7 +53,9 @@ describe('the derived Saved · refresh needed label', () => {
 		save.beginSaving(); save.resolveOk(); planning.failed = true;
 		await wrapper.vm.$nextTick();
 		expect(planning.baseline).toBeNull(); expect(wrapper.text()).toBe('Saved · refresh needed');
-		planning.failed = false; await wrapper.vm.$nextTick(); expect(wrapper.text()).toBe('Saved');
+		// The write landed this session, so the plain state reads with its relative time (AD18-R19).
+		planning.failed = false; await wrapper.vm.$nextTick(); expect(wrapper.text()).toBe('SavedSaved just now');
+		expect(wrapper.find('.rp-save-state-saved-refresh-needed').exists()).toBe(false);
 	});
 
 	it('reads Saved · refresh needed when saved AND the project store is stale, with its own mark class', async () => {

@@ -12,7 +12,8 @@
  * in a status bar nobody is looking at.
  *
  * The mark is `aria-hidden` and carries NO text, so the word remains the whole accessible
- * name and `wrapper.text()` still equals exactly the label. Everything it draws is CSS in
+ * name, and `wrapper.text()` equals exactly the label in every state but one: a `saved` this
+ * session has seen a write land in, which is the relative time below. Everything it draws is CSS in
  * `styles/editor-status.css` — no `setIcon`, which would make this the plugin's first icon
  * call and pull in the harness icon renderer CLAUDE.md lists as deliberately absent.
  *
@@ -40,10 +41,23 @@
  * refresh needed` / `Gespeichert · Aktualisierung nötig` names no subject, so it reads correctly
  * over an asset. The sentence that DOES name one — `editor.refresh-failed` against
  * `designer.refresh-failed` — stays per-surface, which is why each surface keeps its own strip.
+ *
+ * **The relative save time (AD18-R19), on BOTH surfaces** — `Saved just now`, `Saved N min ago`,
+ * then `Saved at HH:MM` in the host language's own clock format (`Intl` over `currentLanguage()`,
+ * the way `ProjectRow.vue` dates a row) — counted from `savedAt` in the save-state store. With no
+ * write this session it stays plain `Saved`: an earlier save's time is not known. The derived
+ * qualifier outranks it (C08), since a stale canvas must never read as freshly saved.
+ *
+ * **The phrase is `aria-hidden`, and a visually-hidden copy of the plain word stands in for it.**
+ * `StatusBar.vue` mounts this inside a `role="status"` region, so any text change in here is
+ * announced, and a minute tick is not an event. So what a screen reader has is the state word
+ * alone — `saving` to `saved` still announces `Saved`, and the tick changes nothing it can
+ * hear. The designer's header is not live, and gets the same markup anyway: one indicator, one
+ * spelling. The cost is that a screen reader never hears the time on either surface.
  */
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { tr } from '../../i18n/strings';
+import { currentLanguage, tr } from '../../i18n/strings';
 import { SAVE_STATE_KEYS } from './save-state';
 import { useSaveStateStore } from './save-state-store';
 import { useProjectStore } from '../../stores/ProjectStore';
@@ -62,7 +76,7 @@ const props = defineProps<{
 	stale?: boolean;
 }>();
 
-const { state } = storeToRefs(useSaveStateStore());
+const { state, savedAt } = storeToRefs(useSaveStateStore());
 const { stale: projectStale } = storeToRefs(useProjectStore());
 const planning = usePlanningReadState();
 
@@ -73,6 +87,28 @@ const shown = computed(() =>
 const label = computed(() =>
 	tr(shown.value === 'saved-refresh-needed' ? 'save-state.saved-refresh-needed' : SAVE_STATE_KEYS[shown.value]),
 );
+
+const MINUTE = 60_000;
+/** The minute tick the relative phrase moves on, cleared with the component so no leaf leaks it. */
+const now = ref(Date.now());
+const tick = window.setInterval(() => {
+	now.value = Date.now();
+}, MINUTE);
+onBeforeUnmount(() => window.clearInterval(tick));
+
+/**
+ * `null` means "say the label alone". `now` may lag a fresh stamp by up to a minute, so a
+ * negative elapsed time is a save that has only just landed.
+ */
+const relative = computed(() => {
+	if (shown.value !== 'saved' || savedAt.value === null) return null;
+	const minutes = Math.floor((now.value - savedAt.value) / MINUTE);
+	if (minutes < 1) return tr('save-state.saved-just-now');
+	if (minutes < 60) return tr('save-state.saved-minutes-ago', { minutes: String(minutes) });
+	return tr('save-state.saved-at', {
+		time: new Intl.DateTimeFormat(currentLanguage(), { timeStyle: 'short' }).format(savedAt.value),
+	});
+});
 </script>
 
 <template>
@@ -82,5 +118,5 @@ const label = computed(() =>
 	><span
 		class="rp-save-state-mark"
 		aria-hidden="true"
-	/>{{ label }}</span>
+	/><template v-if="relative === null">{{ label }}</template><template v-else><span class="rp-visually-hidden">{{ label }}</span><span aria-hidden="true">{{ relative }}</span></template></span>
 </template>

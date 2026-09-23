@@ -92,8 +92,10 @@ its designer open with no background, and **Start from preset → Toilet** appli
 (Dimensions read 380 × 700 mm). It is a fresh asset so nothing on it is pending and nothing was
 calibrated. The toilet's details: the **tank**, the straight one across the back, and the **bowl**,
 the rounded one in front of it; the anchor dot sits inside the bowl. The Inspector's number fields
-are labelled "Horizontal centre in millimetres", "Width in millimetres" and so on; the steps below
-shorten them.
+are labelled "Horizontal centre in millimetres", "Width in millimetres" and so on — since Task 5
+(AD18-R16) that full sentence is the field's ACCESSIBLE name only; the row's VISIBLE text is a
+short word ("Horizontal centre", "Width") plus a trailing unit ("mm"); the steps below shorten
+either form the same way.
 
 | # | Reachable by | Do this | It passes when | It exists to catch |
 | --- | --- | --- | --- | --- |
@@ -205,6 +207,59 @@ footprint was traced **before** any scale was set.
 | 69 | `obsidian` | Open the **View** menu and tick **All dimensions** | Numbers appear for every measured part at once, not only the selected one. Untick it and they go back to the selection's | The view toggle the spec asks for, and that it is a VIEW rather than a selection change — your selection must survive the tick |
 | 70 | `judgement` | With **All dimensions** still on, try to read and to CLICK every number on screen. Say whether any is hidden under another, or unreadable | Your judgement, recorded either way — and name any number you could not click | **The one thing no instrument here can settle, and the numbers are recent.** Ruling AD18-R14 was taken after a browser pass found **two of 26 labels with no clickable point at all** at this camera. A third round closed that: re-measured at the shipped tree, **0 of 26 are unclickable and 15 pairs still overlap** — overlap is left alone by design, and only *uncoverable* was the defect. So expect numbers to overlap and expect all of them to be clickable. **Report any number you cannot click at all, and say which.** **Do NOT take zooming as the remedy** — an earlier draft of this step said so and the measurement refutes it: one wheel step in from the opening camera, one label of the 14 still on screen had no clickable point. Zoom changes which labels crowd rather than relieving the crowding |
 | 71 | `obsidian` | Open the asset whose footprint was traced before any scale was set | **No numbers are drawn at all**, not even the overall pair, and no field can be opened | *"No numbers on an unscaled part."* Those coordinates are placeholder pixels, so a millimetre reading over them is a confident lie. The gate is per DESIGN and per PART — a pending part inside an otherwise scaled asset must also stay bare |
+
+## Steps — the parity round (AD18-R16)
+
+**Added 2026-09-23 (session fifteen's Task 13). Twelve source changes landed together**
+(`docs/tasks/asset-designer-expansion/reports/AD18-parity-round-plan.md`), **and every step below
+is a first sighting — none of this has been seen in Obsidian.** Three are `judgement` steps: two
+because whether the reference boards were actually matched — not merely whether the code runs — is
+a question only an eye answers, and one (step 102) because its outcome is known and recorded but
+whether it is the RIGHT outcome is a ruling still pending, so it asks for a reaction on record
+rather than a pass or a fail.
+
+Preconditions: **Asset Y** — a calibrated spec sheet, **Start from preset → Toilet** applied (a
+footprint, the tank and the bowl), then **Trace clearance** around it, then one more rectangle
+drawn nearby with **Draw rectangle** so three independent graphics exist. Open in its designer,
+the **Select** tool active. **Asset Z**, for steps 82 and 88 alone — **Set dimensions** typed with
+no background, no clearance and no details traced, so it carries a footprint and nothing else.
+
+| # | Reachable by | Do this | It passes when | It exists to catch |
+| --- | --- | --- | --- | --- |
+| 72 | `obsidian` | At the default leaf width, look at the header's library door | It reads "← Back to library" — an arrow-left icon before the words, no longer "Open library" | Task 2's icon and relabel: `designer.header.back-to-library` replaces `designer.inspector.open-library` |
+| 73 | `obsidian` | Narrow the leaf below a sidebar width (drag it into a sidebar, or roughly 460 px) | Only the arrow-left icon is visible; the label's text is clipped rather than removed, so the button's name — checkable by hover or a screen reader — is still "Back to library" | The clip-not-hide technique: `display: none` would have taken the accessible name with it |
+| 74 | `obsidian` | Look at the Add rail | Above a "Basic shapes" heading sits the preset door ("Start from preset"); below the heading, four tiles in a two-column grid — icon above a visible label: Rectangle, Rounded rectangle, Circle, Line | Task 3's tile grid, in board 01's own order (preset door first) |
+| 75 | `obsidian` | Hover one of the tiles, or read its accessible name | It differs from the visible label — e.g. the "Rectangle" tile's name is "Draw rectangle" | The visible label is a short noun; the accessible name stays the full verb phrase (WCAG 2.5.3) |
+| 76 | `obsidian` | Narrow the rail itself (drag the whole pane very narrow) | The tile grid drops from two columns to one | The rail's own container query (9rem), independent of the leaf-wide breakpoints |
+| 77 | `obsidian` | Look at the toolbar, after Undo/Redo and before the View menu | A named "Zoom" group: a zoom-out button, a percentage readout, a zoom-in button, a Fit button | Task 1's cluster, moved off the status bar |
+| 78 | `obsidian` | Press the zoom-in button three times, then the zoom-out button once | The readout grows in 25% steps on each zoom-in press and shrinks one 25% step on zoom-out, each change about the canvas centre | Factor 1.25, mirroring `EditorViewMenu.vue`'s own zoom |
+| 79 | `obsidian` | Pan or zoom away from the design, then press Fit | The camera returns exactly to the view the designer opened with, and the readout updates to match | Fit reuses the opening-camera fit rather than a second one |
+| 80 | `obsidian` | Look at the status bar along the bottom | It no longer states a zoom percentage anywhere | The readout moved rather than being duplicated (AD18-R1's shape) |
+| 81 | `obsidian` | Look at the canvas's bottom-left corner | A legend lists five rows, each with its own swatch: Footprint, Clearance, Details, Placement point, Front direction | The full row set, on a design that carries all five parts |
+| 82 | `obsidian` | Open Asset Z's designer and look at the same corner | Only Footprint, Placement point and Front direction are listed — no Clearance row, no Details row | A row drawn only for a part the design actually has |
+| 83 | `obsidian` | Back on Asset Y, open **View** and untick **Legend** | The legend disappears from the canvas | The leaf-local `View ▸ Legend` toggle |
+| 84 | `obsidian` | Close this designer tab and reopen it | The legend is ticked and showing again, regardless of what you left it at | Default ON, and NOT persisted — AD18-R12's precedent |
+| 85 | `obsidian` | Narrow the leaf below a sidebar width (about 460 px) | The legend is hidden | The same narrow breakpoint the canvas-share ruling (AD18-R10) already binds |
+| 86 | `obsidian` | On an asset with a traced footprint, look at the Asset block's order in the Inspector | Height comes directly after the Dimensions (W × D) line, before "Edit dimensions" | Task 7: Height now sits beside the fact block it belongs to (board 01), rather than after Edit dimensions and a checkbox that has since moved out |
+| 87 | `obsidian` | With nothing selected, look at the top of the Asset block in the Inspector | A small thumbnail of the footprint sits above the "Asset" heading, beside a category chip (its actual category, e.g. "Fixture"); no asset name is shown anywhere in this block | AD18-R1 keeps the name in the header only; the card is new (Task 9) |
+| 88 | `obsidian` | Open Asset Z (no footprint) and look at the same place | No thumbnail is drawn; the category chip is still shown | The chip is unconditional (every asset has a category); the thumbnail needs a shape |
+| 89 | `obsidian` | Right-click a selected detail on the canvas | A menu opens with Group, Ungroup, Duplicate and Delete, each showing its shortcut (Ctrl+G / Cmd+G, Ctrl+Shift+G, Ctrl+D, Del) | Task 11's reused `CanvasContextMenu` |
+| 90 | `obsidian` | Right-click that same part's row in the Parts panel instead | The identical menu opens | Both doors reach the one menu |
+| 91 | `obsidian` | Select two of the three graphics (Shift, or the Parts panel's sticky checkbox), then right-click the third, UNSELECTED one and choose Delete | Only the right-clicked graphic disappears — not the two you had selected | The right-clicked member becomes the subject, not the prior selection |
+| 92 | `obsidian` | Right-click directly on the footprint's outline, on the anchor dot, or on the facing arrow (each in turn) | Obsidian's own native menu opens each time (or nothing), never the designer's Group/Ungroup/Duplicate/Delete menu | The menu is withheld over every non-graphic part |
+| 93 | `obsidian` | Right-click a dimension number on the canvas, and its open edit field | Neither opens the designer's menu | Dimension labels and their fields are excluded the same way |
+| 94 | `obsidian` | From a Parts row's own context menu, choose Delete | The part disappears and keyboard focus lands on the canvas — not lost to the page | The refocus fix, after this task's fix rounds (wrong focused member, focus loss, over-eager refocus) |
+| 95 | `obsidian` | With two graphics selected that are not already grouped, press Ctrl+G (Cmd+G on macOS); then press Ctrl+Shift+G | They group, then ungroup — the same as the Arrange panel's own Group/Ungroup | The two new shortcuts in `designerKeys.ts` |
+| 96 | `obsidian` | Select a single part, or clear the selection entirely, then press Ctrl+G. **Record what happens** — in particular, whether Obsidian's own graph-view hotkey (if one is bound to Ctrl+G) fires | Nothing in the designer happens, and the keypress is NOT captured — it should reach Obsidian for its own binding to answer, if any | **The one row here only a vault can answer, named as a first sighting**: no fake and no harness can tell whether an un-consumed key actually reaches the host |
+| 96a | `obsidian` | Open the context menu from a Parts row (right-click, or Shift+F10 with the row focused) on a single part, then press **Escape** to close it, then — WITHOUT clicking anywhere else, so focus is still on that row — press Ctrl+G | The menu closes on Escape and focus stays on the row it opened from; the following Ctrl+G still does nothing in the designer and is still NOT captured, so it should reach Obsidian exactly as step 96 predicts | The same fall-through predicted from the canvas, now checked from a Parts row after a menu close — a different focus target the un-consumed-key path has to hold for too |
+| 97 | `obsidian` | With a part selected, press Shift+F10, or the keyboard's ContextMenu key | The same menu opens as the right-click did | Keyboard access to the same door |
+| 98 | `obsidian` | Draw a fresh rounded rectangle (**Draw rounded rectangle**) and select it | The Inspector shows a "Corner radius" row (an "mm" suffix, short-labelled per Task 5's convention) among its fields | Positive detection on a freshly drawn one |
+| 99 | `obsidian` | Type a different value into Corner radius and commit, then press Undo | The four corners rebuild at the new radius; Undo restores the old radius in one step | One whole-shape rebuild, one undo entry |
+| 100 | `obsidian` | Open the field and retype exactly the value already shown, then commit | Nothing changes, and Undo is no closer to having an entry for it | C03's no-op rule, reused from Task 5's dimension fields |
+| 101 | `obsidian` | Type a value at least half the rectangle's shorter side (e.g. 150 on a 200 × 300 mm rectangle) and commit | It is refused with its own message, rather than silently clamped | The open-interval bound `(0, half)` — a value AT half is refused too, not rounded down under it |
+| 102 | `judgement` | Change the same rectangle's Width alone (Edit dimensions, or a resize handle) to something clearly different from its Depth, then look at the Inspector again | **Record what you see rather than marking this a failure.** The Corner radius row is expected to be gone — this is a KNOWN, recorded behaviour of the read-back detection, not something this step discovered — but whether it is the RIGHT outcome is a ruling still pending, so note it even if it reads as surprising | The corners are no longer a uniform radius once the box is stretched non-uniformly, so read-back correctly declines to offer a field for one; this row exists to have a person's reaction on record for the pending ruling, not to pass or fail the build |
+| 103 | `judgement` | With a detail selected, compare the Object tab's layout — at the default width and at a sidebar width — against board 01's own inspector screenshot | Record whether it now reads as compact and grouped the way board 01 does, or not, and why | The one thing no gate can grade: whether Tasks 5, 6, 7 and 9 together read as the reference rather than merely matching it field by field |
+| 104 | `judgement` | Look at the Add rail's tiles and the Arrange panel's align/distribute icons WITHOUT hovering | Record whether each icon reads as what it does on sight, or needs the tooltip to be understood | Tasks 3 and 10's icon choices, judged as icons rather than as accessible names |
 
 ## Deliberately NOT checked
 

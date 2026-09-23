@@ -19,10 +19,11 @@ overlooked.**
 
 ## What the pass consists of
 
-**109 human steps across six cases**, measured rather than remembered — re-derived on 2026-09-22
-against the finished wave-19/20/21 tree with the command below, run verbatim as it is printed.
-**Do not trust this number; run the command.** It has been 84, then 90, then this, and each time
-the session that moved it was the session that had just shipped the thing it was counting:
+**145 human steps across six cases**, measured rather than remembered — re-derived on 2026-09-23
+against the finished AD18-R16 parity-round tree with the command below, run verbatim as it is
+printed. **Do not trust this number; run the command.** It has been 84, then 90, then 109, then
+this, and each time the session that moved it was the session that had just shipped the thing it
+was counting:
 
 ```bash
 for f in "Design an Asset" "Take an asset from the library into a plan" \
@@ -35,10 +36,10 @@ done
 
 | Case | Human steps | Of total | Discharges |
 |---|---|---|---|
-| [[Design an Asset]] | **38** | 84 | U01 (with the next row) |
+| [[Design an Asset]] | **72** | 118 | U01 (with the next row) |
 | [[Take an asset from the library into a plan]] | 19 | 28 | U01, T34 |
 | [[Compose an asset from parts]] | 2 | 38 | U02, U03 (its Repeat section) |
-| [[Calibrate a sheet and reserve space]] | 9 | 36 | U04 — **7 already confirmed**, see below |
+| [[Calibrate a sheet and reserve space]] | 11 | 38 | U04 — **7 already confirmed**, see below |
 | [[Recover an asset design rather than lose it]] | **33** | 42 | U05 |
 | [[Two designers on one asset]] | 8 | 16 | T12 |
 
@@ -79,6 +80,49 @@ step 32 (needs a screen reader) and its seven `browser` steps remain — and tho
 structurally unreachable while `tests/harness/assetDesigner.ts` sets `background: null`. And
 **[[Two designers on one asset]] step 11 is the same walk as [[Recover an asset design rather than
 lose it]] step 17** — walk one, not both.
+
+**What session fifteen ADDED, and why the total moved from 109 to 145.** Session fifteen's Task 13
+closed the AD18 parity round (AD18-R16, twelve source changes landed as one package), and every one
+of them is a first sighting — none has been seen in Obsidian. **Thirty-six new steps, all but two in
+[[Design an Asset]]'s own new section.**
+
+- **Thirty-four in [[Design an Asset]]'s new "the parity round (AD18-R16)" section (steps 72–104,
+  including 96a)**, covering all twelve tasks: the header's `← Back to library` door (72–73), the
+  Add rail's labelled tiles (74–76), the toolbar's zoom cluster (77–80), the canvas legend (81–85),
+  Height beside Dimensions (86), the Inspector's asset card (87–88), the canvas/Parts-row context
+  menu including the keyboard-only group shortcuts and the one row only a vault can answer — whether
+  an un-consumed Ctrl+G reaches Obsidian's own graph-view hotkey, from the canvas (96) and again from
+  a Parts row after closing the menu with Escape (96a) — (89–97), the rounded-rectangle Corner radius
+  field (98–102, with step 102 a `judgement` rather than a pass/fail: its outcome is known and
+  recorded, but whether it is the RIGHT outcome is a ruling still pending), and two `judgement` steps
+  over whether Tasks 5, 6, 7 and 9 together read as board 01's own inspector, and whether the Add
+  rail's and Arrange panel's new icons read as what they do without hovering (103–104).
+- **Two in [[Calibrate a sheet and reserve space]]**: step 15a, that the Placement group's `Custom`
+  segment hands off to the real `Set anchor` tool and becomes the pressed segment once the anchor
+  sits at neither preset; and step 15b, whether a KEYBOARD-only user can complete that same gesture
+  at all — `SetAnchorTool` commits on `pointerDown`, so this is the first time that question has been
+  asked of a keyboard rather than assumed answered by the numeric fields beside it.
+
+**Every OTHER row this round touched was REWRITTEN, not added — its step number is unchanged, and
+its own text says so. Read this before walking any of them, across three cases.**
+
+- **[[Calibrate a sheet and reserve space]] step 15**: the old two-row `<dl>` ("Placement point: …"
+  text plus two plain buttons) is gone, replaced by AD18-R16 Task 8's three-button `role="group"`
+  segmented control (Back centre, Centre, Custom); steps 20, 21 and 24 also lost their old field
+  labels ("In front", "Behind", "To its left", "To its right" as VISIBLE text) to Task 5's compact
+  rows — the full sentences are now each field's accessible name only, and step 20's own text says so
+  generically rather than pinning the exact short word for "Behind", since a separate fixer was still
+  adjusting that one word for label-containment as this was written.
+- **[[Compose an asset from parts]] steps 12, 18, 19, 21, 24, 26, 27, 28, 29 and 31**: step 12's
+  "Select multiple parts" checkbox moved from the Inspector to the Parts panel (Task 7); steps 18,
+  19, 21, 28 and 29 lost their align/distribute buttons' visible text to Task 10's icon-only row —
+  each is found by its tooltip or accessible name now; steps 24 and 26 each gained an explicit
+  "open the disclosure first" action, since Task 6 folded the Transform and Repeat sections behind
+  closed-by-default `<details>`; step 27 notes the Repeat disclosure opened at step 26 stays open;
+  and step 31's toolbar tool list gained the zoom cluster between Undo/Redo and View (Task 1).
+- **[[Take an asset from the library into a plan]] step 12**: its 2026-09-20 amendment already
+  pointed at the header for both doors; this round only changes the library door's own text, to
+  "← Back to library" with an arrow-left icon, clipped below a sidebar width rather than removed.
 
 ## The gate inside the pass
 

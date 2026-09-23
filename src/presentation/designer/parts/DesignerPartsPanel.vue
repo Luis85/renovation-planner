@@ -33,14 +33,15 @@
  * selected row opens controls beneath it, and interactive controls inside an `option` is invalid
  * ARIA that `tests/harness/accessibility*.test.ts` would be right to refuse.
  */
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { rovingIndex } from '../../components/rovingIndex';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import { reorderDetail, updateDetail } from '../../../domain/asset/detailEdits';
 import { tr } from '../../i18n/strings';
 import type { EditShape } from '../selection/editShape';
 import { partKey, type DesignerSelection } from '../selection/designerSelection';
-import { designerShortcut, selectionKeyActions } from '../designerKeys';
+import { designerShortcut, selectionKeyActions, selectionKeysRefused, type SelectionKeyGate } from '../designerKeys';
+import { focusDropped } from '../designerMenu';
 import { partRows, type PartRow } from './partRows';
 import type { PartView } from './partView';
 import DesignerPartRow from './DesignerPartRow.vue';
@@ -66,6 +67,13 @@ const props = defineProps<{
 	 * `v-model` on a prop is a mutation of it, which `vue/no-mutating-props` refuses.
 	 */
 	setMultiSelectionMode?: (next: boolean) => void;
+	/**
+	 * The leaf's selection store, for the selection keys (AD18-R17 Task 3): their actions read it at the
+	 * CALL — a prop re-renders a tick late — and `focus` retargets a member first, as the context menu does.
+	 */
+	selectionStore: Parameters<typeof selectionKeyActions>[0] & { focus(next: DesignerSelection): void };
+	/** The leaf's runtime, asked only whether the keys are refused (`selectionKeysRefused`). */
+	tools: SelectionKeyGate;
 }>();
 
 /** The row the roving tabindex is on. A KEY rather than an index, so a reorder or a rename moves it with its row. */
@@ -146,6 +154,8 @@ function choose(row: PartRow): void {
  * place. An unreachable guard is not free — it costs a branch it can never pay back.
  */
 function onKeydown(event: KeyboardEvent): void {
+	// Home, End and the arrows typed in a row's Label field move the caret, never the list's focus.
+	if ((event.target as Element).matches('input, textarea, select')) return;
 	const candidates = focusable.value;
 	const from = candidates.findIndex((row) => row.key === tabbableKey.value);
 	const next = candidates[rovingIndex(event.key, from, candidates.length, false)];
@@ -156,38 +166,56 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 /**
- * Delete, Ctrl+D, Ctrl+G and Ctrl+Shift+G on a focused part row (AD18-R17 Task 3): the canvas's own
- * `designerShortcut` over `selectionKeyActions`, built here from the props the root hands this panel —
- * its store's `selected` and `select`, and the leaf's `editShape` — as `DesignerCanvas` builds its own
- * instance for the arrows. One function per action, never a copy. The panel is a SIBLING of the canvas,
- * so a key handled here never reaches `onCanvasKeyDown` as well.
+ * Delete, Ctrl+D, Ctrl+G and Ctrl+Shift+G on a SELECTED part row (AD18-R17 Task 3): the canvas's own
+ * `designerShortcut` over `selectionKeyActions`, built here over the leaf's store and `editShape` —
+ * the very objects the root builds the canvas's instance from, as `DesignerCanvas` builds its own for
+ * the arrows. One function per action, never a copy. The panel is a SIBLING of the canvas, so a key
+ * handled here never reaches `onCanvasKeyDown` as well. Refused under `selectionKeysRefused`, the
+ * gate the canvas and the menu apply.
  *
- * **Only on the row of the FOCUSED part**, the last selected member: every per-part action acts on
- * that one, so a key on any other row — one the arrows moved focus to without pressing it — would act
- * on a part other than the row under the keyboard. There it is not claimed, and the host keeps it. The
- * context menu's right-click makes a row's part the focused one first; a key cannot, holding no store.
- *
- * No tool refusal, unlike the canvas's: a tool owns the CANVAS's keyboard, and a key here never went
- * there. `null` for the active tool is therefore never read — it answers only the nudge, which no key
- * here reaches.
+ * **A selected member is made the FOCUSED one first** — the menu's `store.focus(part)` — because every
+ * per-part action acts on the focused member, and the part under the keyboard is the one meant. Asked
+ * as if it already were (the set with this member moved last), and retargeted only once a key is
+ * CLAIMED, so a Tab or a letter pressed on a row moves nothing. An UNSELECTED row — one the arrows moved
+ * focus to without pressing it — claims nothing, and the host keeps the key.
  */
-const keyActions = selectionKeyActions(
-	{
-		get selected() {
-			return props.selected;
-		},
-		// Read only by an action a claim ran, and a claim needs a focused part, so there is always one.
-		get selection() {
-			return props.selected.at(-1) as DesignerSelection;
-		},
-		select: (next) => props.select(next),
-	},
-	(edit) => props.editShape(edit),
-	{ value: null },
-);
+const keyActions = selectionKeyActions(props.selectionStore, (edit) => props.editShape(edit), props.tools.activeToolId);
 
 function shortcut(event: KeyboardEvent, row: PartRow): void {
-	if (props.selected.slice(-1).some((last) => partKey(last) === row.key)) designerShortcut(event, props, keyActions);
+	// Only a part row binds this, so the row names a part.
+	const part = row.selection as DesignerSelection, selected = props.selectionStore.selected;
+	const others = selected.filter((member) => partKey(member) !== row.key);
+	if (others.length === selected.length || selectionKeysRefused(props.tools)) return;
+	const retarget = (run: () => Promise<void>) => (): void => {
+		props.selectionStore.focus(part);
+		void keepKeyboard(run, row.key);
+	};
+	designerShortcut(event, { design: props.design, selected: [...others, part] }, {
+		deleteSelection: retarget(keyActions.deleteSelection),
+		duplicateSelection: retarget(keyActions.duplicateSelection),
+		groupSelection: retarget(keyActions.groupSelection),
+		ungroupSelection: retarget(keyActions.ungroupSelection),
+	});
+}
+
+const rowButton = (key: string): HTMLElement | null => list.value?.querySelector<HTMLElement>(`[data-key="${CSS.escape(key)}"] button`) ?? null;
+
+/**
+ * Run a row key's action, and hand focus the browser DROPPED back to the list (`focusDropped`, the
+ * menu's own rule): to the row itself where it survived — a group re-nests it under its header — else
+ * to the row below it. Named before the write, from the rows as they were. **There is no "row above"
+ * or "the list" arm**: every row a key can delete, a graphic or the clearance, has the footprint's or
+ * the anchor's row below it, and the list is not a focus target — an arm that can never run is not free.
+ */
+async function keepKeyboard(run: () => Promise<void>, key: string): Promise<void> {
+	const keys = focusable.value.map((each) => each.key);
+	const order = [key, keys[keys.indexOf(key) + 1]];
+	await run();
+	await nextTick();
+	if (!focusDropped()) return;
+	const next = order.find((each) => rowButton(each) !== null) as string;
+	focusedKey.value = next;
+	(rowButton(next) as HTMLElement).focus();
 }
 
 function rename(id: string, label: string): void {

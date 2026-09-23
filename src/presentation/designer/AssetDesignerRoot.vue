@@ -643,6 +643,8 @@ onMounted(() => {
 					:view="runtime.partView"
 					:multi-selection-mode="runtime.multiSelectionMode.value"
 					:set-multi-selection-mode="(next: boolean) => (runtime.multiSelectionMode.value = next)"
+					:selection-store="designStore"
+					:tools="runtime"
 				/>
 			</div>
 			<!--

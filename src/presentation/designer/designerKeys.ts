@@ -47,6 +47,22 @@ export interface DesignerKeyDoors {
 	ungroupSelection(): void;
 }
 
+/** What the selection keys' refusal reads — the leaf's `DesignerRuntime` satisfies it structurally. */
+export interface SelectionKeyGate {
+	readonly activeToolId: { readonly value: ToolId | null };
+	readonly toolManager: { activeToolHasDraft(): boolean };
+}
+
+/**
+ * The selection keys' ONE refusal, asked by the context menu and by the Parts rows (AD18-R17 Task 3):
+ * any tool but Select owns the keyboard for its own gesture (Backspace mid-trace takes a point back),
+ * and a press still held on the selection is about to write that very part. `AssetDesignerRoot`'s
+ * `onCanvasKeyDown` still spells the same two clauses inline; that file is owned by no task.
+ */
+export function selectionKeysRefused(gate: SelectionKeyGate): boolean {
+	return gate.activeToolId.value !== 'select' || gate.toolManager.activeToolHasDraft();
+}
+
 /** What each selection action would act on right now; `false` is an action that would do nothing. */
 export interface SelectionAbilities {
 	readonly group: boolean;

@@ -12,10 +12,12 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { AssetShape } from '../../../src/domain/asset/AssetShape';
+import type { Point } from '../../../src/core/geometry/Point';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
+import { t } from '../../../src/presentation/i18n/strings';
 import { settle } from '../../helpers/editor';
 import { selecting, type DesignerRig } from '../../helpers/designerRig';
-import { TOILET } from '../../helpers/designerSelection';
+import { TOILET, detailOutline, justInsideBottom } from '../../helpers/designerSelection';
 
 const DETAIL_1 = { kind: 'detail', id: 'detail-1' } as const;
 const DETAIL_2 = { kind: 'detail', id: 'detail-2' } as const;
@@ -38,6 +40,24 @@ async function onTheBowl(shape: AssetShape = TOILET): Promise<{ rig: DesignerRig
 	bowl.click();
 	await settle();
 	return { rig, bowl: row(rig, 'detail:detail-2') };
+}
+
+/** One primary pointer event on the canvas, held on the press — `designerKeyboard.test.ts`'s own. */
+function pointer(rig: DesignerRig, type: 'pointerdown' | 'pointerup', world: Point): void {
+	const at = rig.at(world);
+	rig.canvasEl.dispatchEvent(
+		new PointerEvent(type, { button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerId: 1, clientX: at.x, clientY: at.y, bubbles: true }),
+	);
+}
+
+/** Both graphics selected with the BOWL focused, so the tank's row is a selected member that is NOT the focused one. */
+async function bothSelected(): Promise<{ rig: DesignerRig; tank: HTMLButtonElement }> {
+	const { rig } = await onTheBowl();
+	const store = useAssetDesignStore(rig.pinia);
+	store.select(DETAIL_1);
+	store.extend(DETAIL_2);
+	await settle();
+	return { rig, tank: row(rig, 'detail:detail-1') };
 }
 
 async function detailIds(rig: DesignerRig): Promise<string[] | undefined> {
@@ -88,22 +108,31 @@ describe('the selection keys on a focused Parts row', () => {
 		rig.unmount();
 	});
 
-	it('Ctrl+G groups the set and Ctrl+Shift+G ungroups it, from the focused member’s row', async () => {
-		const { rig, bowl } = await onTheBowl();
-		const store = useAssetDesignStore(rig.pinia);
-		store.select(DETAIL_1);
-		store.extend(DETAIL_2);
-		await settle();
+	it('Ctrl+G groups the set from a member that is NOT the focused one, and Ctrl+Shift+G ungroups it', async () => {
+		const { rig, tank } = await bothSelected();
+		tank.focus();
 
-		const group = key(bowl, { key: 'g', ctrlKey: true });
+		const group = key(tank, { key: 'g', ctrlKey: true });
 		await settle();
 		expect(group.defaultPrevented).toBe(true);
-		expect((await rig.document()).shape?.groups).toEqual([{ id: 'group-1', members: ['detail-1', 'detail-2'] }]);
+		expect((await rig.document()).shape?.groups?.map((each) => each.members.toSorted())).toEqual([['detail-1', 'detail-2']]);
+		// The member under the keyboard became the focused one, the set kept — the menu's `store.focus`.
+		expect(useAssetDesignStore(rig.pinia).selected).toEqual([DETAIL_2, DETAIL_1]);
+		// Re-nested under its group header, the row keeps the keyboard rather than dropping it to <body>.
+		expect(document.activeElement).toBe(row(rig, 'detail:detail-1'));
 
-		const ungroup = key(row(rig, 'detail:detail-2'), { key: 'G', ctrlKey: true, shiftKey: true });
+		const ungroup = key(row(rig, 'detail:detail-1'), { key: 'G', ctrlKey: true, shiftKey: true });
 		await settle();
 		expect(ungroup.defaultPrevented).toBe(true);
 		expect((await rig.document()).shape?.groups ?? []).toEqual([]);
+		rig.unmount();
+	});
+
+	it('Delete from a member that is NOT the focused one deletes THAT member', async () => {
+		const { rig, tank } = await bothSelected();
+		key(tank, { key: 'Delete' });
+		await settle();
+		expect(await detailIds(rig)).toEqual(['detail-2']);
 		rig.unmount();
 	});
 
@@ -132,6 +161,60 @@ describe('the selection keys on a focused Parts row', () => {
 		expect(duplicate.defaultPrevented).toBe(false);
 		expect(await rig.document()).toEqual(before);
 		expect(useAssetDesignStore(rig.pinia).selected).toEqual([DETAIL_2]);
+		rig.unmount();
+	});
+
+	it('Home, End and the arrows in the Label field move the caret, not the list’s focus', async () => {
+		const { rig } = await onTheBowl();
+		const label = rig.wrapper.element.querySelector('input[name="part-label"]') as HTMLInputElement;
+		label.focus();
+
+		const presses = ['Home', 'End', 'ArrowDown', 'ArrowUp'].map((each) => key(label, { key: each }));
+		await settle();
+
+		expect(presses.map((each) => each.defaultPrevented)).toEqual([false, false, false, false]);
+		expect(document.activeElement).toBe(label);
+		rig.unmount();
+	});
+});
+
+describe('refused where the canvas and the menu refuse', () => {
+	it('deletes nothing from a row under another tool', async () => {
+		const { rig, bowl } = await onTheBowl();
+		rig.toolbarButton(t('en', 'designer.toolbar.trace-footprint')).click();
+		await settle();
+		key(bowl, { key: 'Delete' });
+		await settle();
+		expect(await detailIds(rig)).toEqual(['detail-1', 'detail-2']);
+		rig.unmount();
+	});
+
+	it('deletes nothing from a row while a press on the selection is still held', async () => {
+		const { rig, bowl } = await onTheBowl();
+		const inside = justInsideBottom(detailOutline('detail-2'));
+		pointer(rig, 'pointerdown', inside);
+		key(bowl, { key: 'Delete' });
+		pointer(rig, 'pointerup', inside);
+		await settle();
+		expect(await detailIds(rig)).toEqual(['detail-1', 'detail-2']);
+		rig.unmount();
+	});
+});
+
+describe('where the keyboard goes after a row is deleted', () => {
+	it('to the row below, never to <body>', async () => {
+		const { rig, bowl } = await onTheBowl();
+		key(bowl, { key: 'Delete' });
+		await settle();
+		const tank = row(rig, 'detail:detail-1');
+		expect(document.activeElement).toBe(tank);
+		expect(tank.tabIndex).toBe(0);
+
+		tank.click();
+		await settle();
+		key(tank, { key: 'Delete' });
+		await settle();
+		expect(document.activeElement).toBe(row(rig, 'footprint'));
 		rig.unmount();
 	});
 });

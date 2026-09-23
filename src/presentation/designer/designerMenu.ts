@@ -7,7 +7,7 @@ import { STAGE_PIXELS, screenPoint, screenToWorld, worldPerScreenPixel } from '.
 import { tr } from '../i18n/strings';
 import { useEditorStore } from '../stores/EditorStore';
 import { modifierLabel } from '../views/platformModifier';
-import { selectionAbilities, type SelectionKeyActions } from './designerKeys';
+import { selectionAbilities, selectionKeysRefused, type SelectionKeyActions } from './designerKeys';
 import { partRows, type PartRow } from './parts/partRows';
 import type { DesignerRuntime } from './runtime';
 import { hitDesign } from './selection/hitTest';
@@ -94,7 +94,7 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToo
 	}
 
 	async function show(event: MouseEvent | KeyboardEvent): Promise<void> {
-		if (dialogs.current !== null || runtime.activeToolId.value !== 'select' || runtime.toolManager.activeToolHasDraft()) return;
+		if (dialogs.current !== null || selectionKeysRefused(runtime)) return;
 		const target = event.target as HTMLElement, part = partAt(event, target);
 		// A part none of the four can act on (the footprint, the anchor, the facing) opens nothing: a menu
 		// of greyed items is a dead control, and the browser keeps its own event. Asked of the part ALONE,
@@ -141,7 +141,7 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToo
 		close();
 		await action.run();
 		await nextTick();
-		if (([null, document.body] as (Element | null)[]).includes(document.activeElement)) (root.querySelector('.rp-plan-canvas') as HTMLElement).focus();
+		if (focusDropped()) (root.querySelector('.rp-plan-canvas') as HTMLElement).focus();
 	}
 
 	return reactive({
@@ -169,3 +169,13 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToo
 }
 
 export type DesignerContextMenuState = ReturnType<typeof useDesignerContextMenu>;
+
+/**
+ * Whether focus was DROPPED — to `<body>`, or nowhere — as a browser does when the focused element is
+ * unmounted. Only then may a door that ran a write move it: the write awaits the vault, and a user who
+ * clicked into a note or opened a modal meanwhile keeps their focus there. The menu's `runAndRefocus`
+ * and the Parts rows' keys (`DesignerPartsPanel`) both ask it.
+ */
+export function focusDropped(): boolean {
+	return ([null, document.body] as (Element | null)[]).includes(document.activeElement);
+}

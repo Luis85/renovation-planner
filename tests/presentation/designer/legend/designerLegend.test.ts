@@ -11,6 +11,7 @@
  * either, and for the identical reason.
  */
 import { describe, expect, it } from 'vitest';
+import { rect } from '../../../../src/domain/asset/presets/presetGeometry';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { editableShape } from '../../../helpers/assetShapes';
 import { designerRig, type DesignerRig } from '../../../helpers/designerRig';
@@ -38,7 +39,7 @@ describe('what the designer’s legend draws', () => {
 				['clearance', t('en', 'designer.legend.clearance')],
 				['footprint', t('en', 'designer.legend.footprint')],
 				['details', t('en', 'designer.legend.details')],
-				['placement', t('en', 'designer.legend.placement-point')],
+				['placement', t('en', 'designer.legend.placement-point.centre')],
 				['facing', t('en', 'designer.legend.front-direction')],
 			]);
 			expect(drawn.getAttribute('role')).toBe('group');
@@ -52,6 +53,20 @@ describe('what the designer’s legend draws', () => {
 		const rig = await designerRig({ shape: editableShape({ clearance: null, details: [] }), camera: 'default' });
 		try {
 			expect(rows(rig).map(([kind]) => kind)).toEqual(['footprint', 'placement', 'facing']);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	it('draws each row’s detail: the clearance’s figure where all four sides agree, and the placement point’s preset', async () => {
+		// AD18-R17: a 1000 x 600 footprint inside a 1600 x 1200 clearance stands 300 off every side,
+		// and an anchor on the back edge's middle is the Placement segment's `Back centre`.
+		const rig = await designerRig({ shape: editableShape({ clearance: rect(1600, 1200), anchor: { x: -500, y: 0 } }), camera: 'default' });
+		try {
+			expect(rows(rig).filter(([kind]) => kind === 'clearance' || kind === 'placement')).toEqual([
+				['clearance', t('en', 'designer.legend.clearance.uniform', { size: '300' })],
+				['placement', t('en', 'designer.legend.placement-point.back-centre')],
+			]);
 		} finally {
 			rig.unmount();
 		}

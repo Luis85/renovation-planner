@@ -20,6 +20,13 @@
  * **The `View` menu's `Legend` checkbox is AD18-R12's kind of row**, the same shape
  * `allDimensions` already takes on `DesignerRuntime`: a plain leaf-local `ref`, default ON,
  * written nowhere. `runtime.ts`'s `showLegend` member carries the account.
+ *
+ * **The root is the canvas KEY, not the legend** (AD18-R17 Task 6): one bottom-left column holding
+ * the legend and, below it, `DesignerScaleBar`. One positioned box rather than two is what keeps the
+ * two from overlapping without either knowing the other's height — they stack in flow. The scale bar
+ * sits OUTSIDE the legend's `v-if`, because it outlives both the `Legend` toggle and the narrow
+ * breakpoint that hides the legend; its own docblock says why. Over the empty state both are absent
+ * and the key is an empty box that takes no press.
  */
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -27,6 +34,7 @@ import { tr } from '../../i18n/strings';
 import { useAssetDesignStore } from '../stores/assetDesignStore';
 import { useDesignerRuntime } from '../runtime';
 import { legendRows } from './legendRows';
+import DesignerScaleBar from './DesignerScaleBar.vue';
 
 const { design } = storeToRefs(useAssetDesignStore());
 const { showLegend } = useDesignerRuntime();
@@ -35,22 +43,25 @@ const rows = computed(() => (showLegend.value ? legendRows(design.value?.shape ?
 </script>
 
 <template>
-	<div
-		v-if="rows.length > 0"
-		class="rp-designer-legend"
-		role="group"
-		:aria-label="tr('designer.legend')"
-	>
+	<div class="rp-designer-key">
 		<div
-			v-for="row in rows"
-			:key="row.kind"
-			class="rp-designer-legend__row"
+			v-if="rows.length > 0"
+			class="rp-designer-legend"
+			role="group"
+			:aria-label="tr('designer.legend')"
 		>
-			<span
-				class="rp-designer-legend__swatch"
-				:class="`rp-designer-legend__swatch--${row.kind}`"
-			/>
-			<span>{{ tr(row.label) }}</span>
+			<div
+				v-for="row in rows"
+				:key="row.kind"
+				class="rp-designer-legend__row"
+			>
+				<span
+					class="rp-designer-legend__swatch"
+					:class="`rp-designer-legend__swatch--${row.kind}`"
+				/>
+				<span>{{ tr(row.label, row.params) }}</span>
+			</div>
 		</div>
+		<DesignerScaleBar />
 	</div>
 </template>

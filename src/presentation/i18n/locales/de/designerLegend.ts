@@ -1,12 +1,16 @@
 import type { designerLegendEn } from '../en/designerLegend';
 
-/** German for the canvas legend's copy (AD18-R16 Task 4). */
+/** German for the canvas legend's copy (AD18-R16 Task 4, AD18-R17 Task 6). */
 export const designerLegendDe: Record<keyof typeof designerLegendEn, string> = {
 	'designer.legend': 'Legende',
 	'designer.legend.clearance': 'Freiraum',
+	'designer.legend.clearance.uniform': 'Freiraum ({size} mm)',
 	'designer.legend.footprint': 'Umriss',
 	'designer.legend.details': 'Details',
-	'designer.legend.placement-point': 'Ankerpunkt',
+	'designer.legend.placement-point.back-centre': 'Ankerpunkt (hintere Mitte)',
+	'designer.legend.placement-point.centre': 'Ankerpunkt (Mitte)',
+	'designer.legend.placement-point.custom': 'Ankerpunkt (eigener Punkt)',
 	'designer.legend.front-direction': 'Ausrichtung',
+	'designer.legend.scale-bar.end': '{length} mm',
 	'designer.view.legend': 'Legende',
 };

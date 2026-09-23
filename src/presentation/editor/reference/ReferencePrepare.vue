@@ -135,6 +135,7 @@ function choose(source: string): void {
 					v-model.number="rotation"
 					name="rotation"
 					type="number"
+					step="any"
 					min="-180"
 					max="180"
 					:readonly="paused"

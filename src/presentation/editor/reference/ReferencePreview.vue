@@ -20,6 +20,8 @@ const zoomPercent = computed(() => Math.round(view.value.scale / fitScale.value 
 let observer: ResizeObserver | undefined, unsubscribe: (() => void) | undefined;
 let gesture: { id: number; start: Point; view: ReferenceViewport; moved: boolean; navigationOnly: boolean; rotate?: { rotation: number; from: Point; last?: number } } | null = null;
 let suppressClick = false;
+/** The margin that keeps the knob, and the guides' crossing, inside the canvas. */
+const inset = 16;
 function draw(): void {
 	const element = canvas.value, context = element?.getContext('2d');
 	if (!element || !context) return;
@@ -65,8 +67,8 @@ function drawHandle(context: CanvasRenderingContext2D, ink: Ink): void {
 	context.strokeStyle = ink.accent; context.fillStyle = active ? ink.accent : ink.surface; context.lineWidth = 1;
 	context.beginPath();
 	if (rotating.value) {
-		// Through the centre clamped into the canvas, so they stay visible when the centre is panned away.
-		const x = Math.max(0, Math.min(size.value.width, centre.x)), y = Math.max(0, Math.min(size.value.height, centre.y));
+		// Through the centre clamped into the knob's inset, so they stay visible (clear of the focus outline) when the centre is panned away.
+		const x = Math.max(inset, Math.min(size.value.width - inset, centre.x)), y = Math.max(inset, Math.min(size.value.height - inset, centre.y));
 		context.moveTo(0, y); context.lineTo(size.value.width, y);
 		context.moveTo(x, 0); context.lineTo(x, size.value.height);
 		context.stroke(); context.beginPath();
@@ -81,7 +83,7 @@ function drawHandle(context: CanvasRenderingContext2D, ink: Ink): void {
 }
 function handle(): { centre: Point; knob: Point } {
 	const centre = referenceScreenCentre(view.value, props.appearance);
-	return { centre, knob: reachableHandlePoint(centre, props.appearance.rotation, Math.min(size.value.width, size.value.height) / 2 - 16, size.value, 16) };
+	return { centre, knob: reachableHandlePoint(centre, props.appearance.rotation, Math.min(size.value.width, size.value.height) / 2 - inset, size.value, inset) };
 }
 /** `point` relative to the image's live on-screen centre, which a rotation's refit moves. */
 function fromCentre(point: Point): Point {

@@ -280,7 +280,7 @@ it('pulls the knob on-screen when the image centre is panned away, and drags it 
 	expect(drawn[0]).toBeCloseTo(16, 6); expect(drawn[1]).toBeCloseTo(110, 6);
 	pointer(canvas, 'pointerdown', { x: 16, y: 110 }); await nextTick();
 	expect(w.get('canvas').classes()).toContain('is-rotating');
-	expect(lineTo.mock.calls).toContainEqual([0, 220]); expect(lineTo.mock.calls).toContainEqual([400, off.y]);
+	expect(lineTo.mock.calls).toContainEqual([16, 220]); expect(lineTo.mock.calls).toContainEqual([400, off.y]); expect(lineTo.mock.calls).not.toContainEqual([0, 220]);
 	pointer(canvas, 'pointermove', { x: 16, y: 150 });
 	const turned = expectDefined(rotations(w)[0], 'dragged rotation');
 	expect(turned).toBeGreaterThan(90);

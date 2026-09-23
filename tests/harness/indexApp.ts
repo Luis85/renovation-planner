@@ -24,7 +24,7 @@ import { componentEntries, prototypeEntries, registerEntries, registrableCompone
  * and not thinner either.
  *
  * The registry is the one step with no production twin to read it from: `PlanEditorView` does
- * the other three, so `tests/build/harness-shot.test.ts` pins those against production's own
+ * the other three, so `tests/gates/harness-shot.test.ts` pins those against production's own
  * source. This one is the index's own, which is why it is pinned against THIS file instead.
  *
  * What it deliberately does NOT mirror is `page.ts`'s console reporting of `shadowed` and

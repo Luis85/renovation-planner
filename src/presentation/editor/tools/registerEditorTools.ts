@@ -10,9 +10,8 @@ import { CalibrateTool } from './calibrate-tool';
 import { DrawPolygonTool } from './draw-polygon-tool';
 import { simpleAreaOutline } from '../add/simpleOutline';
 import { DrawRoomTool } from './draw-room-tool';
-import { SelectTool } from './select-tool';
+import { SelectTool, type SelectGestureDeps } from './select-tool';
 import { PanTool } from './pan-tool';
-import type { SelectionInteractions } from '../selection/selectionInteractions';
 import { ReversibleMoveZoneCommand } from './reversible-move-zone-command';
 import type { UndoableCommand } from './undoable-command';
 import type { RoomDraftStore } from '../add/room-draft-store';
@@ -27,13 +26,6 @@ import { useWorkspaceStore } from '../../stores/WorkspaceStore';
 import { useAssetShapeStore } from '../../stores/AssetShapeStore';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { useEditorStore } from '../../stores/EditorStore';
-import type { Point } from '../../../core/geometry/Point';
-import type { RotationGestureDeps } from '../elements/ElementRotation';
-import type { ElementMoveDeps } from '../elements/ElementMove';
-import type { ElementResizeDeps } from '../elements/ElementResize';
-import type { OpeningResizeDeps } from '../structure/OpeningResize';
-import type { OpeningHandle } from '../structure/openingHandles';
-import type { LabelMoveDeps } from '../labels/LabelMove';
 import { watch } from 'vue';
 
 /**
@@ -59,13 +51,7 @@ export function moveGesture(
  * so the one cast that turns Obsidian's opaque per-leaf string into a branded id stays a
  * single site — see `subject` below, which is built from the same value.
  */
-export interface EditorToolDeps extends ElementMoveDeps, ElementResizeDeps, RotationGestureDeps, SelectionInteractions, LabelMoveDeps, OpeningResizeDeps {
-	/** The selected opening's handles, or `null` where none are offered; the same points that are drawn. */
-	readonly openingHandles?: () => { readonly id: string; readonly handles: readonly OpeningHandle[] } | null;
-	readonly stepOpening?: (id: string, deltaMm: number) => void;
-	readonly flipOpening?: (id: string, side: 'left' | 'right') => void;
-	readonly previewWall?: (id: string | null, end?: Point) => void;
-	readonly editWall?: (id: string, end: Point) => void;
+export interface EditorToolDeps extends SelectGestureDeps {
 	readonly canFinishArea: () => boolean;
 	readonly onAreaCompleted: () => void;
 	readonly context: PlanEditorContext;

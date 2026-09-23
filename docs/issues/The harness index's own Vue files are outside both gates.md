@@ -80,7 +80,7 @@ failure in a test, or not at all.
   comment.
 - **A check on the wiring**, because everything above is a claim about two globs. Asking the
   glob's shape is what a review round already got wrong once in this file, so
-  `tests/build/lint-scope.test.ts` asks the TOOLS: TypeScript's own config parser resolves the
+  `tests/gates/lint-scope.test.ts` asks the TOOLS: TypeScript's own config parser resolves the
   include list — with `.vue` declared as an extra extension, without which it answers "no
   files" and the check passes vacuously — and ESLint's `calculateConfigForFile` answers for
   both directions, the Vue rules on under `tests/harness/` and `no-console` still an error

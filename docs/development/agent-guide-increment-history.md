@@ -230,7 +230,7 @@ already hydrates. Rules that came out of it:
   file pair that criterion is actually held for.** `EmptyState.vue`'s template crossed from
   `src/prototypes/` unchanged except for one added line, `@click="$emit('action')"` — the
   mock was visual-only and wired no click at all, so the promoted contract's `action` event
-  was unreachable until that line existed. `tests/build/prototype-promotion.test.ts`, the
+  was unreachable until that line existed. `tests/gates/prototype-promotion.test.ts`, the
   test that holds templates byte-identical across promotion, is scoped to exactly one file
   pair (`ZoneSummary.vue`) and does not cover this one, so nothing here caught the gap
   automatically — a mock whose button cannot be pressed is a worse mock regardless.
@@ -1089,7 +1089,7 @@ Its first real caller is the calibration gesture. Rules that came out of it:
 
 - **`presentation/dialogs/` may not import `application/`, `infrastructure/`, `plugin/` or
   the event bus** — a `forbidden('presentation/dialogs', …)` block in `eslint.config.mjs`,
-  driven through real fixture paths by `tests/build/vue-rules.test.ts`. It REPEATS the bans
+  driven through real fixture paths by `tests/gates/vue-rules.test.ts`. It REPEATS the bans
   the wider `presentation` block already carries, because two blocks matching one file
   override rather than merge, and a block naming only its additions would open the bigger
   hole while looking like it closed a smaller one.
@@ -1651,7 +1651,7 @@ it:
   site in that spelling would have been invisible to the one rule keeping a raw
   `Error.message` and bare English literals out of a notice. `notifySuccess` and
   `notifyWarning` are named in `NOTICE_DOOR` now, driven through real fixture paths in
-  `tests/build/notice-text-boundary.test.ts` — blind spots included, and through BOTH blocks
+  `tests/gates/notice-text-boundary.test.ts` — blind spots included, and through BOTH blocks
   that carry the rule.
 - **`handle.live` rather than a dismissal callback is the authority on a free slot.**
   Obsidian dismisses a notice when the user clicks it and does not tell us; the typings expose
@@ -2040,7 +2040,7 @@ the merge of them left FOUR docblocks — this line, `ProjectFilter.vue`, `Asset
 `ProjectHome.vue` — each reading correctly in isolation and all four wrong about the tree.
 `AssetLibraryView.ts`'s own header had even predicted the move ("a fourth `createApp` call here
 is what moves it to four"), which is a prediction with nothing to fire it. So all four say
-EVERY now and none of them counts, and `tests/build/appIdPrefix.test.ts` is what makes that a
+EVERY now and none of them counts, and `tests/gates/appIdPrefix.test.ts` is what makes that a
 fact: the RULE (every discovered mount site sets the prefix, which holds for files nobody has
 written yet) plus the SET (exactly those four paths, so a walk that reaches nothing is
 distinguishable from a clean tree, and a FIFTH surface fails at that assertion beside the
@@ -2746,7 +2746,7 @@ that came out of it:
 - **`npm run check` under default parallelism failed two files on a busy machine and 290/290 files
   passed serially, and the ratio is worth recording because this file already carries a different
   one.** The measured cost here was 590s serial against 97s parallel — SIX times, where the
-  paragraph about `tests/build/` records two — and both figures are right, because they measure
+  paragraph about `tests/gates/` records two — and both figures are right, because they measure
   different things on different machines: twelve ESLint-booting files on a two-core container
   there, the whole suite on this machine here. The diagnostic is unchanged (re-run serially before
   believing a timeout) and so is the conclusion (serial is not the remedy). What is new is the
@@ -3264,7 +3264,7 @@ recurring shapes arriving again:**
 - **Two things about the RUN rather than the code.** `vue-tsc` caught four type errors in test
   files that every targeted `npx vitest run` had passed, which is what `tests/**` being in
   `build` is for — a green targeted run is not evidence about the gate. And twelve
-  `tests/build/` files timed out in `warmUpEslint` on a tree whose only change since a green
+  `tests/gates/` files timed out in `warmUpEslint` on a tree whose only change since a green
   run was two comments; the three, then twelve, then all-serial re-runs are the diagnostic this
   file already prescribes, and the machine's other tenant was `cursor-agent`, not an orphaned
   vitest. **Believe a `beforeAll` timeout in that directory only after a serial run.**
@@ -3739,7 +3739,7 @@ The rules that came out of it:
   contradicted a mid-task claim that the resolver returned `null`; it was settled by re-running
   the resolver rather than by either party's recollection.
 - **Machine contention is not news and its FREQUENCY is.** Six of this increment's task reports —
-  tasks 1, 2, 3, 4, 6 and the batched 12+13 — record `tests/build/` files timing out in
+  tasks 1, 2, 3, 4, 6 and the batched 12+13 — record `tests/gates/` files timing out in
   `beforeAll` under default file-parallelism and passing on a serial re-run, which is exactly the
   hazard this file already documents; one of those six also hit a different flake entirely, a
   Windows temp symlink-probe `EPERM` in `fixtureVault.test.ts`. What that says is not that the remedy has
@@ -3937,14 +3937,14 @@ what looking at a different KIND of door produced. The rules that came out of it
   `gap`, and an in-flow flex item earns its gap whatever its size, so deleting the rule adds
   dead space. `position: absolute` is what is left: out of flow, so no gap, and still IN the
   accessibility tree, which `display: none` and `visibility: hidden` both forfeit.
-- **The `tests/build/` worker split is the sharpest instance, because the proposed remedy was
+- **The `tests/gates/` worker split is the sharpest instance, because the proposed remedy was
   measured RED.** The finding was right — the `build` project ran **174s** serially on this
   machine (2026-09-05, quiet tree) of which the twelve ESLint-booting files are **34s**, so four
   fifths of it was 29 files that boot nothing and had run parallel-safely for their whole lives.
   The proposed remedy was "a third project holding those twelve". Shipped exactly as written it
-  turns the gate RED, because that filter is scoped to `tests/build/` and keyed on IMPORT, and
+  turns the gate RED, because that filter is scoped to `tests/gates/` and keyed on IMPORT, and
   ESLint gets booted two ways: `tests/helpers/eslint.test.ts` imports the shared instance as a
-  SIBLING (`./eslint`) from outside that directory, and `tests/build/lint-edited.test.ts`
+  SIBLING (`./eslint`) from outside that directory, and `tests/gates/lint-edited.test.ts`
   imports nothing and SPAWNS a linter per invocation. Both then ran against the full parallel
   suite and blew their 60s budgets. `vitest.config.ts` derives the set across all of `tests/`
   from a pattern naming both mechanisms; whole suite **269s to 167s**, 461 of 461 green.
@@ -4519,7 +4519,7 @@ that reports only when somebody remembers to ask it.
 
 ## chromium.test.ts, settleUntil, and the ten defects the harness captures caught
 
-  `tests/build/chromium.test.ts` drives all of it, half in ONE CHILD PROCESS
+  `tests/gates/chromium.test.ts` drives all of it, half in ONE CHILD PROCESS
   because `chromium.executablePath()` reads `PLAYWRIGHT_BROWSERS_PATH` at IMPORT and not at
   call — its own first draft set that variable in `beforeEach`, was answered from the real
   cache throughout, and planted an empty file called `chrome` in this machine's provisioned
@@ -4667,7 +4667,7 @@ worth a compiler, since the same reasons apply to the next proof somebody needs:
 viewed through, and it was reached by neither `vue-tsc` nor `eslint-plugin-vue` (whose
 `VUE_FILES` was `src/` only). The first run over it found `HARNESS_PLAN` missing a required
 `PlanDto` field while annotated as one. Both globs are asked of the tools rather than read,
-in `tests/build/lint-scope.test.ts` — TypeScript's own config parser, with `.vue` declared as
+in `tests/gates/lint-scope.test.ts` — TypeScript's own config parser, with `.vue` declared as
 an extra extension, and ESLint's `calculateConfigForFile`.
 
 `tests/presentation/editor/type-safety.test-d.ts` is the second, and it is a proof: slice 6's
@@ -5084,7 +5084,7 @@ left is the reason it was written for:
 The last two arrived with design slice 21's improvement pass, and what made them cheap is
   what the widening MEASURED rather than assumed: `docs/tasks/21` had declined to close that
   gap because widening "touches every existing call site's evidence", and it touches none —
-  every one of them already passes `tr(...)`. `tests/build/i18n-literal-boundary.test.ts` is
+  every one of them already passes `tr(...)`. `tests/gates/i18n-literal-boundary.test.ts` is
   that rule's first instrument in fifteen slices, and it is a whole selector's blind spots
   read back for the first time: `id` stays a literal because a command id is DATA a hotkey
   binds to, and the ribbon selector keys on the ARGUMENT POSITION because the icon beside the
@@ -5920,7 +5920,7 @@ inspector's select showing the REFUSED kind: `write()` re-read only the hierarch
 the select resets when the write does not land. And **implementers running only their own test
 directories missed cross-directory fallout three times**: `tests/plugin` went red under Tasks 2
 and 4 (a sample-project snapshot, a refusing-save fake lacking `listByProject`) and was found
-at the next task; `tests/build/buttonFocusRing.test.ts` went red under the tree's own CSS (a
+at the next task; `tests/gates/buttonFocusRing.test.ts` went red under the tree's own CSS (a
 row button with `box-shadow: none` and no `:focus-visible` ring, plus the two `[data-rp-drop]`
 inset shadows) and was found only by the whole-suite run after the third merge; and that same
 merge brought `main`'s new detail-plan literals without `kind`, caught by `vue-tsc`. Whole-suite

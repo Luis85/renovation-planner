@@ -7,7 +7,7 @@ import { REPO } from '../helpers/repo';
 /**
  * The exclusion three files depend on, asked of itself.
  *
- * `tests/build/lint-edited.test.ts` plants real `.vue` files under `tests/harness/` — it must,
+ * `tests/gates/lint-edited.test.ts` plants real `.vue` files under `tests/harness/` — it must,
  * because that path has to match ESLint's `VUE_FILES` for the cases to lint anything — and two
  * other files WALK that directory in parallel workers. The failure is a walk that lists a probe
  * and then reads a file that is already gone.

@@ -13,7 +13,7 @@
  *
  * **What that stands in for and what it cannot**: the SELECTOR, the attribute it keys on and
  * every behaviour hanging off the resulting layout are real here; whether the container query
- * fires at 560px in a vault is not, and `tests/build/styles.test.ts` pins that rule's text
+ * fires at 560px in a vault is not, and `tests/gates/styles.test.ts` pins that rule's text
  * while Task 17's 460px capture is the first eye on it.
  */
 import { afterEach, describe, expect, it } from 'vitest';

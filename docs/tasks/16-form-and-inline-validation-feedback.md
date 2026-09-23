@@ -1120,7 +1120,7 @@ source, checked by `grep`.
   `sampleProject.ts` each call `host.addCommand` through the `PluginCommandHost` seam, three
   calls between them. Both sentences are written from the measurement now — and the claim that
   IS true and IS worth having is about the DIRECTORY, so it became a check rather than a better
-  sentence: `tests/build/registration-locality.test.ts` reads `src/` for nine registration
+  sentence: `tests/gates/registration-locality.test.ts` reads `src/` for nine registration
   members and requires every hit to sit under `src/plugin/`. The layer bans cannot express this
   — `obsidian` is importable in `infrastructure/` and a `Plugin` travels as `host` — which is
   exactly why it was worth writing. Its own blind spot is named in its header (it reads source

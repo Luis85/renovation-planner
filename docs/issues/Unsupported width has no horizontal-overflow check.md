@@ -82,8 +82,8 @@ discriminating check was run in a real browser rather than only asserted: a temp
 `<div style="width: 900px">` inside `UnsupportedWidthNotice.vue`'s root produced
 `[plan-editor-unsupported] .rp-editor-shell scrolls horizontally: scrollWidth 610 > clientWidth
 320` and exit 1; reverting it returned the run to exit 0. The existing 460px `plan-editor-narrow`
-capture is untouched. Holding tests: `tests/build/captureMeasures.test.ts` › `overflowFinding`
-(all three cases) and `tests/build/harness-shot.test.ts` › 'the headless harness capture script'
+capture is untouched. Holding tests: `tests/gates/captureMeasures.test.ts` › `overflowFinding`
+(all three cases) and `tests/gates/harness-shot.test.ts` › 'the headless harness capture script'
 › 'measures the unsupported shell for horizontal overflow at 320 px, through the importable
 overflowFinding'. Commit "test(harness-shot): wait for the state each plan-editor shot names,
 derive the inventory from SHOTS, and measure the 320 px shell for horizontal overflow".

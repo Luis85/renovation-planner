@@ -85,7 +85,7 @@
  * `box-shadow` is not additive across two separately-specified rules, only within one — so a
  * selected row that is also tabbed to would lose its ring silently the moment it lost the
  * background-only tint every unselected row's `:focus-visible` still relies on Obsidian's own
- * `box-shadow`-drawn default for. `tests/build/buttonFocusRing.test.ts` is the category check
+ * `box-shadow`-drawn default for. `tests/gates/buttonFocusRing.test.ts` is the category check
  * for exactly this: a rule that suppresses `box-shadow` must carry a `:focus-visible` rule of
  * its own. The two shadows are LAYERED, comma-separated, rather than the selection rule
  * replaced while focused: the leading-edge selection mark is a fact about this row regardless

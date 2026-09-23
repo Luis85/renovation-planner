@@ -38,7 +38,7 @@ that misbehaves as a thing somebody wondered about.
 
 ## What happened
 
-`tests/build/lint-scope.test.ts` › *are all in the type gate* failed twice on 27 August 2026
+`tests/gates/lint-scope.test.ts` › *are all in the type gate* failed twice on 27 August 2026
 during full-suite runs, and passed on an immediate re-run both times. It asserts that every
 `.vue` file under `tests/harness/` is inside `tsconfig.json`'s parsed include set — the check
 that keeps `IndexPage.vue`, the largest Vue file in the repository, from falling out of
@@ -46,11 +46,11 @@ that keeps `IndexPage.vue`, the largest Vue file in the repository, from falling
 
 The two halves that meet:
 
-- **`tests/build/lint-edited.test.ts` plants a real SFC in that directory.** `plantSfc` writes
+- **`tests/gates/lint-edited.test.ts` plants a real SFC in that directory.** `plantSfc` writes
   `tests/harness/lint-edited-probe-<n>.vue` and an `afterEach` removes it. Its own comment says
   why a temp directory is not used: the file has to sit at a path ESLint's `VUE_FILES` glob
   actually matches, or the hook being tested is linting nothing.
-- **`tests/build/lint-scope.test.ts` walks that directory at collection time.**
+- **`tests/gates/lint-scope.test.ts` walks that directory at collection time.**
   `const harnessSfcs = walk('tests/harness').filter((file) => file.endsWith('.vue'))` runs while
   the describe block is being built; TypeScript's config is parsed later, inside the `it`.
 
@@ -71,7 +71,7 @@ after that fix had closed one window and left the other.
 ## What is not established
 
 The mechanism above is read off the code, not demonstrated. **It did not reproduce**: zero
-failures in six paired runs of the two files and zero in six full `tests/build/` runs. Both
+failures in six paired runs of the two files and zero in six full `tests/gates/` runs. Both
 observed failures came in a run started immediately after a source file was written, which is
 consistent with different worker scheduling and is not evidence of it.
 

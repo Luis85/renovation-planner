@@ -33,13 +33,13 @@ business-value-model: ""
 
 Spec §10 makes the fixed-shot set the visual review inventory. The source list at
 `scripts/harness-shot.mjs:139-288` contains twenty entries, while
-`tests/build/harness-shot.test.ts:567-593` claims to enumerate eighteen. Which check notices
+`tests/gates/harness-shot.test.ts:567-593` claims to enumerate eighteen. Which check notices
 either of the two price-section shots disappearing?
 
 ## What is true today
 
 `scripts/harness-shot.mjs` defines **20 fixed shots**. The inventory case in
-`tests/build/harness-shot.test.ts` still says eighteen and enumerates eighteen names, omitting
+`tests/gates/harness-shot.test.ts` still says eighteen and enumerates eighteen names, omitting
 `project-detail-prices` and `project-detail-prices-narrow`.
 
 Both omitted captures exist in the merged script, so deleting either one would leave the
@@ -63,14 +63,14 @@ cannot land on only one side.
 
 ## What closed it
 
-**2026-09-04.** The hand-written eighteen-name list is gone. `tests/build/harness-shot.test.ts`
+**2026-09-04.** The hand-written eighteen-name list is gone. `tests/gates/harness-shot.test.ts`
 now slices the `const SHOTS = [` … `];` block out of the source and matches every `name: '…'`
 inside it, so the expected list is compared against what the script actually iterates rather
 than against a second, independently maintained enumeration — a shot added or removed there
 changes the test's answer without anyone touching this file. The count is twenty-one, one more
 than the twenty this note measured, because the same increment closed
 [[Unsupported width has no horizontal-overflow check]] in the same commit and added
-`plan-editor-unsupported`. Holding test: `tests/build/harness-shot.test.ts` › 'the headless
+`plan-editor-unsupported`. Holding test: `tests/gates/harness-shot.test.ts` › 'the headless
 harness capture script' › 'defines exactly the twenty-one fixed shots, derived from the SHOTS
 source rather than remembered'. Commit "test(harness-shot): wait for the state each
 plan-editor shot names, derive the inventory from SHOTS, and measure the 320 px shell for

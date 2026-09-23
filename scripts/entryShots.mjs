@@ -25,7 +25,7 @@ import { createHash } from 'node:crypto';
  * the source text and assert it SAID the right thing rather than DID it. Importing it here
  * turns four of those source-text pins (the digest, the length cap, the sanitising regex, the
  * URL encoding) into assertions that call the function and check its output — see
- * `tests/build/entryShots.test.ts`.
+ * `tests/gates/entryShots.test.ts`.
  */
 /**
  * One capture: the PNG's basename, the index query that draws it, the entry it is of, and

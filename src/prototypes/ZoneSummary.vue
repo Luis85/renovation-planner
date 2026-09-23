@@ -2,7 +2,7 @@
 	A template-only SFC: HTML plus Vue's template syntax, and already a real Vue component.
 	Promotion adds a <script setup> block above the template and moves the file into
 	`src/presentation/`; the markup goes across unchanged, which is what
-	`tests/build/prototype-promotion.test.ts` holds. (That test strips this comment before
+	`tests/gates/prototype-promotion.test.ts` holds. (That test strips this comment before
 	checking the file is template-only, precisely so this sentence can say the tag plainly
 	instead of dodging it.)
 
@@ -21,7 +21,7 @@
 	to be copied into the promoted component, carrying a note about mocks into shipped code.
 
 	Nothing marks this file as a prototype, deliberately.
-	`tests/build/prototypes-not-bundled.test.ts` asks the build which modules composed the
+	`tests/gates/prototypes-not-bundled.test.ts` asks the build which modules composed the
 	chunk, so a mock nobody remembered to mark is caught anyway — the only version of that
 	guarantee worth having.
 -->

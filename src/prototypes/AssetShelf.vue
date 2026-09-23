@@ -26,7 +26,7 @@
 	No `<style>` block, since Task 12 (`src/presentation/library/AssetShelf.vue`,
 	`AssetRow.vue`): this mock's classes are declared in `styles/asset-shelf.css` now, which the
 	harness's assembled sheet loads the same as a shipped component's — a scoped block here would
-	be a second, unreachable copy of those same rules, and `tests/build/prototype-styles.test.ts`
+	be a second, unreachable copy of those same rules, and `tests/gates/prototype-styles.test.ts`
 	refuses a mock declaring a class a real component uses. `ZoneSummary.vue`, this tree's other
 	fully-promoted mock, carries no `<style>` for the identical reason.
 -->
@@ -84,7 +84,7 @@ defineEmits<{ toggle: []; select: [id: string] }>();
  *
  * `useId()` is what the rest of this plugin mints with (`FieldError.vue`), and every real Vue
  * app sets `app.config.idPrefix` so two of them cannot collide either — a category held by
- * `tests/build/appIdPrefix.test.ts` rather than a count, which is what this sentence said
+ * `tests/gates/appIdPrefix.test.ts` rather than a count, which is what this sentence said
  * ("both real Vue apps") until two more surfaces landed on separate branches.
  */
 const listId = useId();
@@ -188,7 +188,7 @@ const markId = useId();
  * The one demonstrated state Task 12's real `AssetShelf.vue`/`AssetRow.vue` does not build yet:
  * §6.1's flattened search-result row, which carries the category the shelf would otherwise have
  * said. Every OTHER class this file's template writes now lives in `styles/asset-shelf.css`
- * (`tests/build/prototype-styles.test.ts` refuses a mock declaring one of those a second time),
+ * (`tests/gates/prototype-styles.test.ts` refuses a mock declaring one of those a second time),
  * so this block is deliberately narrow rather than the file's original one restored.
  *
  * Neither selector below names `.rp-al-shelf` or `.rp-al-row`, on purpose: doing so would put

@@ -1,5 +1,5 @@
 /**
- * The transient SFCs `tests/build/lint-edited.test.ts` plants, named and recognised in ONE
+ * The transient SFCs `tests/gates/lint-edited.test.ts` plants, named and recognised in ONE
  * place so the planter and every walker cannot drift apart.
  *
  * `plantSfc` writes real `.vue` files into `tests/harness/` — it has to, because that is a
@@ -9,7 +9,7 @@
  * that walk's caller reads it. Measured: `tests/harness/harness.test.ts` failed with
  * `ENOENT … lint-edited-probe-1.vue`, on a tree with no source change at all.
  *
- * `tests/build/lint-scope.test.ts` already excluded them and carried the argument for why;
+ * `tests/gates/lint-scope.test.ts` already excluded them and carried the argument for why;
  * `harness.test.ts` never did, so one walker was protected and the other was not — which is
  * this repository's recurring shape, a rule expressed at one of the places that needs it.
  * Hoisting the pair here is what makes "every walker skips a probe" a fact about one import

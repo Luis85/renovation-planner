@@ -208,12 +208,12 @@ export async function readFailureKind(page, entry) {
  * as drawn, and it has to: `<canvas>` is exactly that shape, so the Plan Editor's own capture is
  * an empty element with everything painted inside it. Telling those two apart needs layout,
  * which would make this predicate behave one way in Chromium and another in jsdom, where
- * `tests/build/entryDrawn.test.ts` drives it — a check that cannot be tested where it is tested
+ * `tests/gates/entryDrawn.test.ts` drives it — a check that cannot be tested where it is tested
  * is worse than a narrow one. The picture remains the backstop for a stage that is technically
  * drawn and visually blank.
  *
  * Naming `firstElementChild` here plainly, rather than around it, is safe now that the sibling
- * test's scan (`tests/build/harness-shot.test.ts`) reads this file with block comments
+ * test's scan (`tests/gates/harness-shot.test.ts`) reads this file with block comments
  * stripped first: the forbidden shape is CODE using that property, not prose explaining why
  * this file does not.
  */

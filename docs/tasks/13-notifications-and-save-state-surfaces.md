@@ -885,7 +885,7 @@ split slice 5 already established for that layer's own stores:
     slice's code included.
 13. **NEW.** `NOTICE_DOOR` in `eslint.config.mjs` names every notice door this slice adds —
     `notify`, `notifySuccess` and `notifyWarning` beside `new Notice(...)` — driven through
-    real fixture paths in `tests/build/notice-text-boundary.test.ts`, including the blind
+    real fixture paths in `tests/gates/notice-text-boundary.test.ts`, including the blind
     spots the selector structurally cannot see. A severity door added without widening that
     rule is a door no gate can see: `NOTICE_TEXT_BAN` is the only thing keeping a raw
     `Error.message` or a bare English literal out of a notice, and it matches on

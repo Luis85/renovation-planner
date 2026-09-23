@@ -190,7 +190,7 @@ describe('the headless harness capture script', () => {
 	 * feature exists for cannot tell from a real one.
 	 *
 	 * The predicate ITSELF moved to `captureReadiness.mjs`, where a test can import and drive
-	 * it — `tests/build/entryDrawn.test.ts` is where what it decides is now settled, in both
+	 * it — `tests/gates/entryDrawn.test.ts` is where what it decides is now settled, in both
 	 * directions, against a real DOM. It moved because a review found it wrong: a stage
 	 * holding only Vue's `<!--v-if-->` placeholder passed the old `childNodes.length > 0`,
 	 * which is the empty PNG at exit 0 this whole pin exists to refuse. A source scan could

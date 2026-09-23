@@ -267,7 +267,7 @@ describe('CI invokes the definition of done', () => {
 		// `no-template-curly-in-string` sees `${` in an ordinary string and assumes a template
 		// literal was meant — right for JavaScript, wrong for a GitHub expression. An inline
 		// suppression is not available: `linterOptions.noInlineConfig` refuses the whole class
-		// and `tests/build/suppressions.test.ts` asserts no file turns a rule off.
+		// and `tests/gates/suppressions.test.ts` asserts no file turns a rule off.
 		const $ = '$';
 		expect(workflow.concurrency).toEqual({
 			group: `ci-${$}{{ github.workflow }}-${$}{{ github.ref }}`,

@@ -33,7 +33,7 @@ import { FakeLeaf } from '../helpers/workspace';
  * part of the sentence: what a reader needs is WHICH shots, and the array's name prefix answers
  * that without anything to keep in step. `grep -oE "name: 'asset-library[a-z-]*'"
  * scripts/harness-shot.mjs` is the census if one is ever wanted, and
- * `tests/build/harness-shot.test.ts` is what fails when the array and the pin disagree.
+ * `tests/gates/harness-shot.test.ts` is what fails when the array and the pin disagree.
  *
  * **This surface reached Task 17 with no picture of it anywhere.** Sixteen tasks built the
  * queries, the shelves, the rows, the marks, the inspector, the stylesheet, the keyboard, the

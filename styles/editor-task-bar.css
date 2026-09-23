@@ -119,7 +119,7 @@
 /*
  * Two-class compounds, (0,2,0): a bare `.rp-task-banner button` ties Obsidian's own
  * `button:not(.clickable-icon)` at (0,1,1) and a tie is not a win, so the host's fill and shadow
- * would draw instead — `tests/build/buttonSpecificity.test.ts` checks that for every button rule
+ * would draw instead — `tests/gates/buttonSpecificity.test.ts` checks that for every button rule
  * here. The shared geometry is one list because both members live in this partial; the colours
  * are each button's own.
  */
@@ -181,7 +181,7 @@
 	cursor: not-allowed;
 }
 
-/* Flattening a button takes its focus ring with it (`tests/build/buttonFocusRing.test.ts`). */
+/* Flattening a button takes its focus ring with it (`tests/gates/buttonFocusRing.test.ts`). */
 .rp-task-banner .rp-task-banner__cancel:focus-visible,
 .rp-task-banner .rp-task-banner__finish:focus-visible {
 	outline: 2px solid var(--interactive-accent);

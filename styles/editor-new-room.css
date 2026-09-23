@@ -53,7 +53,7 @@
  * Obsidian's own `button:not(.clickable-icon)` at (0,1,1) — `:not()` contributes its
  * argument's specificity — and a tie is not a win, so `background-color` and `box-shadow`
  * would both lose to the host rule and these would render as ordinary filled buttons rather
- * than the quiet chips this row asks for. `tests/build/buttonSpecificity.test.ts` checks it
+ * than the quiet chips this row asks for. `tests/gates/buttonSpecificity.test.ts` checks it
  * for every button rule in the project rather than trusting this comment.
  */
 .rp-new-room .rp-new-room__suggestion {
@@ -154,7 +154,7 @@
 
 /*
  * FLATTENING A BUTTON TAKES ITS FOCUS RING WITH IT — the rule
- * `tests/build/buttonFocusRing.test.ts` states, and it caught both of these actions here: a
+ * `tests/gates/buttonFocusRing.test.ts` states, and it caught both of these actions here: a
  * rule that beats (0,1,1) on `box-shadow` also beats Obsidian's own `button:focus-visible`,
  * and its global `:focus { outline: none }` has already taken the outline, so a keyboard user
  * would have nothing at all. Create is `aria-disabled` rather than `:disabled` precisely so it
@@ -215,7 +215,7 @@
  *
  * **Nothing here can check either half.** jsdom lays nothing out, so the gap claim is a
  * reading of the flexbox spec that no gate measures; and no instrument in this repository has
- * an accessibility tree, let alone a screen reader. `tests/build/liveRegionVisibility.test.ts`
+ * an accessibility tree, let alone a screen reader. `tests/gates/liveRegionVisibility.test.ts`
  * holds the one thing that IS checkable — that no shipped rule hides this class — and
  * `docs/tests/cases/Add a room.md` step 3 is where the announcement itself is looked at.
  */

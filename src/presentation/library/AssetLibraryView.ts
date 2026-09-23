@@ -23,7 +23,7 @@ import { nextAppIdPrefix } from '../views/app-id-prefix';
  * nobody checks is the same defect as an unchecked comment, so the argument is stated on its
  * own terms rather than against a moving quotation, and this view claims no ordinal.
  * `app.config.idPrefix` is set below like every other mount, which
- * `tests/build/appIdPrefix.test.ts` holds as a category.
+ * `tests/gates/appIdPrefix.test.ts` holds as a category.
  *
  * The view TYPE is persisted in Obsidian's workspace layout, so it is DATA and never renamed —
  * the same rule every registered view here already carries.

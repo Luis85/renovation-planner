@@ -3,27 +3,16 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
-import { createServer } from 'vite';
 import { resolveChromiumExecutable } from './chromium.mjs';
-import { tabTo } from './editor-area-browser.mjs';
+import { closeInspectorDrawer as closePanel, measurePrimaryActions, settle as stable, startHarness, tabTo } from './editor-area-browser.mjs';
 
 // Confirmation of the user's removal of selected-item Add detail. The Details rail owns navigation.
 const out = 'docs/user-experience/editor-usability-increment/astra-main-refresh/selection-details';
 await mkdir(out, { recursive: true });
-const server = process.env.RP_HARNESS_URL ? null : await createServer({ configFile: 'vite.harness.config.ts', server: { host: '127.0.0.1', port: 0, open: false } });
-await server?.listen();
-const base = process.env.RP_HARNESS_URL ?? server.resolvedUrls.local[0];
+const { server, base } = await startHarness();
 const browser = await chromium.launch({ executablePath: resolveChromiumExecutable(), headless: true });
 const results = [], errors = [];
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
-async function stable(page) {
-	await page.evaluate(() => document.fonts.ready);
-	await page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => { requestAnimationFrame(resolve); }); }));
-}
-async function closePanel(page) {
-	const close = page.locator('.rp-inspector-drawer__close');
-	if (await close.isVisible()) { await close.click(); await close.waitFor({ state: 'hidden' }); }
-}
 function snapshot(page) {
 	return page.evaluate(() => {
 		const selection = window.editorFidelity.selection();
@@ -33,13 +22,7 @@ function snapshot(page) {
 async function measure(page, name) {
 	await stable(page);
 	assert.equal(await page.locator('[data-rp-canvas-detail], [data-rp-canvas-detail-mode], .rp-direct-actions').count(), 0, 'selected-item Add detail is removed');
-	const metrics = await page.locator('.rp-primary-actions').evaluate(bar => {
-		const canvas = bar.closest('.rp-plan-canvas').getBoundingClientRect();
-		return { canvas: canvas.toJSON(), buttons: [...bar.querySelectorAll('button')].map(button => {
-			const rect = button.getBoundingClientRect();
-			return { label: button.textContent, rect: rect.toJSON(), unobscured: button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)) };
-		}) };
-	});
+	const metrics = await measurePrimaryActions(page);
 	for (const button of metrics.buttons) {
 		assert.ok(button.rect.left >= metrics.canvas.left && button.rect.right <= metrics.canvas.right);
 		assert.ok(button.rect.width >= 44 && button.rect.height >= 44);

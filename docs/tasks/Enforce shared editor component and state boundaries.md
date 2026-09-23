@@ -53,7 +53,7 @@ and persistence ownership.
 
 **2026-09-03**, the plan editor foundation's first increment. Criterion 6 is the per-directory
 layer bans in `eslint.config.mjs` plus `WRITE_BOUNDARY`, driven through real fixture paths by
-`tests/build/vue-rules.test.ts` — a repository import or a vault write in a shared presentation
+`tests/gates/vue-rules.test.ts` — a repository import or a vault write in a shared presentation
 component fails `npm run lint`, not review. Criterion 5 is
 `tests/presentation/editor/shell/responsiveShell.test.ts`'s element-identity assertion: full and
 constrained are ONE `<slot name="canvas">` reordered by CSS, so they cannot fork behaviour even

@@ -62,7 +62,7 @@ rule. It was found by capturing a PNG and looking at it; nothing else here can f
 only at comfortable ones. It had to be CSS and not a template separator: `ZoneSummary.vue`'s
 template is byte-identical to `tests/fixtures/promotion/ZoneSummary.promoted.vue` by design.
 
-**The precondition, in `tests/build/prototype-styles.test.ts`** — a prototype may not name a
+**The precondition, in `tests/gates/prototype-styles.test.ts`** — a prototype may not name a
 class the assembled sheet leaves undeclared. That is deliberately not the same claim as "the
 mock looks right", and the note has to say which one it is: the spacing is still measured by
 nobody, because jsdom lays nothing out and `textContent` reads `Kitchen12.60 m²` as two happy

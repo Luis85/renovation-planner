@@ -78,7 +78,7 @@ describe('the Vue plugin, in every config that transforms source', () => {
  * The `build-lint` project's `include` is DERIVED from the import graph (`eslintBootingTests` in
  * `vitest.config.ts`), and the two files the first, text-matched version of that derivation
  * missed are the pin: `tests/helpers/eslint.test.ts` reaches the shared instance as a sibling
- * (`./eslint`) from outside `tests/build/`, and `tests/build/lint-edited.test.ts` imports nothing
+ * (`./eslint`) from outside `tests/gates/`, and `tests/gates/lint-edited.test.ts` imports nothing
  * and SPAWNS the hook. A derivation that dropped either would put an ESLint boot back into the
  * parallel projects, where its `beforeAll` times out under load — the flake this split exists to
  * close. Read off the real config object, so what is pinned is what vitest runs.
@@ -89,14 +89,14 @@ describe('the ESLint-booting project', () => {
 		const included = projects.find((project) => project.test?.name === 'build-lint')?.test?.include ?? [];
 
 		expect(included).toContain('tests/helpers/eslint.test.ts');
-		expect(included).toContain('tests/build/lint-edited.test.ts');
+		expect(included).toContain('tests/gates/lint-edited.test.ts');
 		expect(included.filter((file) => !file.endsWith('.test.ts'))).toEqual([]);
 	});
 });
 
 /**
  * The SSR-SFC refusal (`scripts/vitest-no-ssr-sfc.mjs`) is a gate only while the suite config
- * REGISTERS it: `tests/build/no-ssr-sfc.test.ts` drives the plugin through a fixture config of
+ * REGISTERS it: `tests/gates/no-ssr-sfc.test.ts` drives the plugin through a fixture config of
  * its own, so deleting `noSsrSfc()` from `vitest.config.ts` switched the rule off with every
  * test green — watched, with the line removed, before this case existed. Asked of the real
  * config object rather than of its text: the plugin is present by name, and the REGISTERED object

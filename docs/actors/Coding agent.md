@@ -76,8 +76,8 @@ its own output" is a claim about a workflow rather than about code, and no test 
 
 The checkable half is [[Prototype a screen in the harness before it is built]]'s criterion 4 —
 every index entry reachable by `harness-shot` as well as by the index — and that is BUILT.
-`scripts/entryShots.mjs` derives the shots for an entry id, `tests/build/entryShots.test.ts`
-drives that derivation directly, and `tests/build/harness-shot.test.ts` pins the wiring from
+`scripts/entryShots.mjs` derives the shots for an entry id, `tests/gates/entryShots.test.ts`
+drives that derivation directly, and `tests/gates/harness-shot.test.ts` pins the wiring from
 `process.argv` through to it. `tests/harness/entries.test.ts` drives the real
 `import.meta.glob`, so the index's list and the capture's argument come from one discovery.
 

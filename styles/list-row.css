@@ -22,7 +22,7 @@
  * **The descendant selectors are load-bearing and must not be collapsed to the bare classes.**
  * Obsidian's own `button:not(.clickable-icon)` is (0,1,1) and sets `background-color` and
  * `color`; a single class is (0,1,0) and loses silently, with no warning and no failing build.
- * `tests/build/buttonSpecificity.test.ts` is the category check for that, and it reads
+ * `tests/gates/buttonSpecificity.test.ts` is the category check for that, and it reads
  * selectors from every shipping sheet rather than naming files — so this partial is inside its
  * scope exactly as the two component sheets were.
  *

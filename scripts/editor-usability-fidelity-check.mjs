@@ -3,9 +3,8 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
-import { createServer } from 'vite';
 import { resolveChromiumExecutable } from './chromium.mjs';
-import { tabTo } from './editor-area-browser.mjs';
+import { closeInspectorDrawer, measurePrimaryActions, settle, startHarness, tabTo } from './editor-area-browser.mjs';
 
 // Bounded visual evidence over the same production/FakeVault harness as harness-shot.
 // Screenshots require separate human/agent inspection; passing geometry checks is not visual acceptance.
@@ -13,19 +12,15 @@ const phase = process.argv[2] ?? 'after';
 assert.ok(['round1', 'after'].includes(phase));
 const out = `docs/user-experience/editor-usability-increment/astra-ui-fidelity/${phase}`;
 await mkdir(out, { recursive: true });
-const server = process.env.RP_HARNESS_URL ? null : await createServer({ configFile: 'vite.harness.config.ts', server: { host: '127.0.0.1', port: 0, open: false } });
-await server?.listen();
+const { server, base } = await startHarness();
 const browser = await chromium.launch({ executablePath: resolveChromiumExecutable(), headless: true });
 const records = [], errors = [], findings = [];
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
 page.setDefaultTimeout(120_000);
 page.setDefaultNavigationTimeout(120_000);
 page.on('pageerror', error => errors.push(error.message));
-const route = theme => `${process.env.RP_HARNESS_URL ?? server.resolvedUrls.local[0]}?view=plan-editor&bare&reference&planning&fidelity&theme=${theme}`;
-async function stable() {
-	await page.evaluate(() => document.fonts.ready);
-	await page.evaluate(() => new Promise(resolve => { requestAnimationFrame(() => { requestAnimationFrame(resolve); }); }));
-}
+const route = theme => `${base}?view=plan-editor&bare&reference&planning&fidelity&theme=${theme}`;
+const stable = () => settle(page);
 async function shot(name) {
 	if (process.argv.includes('--continue') && existsSync(`${out}/${name}.png`)) return;
 	await stable();
@@ -36,13 +31,7 @@ async function panel() {
 	const rail = page.locator('[data-rp-rail="details"]');
 	if (await rail.isVisible() && await rail.getAttribute('aria-expanded') !== 'true') await rail.click();
 }
-async function closePanel() {
-	const close = page.locator('.rp-inspector-drawer__close');
-	if (await close.isVisible()) {
-		await close.click();
-		await close.waitFor({ state: 'hidden' });
-	}
-}
+const closePanel = () => closeInspectorDrawer(page);
 async function draft(theme = 'light', german = false) {
 	await page.goto(`${route(theme)}&room=4000x3000${german ? '&lang=de' : ''}`);
 	await page.locator('.rp-task-banner__finish[aria-disabled="false"]').waitFor();
@@ -62,13 +51,7 @@ async function taskbarBounds(width) {
 	await stable();
 	await closePanel();
 	await stable();
-	const measurement = await page.locator('.rp-primary-actions').evaluate(bar => {
-		const canvas = bar.closest('.rp-plan-canvas').getBoundingClientRect();
-		return { canvas: canvas.toJSON(), buttons: [...bar.querySelectorAll('button')].map(button => {
-			const rect = button.getBoundingClientRect();
-			return { label: button.getAttribute('aria-label'), rect: rect.toJSON(), unobscured: button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2)) };
-		}) };
-	});
+	const measurement = await measurePrimaryActions(page);
 	for (const { label, rect, unobscured } of measurement.buttons) {
 		if (rect.left < measurement.canvas.left || rect.right > measurement.canvas.right) findings.push(`${width}: ${label} outside canvas`);
 		if (rect.width < 44 || rect.height < 44) findings.push(`${width}: ${label} target below 44 × 44`);

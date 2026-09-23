@@ -8,7 +8,7 @@ import { REPO } from './repo';
  * to notice.
  *
  * **This said "two test files" for many slices and the answer is TWELVE**, measured in the edit
- * that wrote this — `grep -rln "helpers/eslint" tests/build/ | wc -l`, 2026-09-05. A count is a
+ * that wrote this — `grep -rln "helpers/eslint" tests/gates/ | wc -l`, 2026-09-05. A count is a
  * fact about the tree at the moment of the grep and nothing re-runs it, so the sentence states
  * the RULE (one instance, shared) and the reader who wants the number runs the grep. The figure
  * matters for one reason beyond accuracy: the boot below is paid once per MODULE REGISTRY, and
@@ -18,7 +18,7 @@ import { REPO } from './repo';
  *
  * `calculateConfigForFile` is the API behind `--print-config`, and asking it in process
  * rather than spawning the bin is not a micro-optimisation. Booting ESLint costs several
- * seconds; `tests/build/suppressions.test.ts` spent 4.4 of vitest's default 5-second budget
+ * seconds; `tests/gates/suppressions.test.ts` spent 4.4 of vitest's default 5-second budget
  * inside one spawn, so the second caller was the one that would have made a green suite
  * start timing out on whichever machine was slowest that day. One instance, one boot,
  * shared.
@@ -37,7 +37,7 @@ export const resolveConfig = async (file: string): Promise<ResolvedConfig> =>
 /**
  * Whether ESLint would skip this path, its own `ignores` resolution.
  *
- * `tests/build/lint-scope.test.ts` measures oxlint's scope as a whole SET, because
+ * `tests/gates/lint-scope.test.ts` measures oxlint's scope as a whole SET, because
  * oxlint's entire justification is that it lints everything and an `ignorePatterns` edit
  * would make that quietly false. ESLint's claim is narrower — it deliberately ignores
  * `scripts/` and the root configs, so "which files" is not a promise it makes — but the

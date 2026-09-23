@@ -79,7 +79,7 @@ const active = ref<Section>('Overview');
  * at EVERY `createApp` site so two apps' `useId()` calls cannot collide — and a hand-built id
  * walks straight past it, because a literal is not a `useId()` call.
  *
- * "Every" is held by `tests/build/appIdPrefix.test.ts`; this said "BOTH" until the Add Room
+ * "Every" is held by `tests/gates/appIdPrefix.test.ts`; this said "BOTH" until the Add Room
  * merge made four sites out of two.
  *
  * `FieldError` is the house pattern and it mints its own ids the same way.

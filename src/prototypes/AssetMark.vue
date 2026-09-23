@@ -13,7 +13,7 @@
 	No `<style>` block, since Task 12 (`src/presentation/library/AssetMark.vue`): this mock's
 	classes are declared in `styles/asset-mark.css` now, which the harness's assembled sheet loads
 	the same as a shipped component's — a scoped block here would be a second, unreachable copy of
-	those same rules, and `tests/build/prototype-styles.test.ts` refuses a mock declaring a class a
+	those same rules, and `tests/gates/prototype-styles.test.ts` refuses a mock declaring a class a
 	real component uses. `ZoneSummary.vue`, this tree's other fully-promoted mock, carries no
 	`<style>` for the identical reason.
 

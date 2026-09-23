@@ -6,7 +6,7 @@ import { REPO } from './repo';
 import { constantsOf, descendants, evaluate, parseScript, type Literal, type ParsedScript } from './parsedSource';
 
 /**
- * The parsed fixtures behind every pin in `tests/build/harness-shot.test.ts` and its siblings
+ * The parsed fixtures behind every pin in `tests/gates/harness-shot.test.ts` and its siblings
  * (`harnessShotItemMode.test.ts`): one shared read of `scripts/harness-shot.mjs`, `page.ts` and
  * `IndexPage.vue`, and the `SHOTS`-table reader over it. Split out so a second file pinning a
  * later group of shots shares this reader rather than re-parsing the same scripts and

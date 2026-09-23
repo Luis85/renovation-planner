@@ -51,16 +51,16 @@ actually fire.
 
 ## What is true today
 
-- The neighbouring claims about the linters *are* tested: `tests/build/lint-scope.test.ts` asks
-  oxlint which files it lints, `tests/build/suppressions.test.ts` scans for directives,
-  `tests/build/logging-carve-out.test.ts` pins the obsidianmd wrapper against ESLint's own
+- The neighbouring claims about the linters *are* tested: `tests/gates/lint-scope.test.ts` asks
+  oxlint which files it lints, `tests/gates/suppressions.test.ts` scans for directives,
+  `tests/gates/logging-carve-out.test.ts` pins the obsidianmd wrapper against ESLint's own
   message text. The pattern for testing a lint rule from the suite is established here.
 - `linterOptions.noInlineConfig` means no comment can turn the rule off, so the exposure is a
   selector that stops matching, not one that gets suppressed.
 
 ## What closed it
 
-`tests/build/write-boundary.test.ts` — sixteen cases through `lintText`, which resolves the
+`tests/gates/write-boundary.test.ts` — sixteen cases through `lintText`, which resolves the
 real flat config for a path without writing anything, so a deliberately-offending fixture never
 lands under `src/` where it would fail `npm run lint` for the whole repository.
 

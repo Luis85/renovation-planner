@@ -17,7 +17,7 @@
  * `AssetDesignerView`, another Task B3 file.
  *
  * **What the instrument sees, and what it does not.** The walk is `tests/helpers/importGraph.ts`
- * — shared with `tests/build/test-environments.test.ts` — and it reads import SPECIFIERS out of
+ * — shared with `tests/gates/test-environments.test.ts` — and it reads import SPECIFIERS out of
  * the real parsers (TypeScript's for a script, `@vue/compiler-sfc`'s for an SFC's script
  * blocks): `from '…'`, a bare `import '…'`, an `export … from`, a dynamic `import()` and a
  * `require()`, skipping a type-only import (its header says why and what was measured), and

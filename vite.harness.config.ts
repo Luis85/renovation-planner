@@ -40,7 +40,7 @@ export default defineConfig({
 		alias: {
 			// The types-only 'obsidian' package, resolved to the same runtime stand-in
 			// `vitest.config.ts` points the suite at. Inline for fallow's sake (see the
-			// note there); `tests/build/config-alias.test.ts` pins the two literals
+			// note there); `tests/gates/config-alias.test.ts` pins the two literals
 			// together, so moving the mock cannot fix the suite and silently strand
 			// this page for the next `npm run harness`.
 			obsidian: fileURLToPath(new URL('./tests/helpers/obsidian-mock.ts', import.meta.url)),

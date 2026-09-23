@@ -869,7 +869,7 @@ describe('the browser harness', () => {
 	 * LOOKED AT: it appears in the corner of each and was read as part of the page.
 	 *
 	 * Only the split is driven here. Which of the two `page.ts` calls is a source pin in
-	 * `tests/build/harness-shot.test.ts`, because that module mounts at import.
+	 * `tests/gates/harness-shot.test.ts`, because that module mounts at import.
 	 */
 	it.each([
 		['/', 'theme-dark'],
@@ -1195,7 +1195,7 @@ describe('the browser harness', () => {
 		// "bundler"` and `allowJs` mean Vite compiles both, so a future helper written in
 		// either would have had its stylesheet import go unscanned).
 		const MODULE = /\.(?:ts|tsx|mts|cts|js|mjs|cjs|jsx|vue)$/;
-		// `isPlantedProbe` because `tests/build/lint-edited.test.ts` writes real `.vue` files
+		// `isPlantedProbe` because `tests/gates/lint-edited.test.ts` writes real `.vue` files
 		// into `tests/harness/` and removes them, in a worker running beside this one. Without
 		// it this walk lists a probe and then READS it, and the read loses the race: measured,
 		// `ENOENT … lint-edited-probe-1.vue`, on a tree with no source change at all. Excluded

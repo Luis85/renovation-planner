@@ -86,10 +86,18 @@ async function largeFloor(page, scenario, out) {
  const selectionMs = await page.evaluate(start => performance.now() - start, selectionStart);
  if (scenario.width === 460) await page.keyboard.press('Escape');
  const pan = await panFrames(page);
- // Each Rooms row is two tab stops (row, lock toggle): 160 here, past tabTo's 150. Walk back instead: the context bar precedes the panel, and the Inspector is reached across the harness page's end.
  await tabBackTo(page, '[data-rp-perspective][tabindex="0"]'); await activate(page, '[data-rp-perspective="renovate"]'); await panel(page, 'details');
- await tabBackTo(page, '[data-rp-linked="materials"]'); await activate(page, '[data-rp-linked="materials"]'); await idle(page);
+ // Rooms-and-areas sits between the context bar and the Inspector; closing it by keyboard keeps
+ // the forward walk to Materials inside tabTo's 150-press budget, whatever the list holds. Reopen
+ // it before materialPan so the pan sees the same open list as the rest of largeFloor().
+ await tabTo(page, '[data-rp-section="rooms"] summary'); await page.keyboard.press('Enter');
+ assert.equal(await page.locator('[data-rp-section="rooms"]').evaluate(el => el.open), false, 'Rooms and areas closed by keyboard');
+ await activate(page, '[data-rp-linked="materials"]'); await idle(page);
  await page.waitForFunction(() => window.planningRecovery.scene()[0]?.materialMarkers === 3);
+ await tabBackTo(page, '[data-rp-section="rooms"] summary'); await page.keyboard.press('Enter');
+ assert.equal(await page.locator('[data-rp-section="rooms"]').evaluate(el => el.open), true, 'Rooms and areas reopened before materialPan');
+ await page.waitForFunction(() => document.querySelectorAll('[data-rp-region="layers"] .rp-room-list__row').length === 80);
+ assert.equal(await page.locator(room).getAttribute('aria-pressed'), 'true', 'selection survives the Rooms-and-areas close/reopen');
  if (scenario.width === 460) await page.keyboard.press('Escape');
  const materialPan = await panFrames(page);
  assert.equal(materialPan.sceneAfter.materialMarkers, 3, 'first Room retains its three material markers through pan/zoom');

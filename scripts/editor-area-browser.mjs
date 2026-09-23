@@ -40,7 +40,7 @@ export async function tabTo(page, selector) {
 	}
 	throw new Error(`Tab did not reach ${selector}`);
 }
-/** `tabTo` in reverse document order (Shift+Tab), for a target that precedes focus; same budget. */
+/** Shift+Tab until focus is on `selector` (a string; no disclosure reveal); same 150-press budget as `tabTo`. */
 export async function tabBackTo(page, selector) {
 	const target = page.locator(selector);
 	for (let count = 0; count < 150; count++) {

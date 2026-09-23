@@ -65,6 +65,16 @@ async function choosePage(harness: Harness, page: string) {
 	await harness.wrapper.get('[data-rp-action="load-reference"]').trigger('click'); await settle();
 }
 
+/** Prepare, measure and finish over whatever the open form has loaded, until the form closes. */
+async function commitMeasured(harness: Harness) {
+	await submit(harness);
+	for (const [key, value] of Object.entries({ ax: '100', ay: '100', bx: '300', by: '100', length: '2' })) await field(harness, key, value);
+	await submit(harness); await submit(harness);
+	await settleUntil(() => !harness.wrapper.find(FORM).exists(), 'committed');
+}
+/** The vault operations since `from` that change something — every one but a read. */
+const writesSince = (r: Awaited<ReturnType<typeof rig>>, from: number) => r.stack.vault.operations.slice(from).filter(op => !op.startsWith('read:'));
+
 const PAGE_2 = { width: 600, height: 300, rgba: [255, 0, 0, 255] };
 
 describe('a PDF reference whose chosen page is not page 1', () => {
@@ -72,10 +82,7 @@ describe('a PDF reference whose chosen page is not page 1', () => {
 		const r = await rig(); await choosePage(r.harness, '2');
 		expect(await lastDecoded(r.load)).toEqual(PAGE_2);
 
-		await submit(r.harness);
-		for (const [key, value] of Object.entries({ ax: '100', ay: '100', bx: '300', by: '100', length: '2' })) await field(r.harness, key, value);
-		await submit(r.harness); await submit(r.harness);
-		await settleUntil(() => !r.harness.wrapper.find(FORM).exists(), 'committed');
+		await commitMeasured(r.harness);
 		expect(expectFound(await r.stack.plans.getById(r.plan.id)).entity.background).toMatchObject({ path: 'scan.pdf', kind: 'pdf', page: 2 });
 
 		r.harness.unmount(); r.load.mockClear();
@@ -87,6 +94,47 @@ describe('a PDF reference whose chosen page is not page 1', () => {
 		const r = await rig(); await choosePage(r.harness, '2');
 		await settleUntil(() => r.harness.wrapper.find('.rp-reference-preview').exists(), 'the page-2 preview');
 		await field(r.harness, 'page', '3'); await r.harness.wrapper.get('[data-rp-action="load-reference"]').trigger('click'); await settle();
+		expect(await lastDecoded(r.load)).toEqual({ kind: 'unavailable', reason: 'unreadable' });
+		expect(r.harness.wrapper.text()).toContain('Cannot read this image or PDF page');
+		expect(r.harness.wrapper.find('.rp-reference-preview').exists()).toBe(false);
+	});
+
+	// A04's error half: a refused page over a COMMITTED reference, left by the Cancel a user presses.
+	it('leaves a committed page-2 reference unchanged when page 3 is refused and the form is cancelled', async () => {
+		const r = await rig(); await choosePage(r.harness, '2');
+		// Waited for, not assumed: run alone, the first pdf.js decode outlasts `choosePage`'s settle
+		// and the Continue press is refused while it loads.
+		await settleUntil(() => r.harness.wrapper.find('.rp-reference-preview').exists(), 'the page-2 preview');
+		// Both instruments see a write when there is one — the commit's own. `compose` is the
+		// synchronous one: a write the form starts on its way out lands after any await could
+		// look for it, but it has to COMPOSE its command while the Cancel click is still running.
+		const compose = vi.spyOn(r.services, 'command'), committing = r.stack.vault.operations.length;
+		await commitMeasured(r.harness);
+		expect(compose).toHaveBeenCalled(); expect(writesSince(r, committing)).not.toEqual([]);
+		const committed = expectFound(await r.stack.plans.getById(r.plan.id));
+		expect(committed.entity.background).toMatchObject({ path: 'scan.pdf', kind: 'pdf', page: 2 });
+		const geometry = await r.geometry.read(r.plan.id), from = r.stack.vault.operations.length; compose.mockClear();
+
+		await choosePage(r.harness, '3');
+		expect(await lastDecoded(r.load)).toEqual({ kind: 'unavailable', reason: 'unreadable' });
+		expect(r.harness.wrapper.text()).toContain('Cannot read this image or PDF page');
+		const decodes = r.load.mock.calls.length;
+		await r.harness.wrapper.get('[data-rp-action="cancel"]').trigger('click');
+		await settleUntil(() => !r.harness.wrapper.find(FORM).exists(), 'cancelled');
+
+		expect(compose).not.toHaveBeenCalled(); expect(writesSince(r, from)).toEqual([]);
+		expect(await r.stack.plans.getById(r.plan.id)).toEqual({ ok: true, value: committed });
+		expect(await r.geometry.read(r.plan.id)).toEqual(geometry);
+		expect(r.load.mock.calls.slice(decodes)).toEqual([]);
+	});
+
+	// R-S18-12: the SAME source and page reloaded after a success, the reload failing. No
+	// watcher fires for that, so only the failed-load branch's own `raster.value = null` clears it.
+	it('drops the page-2 preview when reloading the same page fails', async () => {
+		const r = await rig(); await choosePage(r.harness, '2');
+		await settleUntil(() => r.harness.wrapper.find('.rp-reference-preview').exists(), 'the page-2 preview');
+		r.deps.vault.readBinary = () => Promise.reject(new Error('the file went away mid-read'));
+		await r.harness.wrapper.get('[data-rp-action="load-reference"]').trigger('click'); await settle();
 		expect(await lastDecoded(r.load)).toEqual({ kind: 'unavailable', reason: 'unreadable' });
 		expect(r.harness.wrapper.text()).toContain('Cannot read this image or PDF page');
 		expect(r.harness.wrapper.find('.rp-reference-preview').exists()).toBe(false);

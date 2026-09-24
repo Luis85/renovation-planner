@@ -102,8 +102,9 @@ async function overlay(page, name) {
  const rail = `[data-rp-rail="${name}"]`;
  if (!await page.locator(rail).isVisible() || await page.locator(rail).getAttribute('aria-expanded') === 'true') return false;
  await page.keyboard.press('Escape');
- // The overlay Escape just closed is whichever of the two rail buttons `name` is not: RAIL_BUTTON has
- // only { layers: 'layers', inspector: 'details' }, and these two calls are the only ones this script makes.
+ // The overlay Escape just closed is whichever of RAIL_BUTTON's two entries `name` is not:
+ // RAIL_BUTTON has only { layers: 'layers', inspector: 'details' }. PanelRail.vue draws a third
+ // rail button, `property`, that RAIL_BUTTON does not name; this script passes only `layers` and `details`.
  const closedRail = `[data-rp-rail="${name === 'layers' ? 'details' : 'layers'}"]`;
  assert.equal(await page.evaluate(sel => document.activeElement?.matches(sel) ?? false, closedRail), true, "Escape returns focus to the closed overlay's own rail button");
  assert.equal(await page.locator(closedRail).getAttribute('aria-expanded'), 'false', "Escape leaves the closed overlay's rail marked collapsed");

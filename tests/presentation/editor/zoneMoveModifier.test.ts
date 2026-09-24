@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { beforeEach, expect, it, vi } from 'vitest';
-import { runtimeOf, settle, settleUntil as until } from '../../helpers/editor';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { runtimeOf, settle, settleUntil as until, type EditorHarness } from '../../helpers/editor';
 import { actionButton, canvasOf, click, rig, ZONE_A_DTO } from '../../helpers/planEditorRig';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { expectOk } from '../../helpers/domain';
@@ -10,6 +10,9 @@ import { installObsidianDom } from '../../helpers/dom';
 // `rig()` mounts the real Plan Editor, whose notices append live regions with Obsidian's `createDiv`.
 installObsidianDom();
 beforeEach(() => { activateNotices(); });
+
+let harness: EditorHarness | undefined;
+afterEach(() => { harness?.unmount(); harness = undefined; });
 
 /**
  * BP-05's "modifier change mid-gesture" for a MOVE drag. A PIN, not a requirement: no spec,
@@ -22,7 +25,9 @@ it.each([
 	['Shift', { shiftKey: true }],
 	['Alt', { altKey: true }],
 ] as const)('keeps a body move drag when %s goes down mid-drag: one write of the plain translation, and the gesture ends', async (name, held) => {
-	const { harness, zonesRepo } = await rig();
+	const rigged = await rig();
+	harness = rigged.harness;
+	const { zonesRepo } = rigged;
 	const canvas = canvasOf(harness), runtime = runtimeOf(harness);
 	actionButton(harness, 'Select').click();
 	await settle();
@@ -46,7 +51,7 @@ it.each([
 	expect(runtime.toolManager.gestureInFlight).toBe(false);
 	expect(runtime.toolManager.activeToolHasDraft()).toBe(false);
 
-	// The next click behaves as a click: on empty canvas it clears the selection and writes nothing.
+	// The next click behaves as a click: on empty canvas the selection is empty afterward and nothing is written.
 	click(canvas, 700, 550);
 	await settle();
 	expect(useSelectionStore(harness.pinia).selectedIds).toEqual([]);
@@ -57,6 +62,4 @@ it.each([
 	await until(async () => expectOk(await zonesRepo.getById('zone-a' as never))?.entity.geometry.points[0]?.x === 1500, 'the undo to land');
 	expect(expectOk(await zonesRepo.getById('zone-a' as never))?.entity.geometry.points).toEqual(ZONE_A_DTO.points);
 	expect(runtime.canUndo.value).toBe(false);
-
-	harness.unmount();
 });

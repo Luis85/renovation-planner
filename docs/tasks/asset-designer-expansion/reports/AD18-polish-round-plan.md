@@ -189,6 +189,9 @@ Requirements:
   and depth only. Zooming in past the threshold brings the rest back. `All dimensions` (AD18-R12)
   still shows every label at any size.
 - AD18-R14's resting floor (zero overlapping resting labels) still holds at 1280, 760, 580 and 460.
+- **A resting label never covers a handle of the selected part.** Measured at a 1280 leaf with the vanity's
+  basin (`&select=detail-2`): the resting `54 mm` label sits on the basin's bottom-middle box handle, so a
+  press there lands on the label button and the handle cannot be grabbed. Test it at the four widths.
 - Name the threshold as a constant next to the other placement rules. Its docblock carries the four
   measurements above and says they are a dated snapshot of the vanity preset.
 - Tests: below the threshold only the overall pair rests, and above it the detail labels rest.

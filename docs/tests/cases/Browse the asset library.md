@@ -83,6 +83,17 @@ placement) stand over both views.
 | 30 | `obsidian` | Switch to Grid, pick a category, close this leaf entirely, then reopen the library | It reopens in **Grid**, with the SAME category still active | AD18-R18: the chosen view and the active category live in Obsidian's own view state (§6.3), beside the existing selection and expanded-shelf state — not in Pinia, which would not survive a leaf being recreated |
 | 31 | `obsidian` | With the pane's back/forward history in mind (if this leaf has any), switch between Grid and List, and change the category a few times | None of it adds a step to the leaf's own back/forward history | Neither a layout change nor a category change is a navigation (§6.3) — only opening or leaving an asset is |
 
+## Steps — the Grid view's polish round (AD18-R20/R21 Task 8)
+
+**Added 2026-09-24. Nothing below has been seen in Obsidian.**
+
+| # | Reachable by | Do this | It passes when | It exists to catch |
+| --- | --- | --- | --- | --- |
+| 32 | `obsidian` | In the Grid view, run an eye down every tile's name and its size line | Every tile's name and its size share the same LEFT edge — a one-line name ("Sofa") and a two-line wrapped one both start flush left, the same edge the mark sits above | The alignment fix: `.rp-al-tile` gained `align-items: stretch`, so a one-line name's shrunk box no longer centres in the tile the way Obsidian's own `button { align-items: center }` used to leave it — a two-line name already read left-aligned, which is what made the two look inconsistent with each other before the fix |
+| 33 | `obsidian` | Find a tile for an asset with no design yet (an empty box before this round) | Where the mark used to be, a small, MUTED icon is drawn instead — matching that asset's category (e.g. a hammer for Equipment, an armchair for Furniture, layered sheets for Material) — noticeably fainter and thinner than a real design's own mark | Task 8, fix round 2: the placeholder reads quieter than a real design on purpose — the icon is about half the mark's box, at the mark's own stroke weight, in `var(--text-faint)` rather than `var(--text-muted)`; a design-less tile should not look MORE drawn than one with an actual shape |
+| 34 | `obsidian` | Compare that tile's icon against the SAME category's row in the sidebar (switch to the category sidebar, or narrow the leaf to show the funnel) | The two icons match exactly | Both surfaces read the same `categoryIcon()` lookup (`src/presentation/library/categoryIcons.ts`) rather than two separate tables that could drift apart |
+| 35 | `browser` | Look at a tile whose outline HAS loaded yet is not `'none'` (a real design), then one whose outline has not been READ yet (freshly scrolled into view) | The real design draws its own mark; a not-yet-read tile still draws the pending-dots mark, never the category icon | The `'none'` branch is the only one that swaps to the icon — `outline === null` (not yet read) still takes the `AssetMark` branch, so a slow read never flashes the wrong placeholder |
+
 ## Acceptance criteria
 
 1. Steps 1, 8, 9, 10 and 11 draw §3's composition correctly at all three of §7's widths.

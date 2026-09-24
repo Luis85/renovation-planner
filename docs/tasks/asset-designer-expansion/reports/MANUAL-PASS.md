@@ -19,12 +19,11 @@ overlooked.**
 
 ## What the pass consists of
 
-**182 human steps across seven cases**, measured rather than remembered — re-derived on
-2026-09-24 against the finished AD18-R17/R18/R19 second-parity-round tree, AFTER a review round
-added three steps this file's own narrative names below, with the command run verbatim as it is
-printed. **Do not trust this number; run the command.** It has been 84, then 90, then 109, then
-145, then 179, then this, and each time the session that moved it was the session that had just
-shipped — or, this once, corrected — the thing it was counting:
+**205 human steps across seven cases**, measured rather than remembered — re-derived on
+2026-09-24 against the finished AD18-R20/R21 polish-round tree (Task 10), with the command run
+verbatim as it is printed. **Do not trust this number; run the command.** It has been 84, then 90,
+then 109, then 145, then 179, then 182, then this, and each time the session that moved it was the
+session that had just shipped — or, twice now, corrected — the thing it was counting:
 
 ```bash
 for f in "Design an Asset" "Take an asset from the library into a plan" \
@@ -43,13 +42,13 @@ same mistake naming a case here guards against for the other six.
 
 | Case | Human steps | Of total | Discharges |
 |---|---|---|---|
-| [[Design an Asset]] | **82** | 128 | U01 (with the next row) |
+| [[Design an Asset]] | **90** | 136 | U01 (with the next row) |
 | [[Take an asset from the library into a plan]] | 19 | 28 | U01, T34 |
-| [[Compose an asset from parts]] | 3 | 39 | U02, U03 (its Repeat section) |
-| [[Calibrate a sheet and reserve space]] | 20 | 50 | U04 — **7 already confirmed**, see below |
+| [[Compose an asset from parts]] | **14** | 54 | U02, U03 (its Repeat section) |
+| [[Calibrate a sheet and reserve space]] | **21** | 52 | U04 — **7 already confirmed**, see below |
 | [[Recover an asset design rather than lose it]] | 33 | 42 | U05 |
 | [[Two designers on one asset]] | 8 | 16 | T12 |
-| [[Browse the asset library]] | **17** | 33 | new this round — AD18-R18 |
+| [[Browse the asset library]] | **20** | 37 | AD18-R18 (Grid view), AD18-R20/R21 Task 8 (this round) |
 
 **What session fourteen ADDED, and why the total moved from 90 to 109.** A session that ships a
 feature grows the walk, and saying so is part of shipping it. **Nineteen new steps**, in two
@@ -214,6 +213,77 @@ one more claim in row 13a**: its first draft said the second, idempotent write "
 just now too", which overstates the code — `settle()` only stamps `savedAt` when the batch held a
 real write (`save-state-store.ts:100-109`), so the neutral second assignment leaves the clock
 exactly where the first write set it rather than restarting it, and the row now says that.
+
+**What the AD18-R20/R21 polish round (Task 10) ADDED and REWROTE, and why the total moved from
+182 to 205.** This round fixed a defect the user hit in a real vault — grouping did nothing from
+the state the designer opens in — plus a batch of nine approved polish items, one declined
+(DECISIONS.md's own AD18-R20/AD18-R21 entries). **Twenty-three new HUMAN steps land inside the
+counted total, across the four of the seven cases this round touched** (Design an Asset,
+Compose an asset from parts, Calibrate a sheet and reserve space, Browse the asset library);
+[[Notices and save state]] gained two more `obsidian` rows of its own, outside the counted
+command's seven cases, so they move nothing above. A further six `suite`/`browser` rows were
+also added across those same four cases — real steps in their own files, just not counted toward
+this figure, the same convention every earlier round in this narrative follows. **Nine existing
+rows were REWRITTEN** because the round made their old text false.
+
+- **[[Compose an asset from parts]] gained eleven**, in a new "grouping from every door, and the
+  rest the designer opens in" section (steps 40–50): building a set from the Parts ROWS
+  themselves with Shift and with the "Select multiple parts" toggle (40–42, distinct from the
+  existing canvas-press steps 13–14); grouping from the state the designer now opens in with no
+  tool picked first (43, the reported defect's own reproduction); the Arrange panel's Group
+  button, the right-click menu on the canvas and on a Parts row, and Ctrl+G on the canvas and on a
+  Parts row, each confirmed reachable from **Pan** as well as from Select (44–49); focus landing on
+  the new group's own disclosure after a Group dispatched from a Parts row (48); and the
+  right-click menu refusing while a pan gesture is still in flight (50). One more, step 7a, guards
+  a generalised fix: a Parts-hidden (not only a clearance-hidden) selected graphic now draws no
+  outline or handles either, with the selection kept. Step 12a adds the "Select multiple parts"
+  checkbox's new focus ring and 24px row floor (Task 6). **Four rows were REWRITTEN**: steps 5, 6,
+  7 and 10, the Parts row's Hide/Show, Lock/Unlock, Isolate and Bring forward controls, are
+  icon-only now (AD18-R21 Task 7) — each row's old visible-text instruction ("press Hide") is
+  replaced with the icon, its tooltip and its accessible name, and two new rows (10a, 10b) cover
+  the row's own wrap at a narrow rail.
+- **[[Design an Asset]] gained eight**: 88c, a save from an earlier calendar day naming which day
+  on the designer's own header (AD18-R21 Task 9); 95a, Obsidian's own Ctrl+G recorded as NOT also
+  firing once the designer's own Ctrl+G had something to group (the companion case to the existing
+  step 96, which covers the opposite: nothing groupable, so the key passes through); 102b, the
+  Shift-held handle drag of a rounded rectangle scaling its radius WITH the box; and a new "the
+  polish round" section (105–109) covering the canvas's own focus ring (inset past the rulers,
+  Task 6's two fix rounds), the Add-rail's tiles now sharing one height across both rows (Task 6),
+  a curved detail's canvas-handle resize now solving like the Inspector's typed Width/Depth fields
+  rather than a plain scale (AD18-R20 Task 13), the small-drawing rule that rests only the overall
+  dimension pair below about 240px of footprint (AD18-R21 Task 5), and a `judgement` step
+  photographing an overall label slid past its own line's end on the toilet preset at a 1280px
+  leaf, against AD18-R14 (Task 5's last fix round). **Two rows were REWRITTEN**: 102a used to
+  record a known, accepted gap — a canvas handle drag of a rounded rectangle lost its radius — and
+  now states the fix (AD18-R21 Task 4 closes it, the identical clamp the typed path already used).
+  29d used to ask a walker to RECORD whether the Detail section's "Line" dropdown had themed
+  chrome or a bare browser default; Task 6 styled every designer `<select>`, so it is now a
+  deterministic pass condition rather than an open question.
+- **[[Calibrate a sheet and reserve space]] gained two, and rewrote three.** 21g is a NEW known-gap
+  row: a clearance REPLACED (not born from nothing) by an undo or redo while hidden still stays
+  hidden, which is the one case AD18-R20 Task 2's fix does not reach — the present-to-present blind
+  spot its own runtime docblock names. 21h adds the "Show clearance" switch's own focus ring and
+  row-height fix (Task 6). **Two rows FLIP from "known, accepted behaviour" to "now fixed", and one
+  stays a known gap with its reason corrected**: 21d (undo of a removal, or redo of a creation,
+  while hidden) used to say the clearance may come back still hidden — AD18-R20 Task 2's read-back
+  watch now re-shows it automatically, since that is a birth from nothing, not a replacement. 21f
+  (a hidden, selected clearance's own outline and handles) used to say they stayed drawn and
+  draggable — AD18-R20 Task 3 fixes this: nothing of the selection draws while it is hidden, and no
+  press reaches a handle. 21e (turning the switch off mid-trace, then finishing) is UNCHANGED in
+  outcome, but its citation is corrected to say why it is a replacement rather than a birth, which
+  is what keeps it different from 21d and 21g.
+- **[[Browse the asset library]] gained three**, in a new "the Grid view's polish round" section
+  (32–34): every tile's name and size now sharing the mark's own left edge, at one line and at two
+  (AD18-R20/R21 Task 8's alignment fix); a design-less tile's category-icon placeholder reading
+  quieter than a real design's mark (Task 8's own second fix round, after the integrator measured
+  the first version reading HEAVIER); and that placeholder matching its category's own sidebar
+  icon, from the one shared lookup both surfaces now read. One further `browser` row (35) is not
+  counted in the human total: a not-yet-read tile keeps drawing the pending-dots mark rather than
+  flashing the category icon.
+- **[[Notices and save state]] gained two, `obsidian` but outside the counted command's seven
+  cases** (this file's own command never named it, so neither addition moves the 205 figure): 18c,
+  the same dated-save fix seen from the status bar rather than the designer header, and 18d, the
+  German word order for it ("Am 23. Sept. um 14:05 gespeichert").
 
 ## The gate inside the pass
 

@@ -94,14 +94,19 @@ async function pastRoomsList(page, action) {
 }
 /**
  * Switches the constrained layout's overlay without wrapping the page: Escape inside an overlay returns
- * focus to its own rail button (ResponsiveEditorShell's closeOverlay), and Layers and Details are
- * neighbours on the rail. A no-op where the rail is hidden or `name` is already open; answers whether it switched.
+ * focus to the counterpart rail button of the overlay it closed (ResponsiveEditorShell's closeOverlay,
+ * keyed by RAIL_BUTTON: layers→layers, inspector→details), with that button's aria-expanded now false.
+ * A no-op where the rail is hidden or `name` is already open; answers whether it switched.
  */
 async function overlay(page, name) {
  const rail = `[data-rp-rail="${name}"]`;
  if (!await page.locator(rail).isVisible() || await page.locator(rail).getAttribute('aria-expanded') === 'true') return false;
  await page.keyboard.press('Escape');
- assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-rp-rail]') ?? false), true, 'Escape returns focus to the rail');
+ // The overlay Escape just closed is whichever of the two rail buttons `name` is not: RAIL_BUTTON has
+ // only { layers: 'layers', inspector: 'details' }, and these two calls are the only ones this script makes.
+ const closedRail = `[data-rp-rail="${name === 'layers' ? 'details' : 'layers'}"]`;
+ assert.equal(await page.evaluate(sel => document.activeElement?.matches(sel) ?? false, closedRail), true, "Escape returns focus to the closed overlay's own rail button");
+ assert.equal(await page.locator(closedRail).getAttribute('aria-expanded'), 'false', "Escape leaves the closed overlay's rail marked collapsed");
  await (name === 'layers' ? tabBackTo : tabTo)(page, rail); await page.keyboard.press('Enter');
  return true;
 }

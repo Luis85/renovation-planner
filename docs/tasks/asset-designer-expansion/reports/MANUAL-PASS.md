@@ -19,11 +19,13 @@ overlooked.**
 
 ## What the pass consists of
 
-**205 human steps across seven cases**, measured rather than remembered — re-derived on
-2026-09-24 against the finished AD18-R20/R21 polish-round tree (Task 10), with the command run
-verbatim as it is printed. **Do not trust this number; run the command.** It has been 84, then 90,
-then 109, then 145, then 179, then 182, then this, and each time the session that moved it was the
-session that had just shipped — or, twice now, corrected — the thing it was counting:
+**206 human steps across seven cases**, measured rather than remembered — re-derived on
+2026-09-24 against the finished AD18-R20/R21 polish-round tree, AFTER a review round found one
+row's pass condition wrong and a later fix wave (`3405aab95`) made several more rows false, with
+the command run verbatim as it is printed. **Do not trust this number; run the command.** It has
+been 84, then 90, then 109, then 145, then 179, then 182, then 205, then this, and each time the
+session that moved it was the session that had just shipped — or, three times now, corrected — the
+thing it was counting:
 
 ```bash
 for f in "Design an Asset" "Take an asset from the library into a plan" \
@@ -44,7 +46,7 @@ same mistake naming a case here guards against for the other six.
 |---|---|---|---|
 | [[Design an Asset]] | **90** | 136 | U01 (with the next row) |
 | [[Take an asset from the library into a plan]] | 19 | 28 | U01, T34 |
-| [[Compose an asset from parts]] | **14** | 54 | U02, U03 (its Repeat section) |
+| [[Compose an asset from parts]] | **15** | 55 | U02, U03 (its Repeat section) |
 | [[Calibrate a sheet and reserve space]] | **21** | 52 | U04 — **7 already confirmed**, see below |
 | [[Recover an asset design rather than lose it]] | 33 | 42 | U05 |
 | [[Two designers on one asset]] | 8 | 16 | T12 |
@@ -281,9 +283,55 @@ rows were REWRITTEN** because the round made their old text false.
   counted in the human total: a not-yet-read tile keeps drawing the pending-dots mark rather than
   flashing the category icon.
 - **[[Notices and save state]] gained two, `obsidian` but outside the counted command's seven
-  cases** (this file's own command never named it, so neither addition moves the 205 figure): 18c,
-  the same dated-save fix seen from the status bar rather than the designer header, and 18d, the
-  German word order for it ("Am 23. Sept. um 14:05 gespeichert").
+  cases** (this file's own command never named it, so neither addition moves the counted total):
+  18c, the same dated-save fix seen from the status bar rather than the designer header, and 18d,
+  the German word order for it ("Am 23. Sept. um 14:05 gespeichert").
+
+**Task 10's own review round then found one row wrong and corrected it, and a later fix wave
+(`3405aab95`) made three more rows' citations or claims false — the reason the total moved once
+more, from 205 to 206.** Every one of these is a CORRECTION to a row this same task wrote minutes
+earlier, not a new discovery about the shipped feature:
+
+- **[[Compose an asset from parts]] row 48 was CRITICAL-wrong.** It claimed focus after Group from
+  a Parts row's context menu lands on "the new Group row's own disclosure" — a target
+  `designerMenu.ts`'s `runAndRefocus` never hands focus to. Read at source, that function restores
+  focus to the row that opened the menu BEFORE running the action, and its only fallback once a
+  write drops that focus is the CANVAS (`.rp-plan-canvas`), because "the list itself is not a focus
+  target". The row is corrected to say canvas rather than invent a target the function does not
+  reach. A companion row, 49a, records the SEPARATE focus rule the Parts row's own Ctrl+G takes
+  (`DesignerPartsPanel.vue`'s `keepKeyboard`, a different function from the menu's), left as an
+  observe-and-record row since neither this task nor any test in the repository establishes
+  whether a just-grouped row's DOM node survives being re-nested (keeping focus) or is torn down
+  (dropping it to the nearest still-drawn row) — that is what pushed the count from 205 to 206.
+- **[[Design an Asset]] row 95a asserted a host behaviour no source here can establish**: that
+  Obsidian's own graph-view hotkey does NOT also fire once the designer's Ctrl+G has grouped
+  something. `designerShortcut`'s own docblock claims exactly that, but calling
+  `preventDefault()`/`stopPropagation()` on the Vue-observed DOM event is not proof of what
+  Obsidian's own hotkey manager does with the same keypress — the same reason step 96 was already
+  written as a recording rather than a pass condition, for the opposite precondition. Rewritten to
+  match.
+- **[[Design an Asset]] row 102b cited the wrong mechanism.** Read again at source, a Shift-held
+  handle drag never reaches `scaleRoundedRect` at all — `selectionDrag.ts`'s `draggedShape` takes
+  `options.shift ? null : keptCurves(...)`, so Shift falls straight through to the plain
+  `resizeBox`/`scaled` path in `shapeEdits.ts`, which happens to keep a rounded rectangle looking
+  round because a uniform scale carries its bulges' dimensionless ratio over proportionally — not
+  because of the domain "corner radius" concept at all. The row's pass condition was already true
+  (Task 4's own report names Shift as pre-existing, unchanged behaviour); only the citation was
+  wrong, and it is fixed in place.
+- **The fix wave `3405aab95` (landed after this task's own commit) made two more things false**:
+  it removed `aria-pressed` from the Parts row's Hide/Show and Lock/Unlock icon buttons (a review
+  finding that the swapping accessible name plus `aria-pressed` announced the SAME state twice with
+  OPPOSITE meanings — "Show, toggle button, pressed" reads as showing being ON), which rows 5, 6
+  and 7 of [[Compose an asset from parts]] had just documented as present; and it replaced the
+  Add-rail's `min-height: 73px` floor with `grid-auto-rows: 1fr` on the tiles' own grid, so every
+  row sizes to its own tallest tile's CONTENT rather than one English pixel measurement — [[Design
+  an Asset]] row 106 is corrected to match, and now asks a walker to compare across two languages
+  rather than just look at one fixed number.
+
+None of these five corrections added or removed a step from `docs/tests/cases/` on their own
+except 49a (new, to answer the coordinator's own follow-up request about the keyboard door) — the
+other four are citation and pass-condition fixes to rows this same task wrote, caught before the
+walk that would otherwise have found them wrong against a live vault instead.
 
 ## The gate inside the pass
 

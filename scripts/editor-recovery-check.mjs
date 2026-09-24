@@ -115,10 +115,12 @@ async function largeFloor(page, scenario, out) {
  await page.locator('.rp-plan-canvas').waitFor();
  const usableMs = await page.evaluate(start => performance.now() - start, started);
  // Counted on the stage after usableMs: that window ends at the canvas attaching and does not wait for the reference, which may or may not have drawn by then.
- await page.waitForFunction(() => { const drawn = window.planningRecovery.scene()[0]; return drawn?.walls > 0 && drawn.openings > 0 && drawn.reference !== null; });
- const { walls, openings, reference } = await page.evaluate(() => window.planningRecovery.scene()[0]), structure = { walls: 320, openings: 160, reference: { width: 2400, height: 1800 } };
- assert.deepEqual({ walls, openings, reference }, structure, 'the large floor draws every seeded wall and opening and the 2400 × 1800 reference');
- assert.deepEqual({ walls: fixture.walls, openings: fixture.openings, reference: fixture.reference }, structure, 'seedLarge reports what the stage draws');
+ try {
+  await page.waitForFunction(() => { const drawn = window.planningRecovery.structure()[0]; return drawn?.walls > 0 && drawn.openings > 0 && drawn.reference !== null; });
+ } catch { /* the deepEqual below names which of walls, openings or the reference is missing */ }
+ const { walls, openings, reference } = await page.evaluate(() => window.planningRecovery.structure()[0]), expected = { walls: 320, openings: 160, reference: { width: 2400, height: 1800 } };
+ assert.deepEqual({ walls, openings, reference }, expected, 'the large floor draws every seeded wall and opening and the 2400 × 1800 reference');
+ assert.deepEqual({ walls: fixture.walls, openings: fixture.openings, reference: fixture.reference }, expected, 'seedLarge reports what the stage draws');
  await recordShot(page, scenario, out, 'large-floor');
  await panel(page, 'layers'); const room = `[data-rp-region="layers"] .rp-room-list__row[data-rp-id="${fixture.firstRoom}"]`;
  await tabTo(page, room); const selectionStart = await page.evaluate(() => performance.now()); await page.keyboard.press('Enter');
@@ -165,7 +167,7 @@ async function panFrames(page) {
  await page.waitForFunction(zoom => { const camera = window.planningRecovery.scene()[0]?.camera; return camera && camera.zoom !== zoom; }, sceneAfterPan.camera.zoom);
  const sceneAfter = await page.evaluate(() => window.planningRecovery.scene()[0]);
  const frames = (await sampled).toSorted((a, b) => a - b);
- return { samples: frames.length, medianMs: frames[Math.floor(frames.length / 2)], p95Ms: frames[Math.floor(frames.length * .95)], sceneBefore, sceneAfterPan, sceneAfter, method: 'requestAnimationFrame cadence during verified middle-button pan and wheel zoom, headless browser' };
+ return { samples: frames.length, medianMs: frames[Math.floor(frames.length / 2)], p95Ms: frames[Math.floor(frames.length * .95)], sceneBefore, sceneAfterPan, sceneAfter, method: 'requestAnimationFrame cadence starting at the middle-button pan, headless browser' };
 }
 async function zoomReflow(page, scenario, out) {
  await page.setViewportSize({ width: Math.max(920, scenario.width), height: 900 });

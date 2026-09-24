@@ -40,6 +40,8 @@ async function seedReference({ stack, deps, plan, geometry, ready }: Workspace) 
  const url = rasterUrl(REFERENCE.width, REFERENCE.height, 'hsl(40 30% 92%)', 'Large floor reference 2400 × 1800');
  const canvasPath = deps.vault.getResourcePath.bind(deps.vault);
  deps.vault.getResourcePath = file => file.path === REFERENCE.path ? url : canvasPath(file);
+ // referenceWorkspace's own referencePlan probe is a `path in sources` closure over its private fixture map and does not see this path;
+ // a later driver step that opened Configure reference plan here would refuse with plan.background-not-found.
  const references = referencePlanServices(stack.plans, geometry, stack.events, createVaultFileProbe(stack.vault as never));
  const baseline = expectOk(await references.read(plan.id));
  const appearance = { crop: { x: 0, y: 0, width: REFERENCE.width, height: REFERENCE.height }, rotation: 0, opacity: 0.65, visible: true, locked: true };
@@ -65,6 +67,7 @@ async function seedStructure({ deps, plan }: Workspace): Promise<Structure> {
   for (const [kind, index] of [['place-door', 2], ['place-window', 0]] as const) {
    const wall = expectDefined(structure.walls.find(item => item.id === enclosed.wallIds[index]), 'enclosing wall');
    const draft = createStructureDraft(); draft.kind = kind;
+   // Copy of structureTask's start() window preset; drifts silently if the product's own defaults there change.
    if (kind === 'place-window') { draft.text.openingHeight = '1.2'; draft.text.sill = '0.9'; draft.swing.angle = '0'; }
    pickHost(draft, alongWall(wall, wallLength(wall) / 2), [wall], 1);
    openings.push(expectDefined(openingFromDraft(draft), 'opening'));
@@ -75,15 +78,23 @@ async function seedStructure({ deps, plan }: Workspace): Promise<Structure> {
  return structure;
 }
 
+function scene() {
+ return Konva.stages.map(stage => {
+  const layer = stage.findOne('.zone');
+  return { materialMarkers: stage.find('.material-marker').length, camera: layer ? { x: layer.x(), y: layer.y(), zoom: layer.scaleX() } : null };
+ });
+}
+
 /** Deterministic browser-only failures around the production service/repository boundaries. */
 export function planningRecoveryProbe(workspace: ReturnType<typeof referenceWorkspace>, view: PlanEditorView) {
  const { stack, deps, plan, geometry } = workspace, services = expectDefined(deps.commands.planning, 'planning');
  const seeded = { walls: new Set<string>(), openings: new Set<string>() };
- function scene() {
+ // Separate from scene() so panFrames' sampled window never pays these three extra full-tree traversals;
+ // only largeFloor()'s post-usableMs wait/assertion calls this.
+ function structureOnStage() {
   return Konva.stages.map(stage => {
-   const layer = stage.findOne('.zone'), image: unknown = stage.findOne<Konva.Layer>('.background')?.findOne('Image')?.getAttr('image');
-   return { materialMarkers: stage.find('.material-marker').length, camera: layer ? { x: layer.x(), y: layer.y(), zoom: layer.scaleX() } : null,
-    walls: stage.find((node: Konva.Node) => seeded.walls.has(node.name())).length, openings: stage.find((node: Konva.Node) => seeded.openings.has(node.name())).length,
+   const image: unknown = stage.findOne<Konva.Layer>('.background')?.findOne('Image')?.getAttr('image');
+   return { walls: stage.find((node: Konva.Node) => seeded.walls.has(node.name())).length, openings: stage.find((node: Konva.Node) => seeded.openings.has(node.name())).length,
     reference: image instanceof HTMLImageElement ? { width: image.naturalWidth, height: image.naturalHeight } : null };
   });
  }
@@ -106,7 +117,7 @@ export function planningRecoveryProbe(workspace: ReturnType<typeof referenceWork
  const changed = () => stack.events.publish({ type: 'PlanRenovationChanged', payload: { planId: plan.id, projectId: plan.projectId } });
  function snapshot() { return { ...counts, waitingWrites, listeners: stack.vault.eventListenerCount, stages: Konva.stages.length, images: document.querySelectorAll('.rp-evidence-thumbnail').length, objectUrls: urls.size }; }
  return {
-  snapshot, scene, armFailure: () => { arm = true; }, setFailure: (value: boolean) => { fail = value; },
+  snapshot, scene, structure: structureOnStage, armFailure: () => { arm = true; }, setFailure: (value: boolean) => { fail = value; },
   pauseWrites() { writeGate = new Promise<void>(resolve => { releaseWrite = resolve; }); },
   resumeWrites() { releaseWrite?.(); },
   async events(count: number) { await Promise.all(Array.from({ length: count }, changed)); },
@@ -124,9 +135,9 @@ export function planningRecoveryProbe(workspace: ReturnType<typeof referenceWork
    const current = expectOk(await geometry.read(plan.id));
    // The baseline's document is uncalibrated by construction; the Rooms are drawn after the scale is set, so it stays.
    expectOk(await geometry.write(plan.id, { ...fixture.geometry.document, calibration: current.document.calibration }, current.version));
-   const structure = await seedStructure(workspace);
-   for (const wall of structure.walls) seeded.walls.add(wall.id);
-   for (const opening of structure.openings) seeded.openings.add(opening.id);
+   const built = await seedStructure(workspace);
+   for (const wall of built.walls) seeded.walls.add(wall.id);
+   for (const opening of built.openings) seeded.openings.add(opening.id);
    for (const item of fixture.materials) expectOk(await materialSave(item.entity, 'absent'));
    const currentPlan = expectDefined(expectOk(await stack.plans.getById(plan.id)), 'plan');
    expectOk(await planSave(fixture.plan.entity, currentPlan.version));
@@ -137,7 +148,7 @@ export function planningRecoveryProbe(workspace: ReturnType<typeof referenceWork
    }
    stack.deps.vault.getResourcePath = file => sources.get(file.path) ?? '';
    await changed();
-   return { rooms: 80, materials: 240, catalogue: 24, photos: 40, imageDimensions: '1600 × 1200', walls: structure.walls.length, openings: structure.openings.length,
+   return { rooms: 80, materials: 240, catalogue: 24, photos: 40, imageDimensions: '1600 × 1200', walls: built.walls.length, openings: built.openings.length,
     reference: { width: REFERENCE.width, height: REFERENCE.height }, firstRoom: fixture.geometry.document.objects[0].id };
   },
   async close() { await view.onClose(); return snapshot(); },

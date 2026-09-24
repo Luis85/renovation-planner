@@ -19,13 +19,13 @@ overlooked.**
 
 ## What the pass consists of
 
-**215 human steps across seven cases**, measured rather than remembered — re-derived on
-2026-09-24 against the finished AD18-R22 tree (Task 14, "a hidden but selected part refuses the
-selection keys and menu"), AFTER a review round found one row's pass condition wrong and a later
-fix wave (`3405aab95`) made several more rows false, with the command run verbatim as it is
-printed. **Do not trust this number; run the command.** It has been 84, then 90, then 109, then
-145, then 179, then 182, then 205, then 206, then this, and each time the session that moved it was
-the session that had just shipped — or, three times now, corrected — the thing it was counting:
+**232 human steps across seven cases**, measured rather than remembered — re-derived on
+2026-09-24 against the finished AD18-R23 tree (a follow-up round triaging the AD18-R21 polish
+round's own recorded items at source: Tasks 2-6, 10 and 11), with the command run verbatim as it
+is printed. **Do not trust this number; run the command.** It has been 84, then 90, then 109, then
+145, then 179, then 182, then 205, then 206, then 215, then this, and each time the session that
+moved it was the session that had just shipped — or, three times now, corrected — the thing it was
+counting:
 
 ```bash
 for f in "Design an Asset" "Take an asset from the library into a plan" \
@@ -44,13 +44,13 @@ same mistake naming a case here guards against for the other six.
 
 | Case | Human steps | Of total | Discharges |
 |---|---|---|---|
-| [[Design an Asset]] | **90** | 136 | U01 (with the next row) |
+| [[Design an Asset]] | **103** | 149 | U01 (with the next row) |
 | [[Take an asset from the library into a plan]] | 19 | 28 | U01, T34 |
-| [[Compose an asset from parts]] | **22** | 62 | U02, U03 (its Repeat section) |
-| [[Calibrate a sheet and reserve space]] | **23** | 54 | U04 — **7 already confirmed**, see below |
+| [[Compose an asset from parts]] | **23** | 63 | U02, U03 (its Repeat section) |
+| [[Calibrate a sheet and reserve space]] | **26** | 57 | U04 — **7 already confirmed**, see below |
 | [[Recover an asset design rather than lose it]] | 33 | 42 | U05 |
 | [[Two designers on one asset]] | 8 | 16 | T12 |
-| [[Browse the asset library]] | **20** | 37 | AD18-R18 (Grid view), AD18-R20/R21 Task 8 (this round) |
+| [[Browse the asset library]] | 20 | 37 | AD18-R18 (Grid view), AD18-R20/R21 Task 8 |
 
 **What session fourteen ADDED, and why the total moved from 90 to 109.** A session that ships a
 feature grows the walk, and saying so is part of shipping it. **Nineteen new steps**, in two
@@ -363,6 +363,62 @@ canvas is not currently drawing.
   first place) and 21j (the Inspector's own Delete button still removing a hidden clearance). No
   existing row in this case claimed a hidden clearance was reachable by a key, so nothing needed
   rewriting here — row 21f already covered only the drawing half, which AD18-R22 does not touch.
+
+**AD18-R23 landed next — a follow-up round triaging the AD18-R21 polish round's own recorded
+items at source rather than fixing them on the spot — the reason the total moved once more, from
+215 to 232.** Four rulings (a clearance swap re-shows on any read-back that changes its GEOMETRY,
+not only on a birth from nothing; a 280–360 px canvas's overall label steps onto the drawing
+rather than sitting on an unreachable handle, in that one case only; a curved clearance's
+box-handle drag now solves like every other curved part; a `&writable` harness knob, test tooling
+only and given no vault step per its own brief) plus three defects fixed without a ruling because
+each broke a rule that already stood (the rulers' band and Shift+2 following a selected part the
+canvas is not drawing; the Plan Editor's zone lock toggle carrying the identical swapping-name-plus-
+`aria-pressed` contradiction the designer's own part controls had already dropped; `solveScale` not
+landing the nearest reachable extent at a curve's limit, found by Task 5's own review). **Seventeen
+new steps land inside the counted total, across three cases; two more, in [[Open a floor and select
+a room]], are outside the counted seven and move nothing above; and three existing rows were
+REWRITTEN, their step numbers unchanged.**
+
+- **[[Design an Asset]] gained thirteen**: 109a (the vanity preset's overall width label stepping
+  onto the drawing at a 280 × 300 canvas rather than sitting on the top-middle and rotate handles,
+  AD18-R23 Task 2 — modelled at exactly 205 of 77,964 frames before this round, 0 after); a new
+  "the follow-up round (AD18-R23)" section (110–121) covering a curved clearance's box-handle drag
+  solving like every other curved part on the oval- and round-table presets (110–111, Task 5), the
+  same drag stopping at its reach limit rather than jumping outward once dragged past it (112–113,
+  Task 11), and the designer's first Ctrl+Z/Ctrl+Shift+Z/Ctrl+Y binding — reaching every focusable
+  region of the leaf, refused mid-dialog and mid-gesture, claimed even with nothing to undo (unlike
+  Ctrl+G), and a recorded gap shared with the Plan Editor where a focused `<select>` or the Corner
+  radius slider swallows the chord (114–121, Task 10). **One row was REWRITTEN**: 107's own
+  citation ("the vanity basin narrowed below 270 mm lands at about 276") named the exact overshoot
+  AD18-R23 Task 11 fixed; it is corrected to say the solver now lands within 0.01 mm of the true
+  floor — 270, not 276.
+- **[[Compose an asset from parts]] gained one**: 7f, the rulers' band and Shift+2 following a
+  Parts-hidden selected detail exactly as the canvas outline and the selection keys already do
+  (AD18-R23's own defect list) — reusing 7a's own hidden-and-selected state rather than a new
+  precondition.
+- **[[Calibrate a sheet and reserve space]] gained three**: 21k (the same rulers-and-Shift+2 check
+  on a hidden, selected clearance, reusing 21f's state); 21l (an unrelated write — a footprint
+  nudge — leaving a hidden clearance hidden, the ruling's own negative example); and 36a (a
+  whole-design resize that scales a PENDING clearance while it is hidden re-shows it too, a
+  corollary Task 3's own report named but did not exercise against a live gesture — this is the
+  first time it is). **Two rows FLIP from "known, accepted gap" to "now fixed"**: 21e (turning
+  Show clearance off mid-trace, then finishing) and 21g (undoing a later replacement) both used to
+  say the clearance may come back still hidden; AD18-R23 widened the read-back rule from PRESENCE
+  to GEOMETRY, so both now re-show automatically — 21g's case is directly driven by
+  `designerClearanceBirth.test.ts`'s new AD18-R23 describe block, and 21e's is not separately
+  exercised by any test, per Task 3's own report. **Step 13's own citation gains a note, unchanged
+  in outcome**: it asked for Ctrl+Z in the designer before the designer bound any history key at
+  all, so it was untestable as written until this round's Task 10.
+- **[[Open a floor and select a room]] gained two, `obsidian`/`desktop` but outside the counted
+  command's seven cases** (this file's own command never named it, so neither addition moves the
+  counted total): 7a (the Layers sidebar's quiet unlocked padlock and the locked emphasis, both
+  re-keyed off `data-rp-locked` now that `ZoneLockToggle.vue` carries no `aria-pressed`) and 7b
+  (the screen reader hearing only the swapping accessible name — "Lock Kitchen" / "Unlock
+  Terrace" — never "pressed" or "not pressed").
+
+**Nothing added by this round has been seen in Obsidian**, per Tasks 2, 3, 4, 5, 6, 10 and 11's
+own reports: every one measured in the suite, in jsdom, or — for the curved-clearance drag and the
+label's screen position — predicted from the code and named as such.
 
 ## The gate inside the pass
 

@@ -50,17 +50,24 @@ describe('solveScale', () => {
 	it('answers the nearest landing when the target cannot be reached', () => {
 		// A non-finite factor refused, as `resizeBox` refuses one: the secant runs off towards infinity as the extent
 		// flattens, so the solve ends on that refusal and answers the nearest finite landing, at the ceiling.
+		const tries: number[] = [];
 		const solved = expectOk(
 			solveScale({
 				start: 100,
 				target: 900,
-				apply: (factor) => (Number.isFinite(factor) ? ok(capped(factor)) : err(assetError('invalid-scale', 'Not finite.'))),
+				apply: (factor) => {
+					tries.push(factor);
+					return Number.isFinite(factor) ? ok(capped(factor)) : err(assetError('invalid-scale', 'Not finite.'));
+				},
 				measure: (extent) => extent,
 			}),
 		);
 
 		expect(solved).toBeGreaterThan(200 - REACH_MM);
 		expect(solved).toBeLessThanOrEqual(200);
+		// The FIRST non-finite factor is the last one tried, well short of the 24 attempts the cap allows.
+		expect(tries.findIndex((factor) => !Number.isFinite(factor))).toBe(tries.length - 1);
+		expect(tries.length).toBeLessThan(24);
 	});
 
 	it('refuses when the first factor is refused', () => {

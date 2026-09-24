@@ -71,6 +71,50 @@ function outOfReach({ lo, hi, below, above, floor }: Bracket): boolean {
 	return past < 1 && past - below <= floor;
 }
 
+/** One attempt that landed, and how far from the target. */
+interface Landed<T> {
+	readonly result: Result<T, ValidationError>;
+	readonly miss: number;
+}
+
+/** What is known before the first attempt: the unscaled start is short of the target, or past it (or on it). */
+function opening(start: number, target: number): Bracket {
+	const unscaled = { factor: 1, extent: start };
+	return {
+		lo: start < target ? unscaled : undefined,
+		hi: start >= target ? unscaled : undefined,
+		below: 0,
+		above: Number.POSITIVE_INFINITY,
+		// At most a half: a part already within REACH_MM of its floor (the washbasin's tap hole, 0.0083 mm wide after
+		// a corner drag's width pass) still takes a step below one, and still lands within REACH_MM of the infimum.
+		floor: Math.min(REACH_MM / start, 0.5),
+	};
+}
+
+/** A landing short of the target or past it, and the secant through it and the landing before. */
+function landing(bracket: Bracket, previous: Probe, probe: Probe, target: number): { readonly bracket: Bracket; readonly secant: number } {
+	return {
+		bracket: probe.extent < target ? { ...bracket, lo: probe } : { ...bracket, hi: probe },
+		secant: probe.factor + ((target - probe.extent) * (probe.factor - previous.factor)) / (probe.extent - previous.extent),
+	};
+}
+
+/**
+ * A refused factor: the end of the solve (`null`) when it is at or below zero, a mirror, or not finite, which no
+ * bisection can approach; otherwise a bound, below with nothing short of the target measured and above once
+ * something is.
+ */
+function refused(bracket: Bracket, factor: number): Bracket | null {
+	if (!(factor > 0 && Number.isFinite(factor))) return null;
+	return bracket.lo === undefined ? { ...bracket, below: factor } : { ...bracket, above: factor };
+}
+
+/** The attempt that landed nearest the target, or `last` — `apply`'s own refusal — when none landed. */
+function nearest<T>(landed: readonly Landed<T>[], last: Result<T, ValidationError>): Result<T, ValidationError> {
+	const misses = landed.map((tried) => tried.miss);
+	return landed.length === 0 ? last : landed[misses.indexOf(Math.min(...misses))].result;
+}
+
 /**
  * The factor that lands `target`, solved rather than divided.
  *
@@ -105,42 +149,32 @@ function outOfReach({ lo, hi, below, above, floor }: Bracket): boolean {
  * shrub's detail-1 reaches this: flattened to its floor and then widened, its arcs meet.
  *
  * A refusal comes back only when nothing landed at all: `apply`'s own answer to a first factor at or below
- * zero, or a bisection that never landed.
+ * zero, or a bisection that never landed. A factor that is not finite — a secant off a flat extent — ends the
+ * solve at its refusal, on the nearest landing.
  *
  * ponytail: at most `MAX_STEPS` calls to `apply`; the drag makes up to three solves per pointer move.
  */
 export function solveScale<T>(attempt: ScaleAttempt<T>): Result<T, ValidationError> {
 	const { start, target, apply, measure } = attempt;
-	const landed: { readonly result: Result<T, ValidationError>; readonly miss: number }[] = [];
-	const unscaled = { factor: 1, extent: start };
-	let bracket: Bracket = {
-		lo: start < target ? unscaled : undefined,
-		hi: start >= target ? unscaled : undefined,
-		below: 0,
-		above: Number.POSITIVE_INFINITY,
-		// At most a half: a part already within REACH_MM of its floor (the washbasin's tap hole, 0.0083 mm wide after
-		// a corner drag's width pass) still takes a step below one, and still lands within REACH_MM of the infimum.
-		floor: Math.min(REACH_MM / start, 0.5),
-	};
-	let previous: Probe = unscaled;
+	const landed: Landed<T>[] = [];
+	let bracket = opening(start, target);
+	let previous: Probe = { factor: 1, extent: start };
 	let secant = Number.NaN;
 	let factor = target / start;
 	let result = apply(factor);
 	for (let step = 1; ; step += 1) {
+		let next: Bracket | null;
 		if (result.ok) {
-			const extent = measure(result.value);
-			landed.push({ result, miss: Math.abs(extent - target) });
-			if (Math.abs(extent - target) <= TOLERANCE_MM) break;
-			const probe = { factor, extent };
-			bracket = extent < target ? { ...bracket, lo: probe } : { ...bracket, hi: probe };
-			secant = factor + ((target - extent) * (factor - previous.factor)) / (extent - previous.extent);
+			const probe = { factor, extent: measure(result.value) };
+			landed.push({ result, miss: Math.abs(probe.extent - target) });
+			if (Math.abs(probe.extent - target) <= TOLERANCE_MM) break;
+			({ bracket: next, secant } = landing(bracket, previous, probe, target));
 			previous = probe;
-		} else if (!(factor > 0)) break;
-		else bracket = bracket.lo === undefined ? { ...bracket, below: factor } : { ...bracket, above: factor };
-		if (step === MAX_STEPS || outOfReach(bracket)) break;
+		} else next = refused(bracket, factor);
+		if (next === null || step === MAX_STEPS || outOfReach(next)) break;
+		bracket = next;
 		factor = nextFactor(bracket, secant);
 		result = apply(factor);
 	}
-	const misses = landed.map((tried) => tried.miss);
-	return landed.length === 0 ? result : landed[misses.indexOf(Math.min(...misses))].result;
+	return nearest(landed, result);
 }

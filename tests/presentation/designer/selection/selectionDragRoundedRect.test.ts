@@ -62,10 +62,11 @@ describe('a box-handle drag of a rounded rectangle', () => {
 		expect(cornerRadiusOf(detail)).toBe(99);
 	});
 
-	it('solves the box as any curved graphic once no whole-millimetre radius fits it, refusing what the typed path refuses (Task 13)', () => {
-		// 2 x 2: typed Width 2 lands its nearest, 62.3; typed Depth 2 then lands 2 with the width at 0.42; and a
-		// typed Width 2 on THAT crosses the kept arcs — the third pass `scaleDesignToDimensions` also takes.
-		expect(expectErr(dragHandle(4, BR, { x: -478, y: -268 })).code).toBe('asset.invalid-detail');
+	it('scales as before once no whole-millimetre radius fits and the solved box is refused (Task 13)', () => {
+		// 2 x 2: the solve's three passes land, but the ~2 mm result moved back onto its fixed corner is refused
+		// (its kept arcs read as meeting), so the drag commits the plain scale it always did rather than a notice.
+		const to = { x: -478, y: -268 };
+		expect(expectOk(dragHandle(4, BR, to))).toEqual(scaledAsToday(SHAPE, ROUNDED, 4, to));
 	});
 
 	it('still refuses a handle dragged past the fixed side', () => {

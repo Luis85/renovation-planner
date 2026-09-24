@@ -1,7 +1,7 @@
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import type { Point } from '../../../core/geometry/Point';
-import { boxResize } from '../../../core/geometry/boxHandles';
+import { boxHandlePoint, boxResize } from '../../../core/geometry/boxHandles';
 import { boundingBoxOf } from '../../../core/geometry/operations';
 import type { ValidationError } from '../../../core/errors/AppError';
 import { err, isErr, ok, unwrap, type Result } from '../../../core/result/Result';
@@ -21,6 +21,8 @@ import {
 import { isOutlineSelection, type DesignerSelection } from './designerSelection';
 import { partMeasure, resizeToExtent, type PartBox } from './partExtent';
 import type { HandleRole } from './handles';
+
+type BoxResize = ReturnType<typeof boxResize>;
 
 /** A body drag, or a handle. An `edge` handle is Bend edges', which `CurveTool` drives, so it is not a role here. */
 export type DragRole = { readonly kind: 'body' } | Exclude<HandleRole, { readonly kind: 'edge' }>;
@@ -45,9 +47,9 @@ function boxOf(shape: AssetShape, part: OutlinePart): Result<BoundingBox, Valida
 	return outline === null ? err(partNotFound(part)) : ok(unwrap(boundingBoxOf(outline)));
 }
 
-/** How far the solved part must move along one axis so the side the handle holds still is back where it was. */
-function held(factor: number, fixed: number, min: number, centre: number, extent: number): number {
-	if (factor === 1) return 0;
+/** How far the solved part must move along one axis the handle moves, so the side it holds still is back where it was. */
+function held(moves: boolean, fixed: number, min: number, centre: number, extent: number): number {
+	if (!moves) return 0;
 	return fixed - (fixed === min ? centre - extent / 2 : centre + extent / 2);
 }
 
@@ -59,32 +61,54 @@ function held(factor: number, fixed: number, min: number, centre: number, extent
  * bulge, so an arc whose chord a scale leaves alone keeps its whole sagitta (`scaleSolve.ts`).
  *
  * A corner drag solves width, depth, width, as `scaleDesignToDimensions` does and for its reason: the axes are
- * coupled through any arc whose chord is not axis-aligned. An axis the handle does not move is not solved.
+ * coupled through any arc whose chord is not axis-aligned. Which axes are solved is the HANDLE's, not the
+ * factors': a corner moved straight up has `sx` of exactly 1 — a snapped pointer makes that ordinary — and a
+ * coupled outline still needs its width solved back and its corner held. A side handle solves its one axis.
+ *
+ * A refusal comes back as it is; `keptCurves` turns it into the plain scale.
  *
  * ponytail: up to three `solveScale` runs of at most four attempts each, so twelve `resizeBox` calls per
  * pointer move at worst (four for a side handle); bounded, and cheap beside a render.
  */
 function fittedResize(
 	shape: AssetShape,
-	part: Extract<OutlinePart, { readonly kind: 'detail' }>,
+	part: Exclude<OutlinePart, { readonly kind: 'clearance' }>,
 	box: BoundingBox,
-	factors: { readonly sx: number; readonly sy: number },
-	origin: Point,
+	index: number,
+	{ factors, origin }: BoxResize,
 ): Result<AssetShape, ValidationError> {
+	const handle = boxHandlePoint(box, index);
+	const moves = { x: handle.x !== origin.x, y: handle.y !== origin.y };
 	const width = { axis: 'width', target: (box.max.x - box.min.x) * factors.sx } as const;
 	const depth = { axis: 'depth', target: (box.max.y - box.min.y) * factors.sy } as const;
-	const passes = factors.sx === 1 ? [depth] : factors.sy === 1 ? [width] : [width, depth, width];
-	let solved: Result<AssetShape, ValidationError> = ok(shape);
+	const passes = !moves.x ? [depth] : !moves.y ? [width] : [width, depth, width];
+	let solved = shape;
 	for (const pass of passes) {
-		solved = resizeToExtent(unwrap(solved), part, pass.axis, pass.target);
-		if (isErr(solved)) return solved;
+		const next = resizeToExtent(solved, part, pass.axis, pass.target);
+		if (isErr(next)) return next;
+		solved = next.value;
 	}
 	// The part is there: `resizeToExtent` just answered it.
-	const got = partMeasure(unwrap(solved), part) as PartBox;
-	return moveOutline(unwrap(solved), part, {
-		dx: held(factors.sx, origin.x, box.min.x, got.centre.x, got.width),
-		dy: held(factors.sy, origin.y, box.min.y, got.centre.y, got.depth),
+	const got = partMeasure(solved, part) as PartBox;
+	return moveOutline(solved, part, {
+		dx: held(moves.x, origin.x, box.min.x, got.centre.x, got.width),
+		dy: held(moves.y, origin.y, box.min.y, got.centre.y, got.depth),
 	});
+}
+
+/**
+ * What a box handle writes WITHOUT Shift where it differs from the plain scale: a rounded rectangle rebuilt
+ * (`scaleRoundedRect`), or a curved outline other than the clearance solved (`fittedResize`) — or `null`,
+ * which `draggedShape` answers with the plain scale. A refused solve is `null` too.
+ */
+function keptCurves(shape: AssetShape, part: OutlinePart, box: BoundingBox, index: number, resize: BoxResize): Result<AssetShape, ValidationError> | null {
+	const rounded = part.kind === 'detail' ? scaleRoundedRect(shape, part.id, resize.factors, resize.origin) : null;
+	if (rounded !== null) return rounded;
+	// The outline is there: `boxOf` just measured it.
+	const arcs = (outlineOf(shape, part) as CurvedPolygon).bulges ?? [];
+	if (part.kind === 'clearance' || !arcs.some((bulge) => bulge !== 0)) return null;
+	const fitted = fittedResize(shape, part, box, index, resize);
+	return fitted.ok ? fitted : null;
 }
 
 /**
@@ -101,12 +125,17 @@ function fittedResize(
  * typed path does not keep that one's radius either. Shift is left out: a proportional scale keeps the
  * outline a rounded rectangle already, with the radius scaled by the same factor, as it always has.
  *
- * **A box handle on any other graphic with an arc solves its extent** (AD18-R20 Task 13, `fittedResize`) —
- * which now includes a rounded rectangle `scaleRoundedRect` declines — so the side opposite the handle stays
- * put and the curve-aware box lands where the pointer asks, or as near as a typed size would. Shift, straight
- * graphics, the footprint and the clearance still take the plain scale; a uniform scale keeps every arc.
- * A handle dragged past the fixed side asks for a non-positive extent, which the solve's first factor carries to
- * `resizeBox` and `invalid-scale`, as before.
+ * **A box handle on any other graphic with an arc, or on a curved footprint, solves its extent** (AD18-R20
+ * Task 13, `fittedResize`) — which now includes a rounded rectangle `scaleRoundedRect` declines — so the side
+ * opposite the handle stays put and the curve-aware box lands where the pointer asks, or as near as a typed size
+ * would. The footprint's typed Width and Depth already solve through `resizeToExtent`, and a handle on it
+ * touches neither the clearance nor its review flag (that is `scaleDesign`'s, the whole-design path).
+ * **The CLEARANCE keeps the plain scale**, deliberately: C07 governs how a clearance is resized, and this task
+ * changes none of it. Shift and straight outlines keep it too; a uniform scale keeps every arc.
+ * **A solve that is refused falls back to the plain scale**, so a release never turns into a notice where it
+ * used to commit: measured on a 1000 x 600 rounded rectangle dragged to 2 x 2, the three passes land, and it is
+ * the final translation's re-validation that refuses the ~2 mm result (its arcs read as meeting). A handle
+ * dragged past the fixed side is refused by that same plain scale, as `invalid-scale`, exactly as before.
  */
 export function draggedShape(start: DragStart, to: Point, options: DragOptions): Result<AssetShape, ValidationError> {
 	const { shape, selection, role, from } = start;
@@ -122,13 +151,9 @@ export function draggedShape(start: DragStart, to: Point, options: DragOptions):
 	const box = boxOf(shape, selection);
 	if (isErr(box)) return box;
 	if (role.kind === 'box') {
-		const { factors, origin } = boxResize(box.value, role.index, to, options.shift);
-		const rounded = selection.kind === 'detail' && !options.shift ? scaleRoundedRect(shape, selection.id, factors, origin) : null;
-		if (rounded !== null) return rounded;
-		// The outline is there: `boxOf` just measured it.
-		const arcs = (outlineOf(shape, selection) as CurvedPolygon).bulges ?? [];
-		const curved = selection.kind === 'detail' && !options.shift && arcs.some((bulge) => bulge !== 0);
-		return curved ? fittedResize(shape, selection, box.value, factors, origin) : resizeBox(shape, selection, factors, origin);
+		const resize = boxResize(box.value, role.index, to, options.shift);
+		const kept = options.shift ? null : keptCurves(shape, selection, box.value, role.index, resize);
+		return kept ?? resizeBox(shape, selection, resize.factors, resize.origin);
 	}
 	const centre = { x: (box.value.min.x + box.value.max.x) / 2, y: (box.value.min.y + box.value.max.y) / 2 };
 	const by = Math.atan2(to.y - centre.y, to.x - centre.x) - Math.atan2(from.y - centre.y, from.x - centre.x);

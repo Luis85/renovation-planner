@@ -110,7 +110,8 @@ export function resizeRoundedRect(shape: AssetShape, id: string, axis: 'width' |
  *
  * `null` means "not mine", as there: no such rounded rectangle, or no whole-millimetre radius fits the new
  * box — which includes a factor of zero or below, since a non-positive side leaves no radius over 0. The
- * caller (`draggedShape`) then scales as it always has, and `resizeBox` refuses the bad factor.
+ * caller (`draggedShape`) then solves it as any curved graphic (AD18-R20 Task 13), and `resizeBox` refuses the
+ * bad factor.
  */
 export function scaleRoundedRect(
 	shape: AssetShape,

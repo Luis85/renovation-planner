@@ -74,6 +74,30 @@ describe('a box-handle drag of a graphic with arcs', () => {
 		expect(resized.centre.y + resized.depth / 2).toBeCloseTo(100, MM);
 	});
 
+	it('keeps the opposite corner from a corner moved straight up, solving both axes of a coupled outline', () => {
+		// The same corner handle with x unmoved: sx is exactly 1 (a snapped pointer makes that likely), but the
+		// handle still owns the x axis — a depth solve about the centre widens a circle, and only a width pass
+		// and the corner's own x brings it back.
+		const shape = editableShape();
+		const bowl: OutlinePart = { kind: 'detail', id: 'detail-2' };
+		const resized = box(expectOk(dragHandle(shape, bowl, 0, { x: 150, y: -100 }, { x: 150, y: -150 })), bowl);
+		expect(resized.width).toBeCloseTo(200, MM);
+		expect(resized.centre.x + resized.width / 2).toBeCloseTo(350, MM);
+		expect(resized.depth).toBeCloseTo(250, MM);
+	});
+
+	it('solves the footprint too, keeping its back where it was', () => {
+		// The toilet's footprint is y -350..350 with a semicircular front of radius 190 that keeps its reach under a
+		// plain depth scale, so its bottom-middle handle (5) dragged from (0, 350) to (0, 300) used to land 313.57.
+		const shape = toiletShape();
+		const footprint: OutlinePart = { kind: 'footprint' };
+		const resized = box(expectOk(dragHandle(shape, footprint, 5, { x: 0, y: 350 }, { x: 0, y: 300 })), footprint);
+		expect(resized.depth).toBeCloseTo(650, MM);
+		expect(resized.centre.y - resized.depth / 2).toBeCloseTo(-350, MM);
+	});
+
+	// Of the two translations this case guards only the y one (a mutation dropping it turns this red); the
+	// stadium's depth is linear in a y-scale, so the plain scale passed it too.
 	it('keeps the top side from a bottom drag', () => {
 		// The bottom-middle handle (5) from (0, 171) to (0, 271): 370 deep, with the top held at -99.
 		const resized = box(expectOk(dragHandle(BASIN_SHAPE, BASIN, 5, { x: 0, y: 171 }, { x: 0, y: 271 })), BASIN);
@@ -101,13 +125,13 @@ describe('a box-handle drag this does not change', () => {
 		expect(expectOk(dragHandle(BASIN_SHAPE, BASIN, 3, RIGHT, to, shift))).toEqual(scaledAsToday(BASIN_SHAPE, BASIN, 3, to, true));
 	});
 
-	it('scales a curved footprint exactly as before', () => {
-		// The toilet's footprint is y -350..350 with a semicircular front of radius 190, so its bottom-middle
-		// handle (5) is on (0, 350) — and a depth drag is one a plain ratio misses, since that arc keeps its reach.
-		const shape = toiletShape();
-		const footprint: OutlinePart = { kind: 'footprint' };
-		const to = { x: 0, y: 300 };
-		expect(expectOk(dragHandle(shape, footprint, 5, { x: 0, y: 350 }, to))).toEqual(scaledAsToday(shape, footprint, 5, to));
+	it('scales a curved clearance exactly as before, since C07 governs it', () => {
+		// A stadium clearance about (0, 200), x -1100..1100, whose ends of radius 600 keep their reach under a plain
+		// width scale: its right handle (3) to x 1000 is a drag a solve would land differently, so one would show here.
+		const shape = editableShape({ clearance: stadium(2200, 1200, 0, 200) });
+		const clearance: OutlinePart = { kind: 'clearance' };
+		const to = { x: 1000, y: 200 };
+		expect(expectOk(dragHandle(shape, clearance, 3, { x: 1100, y: 200 }, to))).toEqual(scaledAsToday(shape, clearance, 3, to));
 	});
 });
 
@@ -124,6 +148,7 @@ describe('the select tool dragging a curved graphic’s handle', () => {
 		expect(rig.written).toHaveLength(1);
 		const committed = expectDefined(rig.written[0], 'write').shape;
 		expect(minX(box(committed, BASIN))).toBeCloseTo(-180, MM);
+		// This one cannot fail while the tool hands `draggedShape` one value for both; it pins that wiring.
 		expect(rig.previews.filter((preview) => preview !== null).at(-1)).toEqual(committed);
 	});
 });

@@ -1576,6 +1576,22 @@ The work plan is [`reports/AD18-polish-round-plan.md`](../reports/AD18-polish-ro
 - **The Hide and Lock glyphs show the CURRENT state**, following the Plan Editor's `ZoneLockToggle` and
   `LayerRow`. The accessible name and tooltip say the action. An action glyph was declined.
 
+**AD18-R20, R21 and R22 delivered 2026-09-24.** The grouping bug was root-caused in the harness with real
+mouse events and fixed first (b261b1866, 22c1319eb), with a test over the real write path watched red
+against each fault. Then fourteen tasks ran subagent-driven, each independently reviewed and measured
+in Chromium by the integrator. Nine of them needed fix rounds; five of those rounds came from the
+integrator's own browser measurements. Task 5's labels took four rounds after a reviewer's probe of
+77,964 modelled frames. Two tasks were added mid-round: Task 13, a handle resize of curved geometry
+that moved its fixed side (a pre-existing defect found while measuring Task 4), and Task 14 (AD18-R22).
+A whole-round review found two Importants, both fixed in a fix wave. **CI GREEN on `e83202e09`, run
+`36020948497`**, `verify` ×4 plus `audit`, read by run id, with no red run this session. The manual pass
+grew from 182 to **215 steps**, re-derived by the integrator and by an independent reviewer, including a
+successful Group from every door at the new resting Select and with Pan chosen. Recorded, not fixed:
+a hidden clearance swapped by undo, redo or a peer stays hidden; the rulers' band and Shift+2 follow a
+hidden selected part; an overall label on a 280–360 px canvas may keep its anchor on a handle; arrows on
+a hidden part are consumed but do nothing (the Plan Editor's arrow door); the Plan Editor's
+`ZoneLockToggle` has the same name-plus-`aria-pressed` contradiction the designer's part controls had.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

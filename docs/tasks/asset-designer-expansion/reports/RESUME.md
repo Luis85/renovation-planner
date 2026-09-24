@@ -1,6 +1,6 @@
-# RESUME — session sixteen's hand-off, for the manual-walk session
+# RESUME — session seventeen's hand-off, for the manual-walk session
 
-**Rewritten 2026-09-24, replacing session fourteen's packet wholesale.** An appended hand-off goes
+**Rewritten 2026-09-24, replacing session sixteen's packet wholesale.** An appended hand-off goes
 stale in a way its reader cannot detect.
 
 Branch `renovation-planner-asset-designer-bc5539`, worktree
@@ -11,165 +11,123 @@ ready, tags it or publishes it without asking the user.**
 | | |
 |---|---|
 | HEAD | **A hand-off cannot name its own sha.** Confirm it yourself: `gh run list --branch renovation-planner-asset-designer-bc5539 --limit 1 --json databaseId,headSha,status`, then `gh run view <id> --json status,conclusion,jobs`. The tree was clean and pushed when this was written |
-| Last sha confirmed green | **`16c00093a`**, run [`35936599580`](https://github.com/Luis85/renovation-planner/actions/runs/35936599580) attempt 2, `verify` ×4 plus `audit`, all success. It carries every `src/`, `styles/` and test change of this round. Read it by run id: `git diff --name-only 16c00093a..HEAD` should show only `docs/` files |
-| `origin/main` | Merged into the branch mid-session at `0d9cdb142`, which brought main's `126f79589`: the `tests/build` → `tests/gates` rename, vitest 5 and fallow 3.26. Fetch and check `git merge-base HEAD origin/main` before assuming nothing has moved since |
+| Last sha confirmed green | **`e83202e09`**, run [`36020948497`](https://github.com/Luis85/renovation-planner/actions/runs/36020948497), `verify` ×4 plus `audit`, all success. It carries every `src/`, `styles/` and test change of this round. `git diff --name-only e83202e09..HEAD` should show only `docs/` files |
+| `origin/main` | Last merged at `0d9cdb142` (it brought main's `126f79589`). `git merge-base HEAD origin/main` was `126f79589` on 2026-09-24. Fetch and check again before assuming nothing has moved |
 
 ## The next session's job: the manual vault walk
 
-**Everything agent-closable in this package is done.** What is left is the deferred terminal pass,
-which a person does in a real Obsidian vault (`npm run test-build` builds into this repository,
-which IS a vault).
+Nothing agent-closable is open in this package. What is left is the deferred terminal pass, which a
+person does in a real Obsidian vault (`npm run test-build` builds into this repository, which IS a
+vault).
 
-- **The index is [`MANUAL-PASS.md`](MANUAL-PASS.md): 182 human steps across seven cases.** It went
-  from 145 to 182 this session. **Do not trust that number: run the command the index prints.** Last
-  run, it gave `Design an Asset 82 · Take an asset from the library into a plan 19 · Compose an asset
-  from parts 3 · Calibrate a sheet and reserve space 20 · Recover an asset design rather than lose it
-  33 · Two designers on one asset 8 · Browse the asset library 17`.
-- `Browse the asset library` is **newly counted**, because the Library Grid (AD18-R18) is the first
-  change this package has made to it. `Notices and save state.md` had four rows rewritten for the
-  relative save time and is **not** in the count, because it is a Plan Editor case.
-- **A walk decides nothing on its own.** A step that fails against correct code is a step to fix, and
-  a step that passes a defect is worse. Every expectation added this session was checked against
-  source by an independent reviewer, but a reviewer of text is not a vault.
+- **The index is [`MANUAL-PASS.md`](MANUAL-PASS.md): 215 human steps across seven cases.** Do not
+  trust that number: run the command the index prints.
+- **Start with grouping.** It is the one defect a user hit in a real vault (below), and the steps for it
+  in `Compose an asset from parts` walk every door, at the resting Select and with Pan chosen.
+- **A walk decides nothing on its own.** A step that fails against correct code is a step to fix, and a
+  step that passes a defect is worse. Every expectation added this session was checked against source by
+  an independent reviewer, but a reviewer of text is not a vault.
 
-## What this session shipped (rulings AD18-R17, R18, R19)
+## What this session shipped (rulings AD18-R20, R21, R22)
 
-A fresh audit of the harness against both concept boards, at 1280 and 460 px in both themes. It was
-put to the user in two batched rounds: **fifteen of sixteen gaps were approved and `Preview in plan`
-was declined**. Then eleven tasks, each implemented and independently reviewed, a final whole-round
-review, and a fix wave. The plan is [`AD18-parity-round-2-plan.md`](AD18-parity-round-2-plan.md).
+**The reported bug: grouping from the right-click menu did nothing, in a vault (AD18-R20).** Nothing in
+this repository had ever observed a successful Group from the resting state: every group test clicked
+Select first. Two faults, both root-caused in the harness with real mouse events and fixed:
+- the designer rested in camera mode (Pan), where the menu and every selection key refused silently;
+- a Parts row always replaced the selection, so Shift and `Select multiple parts` built no set.
 
-- **Three AD18-R16 defects the audit found**, fixed without a ruling:
-  - the Placement `Custom` label broke mid-word at 1280;
-  - the asset-card thumbnail drew a 0.07 px stroke;
-  - resting dimension labels overlapped in 5 pairs at 460.
-- **Toolbar:** icon-only at every width (one row at 1280 with a part selected, down from two), with
-  magnifier zoom icons.
-- **Context menu:** one separator. Group, Ungroup, Duplicate and Delete keys now work from any
-  **selected** Parts row, never while typing.
-- **Group re-nesting bug fixed:** group and detail ids are recycled, so a regrouped id used to be
-  born collapsed (and a new graphic born hidden). Collapse, hide and lock state is now pruned for
-  every id the design no longer has.
-- **Selection inspector:**
-  - a rounded rectangle **keeps its radius through a typed Width/Depth**, in the Inspector AND on a
-    canvas dimension label;
-  - a radius slider;
-  - paired Position X|Y and Size W|D rows;
-  - `Appearance` and `Order` folds;
-  - a gap between number and unit on every field.
-- **Front-direction picker** (Top, Right, Bottom, Left, plus a disabled `Custom`) with a mini preview,
-  and a read-only **Source & scale** block ("Authored in millimetres", "Dimensions set").
-- **Canvas key:**
-  - a scale bar under the legend;
-  - legend detail `Clearance (N mm)`, shown ONLY when all four sides are equal;
-  - `Placement point (back centre | centre | custom)`;
-  - the legend follows the drag preview.
-- **Clearance:**
-  - a `Show clearance` switch. Off hides the layer, presses on it, its right-click menu and its legend
-    row, but Shift+1 fit still includes it;
-  - an `All sides` field and an `Advanced` fold;
-  - tracing a clearance, applying a preset or pressing Generate re-shows it.
-- **Dimension lines:** arrows and extension lines. The overall width and depth stand OUTSIDE the
-  footprint wherever the canvas has room, labels carry `mm`, there are zero resting overlaps at
-  1280/760/580/460, and labels paint above the key.
-- **Relative save time on BOTH surfaces** (AD18-R19): `Saved just now`, then `Saved N min ago`, then
-  `Saved at HH:MM`. A screen reader hears `Saved` only.
-- **Library Grid view BESIDE List** (AD18-R18):
-  - List stays the default;
-  - a category sidebar (all declared categories) that filters both views;
-  - a funnel button, a `Create your own` card, a filter-aware count and empty state, and aria-label
-    tooltips;
-  - Amendment 7 to the library DESIGN-SPEC.
-- **Harness knobs:** `?view=asset-designer&preset=<id>&stale` and `?view=asset-library&layout=grid`,
-  with harness-shot entries and an axe scan over the Grid.
+The menu and keys now work under Pan too, Parts rows extend with Shift or the toggle, and (the user's
+ruling) **the designer now opens with Select active**.
 
-**Carved OUT by AD18-R17, as they would need a stored field or a schema change:** the `Shape` dropdown,
-`Show direction in plan` and `Mark as needs verification`. **Declined:** `Preview in plan`.
+**Also under AD18-R20 (defects, no ruling):**
+- a clearance re-shows when a read-back brings it back (redo, undo of a removal, a peer's write);
+- a selected part that is not drawn (hidden clearance, Parts-hidden graphic) draws no outline or handles,
+  and no press hits them;
+- a handle resize of any curved graphic or curved footprint keeps the opposite side fixed and lands the
+  typed path's size (the vanity basin used to move its fixed edge and miss the pointer);
+- focus rings on the designer's selects and checkboxes; left-aligned Library tile names; duplicated test
+  helpers moved to `tests/helpers/`.
+
+**AD18-R21 (nine polish items, approved in one round):**
+- a handle resize keeps a rounded rectangle's radius;
+- a designer canvas focus ring, clear of the rulers on all four sides;
+- a small drawing (footprint under 240 px across) rests with the overall width and depth only;
+  resting labels keep off the selected part's handles, and an overall label never lands on the drawing;
+- the five selects styled like the designer's inputs;
+- checkbox label rows at least 24 px tall;
+- the Parts row's controls as one row of icon buttons;
+- Add-rail shape tiles at one height (`grid-auto-rows: 1fr`, so German's taller labels stay equal);
+- a category icon on a Library tile with no design;
+- a save from an earlier day says which day, on both surfaces.
+
+**Declined:** one term for the placement point (`Anchor` / `Placement point` both stay).
+
+**AD18-R22 (four questions from the whole-round review):**
+- a hidden but selected part refuses the selection keys and menu (the Inspector's buttons still act);
+- the Parts-row icon buttons wrap at a 580 px leaf (the rail is 128 px there);
+- 0 mm offsets keep resting;
+- the Hide and Lock glyphs show the current state (the Plan Editor's convention).
+
+The plan is [`AD18-polish-round-plan.md`](AD18-polish-round-plan.md).
 
 ## Known behaviour: the walk must NOT file these as new defects
 
-Each is written into the manual pass as known behaviour, or as a "record what you see" step:
-
-- **A canvas HANDLE resize of a rounded rectangle still drops its radius.** Typed edits keep it; the
-  handle drag previews a non-uniform scale. This is an open item, deliberately outside AD18-R17.
-- **A clearance comes back hidden** after a redo, an undo of its removal, or an external refresh while
-  `Show clearance` is off. Switching it off mid-trace also keeps the commit hidden.
-- **A hidden but selected clearance keeps its selection outline and handles**, and a handle drag
-  still resizes it.
-- **A hidden part that is deleted and then undone comes back visible.** Hiding is leaf-local view
-  state.
-- **`Saved at HH:MM` carries no date**, so past midnight it reads as today.
-- **On Windows, arrow keys on a closed `<select>`** fire one edit per step. This applies to the front
-  picker and every house select.
-- **Dimension labels may travel up to about 133 px** from what they measure when crowded, measured by
-  model. Judge on screen whether one still reads as attached.
-- **At the zoomed-out default camera**, the overall depth label touches detail-1's width. The floor is
-  set at the fit camera.
+- **A hidden clearance SWAPPED for a new one** by undo, redo or a peer's write while `Show clearance` is
+  off stays hidden. Only an absent-to-present read-back re-shows it.
+- **An overall dimension label may slide along its own line, even past the line's end.** The line runs
+  on into it. It does this to keep off a handle, usually the rotate handle under the ruler (toilet
+  preset, footprint selected, 1280 leaf). Judge on screen whether it reads as attached (AD18-R14).
+- **On canvases about 280 to 360 px wide, an overall label may keep its anchor ON a handle** when no slot
+  along or outside its line is free. That handle may then be unreachable. Modelled, 205 of 77,964 frames.
+- **The rulers' selection band and Shift+2 framing still follow a hidden selected part.**
+- **The Parts-row icon buttons wrap onto two lines at a 580 px leaf** (AD18-R22).
+- **0 mm offset labels rest** (AD18-R22).
+- **A curved clearance's handle drag is still a plain scale** (C07 governs it).
+- **At the 760 and 580 leaves the overall depth label straddles the footprint's left edge.** It did before
+  this round too: there is no room beside the ruler.
+- Carried over from session sixteen and still true: `Saved at HH:MM` (same day) carries no date; on
+  Windows, arrow keys on a closed `<select>` fire one edit per step; at the zoomed-out default camera the
+  overall depth label can touch detail-1's width.
 
 ## Things only the walk can settle (no gate here can)
 
-- **How the bare `<select>`s look in a themed vault.** The harness sheet styles none.
-- **Screen-reader silence on the save indicator's minute tick** (NVDA or VoiceOver), and that the
-  designer header announces only `Saved`.
-- **Group focus after a successful Group from a Parts row.** The harness refuses every write, so it
-  was never observed.
-- **The two-line tile-name clamp and the 460 px toolbar** in a real theme.
-- **Obsidian's own Ctrl+G** (graph view) against the designer's Group key.
+- **Obsidian's own Ctrl+G (graph view) against the designer's Group key**, with something groupable and
+  without, and with the focused part hidden. Written as observe-and-record.
+- **Focus after a Group from a Parts row**: from the menu it lands on the canvas once the write drops it;
+  after Ctrl+G on a row it follows the panel's own rule. Neither is exercised by a real write in any test.
+- **How the styled selects, the icon row, the 24 px rows and the canvas ring look in a themed vault.** The
+  harness stylesheet is a reduction of Obsidian's.
+- **Screen-reader output** for the icon buttons (the swapping name, no `aria-pressed`) and for the save
+  indicator (`Saved` only).
 
-## Still open, recorded rather than fixed
+## CI, the browser, and this machine
 
-These come from the final review's triage; none blocks the walk:
+Every task was pushed and read **by run id**. No red this session. The Windows leg on
+`tests/gates/network-boundary.test.ts` (a 5000 ms timeout) remains a known flake: `gh run rerun <id> --failed`.
 
-- the `setTool` wrapper checks the requested tool id, not the tool that actually became active;
-- the prune watcher could be `flush: 'sync'`;
-- duplicated test helpers (`handed()`, `rightClick`, `VAULT_FAILED`), which fallow cannot see between
-  test files;
-- `DesignerSelectionInspector.vue` is at 403 raw lines and `dimensionFigures.ts` holds three placement
-  rules;
-- the German `Ankerpunkt` / `Platzierungspunkt` split predates this round;
-- the `shape === null` arms in the clearance helper may be unreachable;
-- `AssetLibraryContext.browse` is optional only for a test helper.
+**The headless browser changed mid-session.** Another session updated the shared `node_modules` to
+playwright-core 1.62.1, which pins Chromium build 1234; only build 1223 is installed under
+`D:\dev-cache\playwright`. Captures after that point used `RP_CHROMIUM_EXECUTABLE=D:/dev-cache/playwright/chromium-1223/chrome-win64/chrome.exe`,
+which the script announces as approximate. `npx playwright install chromium` would fetch the pinned build;
+it is a download, so ask the user first.
 
-The full ledger is `.superpowers/sdd/progress.md` (gitignored, in this worktree).
-
-## CI, and one flake worth knowing
-
-Every task was pushed and read **by run id**, never by `gh run watch`'s exit code. Once, the Windows
-leg alone went red on `tests/gates/network-boundary.test.ts` ("does not reach a repository outside the
-two directories", a 5000 ms timeout). That is a main-owned gate that boots ESLint, and the commit it
-failed on changed only comments. `gh run rerun <id> --failed` is the remedy, as CLAUDE.md's
-ESLint-boot note predicts. **A red Windows leg on that file is not evidence about the change under
-it.**
-
-The one real red this round was **fallow health**: a template's cognitive complexity went to 16, over
-the threshold. In fallow's output, the `Failed:` line and the `N above threshold` count are the gate.
-The duplication `✗` and the "start with <file>" hint are not.
-
-## This machine
-
-7.8 GB RAM, **shared**. Check WHAT node processes are running before starting anything; the Codex
-`cua_node` processes are not ours.
+7.8 GB RAM, **shared**. The designer suite ran up to five times slower under load this session, and a
+worker-start timeout once turned a fully green run into exit 1. Re-run the named file alone before
+believing it.
 
 - Prefix every node-spawning command with `export TEMP=D:/tmp-claude TMP=D:/tmp-claude`.
-- The harness (`preview_start "harness"`) must be **restarted after a card creates a new file**,
-  because Vite caches a failed import resolve. A cold start takes 60–90 s before `.rp-plan-canvas`
-  exists, so probes must wait for it and throw when a selector misses.
-- The browser pane's screenshots time out when the window is hidden. Measure with
-  `getBoundingClientRect` through `javascript_tool`. For a multi-selection or a save, drive the Pinia
-  store: `document.querySelector('.renovation-asset-designer-view').__vue_app__.config.globalProperties.$pinia._s.get('assetDesign' | 'rp-save-state')`.
-- **Never `git stash`.** The stack is shared across sessions.
-- When two agents share this worktree, each stages **by explicit path only**.
+- The harness (`preview_start "harness"`) must be **restarted after a card creates a new file**, because
+  Vite caches a failed import resolve.
+- The browser pane's screenshots time out while the window is hidden. `resize_window` to a fixed size
+  first, then screenshot, or measure with `getBoundingClientRect` through `javascript_tool`. A headless
+  Playwright script against the running harness is the most reliable instrument.
+- **Never `git stash`.** When two agents share this worktree, each stages **by explicit path only**.
 
 ## The rule this session paid for
 
-**The integrator's browser measurement overturned a card's premise four times.**
-- "There is no room outside the footprint": there were 30 px.
-- A 40 px preview "works": it could not be read.
-- Tile names "fit": three overflowed on Obsidian's `button { white-space: nowrap }`.
-- "The sidebar is hidden only by width": it is hidden in List at any width.
-
-**The reviews overturned a card's own tests twice.**
-- A sweep that tested anchors the component no longer produced.
-- A focus assertion that could not fail.
-
-In every case the gates were green. **Measure what draws, and ask whether the test tests what ships.**
+**Measure the selection the reviewer will probe, not the one you happened to pick.** The integrator
+measured Task 5's labels with the basin selected and nothing selected, and called it clean. The reviewer's
+probe then selected the footprint and found the overall width inside the drawing in 9,050 of 77,964
+frames. Four fix rounds followed, each one measured before it was accepted. The same pattern held for the
+canvas ring: it was accepted on two sides, then on the wrong offset, and only a screenshot of all four
+edges settled it.

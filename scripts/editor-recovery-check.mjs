@@ -117,7 +117,7 @@ async function largeFloor(page, scenario, out) {
  // Counted on the stage after usableMs: that window ends at the canvas attaching and does not wait for the reference, which may or may not have drawn by then.
  try {
   await page.waitForFunction(() => { const drawn = window.planningRecovery.structure()[0]; return drawn?.walls > 0 && drawn.openings > 0 && drawn.reference !== null; });
- } catch { /* the deepEqual below names which of walls, openings or the reference is missing */ }
+ } catch (error) { if (error?.name !== 'TimeoutError') throw error; /* the deepEqual below names which of walls, openings or the reference is missing */ }
  const { walls, openings, reference } = await page.evaluate(() => window.planningRecovery.structure()[0]), expected = { walls: 320, openings: 160, reference: { width: 2400, height: 1800 } };
  assert.deepEqual({ walls, openings, reference }, expected, 'the large floor draws every seeded wall and opening and the 2400 × 1800 reference');
  assert.deepEqual({ walls: fixture.walls, openings: fixture.openings, reference: fixture.reference }, expected, 'seedLarge reports what the stage draws');

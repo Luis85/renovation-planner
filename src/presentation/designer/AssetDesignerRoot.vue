@@ -61,6 +61,7 @@ import DesignerPartsPanel from './parts/DesignerPartsPanel.vue';
 import DesignerEntryPaths from './DesignerEntryPaths.vue';
 import DesignerContextMenu from './DesignerContextMenu.vue';
 import { useDesignerContextMenu } from './designerMenu';
+import { editorHistoryShortcut } from '../editor/surface/historyShortcut';
 import AssetPresetForm from './presets/AssetPresetForm.vue';
 import { useViewPreferences } from '../editor/shell/useViewPreferences';
 import { STAGE_PIXELS, worldPerScreenPixel } from '../editor/viewport/Viewport';
@@ -570,6 +571,26 @@ function onCanvasKeyDown(event: KeyboardEvent): void {
 	designerShortcut(event, designStore, keyActions, runtime);
 }
 
+/**
+ * Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y (Cmd on macOS) over this leaf's history, through the Plan Editor's
+ * own `editorHistoryShortcut` (contract C12) — which owns the chord, a focused field's native undo, a
+ * dialog's keys, autorepeat and the mid-gesture refusal. Bound CAPTURE on the root, as `PlanEditorRoot`
+ * binds it, so the canvas, the Parts rows, the Inspector and the toolbar all reach it and a descendant's
+ * `@keydown.stop` (a dimension label's form) does not hide it. A claimed chord goes no further, so
+ * `contextMenu.key` and the canvas's own keys below it never see one.
+ *
+ * `gesture` is the toolbar's `blocked()`: a tool's press still held, or a camera pan. `writesBlocked` is
+ * `false` because this surface blocks no write — `runtime.ts`'s `writesBlocked: () => false` carries why
+ * (AD18-R13); the toolbar's Undo and Redo gate on `canUndo`/`canRedo` alone as well.
+ * `modal` is a `DialogHost` dialog. The host is the root's last child, a sibling of the regions rather than
+ * nested in one: it makes its parent's OTHER children inert while a dialog is open, so every region has to
+ * be a sibling of it for the background to actually go inert.
+ */
+const history = { ...runtime, writesBlocked: ref(false) };
+function onRootKeydown(event: KeyboardEvent): void {
+	editorHistoryShortcut(event, history, { modal: dialogs.current !== null, gesture: runtime.toolManager.gestureInFlight || editorStore.dragState !== null });
+}
+
 onMounted(() => {
 	void runtime.hydrate();
 });
@@ -579,6 +600,7 @@ onMounted(() => {
 	<div
 		class="renovation-asset-designer"
 		@contextmenu="contextMenu.context"
+		@keydown.capture="onRootKeydown"
 		@keydown="contextMenu.key"
 		@pointerdown.capture="contextMenu.outside"
 		@focusout="contextMenu.leave"
@@ -791,11 +813,7 @@ onMounted(() => {
 				class="rp-designer-grid-step"
 			>{{ tr('designer.status.grid', { step: String(gridStep) }) }}</span>
 		</div>
-		<!--
-			Last child, and a sibling of the regions rather than nested in one: the host makes
-			its parent's OTHER children inert while a dialog is open, so every region has to be
-			a sibling of it for the background to actually go inert.
-		-->
+		<!-- Last child, a sibling of the regions: `onRootKeydown`'s docblock carries why. -->
 		<DesignerContextMenu :menu="contextMenu" />
 		<DialogHost />
 	</div>

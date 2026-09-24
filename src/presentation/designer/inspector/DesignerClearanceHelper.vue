@@ -37,10 +37,13 @@
  * `DesignerClearanceToggle` and `DesignerClearanceSides`, split out to keep this template under
  * fallow's cognitive threshold; the drafts and the switch-on after Generate stay here.
  *
- * **That switch-on is one of THREE**, because a clearance comes into being through three doors:
- * Generate here, arming `trace-clearance` and applying a preset that carries one. The rule and
- * the other two live in `runtime.ts` — `DesignerRuntime.showClearance` says why no single hook
- * catches all three.
+ * **That switch-on is one of three gesture doors** — Generate here, arming `trace-clearance` and
+ * applying a preset that carries one — beside the runtime's READ-BACK, which re-shows a clearance
+ * whenever a read takes the design from none to one (a redo, an undo of a removal, a peer's write).
+ * The doors exist for what the read-back cannot see, a REPLACEMENT: a hidden clearance swapped for a
+ * new one by a gesture here is re-shown by its door, but one swapped by an undo, a redo or a peer
+ * stays hidden, since no door reaches it. The other two doors and the read-back live in `runtime.ts`;
+ * `DesignerRuntime.showClearance` says which cases each covers.
  */
 import { computed, reactive, ref } from 'vue';
 import { useShowClearance } from '../runtime';

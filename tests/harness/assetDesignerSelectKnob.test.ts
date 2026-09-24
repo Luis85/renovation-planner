@@ -139,7 +139,8 @@ it('refuses a &draw= tool it does not know, loudly, and still marks the view', a
 	await landed(view);
 
 	expect(error).toHaveBeenCalledWith(expect.stringContaining('wiggle'));
-	expect(editor.activeToolId).toBeNull();
+	// The refused knob presses nothing, so the leaf keeps the Select it rests in (AD18-R20).
+	expect(editor.activeToolId).toBe('select');
 });
 
 /**
@@ -173,7 +174,8 @@ it('refuses a &draw= tool whose button it cannot find, rather than capturing an 
 
 	const host = view.contentEl.querySelector('.renovation-asset-designer-view') as HTMLElement & { __vue_app__: App };
 	expect(error).toHaveBeenCalledWith(expect.stringContaining(tr('designer.toolbar.draw-rect')));
-	expect(useEditorStore(host.__vue_app__.config.globalProperties.$pinia).activeToolId).toBeNull();
+	// The refused knob presses nothing, so the leaf keeps the Select it rests in (AD18-R20).
+	expect(useEditorStore(host.__vue_app__.config.globalProperties.$pinia).activeToolId).toBe('select');
 });
 
 /**

@@ -184,18 +184,26 @@ describe('the checkbox rows’ 24px floor', () => {
 describe('the Add rail’s equal tile height', () => {
 	const rules = partial('designer-add.css');
 
-	/** 73px: the integrator’s measured height of row 1’s two-line “Rounded rectangle” tile, the tallest of the two rows measured. */
-	it('floors every Add-rail tile at the tallest measured tile’s height', () => {
-		expect(declared(rules, '.rp-designer-add button.rp-designer-tool-button', 'min-height')).toEqual(parsed('min-height', '73px'));
+	/**
+	 * Fix round: `grid-auto-rows: 1fr` on the tiles' own grid container, not a `min-height` pinned to
+	 * one English pixel measurement — a fixed floor would not track a longer label in another
+	 * language or a larger host font. `1fr` on every implicit row makes each row match its own
+	 * tallest tile's content, in any language.
+	 */
+	it('floors every Add-rail row at its own tallest tile via grid-auto-rows, not a pixel min-height', () => {
+		expect(declared(rules, '.rp-designer-add-shapes', 'grid-auto-rows')).toEqual(parsed('grid-auto-rows', '1fr'));
+		expect(declared(rules, '.rp-designer-add button.rp-designer-tool-button', 'min-height')).toEqual([]);
 	});
 
 	/**
 	 * `.rp-designer-placement-modes .rp-designer-selection-button` shares the tile's OTHER
 	 * declarations with `.rp-designer-add button.rp-designer-tool-button` (asserted in
-	 * `designerStyles.test.ts`'s "reuses the Add rail's tile layout" case) but not this one: its own
-	 * three-column row already stretches evenly, and this card's claim is the Add rail only.
+	 * `designerStyles.test.ts`'s "reuses the Add rail's tile layout" case) but sits in its own
+	 * single-row grid: its own three-column row already stretches evenly within itself, and this
+	 * card's claim is the Add rail's own multi-row grid only.
 	 */
 	it('leaves the shared Placement-point segment selector untouched', () => {
 		expect(declared(rules, '.rp-designer-placement-modes .rp-designer-selection-button', 'min-height')).toEqual([]);
+		expect(declared(rules, '.rp-designer-placement-modes', 'grid-auto-rows')).toEqual([]);
 	});
 });

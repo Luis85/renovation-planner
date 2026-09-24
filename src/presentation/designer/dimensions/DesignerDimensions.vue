@@ -48,7 +48,9 @@
  *
  * **AD18-R21 narrows the resting state twice more.** While the footprint draws under 240 px across it
  * is the overall pair alone (`restingFigures`), and no resting label covers a handle of the selected
- * part: the handles `DesignerCanvas` draws are handed to `separateLabels` as obstacles.
+ * part: the selection's box/vertex/edge/rotate handles (`DesignerCanvas`'s own `marks`, the same
+ * ones `selectionHandles` returns) are handed to `separateLabels` as obstacles — never the anchor's
+ * or the facing's ring, which `DesignerCanvas` draws too but which are not obstacles here.
  *
  * **Each figure is drawn as a dimension LINE, not only a number** (AD18-R17, board 01): a line
  * through the placed label with an arrowhead at each end and an extension line to each edge it

@@ -121,7 +121,7 @@ async function generate(): Promise<void> {
 		});
 	});
 	refusal.value = result.ok ? null : result.error;
-	// A boundary the user just asked for is never born invisible (`DesignerRuntime.showClearance`): Generate's door.
+	// A clearance that comes into being is shown (`DesignerRuntime.showClearance`): Generate's door.
 	if (result.ok && showClearance !== null) showClearance.value = true;
 }
 </script>

@@ -71,11 +71,17 @@ qualifier on the Saved word, not a fifth state:
 | No save yet | `Saved` — an earlier save's time is not known |
 | Under a minute | `Saved just now` |
 | 1 to 59 minutes | `Saved N min ago` |
-| An hour or more | `Saved at HH:MM`, in the host language's own clock format |
+| An hour or more, same local calendar day | `Saved at HH:MM`, in the host language's own clock format |
+| An hour or more, an earlier local calendar day | `Saved {date} at {time}` (EN) / `Am {date} um {time} gespeichert` (DE) |
 
 The time is counted from a `savedAt` the save-state store stamps when a write lands, on a minute
 tick that starts at that save (so *just now* lasts the first minute, or up to a second less: the
-reading tolerates that much clock jitter at a tick) and only once there is one. **Saved · refresh needed** keeps precedence and carries no time: a stale canvas must never
+reading tolerates that much clock jitter at a tick) and only once there is one. The dated tier's
+`{date}` is the host language's `Intl` month-short-plus-day-numeric format, and the day check runs
+only once a save is already over an hour old, so a save under an hour old still reads in minutes
+even just past local midnight. An indicator left open across midnight moves to the dated form on
+the same minute tick that carries the hour switch, with no save of its own and no second interval.
+**Saved · refresh needed** keeps precedence and carries no time: a stale canvas must never
 read as freshly saved (contract C08).
 
 ## Contract

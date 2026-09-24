@@ -3,8 +3,11 @@
  *
  * AD18-R21 Task 7: the selected row's five controls (Hide/Show, Lock/Unlock, Isolate, Bring
  * forward, Send backward) draw as one row of icon-only buttons through `HostIcon`, following
- * `ZoneLockToggle.vue`'s own convention — `aria-label` carries the action (unchanged), the glyph
- * draws the CURRENT state, and `aria-pressed` is set only for the two toggles that have one.
+ * `ZoneLockToggle.vue`'s own convention — `aria-label` carries the action (unchanged) and the
+ * glyph draws the CURRENT state. **No control carries `aria-pressed` (fix round)**: an earlier
+ * round of this card set it on the two toggles, which paired a swapping name with a checked
+ * state reporting the SAME thing twice, contradictorily — a hidden part announced "Show, toggle
+ * button, pressed", reading as "showing is on". The name alone already carries the state.
  *
  * Mounted bare, `DesignerPartControls` directly rather than through the whole Parts panel — its
  * five props are cheap to build by hand and nothing here needs a shape, a store or a canvas.
@@ -56,25 +59,25 @@ describe('the selected row’s controls draw as icon-only buttons (AD18-R21 Task
 		expect(button(wrapper, name).text()).toBe('');
 	});
 
-	it('draws no aria-pressed on Isolate, Bring forward or Send backward — none of the three holds a state', async () => {
+	it('draws no aria-pressed on any of the five buttons — a swapping name already carries the state and a second channel would contradict it (fix round)', async () => {
 		const { wrapper } = mountControls();
 		await flushPromises();
 
-		for (const name of ['isolate', 'bring-forward', 'send-backward']) {
+		for (const name of ['toggle-hidden', 'toggle-locked', 'isolate', 'bring-forward', 'send-backward']) {
 			expect(button(wrapper, name).attributes('aria-pressed')).toBeUndefined();
 		}
 	});
 
-	it('draws the visible state on Hide/Show — an open eye and "Hide" while shown, aria-pressed "false"', async () => {
+	it('draws the visible state on Hide/Show — an open eye and "Hide" while shown, no aria-pressed', async () => {
 		const { wrapper } = mountControls();
 		await flushPromises();
 
 		expect(icon(wrapper, 'toggle-hidden').attributes('data-icon')).toBe('eye');
 		expect(button(wrapper, 'toggle-hidden').attributes('aria-label')).toBe(t('en', 'designer.parts.hide'));
-		expect(button(wrapper, 'toggle-hidden').attributes('aria-pressed')).toBe('false');
+		expect(button(wrapper, 'toggle-hidden').attributes('aria-pressed')).toBeUndefined();
 	});
 
-	it('swaps to a closed eye and "Show", aria-pressed "true", once the graphic is hidden', async () => {
+	it('swaps to a closed eye and "Show" once the graphic is hidden, still with no aria-pressed', async () => {
 		const { wrapper } = mountControls();
 
 		await button(wrapper, 'toggle-hidden').trigger('click');
@@ -82,19 +85,19 @@ describe('the selected row’s controls draw as icon-only buttons (AD18-R21 Task
 
 		expect(icon(wrapper, 'toggle-hidden').attributes('data-icon')).toBe('eye-off');
 		expect(button(wrapper, 'toggle-hidden').attributes('aria-label')).toBe(t('en', 'designer.parts.show'));
-		expect(button(wrapper, 'toggle-hidden').attributes('aria-pressed')).toBe('true');
+		expect(button(wrapper, 'toggle-hidden').attributes('aria-pressed')).toBeUndefined();
 	});
 
-	it('draws the unlocked state on Lock/Unlock — an open padlock and "Lock", aria-pressed "false"', async () => {
+	it('draws the unlocked state on Lock/Unlock — an open padlock and "Lock", no aria-pressed', async () => {
 		const { wrapper } = mountControls();
 		await flushPromises();
 
 		expect(icon(wrapper, 'toggle-locked').attributes('data-icon')).toBe('lock-open');
 		expect(button(wrapper, 'toggle-locked').attributes('aria-label')).toBe(t('en', 'designer.parts.lock'));
-		expect(button(wrapper, 'toggle-locked').attributes('aria-pressed')).toBe('false');
+		expect(button(wrapper, 'toggle-locked').attributes('aria-pressed')).toBeUndefined();
 	});
 
-	it('swaps to a closed padlock and "Unlock", aria-pressed "true", once the graphic is locked', async () => {
+	it('swaps to a closed padlock and "Unlock" once the graphic is locked, still with no aria-pressed', async () => {
 		const { wrapper } = mountControls();
 
 		await button(wrapper, 'toggle-locked').trigger('click');
@@ -102,7 +105,7 @@ describe('the selected row’s controls draw as icon-only buttons (AD18-R21 Task
 
 		expect(icon(wrapper, 'toggle-locked').attributes('data-icon')).toBe('lock');
 		expect(button(wrapper, 'toggle-locked').attributes('aria-label')).toBe(t('en', 'designer.parts.unlock'));
-		expect(button(wrapper, 'toggle-locked').attributes('aria-pressed')).toBe('true');
+		expect(button(wrapper, 'toggle-locked').attributes('aria-pressed')).toBeUndefined();
 	});
 
 	it('asks for seven distinct icons across the five buttons and their two toggled states, so no two read the same', async () => {

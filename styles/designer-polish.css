@@ -13,9 +13,14 @@
  * `outline-offset: -2px` draws the ring INSET, inside the canvas's own box, rather than outward
  * where `.rp-plan-canvas`'s own `overflow: hidden` or the leaf around it could clip it — the same
  * reason `editor-context-menu.css`'s menu-button ring is inset.
+ *
+ * `--rp-designer-ring-width` names the ring's own `2px` rather than leaving it a bare literal
+ * inside the `outline` shorthand: fix round 2 below needs that exact width to clear the rulers'
+ * strip, and a named value both rules can read is what lets it be read rather than retyped.
  */
 .renovation-asset-designer .rp-plan-canvas:focus-visible {
-	outline: 2px solid var(--interactive-accent);
+	--rp-designer-ring-width: 2px;
+	outline: var(--rp-designer-ring-width) solid var(--interactive-accent);
 	outline-offset: -2px;
 }
 
@@ -42,6 +47,17 @@
  * `designer-rulers.css`'s own declared value by the test beside this file, so the two cannot
  * silently drift the way an unpinned restatement would.
  *
+ * **FIX ROUND 2 (integrator's measurement of round 1): `-18px` alone still hid the ring.** An
+ * `outline`'s OWN box sits `outline-offset` from the border edge, and the stroke is drawn from
+ * there back TOWARD the element by `outline-width` — never straddling that line and never
+ * extending further inward. At `-18px`/`2px` the stroke therefore occupied inset 16px–18px,
+ * still entirely inside the rulers' opaque 0px–18px band: visible on the right and bottom (no
+ * strip there) and still invisible on the top and left, exactly as measured. Clearing the strip
+ * needs the stroke's INNER edge — not just its outer one — past 18px, which is
+ * `ruler size + ring width`: `var(--rp-designer-ring-width)` (declared on the rule above, 2px)
+ * rather than a second `2px` literal, so the ring's own line thickness has one source
+ * for both what it looks like and what it must clear.
+ *
  * ONE offset, not one per side. `outline` draws a single rectangle with a single `outline-offset`
  * — CSS has no per-edge outline — so a true "ring only where a ruler sits" would mean abandoning
  * `outline` for a border, box-shadow or pseudo-element built from four edges, which is a larger
@@ -56,7 +72,7 @@
  */
 .renovation-asset-designer .rp-plan-canvas:has(.rp-designer-rulers):focus-visible {
 	--rp-designer-ruler-size: 18px;
-	outline-offset: calc(-1 * var(--rp-designer-ruler-size));
+	outline-offset: calc(-1 * (var(--rp-designer-ruler-size) + var(--rp-designer-ring-width)));
 }
 
 /*

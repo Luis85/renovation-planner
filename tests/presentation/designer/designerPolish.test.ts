@@ -37,10 +37,20 @@ describe('the designer canvas’s focus ring', () => {
 
 	it('rings the canvas, inset so the leaf’s own overflow cannot clip it', () => {
 		expect(declared(rules, '.renovation-asset-designer .rp-plan-canvas:focus-visible', 'outline')).toEqual(
-			parsed('outline', '2px solid var(--interactive-accent)'),
+			parsed('outline', 'var(--rp-designer-ring-width) solid var(--interactive-accent)'),
 		);
 		expect(declared(rules, '.renovation-asset-designer .rp-plan-canvas:focus-visible', 'outline-offset')).toEqual(
 			parsed('outline-offset', '-2px'),
+		);
+	});
+
+	/**
+	 * Fix round 2 names the ring's own line thickness rather than leaving it a bare `2px` inside
+	 * the `outline` shorthand above, because the ruler fix below has to clear exactly that width.
+	 */
+	it('names its own line thickness as 2px, the value the ruler fix below has to clear', () => {
+		expect(declared(rules, '.renovation-asset-designer .rp-plan-canvas:focus-visible', '--rp-designer-ring-width')).toEqual(
+			parsed('--rp-designer-ring-width', '2px'),
 		);
 	});
 
@@ -61,11 +71,19 @@ describe('the designer canvas’s focus ring', () => {
 	 * them, so this rule wins by specificity over the base ring whenever they are present and
 	 * leaves the base rule's -2px as the answer whenever they are not (an unscaled design, or no
 	 * design loaded yet — `DesignerRulers.vue`'s own `model`, `v-if`).
+	 *
+	 * **Fix round 2** (integrator's re-measurement of round 1's `calc(-1 * var(--rp-designer-ruler-size))`):
+	 * an outline's stroke is drawn INWARD from its offset boundary by its own width, never
+	 * straddling it, so a bare `-18px` left the 2px stroke sitting at inset 16px–18px — still
+	 * entirely under the rulers' opaque 0px–18px band. Clearing it needs the stroke's inner edge,
+	 * not just its outer one, past the ruler: `ruler size + ring width`.
 	 */
-	it('insets the ring to the ruler strips’ own size once they are in the DOM', () => {
+	it('insets the ring past the ruler strips’ own size AND the ring’s own width, once the strips are in the DOM', () => {
 		const selector = '.renovation-asset-designer .rp-plan-canvas:has(.rp-designer-rulers):focus-visible';
 
-		expect(declared(rules, selector, 'outline-offset')).toEqual(parsed('outline-offset', 'calc(-1 * var(--rp-designer-ruler-size))'));
+		expect(declared(rules, selector, 'outline-offset')).toEqual(
+			parsed('outline-offset', 'calc(-1 * (var(--rp-designer-ruler-size) + var(--rp-designer-ring-width)))'),
+		);
 	});
 
 	/**

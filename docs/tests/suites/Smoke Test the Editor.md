@@ -117,6 +117,18 @@ against the tree it was taken from — `suite` 139, `browser` 61, `obsidian` 205
 
 **The previous measurement's own account follows, kept as history.**
 
+**437 steps — 419 table rows plus 18 list steps in [[Canvas Navigation]], measured on 2026-09-20
+by running both greps below in the edit that added
+[[Edit a zone corner by typing its position]].** Per tier: `suite` 138, `browser` 62, `obsidian` 205, `desktop` 17, `judgement` 15 —
+each tier counted with the same two greps narrowed to that token, and the five summing to 437.
+The new case contributes nineteen rows, spread across all five tiers (`suite` 5, `browser` 2,
+`obsidian` 9, `desktop` 2, `judgement` 1), so every tier moves by exactly what that case added
+and the table above matches the greps row for row — additive per tier and not merely in total,
+which is what says the edit re-tiered nothing outside its own case. The previous table read the
+figures in the paragraph below and the two agreed, so no disagreement was carried forward.
+
+**The previous measurement's own account follows, kept as history.**
+
 **418 steps — 400 table rows plus 18 list steps in [[Canvas Navigation]], measured on 2026-09-17
 by running both greps below in the edit that added [[Two panes on one plan under an open write
 incident]].** Per tier: `suite` 133, `browser` 60, `obsidian` 196, `desktop` 15, `judgement` 14 —

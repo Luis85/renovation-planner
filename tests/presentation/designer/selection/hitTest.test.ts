@@ -135,22 +135,27 @@ describe('a hidden graphic', () => {
 	});
 
 	/**
-	 * AD18-R20: a SELECTED clearance keeps its selection while hidden, and its handles went on being
-	 * hit — `nearestHandle` ran before the hidden check, so a drag where a handle would be resized a
-	 * boundary nobody could see. Every handle is swept, and each is first proven hit while shown, so
-	 * the hidden half cannot pass by reaching points that were never handles.
+	 * AD18-R20: a SELECTED part that is not drawn keeps its selection, and its handles went on being
+	 * hit — `nearestHandle` ran before either hidden check, so a drag where a handle would be reshaped
+	 * a part nobody could see. Every handle is swept, and each is first proven hit while drawn, so the
+	 * hidden half cannot pass by reaching points that were never handles.
 	 */
-	it('hits no handle of a selected clearance while Show clearance is off (AD18-R20)', () => {
-		const handles = selectionHandles(TOILET, CLEARANCE, 'transform', 1);
+	const UNDRAWN = [
+		['the clearance while Show clearance is off', CLEARANCE, { clearanceHidden: true }],
+		['a graphic the Parts panel has hidden', BOWL, { hidden: new Set(['detail-2']) }],
+	] as const;
+
+	it.each(UNDRAWN)('hits no handle of %s, though it stays selected (AD18-R20)', (_label, selection, view) => {
+		const handles = selectionHandles(TOILET, selection, 'transform', 1);
 		expect(handles.length).toBeGreaterThan(0);
 		for (const { at } of handles) {
-			expect(hitDesign(TOILET, at, { selection: CLEARANCE, mode: 'transform', worldPerPixel: 1 })?.kind).toBe('handle');
-			expect(hitDesign(TOILET, at, { selection: CLEARANCE, mode: 'transform', worldPerPixel: 1, clearanceHidden: true })?.kind).not.toBe('handle');
+			expect(hitDesign(TOILET, at, { selection, mode: 'transform', worldPerPixel: 1 })?.kind).toBe('handle');
+			expect(hitDesign(TOILET, at, { selection, mode: 'transform', worldPerPixel: 1, ...view })?.kind).not.toBe('handle');
 		}
 	});
 
-	it('still hits another selected part’s handle while Show clearance is off', () => {
-		expect(hitDesign(TOILET, { x: 190, y: 352 }, { selection: FOOTPRINT, mode: 'transform', worldPerPixel: 1, clearanceHidden: true })).toEqual({
+	it.each(UNDRAWN)('still hits another selected part’s handle beside %s', (_label, _selection, view) => {
+		expect(hitDesign(TOILET, { x: 190, y: 352 }, { selection: FOOTPRINT, mode: 'transform', worldPerPixel: 1, ...view })).toEqual({
 			kind: 'handle',
 			role: { kind: 'box', index: 4 },
 		});

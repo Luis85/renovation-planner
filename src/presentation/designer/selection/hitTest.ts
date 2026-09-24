@@ -64,6 +64,21 @@ function distanceToSegment(start: Point, end: Point, point: Point): number {
 	return distance({ x: start.x + t * dx, y: start.y + t * dy }, point);
 }
 
+/**
+ * The selection whose marks are DRAWN, or `null` when its part is not (AD18-R20): the clearance while
+ * `Show clearance` is off, or a graphic the Parts panel has hidden. The selection itself is kept —
+ * this answers only what owns the outline and handles — so showing the part again brings them back.
+ * One rule for both sides of it: `hitDesign` hits no handle `DesignerCanvas` does not draw.
+ */
+export function drawnSelection(
+	selection: DesignerSelection | null,
+	view: { readonly hidden?: ReadonlySet<string>; readonly clearanceHidden?: boolean },
+): DesignerSelection | null {
+	if (selection?.kind === 'clearance' && view.clearanceHidden === true) return null;
+	if (selection?.kind === 'detail' && view.hidden?.has(selection.id) === true) return null;
+	return selection;
+}
+
 export function hitDesign(
 	shape: AssetShape,
 	point: Point,
@@ -87,9 +102,7 @@ export function hitDesign(
 	},
 ): DesignerHit {
 	const radius = VERTEX_GRAB_RADIUS_PX * state.worldPerPixel;
-	// A hidden clearance stays SELECTED but draws no handles (AD18-R20, `DesignerCanvas`), so none is hit.
-	const handleOwner = state.clearanceHidden === true && state.selection?.kind === 'clearance' ? null : state.selection;
-	const handle = nearestHandle(selectionHandles(shape, handleOwner, state.mode, state.worldPerPixel), point, radius);
+	const handle = nearestHandle(selectionHandles(shape, drawnSelection(state.selection, state), state.mode, state.worldPerPixel), point, radius);
 	if (handle !== null) return { kind: 'handle', role: handle.role };
 	if (distance(shape.anchor, point) <= radius) return part({ kind: 'anchor' });
 	if (distance(facingTip(shape, state.worldPerPixel), point) <= radius) return part({ kind: 'facing' });

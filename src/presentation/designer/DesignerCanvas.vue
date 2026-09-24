@@ -65,6 +65,7 @@ import { detailOutlines, footprintEdge } from './layers/detailsLayer';
 import { anchorMark, facingArrow } from './layers/anchorLayer';
 import { selectionFrame, selectionMarks } from './layers/selectionLayer';
 import { isOutlineSelection } from './selection/designerSelection';
+import { drawnSelection } from './selection/hitTest';
 import DesignerGestureLayer from './layers/DesignerGestureLayer.vue';
 import DesignerRulers from './rulers/DesignerRulers.vue';
 import DesignerDimensions from './dimensions/DesignerDimensions.vue';
@@ -155,11 +156,11 @@ const footprintEdgeLine = computed(() => footprintEdge(shape.value, tokens.value
  * and the anchor's or the facing's ring, which is that selection's only mark (follow-up A1). With nothing
  * selected `selectionMarks` draws nothing, so that case needs no arm here.
  *
- * A clearance selected while `Show clearance` is off draws NOTHING (AD18-R20): the selection is kept, so
- * switching it back on redraws its marks, and `hitDesign` hits none of the handles this hides.
+ * A selected part that is not drawn — the clearance while `Show clearance` is off, a Parts-hidden
+ * graphic — draws no marks at all (AD18-R20, `drawnSelection`, the rule `hitDesign` asks too).
  */
 const marks = computed(() => {
-	const owner = !showClearance.value && selection.value?.kind === 'clearance' ? null : selection.value;
+	const owner = drawnSelection(selection.value, { hidden: partView.hidden.value, clearanceHidden: !showClearance.value });
 	const drawn = selectionMarks(shape.value, owner, mode.value, tokens.value, worldPerPixel.value);
 	return activeToolId.value === 'select' || !isOutlineSelection(selection.value) ? drawn : { outline: drawn.outline, handles: [], rotate: null };
 });

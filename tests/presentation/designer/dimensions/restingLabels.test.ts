@@ -350,23 +350,23 @@ describe('the overall pair with a part selected', () => {
 	 * width's outside anchor sits on the footprint's own top-middle box handle and its rotate handle
 	 * both, and the nearer of two equal slots was the INWARD row, over the table, measured at 251.3
 	 * below a top edge at 206.3. An overall label now takes no slot on the footprint's side of its
-	 * anchor, and since fix round 3 it tries its own row before any other: it slides along the row.
+	 * anchor, so it takes the nearest one further OUT: two rows up, since one row up is on the rotate
+	 * handle, and nearer than the slide along its row the handles leave free.
 	 */
-	it('slides the rect table’s overall width along its outside row, not over the table, when its footprint is selected', () => {
+	it('steps the rect table’s overall width further out, not over the table, when its footprint is selected', () => {
 		const table = resting(preset('rect-table'), { kind: 'footprint' }, { width: 880, height: 650 });
 		const index = table.names.indexOf('overall-width');
 
 		expect(table.anchors[index]?.y).toBeLessThan(expectDefined(table.raw[index], 'the top edge').y);
 		const anchor = expectDefined(table.anchors[index], 'the outside anchor');
-		expect(table.placed[index]?.y).toBe(anchor.y);
-		expect(table.placed[index]?.x).not.toBe(anchor.x);
+		expect(table.placed[index]).toEqual(screenPoint(anchor.x, anchor.y - 60));
 		expect(inside(table)).toEqual([]);
 	});
 
 	it.each([
 		['1280', 880, 650, 'unmoved'],
 		['760', 380, 650, 'unmoved'],
-		['580', 290, 620, 'along its row'],
+		['580', 290, 620, 'one row out'],
 		['460', 458, 330, 'along its row'],
 	] as const)('keeps the overall pair outside the footprint at a %s leaf', (_leaf, stageWidth, stageHeight, how) => {
 		const { names, raw, anchors, placed } = resting(preset('vanity'), { kind: 'detail', id: 'detail-2' }, { width: stageWidth, height: stageHeight });
@@ -374,7 +374,7 @@ describe('the overall pair with a part selected', () => {
 		const top = expectDefined(raw[across], 'the top edge').y;
 		const wanted = expectDefined(anchors[across], 'the width’s outside anchor');
 		const label = expectDefined(placed[across], 'the width');
-		const expected = { 'unmoved': wanted, 'along its row': screenPoint(label.x, wanted.y) }[how];
+		const expected = { 'unmoved': wanted, 'one row out': screenPoint(wanted.x, wanted.y - 30), 'along its row': screenPoint(label.x, wanted.y) }[how];
 
 		// The width's whole box above the top edge — outside, where the canvas had room at all four.
 		expect(label.y + 15).toBeLessThanOrEqual(top);
@@ -392,18 +392,16 @@ const alongRow = (y: number): ScreenPoint[] => Array.from({ length: 13 }, (_, st
 const downColumn = (x: number): ScreenPoint[] => Array.from({ length: 11 }, (_, step) => screenPoint(x, 200 + (step - 5) * 30));
 
 /**
- * **The order an OVERALL label's slots are tried in** (fix round 3 of AD18-R21): along its own line
- * first, whatever the raw distance, then further out, and otherwise its own anchor — never a slot
- * further onto the drawing. A `100 mm` label is 57.2 px wide, so a handle blocks it within 36.6 px along
+ * **Which slots an OVERALL label may take** (fix rounds 3 and 4 of AD18-R21): the nearest free one
+ * along its own line or further out, and otherwise its own anchor — never a slot further onto the
+ * drawing. A `100 mm` label is 57.2 px wide, so a handle blocks it within 36.6 px along
  * a row (half of that plus the 8 px grab) and 23 px across one.
  */
 describe('where an overall label goes when its anchor is taken', () => {
-	it('slides a width along its row before stepping a nearer row across it', () => {
-		// The row below, 30 px away, is free and nearer than one width (57.2 px) along the row.
-		const [placed] = separateLabels([overall(400, 300, 'x')], STAGE, [screenPoint(400, 300)]);
-
-		expect(placed?.y).toBe(300);
-		expect(placed?.x).toBeCloseTo(400 + width(100));
+	it('takes the nearest slot on its own side of the edge: a row further out before a longer slide along its row', () => {
+		// The row above, 30 px away, is free and nearer than one width (57.2 px) along the row. The row
+		// below is as near and free too, and is never a candidate for an overall width.
+		expect(separateLabels([overall(400, 300, 'x')], STAGE, [screenPoint(400, 300)])).toEqual([screenPoint(400, 270)]);
 	});
 
 	it('steps a width whose row is taken further OUT, and never onto the drawing', () => {

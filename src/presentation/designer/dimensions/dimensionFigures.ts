@@ -688,9 +688,10 @@ const ROOM_SLACK_PX = 0.5;
  * handle in 2,336 frames at one and a half widths and in **205 at three**, every one an overall label
  * on a stage 280 to 360 px wide; none overlapping and none drawn inside the footprint either way. The
  * cost is distance: moves over 100 px rose from 190 to 2,321 of about 126,000, each a width sliding
- * along its own row past the part's corner handle, and to 2,967 once fix round 3 had an overall
- * label try its own line before any nearer slot across it (\`overallSlot\`). Every other label still
- * takes the nearest free slot first.
+ * along its own row past the part's corner handle. Fix round 3 briefly had an overall label try its
+ * own line before any nearer slot further out, which took that to 2,967 and put 3,521 overall widths
+ * and 1,186 depths wholly past their own line's end; fix round 4 went back to nearest-first over both
+ * (`overallSlot`): **2,366**, **2,737** and **720**, every floor above unchanged.
  */
 const RESTING_ROWS = 5;
 const RESTING_SHIFTS: readonly number[] = [0, 0.5, -0.5, 1, -1, 1.5, -1.5, 2, -2, 2.5, -2.5, 3, -3];
@@ -746,22 +747,22 @@ interface SlotBounds {
 }
 
 /**
- * Where an OVERALL label goes when its own anchor is not free — two tiers, each nearest-first, the
- * second tried only when every slot of the first is taken (fix round 3 of AD18-R21); `undefined`
- * when both are, and the label keeps its anchor:
+ * Where an OVERALL label goes when its own anchor is not free: the NEAREST free slot that is either
+ * **along its own line** — a width's own row, a depth's own column — or **further out**, a width's
+ * rows above, a depth's columns to the left; `undefined` when none is, and the label keeps its
+ * anchor. Never a slot further onto the drawing (fix rounds 2 and 3 of AD18-R21).
  *
- * 1. **Along its own line**, whatever the raw distance: a width's own row, a depth's own column. A
- *    slide along the line keeps the label on the edge it measures and changes nothing ACROSS it, so
- *    only the bounds along the line are asked — a width on the ruler's edge, or a depth over the left
- *    ruler, is no further onto the ruler for sliding along its line than it already was.
- * 2. **Further out**: a width's rows above, a depth's columns to the left.
+ * **A slide along the line asks only the bounds ALONG it**, and that bound is the part that matters.
+ * The slide changes nothing across the line, so a width on the ruler's edge, or a depth over the left
+ * ruler, is no further onto the ruler for sliding than it already was — and asking the full bounds
+ * there left such a label no slot at all, which is what round 2's carve-out for an edge label worked
+ * around, putting 1,652 of 24,309 edge overall depths across the drawing by up to 86 px (the review's
+ * measurement; a sofa's `700 mm` over its arm at a 460 leaf, seen in Chromium).
  *
- * Asked the same way whether `outsideAnchor` stood the label outside or left it on the edge. The
- * review measured the carve-out round 2 gave an edge label — nearest-first over every slot — putting
- * 1,652 of 24,309 edge overall depths across the drawing, up to 86 px: a sofa's `700 mm` over its arm
- * at a 460 leaf, seen in Chromium. A third tier, "anywhere, for an edge label", was built and
- * measured before being dropped: over the 77,964 frames `RESTING_ROWS` records it never found a slot
- * the first two had not, because tier 1's bound along the line is what freed those labels.
+ * **Nearest-first over both kinds, not the line first** (fix round 4). Round 3 tried every slot along
+ * the line before any further out, whatever the distance; the review rebuilt it as this one search
+ * over the same frames and every floor held while labels travelled less — see `RESTING_ROWS`.
+ * Asked the same way whether `outsideAnchor` stood the label outside or left it on the edge.
  */
 function overallSlot(
 	axis: 'x' | 'y',
@@ -774,7 +775,7 @@ function overallSlot(
 		? (box: LabelBox): boolean => box.at.y === anchor.y && bounds.x(box)
 		: (box: LabelBox): boolean => box.at.x === anchor.x && bounds.y(box);
 	const out = (box: LabelBox): boolean => (axis === 'x' ? box.at.y <= anchor.y : box.at.x <= anchor.x) && bounds.x(box) && bounds.y(box);
-	return slots.find((box) => along(box) && free(box)) ?? slots.find((box) => out(box) && free(box));
+	return slots.find((box) => (along(box) || out(box)) && free(box));
 }
 
 /**
@@ -824,8 +825,8 @@ function overallSlot(
  * first, so a selected rect table's width was drawn over the table (measured by the review at 251.3
  * under a top edge at 206.3; 9,050 frames of 77,964 over every preset, selection and mode). So a
  * width's slots are its own row and the rows above it, and a depth's its own column and the columns
- * left of it: every move is a slide along its own line or a step further out, tried in that order
- * (`overallSlot`, fix round 3). That holds for an overall label `outsideAnchor` left ON the edge too:
+ * left of it: every move is a slide along its own line or a step further out, the nearest free one
+ * first (`overallSlot`). That holds for an overall label `outsideAnchor` left ON the edge too:
  * it may not move further onto the drawing than its anchor either. **With no such slot free it keeps
  * its anchor, over the handle**, rather than go inside — since an overall figure drawn over the
  * drawing is the defect AD18-R17 names. The handle may then be unreachable: the slot search counted

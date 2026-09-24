@@ -58,6 +58,12 @@
  * version of this file shipped while its comment claimed to be avoiding it. The spec's increment 2
  * puts its dimensions "updated live from the drag preview", which is the same direction.
  *
+ * **The band marks the selection as DRAWN, handed down as the `selection` prop** — `DesignerCanvas`'s
+ * `drawnPart`, `drawnSelection`'s answer (AD18-R20) — and not the store's. A selected part the canvas
+ * does not draw, the clearance while `Show clearance` is off or a Parts-hidden graphic, gets no band,
+ * and showing it again brings the band back (AD18-R23). A prop rather than a second call here because
+ * the view facts that rule asks over are the leaf runtime's, and the canvas already asks it once.
+ *
  * **Nothing is drawn over an UNSCALED design.** `dimensionsUnscaled` is a footprint captured
  * before the asset had a scale, whose coordinates are placeholder pixels; a millimetre ruler over
  * it would put a unit on a number that is not a measurement, which is the rule the status row's
@@ -83,11 +89,13 @@ import {
 } from '../../editor/viewport/Viewport';
 import { designerGrid } from '../grid/designerGrid';
 import { selectionFrame } from '../layers/selectionLayer';
+import type { DesignerSelection } from '../selection/designerSelection';
 import { useAssetDesignStore } from '../stores/assetDesignStore';
 import { rulerLabels } from './rulerMarks';
 
+const props = defineProps<{ readonly selection: DesignerSelection | null }>();
 const editor = useEditorStore();
-const { design, selection, preview } = storeToRefs(useAssetDesignStore());
+const { design, preview } = storeToRefs(useAssetDesignStore());
 
 /**
  * ONE computed rather than a chain of them, and that is a coverage decision as much as a
@@ -112,7 +120,7 @@ const model = computed(() => {
 	// The gesture's PREVIEW while one is live, exactly as `DesignerCanvas`'s own `shape` reads it —
 	// see this component's header for why the band follows it and the tiling above does not.
 	const drawn = preview.value ?? view.shape;
-	const box = drawn === null ? null : selectionFrame(drawn, selection.value, perPixel);
+	const box = drawn === null ? null : selectionFrame(drawn, props.selection, perPixel);
 	return {
 		step,
 		tick: x(step) - x(0),

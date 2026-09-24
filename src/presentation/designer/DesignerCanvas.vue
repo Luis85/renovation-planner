@@ -157,11 +157,12 @@ const footprintEdgeLine = computed(() => footprintEdge(shape.value, tokens.value
  * selected `selectionMarks` draws nothing, so that case needs no arm here.
  *
  * A selected part that is not drawn — the clearance while `Show clearance` is off, a Parts-hidden
- * graphic — draws no marks at all (AD18-R20, `drawnSelection`, the rule `hitDesign` asks too).
+ * graphic — draws no marks at all (AD18-R20, `drawnSelection`, the rule `hitDesign` asks too). `drawnPart`
+ * is that one reading, and the rulers' extent band and `Shift+2` below take it too (AD18-R23).
  */
+const drawnPart = computed(() => drawnSelection(selection.value, { hidden: partView.hidden.value, clearanceHidden: !showClearance.value }));
 const marks = computed(() => {
-	const owner = drawnSelection(selection.value, { hidden: partView.hidden.value, clearanceHidden: !showClearance.value });
-	const drawn = selectionMarks(shape.value, owner, mode.value, tokens.value, worldPerPixel.value);
+	const drawn = selectionMarks(shape.value, drawnPart.value, mode.value, tokens.value, worldPerPixel.value);
 	return activeToolId.value === 'select' || !isOutlineSelection(selection.value) ? drawn : { outline: drawn.outline, handles: [], rotate: null };
 });
 const clearance = computed(() => clearanceOutline(shape.value, tokens.value, worldPerPixel.value));
@@ -173,9 +174,10 @@ const facing = computed(() => facingArrow(shape.value, tokens.value, worldPerPix
  * there is one, the clearance around it, since a clearance reaches outside the outline it
  * belongs to and a fit that cropped it would hide the thing being fitted.
  *
- * `Shift+2` frames the SELECTION — `selectionFrame`, `null` with nothing selected. A fit with nothing
- * to frame does nothing, which is `boundsOfZones`' own rule: a jump to nowhere costs the user the view
- * they had and says nothing about why.
+ * `Shift+2` frames the SELECTION as drawn — `selectionFrame` over `drawnPart`, `null` with nothing
+ * selected and for a selected part the canvas does not draw (AD18-R23). A fit with nothing to frame
+ * does nothing, which is `boundsOfZones`' own rule: a jump to nowhere costs the user the view they had
+ * and says nothing about why.
  *
  * The whole-design box is `designFrame` (`runtime.ts`), which Apply preset fits to as well, and the fit an
  * opened design takes below asks this very function — so none of the three frames a design differently.
@@ -183,7 +185,7 @@ const facing = computed(() => facingArrow(shape.value, tokens.value, worldPerPix
 function framedBounds(all: boolean): BoundingBox | null {
 	const current = shape.value;
 	if (current === null) return null;
-	return all ? designFrame(current) : selectionFrame(current, selection.value, worldPerPixel.value);
+	return all ? designFrame(current) : selectionFrame(current, drawnPart.value, worldPerPixel.value);
 }
 
 /**
@@ -378,7 +380,7 @@ onBeforeUnmount(() => stopPixelRatio());
 			the legend draws no row at all over the same `null` shape that state answers.
 		-->
 		<template #overlay>
-			<DesignerRulers />
+			<DesignerRulers :selection="drawnPart" />
 			<DesignerDimensions />
 			<DesignerLegend />
 			<slot />

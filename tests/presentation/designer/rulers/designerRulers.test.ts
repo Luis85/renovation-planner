@@ -27,6 +27,7 @@ import { useAssetDesignStore } from '../../../../src/presentation/designer/store
 import { useEditorStore } from '../../../../src/presentation/stores/EditorStore';
 import { t } from '../../../../src/presentation/i18n/strings';
 import type { AssetDesignDto } from '../../../../src/application/queries/GetAssetDesign';
+import type { DesignerSelection } from '../../../../src/presentation/designer/selection/designerSelection';
 import { footprintFromDimensions, type AssetShape } from '../../../../src/domain/asset/AssetShape';
 import { assetDesign } from '../../../helpers/assetDesign';
 import { expectOk } from '../../../helpers/domain';
@@ -39,11 +40,13 @@ const STAGE = { width: 800, height: 600 };
 
 /**
  * The component alone over a seeded store — the three states the mounted designer cannot be put
- * into, since `AssetDesignerRoot` mounts the canvas only over a design it has already read.
+ * into, since `AssetDesignerRoot` mounts the canvas only over a design it has already read. The
+ * selection is the component's PROP — the selection as drawn, which `DesignerCanvas` passes — so a
+ * case sets it there; `designerHiddenSelectionFrame.test.ts` drives what the canvas passes.
  */
-function rulers(design: AssetDesignDto | null): { wrapper: VueWrapper; pinia: Pinia } {
+function rulers(design: AssetDesignDto | null, selection: DesignerSelection | null = null): { wrapper: VueWrapper; pinia: Pinia } {
 	const pinia = createPinia();
-	const wrapper = mount(DesignerRulers, { global: { plugins: [pinia] } });
+	const wrapper = mount(DesignerRulers, { props: { selection }, global: { plugins: [pinia] } });
 	useAssetDesignStore(pinia).design = design;
 	const editor = useEditorStore(pinia);
 	editor.viewport = DEFAULT_VIEWPORT;
@@ -122,11 +125,11 @@ describe('what the designer’s rulers draw', () => {
 	});
 
 	it('marks the selected part’s extent on both strips, and marks nothing while nothing is selected', async () => {
-		const { wrapper, pinia } = rulers(assetDesign());
+		const { wrapper } = rulers(assetDesign());
 		await settle();
 		expect(wrapper.findAll('.rp-designer-ruler__extent')).toHaveLength(0);
 
-		useAssetDesignStore(pinia).select({ kind: 'footprint' });
+		await wrapper.setProps({ selection: { kind: 'footprint' } });
 		await settle();
 
 		// The 1200 x 800 footprint spans 120 px across and 80 px down, from its own corner.
@@ -151,9 +154,8 @@ describe('what the designer’s rulers draw', () => {
 	 */
 	it('moves the extent band with a gesture’s preview while the ruler itself stands still', async () => {
 		const committed = assetDesign();
-		const { wrapper, pinia } = rulers(committed);
+		const { wrapper, pinia } = rulers(committed, { kind: 'footprint' });
 		const store = useAssetDesignStore(pinia);
-		store.select({ kind: 'footprint' });
 		await settle();
 		const band = () => {
 			const element = wrapper.get('.rp-designer-ruler--top .rp-designer-ruler__extent').element as HTMLElement;

@@ -24,10 +24,17 @@ it('offers every drafting tool from the empty canvas with a known icon, and star
 	expect(rig.wrapper.findAll('.rp-canvas-context-menu--nested [data-rp-context-action]').map(entry => entry.attributes('data-rp-context-action')))
 		.toEqual(['draft-dimension', 'draft-section', 'draft-view', 'draft-hatch', 'draft-text', 'draft-boundary', 'draft-grid']);
 	expect(rig.wrapper.find('.rp-canvas-context-menu--nested [data-icon-missing]').exists()).toBe(false);
+	const stored = () => ({ elements: rig.project.structure.elements ?? [], metadata: rig.project.plan?.spatialElements ?? [] }), before = stored();
 	await item(rig, 'draft-grid').trigger('click');
 	await settleUntil(() => rig.project.structure.elements?.length === 1, 'grid placed from the menu');
 	expect(rig.project.structure.elements?.[0]).toMatchObject({ kind: 'grid' });
 	expect(rig.runtime.activeToolId.value).toBe('place-grid');
+	// Creation is one history step: `runtime.undo()` leaves exactly what was stored before it, `runtime.redo()` exactly what it saved.
+	const created = stored();
+	await rig.runtime.undo(); await settle();
+	expect(stored()).toEqual(before);
+	await rig.runtime.redo(); await settle();
+	expect(stored()).toEqual(created);
 });
 
 it('offers the Drafting submenu with one item and with several selected, but not in Review', async () => {

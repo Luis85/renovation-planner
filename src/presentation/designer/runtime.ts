@@ -284,7 +284,9 @@ export function designFrame(shape: AssetShape): BoundingBox | null {
  *
  * - The READ-BACK: whenever the design this leaf holds goes from no clearance to one, the switch goes
  *   on. `store.design` is written by a read alone (`AssetDesignStore.hydrate`), never by a gesture's
- *   preview, so this fires for a committed clearance and for nothing drawn in flight.
+ *   preview, so this fires for a committed clearance and for nothing drawn in flight. NO design counts
+ *   as no clearance, deliberately: an asset that re-arrives after a failed or authoritative-miss read
+ *   blanked it re-shows its clearance, since the leaf drew nothing in between to have hidden.
  * - The returned `setTool`: switching to `trace-clearance` shows the layer the traced boundary will be
  *   drawn on, so the commit does not appear to draw nothing. Arming rather than completing, because the
  *   user then also sees the boundary the trace replaces. It asks the tool that IS active after the

@@ -7,9 +7,9 @@
  * context menu and the selection keys refused every request and said nothing, and a Parts row replaced
  * the selection whatever Shift or the `Select multiple` toggle said, so no set could be built there.
  *
- * The designer rests in Select since the same ruling, so every case below but the last PICKS Pan first:
- * camera mode keeps the selection keys (b261b1866) and those cases go on proving it. The last one is
- * the same Group at the rest a leaf opens in today.
+ * The designer rests in Select since the same ruling, so every case below PICKS Pan first except the
+ * one under "grouping at the rest a leaf opens in": camera mode keeps the selection keys (b261b1866)
+ * and those cases go on proving it, while that one is the same Group at the rest a leaf opens in today.
  *
  * Driven through Parts rows and DOM events on them, never the stage: synthetic pointer events do not
  * reach Konva.
@@ -73,7 +73,7 @@ describe('building a set from the Parts rows', () => {
 	});
 });
 
-describe('grouping at rest, through a real write', () => {
+describe('grouping with Pan chosen, through a real write', () => {
 	it('opens the context menu on a selected row and groups the set', async () => {
 		const rig = await inCameraMode();
 		await press(rig, 'detail:detail-1');

@@ -40,6 +40,7 @@ interface Harness {
 	readonly answers: (shape: AssetShape) => void;
 	/** A peer's write reaching this leaf: the design-changed event the composition root subscribes it to. */
 	readonly peerWrote: () => Promise<void>;
+	readonly unmount: () => void;
 }
 
 function harness(): Harness {
@@ -65,7 +66,7 @@ function harness(): Harness {
 		indexScanCompleted: () => true,
 	};
 	let captured!: DesignerRuntime;
-	mount(
+	const wrapper = mount(
 		defineComponent({
 			setup() {
 				captured = provideDesignerRuntime(context);
@@ -86,6 +87,7 @@ function harness(): Harness {
 			for (const listener of listeners) listener();
 			await flushPromises();
 		},
+		unmount: () => wrapper.unmount(),
 	};
 }
 
@@ -107,15 +109,16 @@ function stubborn(): EditorTool {
 
 describe('the resting tool', () => {
 	it('is Select from the moment the runtime is built, before the first read has answered', () => {
-		const { runtime } = harness();
+		const { runtime, unmount } = harness();
 		expect(runtime.toolManager.activeToolId).toBe('select');
 		expect(runtime.activeToolId.value).toBe('select');
+		unmount();
 	});
 });
 
 describe('arming Trace clearance', () => {
 	it('reveals nothing when the switch was refused, because the tool that is active did not change', async () => {
-		const { runtime } = harness();
+		const { runtime, unmount } = harness();
 		await flushPromises();
 		runtime.toolManager.register(stubborn());
 		runtime.setTool('measure');
@@ -125,6 +128,7 @@ describe('arming Trace clearance', () => {
 
 		expect(runtime.activeToolId.value).toBe('measure');
 		expect(runtime.showClearance.value).toBe(false);
+		unmount();
 	});
 });
 
@@ -141,6 +145,7 @@ describe('a clearance a peer write brings back', () => {
 		leaf.answers(WITH_CLEARANCE);
 		await leaf.peerWrote();
 		expect(leaf.runtime.showClearance.value).toBe(true);
+		leaf.unmount();
 	});
 
 	it('stays hidden when the refresh reads a clearance that was already there', async () => {
@@ -152,5 +157,6 @@ describe('a clearance a peer write brings back', () => {
 		await leaf.peerWrote();
 
 		expect(leaf.runtime.showClearance.value).toBe(false);
+		leaf.unmount();
 	});
 });

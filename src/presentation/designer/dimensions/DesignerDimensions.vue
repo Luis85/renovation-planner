@@ -119,9 +119,9 @@ interface PlacedFigure extends Omit<DimensionFigure, 'at' | 'from' | 'to'> {
  * `All dimensions` on, six more holes per part.
  *
  * Stated as the ALLOWED set rather than the forbidden one, so a tool added later is out until
- * somebody decides it is in. `AssetDesignerRoot` withdraws the empty state on
- * `activeToolId !== null`, which is the same convention read at a surface with no reason to be
- * live under Select either.
+ * somebody decides it is in. `AssetDesignerRoot`'s empty state admits the same two, camera mode
+ * and Select, and withdraws for any other tool — the same convention, read at a surface that
+ * yields to a tool mid-task.
  */
 const MEASURING_TOOLS: readonly (string | null)[] = [null, 'select'];
 

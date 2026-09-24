@@ -114,6 +114,12 @@ async function largeFloor(page, scenario, out) {
  const started = await page.evaluate(async () => { const start = performance.now(); await window.planningRecovery.reopen(); return start; });
  await page.locator('.rp-plan-canvas').waitFor();
  const usableMs = await page.evaluate(start => performance.now() - start, started);
+ // Counted on the stage after usableMs: that window ends at the canvas attaching and does not wait for the reference, which may or may not have drawn by then.
+ await page.waitForFunction(() => { const drawn = window.planningRecovery.scene()[0]; return drawn?.walls > 0 && drawn.openings > 0 && drawn.reference !== null; });
+ const { walls, openings, reference } = await page.evaluate(() => window.planningRecovery.scene()[0]), structure = { walls: 320, openings: 160, reference: { width: 2400, height: 1800 } };
+ assert.deepEqual({ walls, openings, reference }, structure, 'the large floor draws every seeded wall and opening and the 2400 × 1800 reference');
+ assert.deepEqual({ walls: fixture.walls, openings: fixture.openings, reference: fixture.reference }, structure, 'seedLarge reports what the stage draws');
+ await recordShot(page, scenario, out, 'large-floor');
  await panel(page, 'layers'); const room = `[data-rp-region="layers"] .rp-room-list__row[data-rp-id="${fixture.firstRoom}"]`;
  await tabTo(page, room); const selectionStart = await page.evaluate(() => performance.now()); await page.keyboard.press('Enter');
  await page.waitForFunction(id => document.querySelector(`[data-rp-id="${id}"]`)?.getAttribute('aria-pressed') === 'true', fixture.firstRoom);
@@ -143,7 +149,7 @@ async function largeFloor(page, scenario, out) {
   return elapsed;
  });
  const resources = []; for (let count = 0; count < 3; count++) { const result = await page.evaluate(() => window.planningRecovery.close()); resources.push(result); assert.equal(result.stages, 0); assert.equal(result.listeners, 0); assert.equal(result.images, 0); assert.equal(result.objectUrls, 0); await page.evaluate(() => window.planningRecovery.reopen()); await page.locator('.rp-plan-canvas').waitFor(); }
- return { fixture, usableMs, selectionMs, inspectorMs, pan, materialPan, resources, targets: { usableMs: 1500, selectionMs: 100, inspectorMs: 200, fps: 'target60/min30' }, limitation: 'warm harness mount; synthetic images; timings include browser-driver round trips and are not live Obsidian measurements' };
+ return { fixture, usableMs, selectionMs, inspectorMs, pan, materialPan, resources, targets: { usableMs: 1500, selectionMs: 100, inspectorMs: 200, fps: 'target60/min30' }, limitation: 'warm harness mount; synthetic images, the reference included; usableMs ends at the canvas attaching and is not held to include or exclude the reference decode; timings include browser-driver round trips and are not live Obsidian measurements' };
 }
 async function panFrames(page) {
  const canvas = await page.locator('.rp-plan-canvas').boundingBox(); assert.ok(canvas);

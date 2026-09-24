@@ -10,7 +10,9 @@ import { defaultValues } from '../../../../src/domain/asset/presets/presetGeomet
 import { outlineOf, resizeBox, type OutlinePart } from '../../../../src/domain/asset/shapeEdits';
 import { partMeasure, resizeToExtent, type PartBox } from '../../../../src/presentation/designer/selection/partExtent';
 import { draggedShape, type DragOptions } from '../../../../src/presentation/designer/selection/selectionDrag';
+import { selectToolRig } from '../../../helpers/designerSelection';
 import { expectDefined, expectOk } from '../../../helpers/domain';
+import { flushGesture, pointerAt } from '../../../helpers/tool-context';
 
 /**
  * AD18-R23: a box-handle drag on a CURVED CLEARANCE solves its extent as every other curved part does
@@ -106,5 +108,27 @@ describe('a box-handle drag on a curved clearance', () => {
 		const typed = expectOk(resizeToExtent(flagged, CLEARANCE, 'width', 2236.4));
 		expect([dragged.clearancePending, dragged.clearanceNeedsReview]).toEqual([true, false]);
 		expect([typed.clearancePending, typed.clearanceNeedsReview]).toEqual([true, false]);
+	});
+});
+
+/**
+ * Fix round 1: the integrator's browser drag (oval table, right-middle handle, pointer ending 8 px inside an 880 px
+ * stage) read the held side moving on SCREEN. It was the camera: the pointer sat inside `EDGE_SCROLL_ZONE_PX`, so
+ * the canvas panned under a world-fixed side — the footprint dragged to the same pixel drifts the same way. This
+ * is that drag through the tool's own entry, the preset's real clearance and the same handle, read in the WORLD.
+ */
+describe('the select tool dragging the oval table’s clearance handle', () => {
+	it('holds the left side in the world and lands the pointer’s width', async () => {
+		const rig = selectToolRig({ shape: OVAL, selection: CLEARANCE });
+		rig.tool.activate(rig.harness.context);
+
+		rig.tool.pointerDown(pointerAt(1500, 0));
+		for (const x of [1540, 1580, 1620, 1653]) rig.tool.pointerMove(pointerAt(x, 0));
+		rig.tool.pointerUp(pointerAt(1653, 0));
+		await flushGesture();
+
+		const committed = box(expectDefined(rig.written[0], 'write').shape);
+		expect(minX(committed)).toBeCloseTo(-1500, MM);
+		expect(committed.width).toBeCloseTo(3153, MM);
 	});
 });

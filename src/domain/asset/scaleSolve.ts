@@ -32,31 +32,43 @@ interface Probe {
 	readonly extent: number;
 }
 
-/** What is known about where `target` lies: the latest factor measured short of it, the latest past it, and the largest refused below both. */
+/**
+ * What is known about where `target` lies: the latest factor measured short of it, the latest past it, the largest
+ * refused with nothing short of it measured (`below`, 0 at first), and the latest refused once something short of it
+ * was (`above`, infinite at first).
+ */
 interface Bracket {
 	readonly lo: Probe | undefined;
 	readonly hi: Probe | undefined;
 	readonly below: number;
+	readonly above: number;
 	readonly floor: number;
 }
 
 /**
  * The next factor to try, positive whenever every factor measured so far is. Without a factor measured short of
- * the target, the floor, then a bisection upward from a refused factor; with both sides, the secant while it
- * stays inside them and the midpoint when it does not; with only the short side, the secant while it grows and
- * a doubling when it does not.
+ * the target, the floor, then a bisection upward from a refused factor. With the short side and an upper bound —
+ * a landing past the target or a refused factor, whichever is smaller — the secant while it stays inside them and
+ * the midpoint when it does not; with only the short side, the secant while it grows and a doubling when it does not.
  */
-function nextFactor({ lo, hi, below, floor }: Bracket, secant: number): number {
+function nextFactor({ lo, hi, below, above, floor }: Bracket, secant: number): number {
 	// `hi` is there: with no `lo`, the start or a landing measured past the target.
 	if (lo === undefined) return below === 0 ? floor : (below + (hi as Probe).factor) / 2;
-	if (hi === undefined) return secant > lo.factor ? secant : 2 * lo.factor;
-	return secant > lo.factor && secant < hi.factor ? secant : (lo.factor + hi.factor) / 2;
+	const upper = Math.min(hi?.factor ?? Number.POSITIVE_INFINITY, above);
+	if (upper === Number.POSITIVE_INFINITY) return secant > lo.factor ? secant : 2 * lo.factor;
+	return secant > lo.factor && secant < upper ? secant : (lo.factor + upper) / 2;
 }
 
-/** Nothing measured short of the target, and the factor past it is within the floor of one refused, or of zero. */
-function outOfReach({ lo, hi, below, floor }: Bracket): boolean {
+/**
+ * The target is as near as validation lets it be: with nothing measured short of it, a LANDING past it — a factor
+ * under one, not the unscaled start, which was never applied — is within the floor of one refused, or of zero;
+ * with something short of it, a factor refused above is within the floor.
+ */
+function outOfReach({ lo, hi, below, above, floor }: Bracket): boolean {
+	if (lo !== undefined) return above - lo.factor <= floor;
 	// `hi` is there: with no `lo`, the start or a landing measured past the target.
-	return lo === undefined && (hi as Probe).factor - below <= floor;
+	const past = (hi as Probe).factor;
+	return past < 1 && past - below <= floor;
 }
 
 /**
@@ -83,13 +95,15 @@ function outOfReach({ lo, hi, below, floor }: Bracket): boolean {
  * If validation refuses a factor on the way down — the floor, or the first guess itself — the solve bisects
  * upward, towards the unscaled outline, which is valid, until the smallest factor it accepts is within the
  * floor. The landing then depends on where the bisection started, so nearness and ordering hold to within
- * the extent the part moves across one floor factor: at most `REACH_MM`, and about 1e-8 mm on the oval
- * table's clearance `MAX_STEPS` names (0.0027 mm of run across a floor factor of 4.5e-6, computed rather than
- * measured).
+ * the extent the part moves across one floor factor: at most `REACH_MM`, and measured at 1e-7 mm on the
+ * oval table's clearance `MAX_STEPS` names (its corner lands 700.0000001 against a side at 700).
+ *
+ * A factor refused on the way UP — growing, or inside a bracket — is the mirror: an upper bound the solve
+ * bisects down from, to the largest factor it accepts within the floor, and the nearest landing below it is
+ * the answer. The shrub's detail-1 reaches it: flattened to its floor and then widened, its arcs meet.
  *
  * A refusal comes back only when nothing landed at all: `apply`'s own answer to a first factor at or below
- * zero or above one, or a bisection that never landed. A refusal once a factor short of the target is known
- * (the start, or a landing) ends the solve on the nearest landing.
+ * zero, or a bisection that never landed.
  *
  * ponytail: at most `MAX_STEPS` calls to `apply`; the drag makes up to three solves per pointer move.
  */
@@ -101,7 +115,10 @@ export function solveScale<T>(attempt: ScaleAttempt<T>): Result<T, ValidationErr
 		lo: start < target ? unscaled : undefined,
 		hi: start >= target ? unscaled : undefined,
 		below: 0,
-		floor: REACH_MM / start,
+		above: Number.POSITIVE_INFINITY,
+		// At most a half: a part already within REACH_MM of its floor (the washbasin's tap hole, 0.0083 mm wide after
+		// a corner drag's width pass) still takes a step below one, and still lands within REACH_MM of the infimum.
+		floor: Math.min(REACH_MM / start, 0.5),
 	};
 	let previous: Probe = unscaled;
 	let secant = Number.NaN;
@@ -116,8 +133,8 @@ export function solveScale<T>(attempt: ScaleAttempt<T>): Result<T, ValidationErr
 			bracket = extent < target ? { ...bracket, lo: probe } : { ...bracket, hi: probe };
 			secant = factor + ((target - extent) * (factor - previous.factor)) / (extent - previous.extent);
 			previous = probe;
-		} else if (bracket.lo !== undefined || !(factor > 0)) break;
-		else bracket = { ...bracket, below: factor };
+		} else if (!(factor > 0)) break;
+		else bracket = bracket.lo === undefined ? { ...bracket, below: factor } : { ...bracket, above: factor };
 		if (step === MAX_STEPS || outOfReach(bracket)) break;
 		factor = nextFactor(bracket, secant);
 		result = apply(factor);

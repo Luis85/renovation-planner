@@ -147,10 +147,15 @@ describe('solveScale at the reach limit (AD18-R23 Task 11)', () => {
 		}
 	});
 
-	it('ends on the nearest landing when a later factor is refused', () => {
-		// 2.5 lands 204.1 short of 250; the secant's 3.16 is refused, so the solve stops on what landed.
-		const { landed, tries } = solveOn(grown, 250, (factor) => factor > 3);
-		expect(landed).toBeCloseTo(grown(2.5), 9);
-		expect(tries).toHaveLength(2);
+	it.each([
+		// 2.5 lands 204.1 short of 250; the secant's 3.16 is refused. Before fix round 2 the solve stopped on 204.1.
+		['a later factor', 250],
+		// 400 / 100: the FIRST factor, 4, is refused while growing. Before fix round 2 that came back as the refusal.
+		['the first factor, growing', 400],
+	])('bisects down to the largest factor validation accepts when %s is refused above it', (_, target) => {
+		// Refused above 3, as an outline whose arcs meet once stretched: nothing past grown(3), 236.6, is reachable.
+		const { landed } = solveOn(grown, target, (factor) => factor > 3);
+		expect(landed).toBeLessThanOrEqual(grown(3));
+		expect(landed).toBeGreaterThan(grown(3) - REACH_MM);
 	});
 });

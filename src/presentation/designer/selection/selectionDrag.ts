@@ -7,6 +7,7 @@ import type { ValidationError } from '../../../core/errors/AppError';
 import { err, isErr, ok, unwrap, type Result } from '../../../core/result/Result';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { scaleRoundedRect } from '../../../domain/asset/cornerRadius';
+import { solveScale } from '../../../domain/asset/scaleSolve';
 import {
 	moveAnchor,
 	moveOutline,
@@ -53,14 +54,53 @@ function held(moves: boolean, fixed: number, min: number, centre: number, extent
 	return fixed - (fixed === min ? centre - extent / 2 : centre + extent / 2);
 }
 
+/** The part along one axis, as `fittedResize` asks for it. */
+interface Pass {
+	readonly axis: 'width' | 'depth';
+	readonly target: number;
+}
+
+type Hold = (resized: AssetShape) => Result<AssetShape, ValidationError>;
+
+/**
+ * `resizeToExtent`'s solve again with `hold` inside EVERY attempt, for the pass whose held result was refused:
+ * the factor is then judged on the whole edit the drag commits rather than on a shape it never writes (AD18-R23
+ * Task 11 fix round 2).
+ *
+ * The two differ where a solve lands at its floor. The shrub's detail-1, flattened to 0.2 of its depth and
+ * stretched 1.3 wide, lands a depth factor of 1.13e-5 that validation accepts, and translating that outline to
+ * hold the corner re-checks arcs within rounding of meeting — `asset.invalid-detail`. Held after the solve, the
+ * refusal fell to the plain scale and threw the corner 82 to 126 mm. Held inside it, the refusal is one more
+ * refused factor, and `solveScale` bisects to the nearest one whose HELD edit validation accepts. A higher floor
+ * would only move the edge a translation can fall off; judging the committed edit removes it.
+ *
+ * Not the rounded-rectangle rebuild `resizeToExtent` tries first: a retry is a pass whose outline sits at a
+ * solve's floor, which is no rounded rectangle any more.
+ */
+function heldExtent(shape: AssetShape, part: OutlinePart, { axis, target }: Pass, hold: Hold): Result<AssetShape, ValidationError> {
+	// The part is there: `keptCurves` measured it, and every pass keeps it.
+	const start = partMeasure(shape, part) as PartBox;
+	return solveScale({
+		start: start[axis],
+		target,
+		apply: (factor) => {
+			const resized = resizeBox(shape, part, { width: { sx: factor, sy: 1 }, depth: { sx: 1, sy: factor } }[axis], start.centre);
+			return resized.ok ? hold(resized.value) : resized;
+		},
+		measure: (moved) => (partMeasure(moved, part) as PartBox)[axis],
+	});
+}
+
 /**
  * A box-handle resize of a graphic with arcs (AD18-R20 Task 13): its CURVE-AWARE extent solved onto the
- * dragged box by `resizeToExtent` — the typed Width/Depth path, so a drag and a typed size land the same
- * numbers, and for a box the kept bulges cannot reach the same extent, within `solveScale`'s 0.01 mm of the
- * nearest one they can; a side handle moved further in does not push it back out (AD18-R23 Task 11, measured on
- * the oval and round tables' clearances and the vanity's basin) — then moved so the side
- * or corner opposite the handle is back where it was. A plain ratio misses here because every arc keeps its
- * bulge, so an arc whose chord a scale leaves alone keeps its whole sagitta (`scaleSolve.ts`).
+ * dragged box the way the typed Width/Depth path (`resizeToExtent`) solves it — so a drag and a typed size land
+ * the same numbers, and for a box the kept bulges cannot reach the same extent, within `solveScale`'s 0.01 mm of
+ * the nearest one they can; a side handle moved further in does not push it back out (AD18-R23 Task 11, measured
+ * on the oval and round tables' clearances and the vanity's basin) — then moved so the side or corner opposite
+ * the handle is back where it was. Where validation refuses that move, the last pass is solved again with the move
+ * inside every attempt (`heldExtent`), so the factor chosen is one whose held edit validation accepts. A plain
+ * ratio misses here because every arc keeps its bulge, so an arc whose chord a scale leaves alone keeps its whole
+ * sagitta (`scaleSolve.ts`).
  *
  * A corner drag solves width, depth, width, as `scaleDesignToDimensions` does and for its reason: the axes are
  * coupled through any arc whose chord is not axis-aligned. Which axes are solved is the HANDLE's, not the
@@ -69,11 +109,14 @@ function held(moves: boolean, fixed: number, min: number, centre: number, extent
  *
  * A refusal comes back as it is; `keptCurves` turns it into the plain scale.
  *
- * ponytail: up to three `solveScale` runs of at most 24 attempts each, so 72 `resizeBox` calls per pointer move at
- * most (24 for a side handle). Measured over every preset part's side and corner drags, the most is 20 in one run
- * and 23 in one move, on the oval table's clearance: a corner drag's third pass starts from the width its first
- * left at the floor and bisects (`scaleSolve.ts`'s `MAX_STEPS`). That move took 0.67 ms in node, against the
- * 16.7 ms of a 60 Hz frame; `selectionDragReachCost.test.ts` holds the 23.
+ * ponytail: up to three `solveScale` runs and one retry of at most 24 attempts each, so 96 `resizeBox` calls per
+ * pointer move at most (48 for a side handle). Measured over every curved preset part, all eight handles and a
+ * 19 x 19 pointer grid down to a millionth of the span: the most is 20 in one run, on the oval table's clearance,
+ * whose corner third pass starts from the width its first left at the floor and bisects (`scaleSolve.ts`'s
+ * `MAX_STEPS`), and 34 in one move, on the shrub's detail-1 stretched twice as wide and flattened to 0.3 (runs
+ * of 2, 17 and 15). The slowest move took 7.3 ms in node, a corner drag of the tree's footprint, whose many arcs
+ * make each validation dear — 7.1 ms before this retry existed, which only a refused hold pays for.
+ * `selectionDragReachCost.test.ts` holds the oval's 23.
  */
 function fittedResize(
 	shape: AssetShape,
@@ -84,21 +127,29 @@ function fittedResize(
 ): Result<AssetShape, ValidationError> {
 	const handle = boxHandlePoint(box, index);
 	const moves = { x: handle.x !== origin.x, y: handle.y !== origin.y };
-	const width = { axis: 'width', target: (box.max.x - box.min.x) * factors.sx } as const;
-	const depth = { axis: 'depth', target: (box.max.y - box.min.y) * factors.sy } as const;
+	const width: Pass = { axis: 'width', target: (box.max.x - box.min.x) * factors.sx };
+	const depth: Pass = { axis: 'depth', target: (box.max.y - box.min.y) * factors.sy };
 	const passes = !moves.x ? [depth] : !moves.y ? [width] : [width, depth, width];
+	const hold: Hold = (resized) => {
+		// The part is there: `resizeBox` just answered it.
+		const got = partMeasure(resized, part) as PartBox;
+		return moveOutline(resized, part, {
+			dx: held(moves.x, origin.x, box.min.x, got.centre.x, got.width),
+			dy: held(moves.y, origin.y, box.min.y, got.centre.y, got.depth),
+		});
+	};
 	let solved = shape;
+	let beforeLast = shape;
 	for (const pass of passes) {
+		beforeLast = solved;
 		const next = resizeToExtent(solved, part, pass.axis, pass.target);
 		if (isErr(next)) return next;
 		solved = next.value;
 	}
-	// The part is there: `resizeToExtent` just answered it.
-	const got = partMeasure(solved, part) as PartBox;
-	return moveOutline(solved, part, {
-		dx: held(moves.x, origin.x, box.min.x, got.centre.x, got.width),
-		dy: held(moves.y, origin.y, box.min.y, got.centre.y, got.depth),
-	});
+	const moved = hold(solved);
+	// Refused, in every preset move measured, where the last pass landed within rounding of the validity edge: solve
+	// that pass again with the hold inside every attempt.
+	return moved.ok ? moved : heldExtent(beforeLast, part, passes[passes.length - 1], hold);
 }
 
 /**

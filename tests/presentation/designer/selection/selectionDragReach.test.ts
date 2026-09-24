@@ -102,4 +102,42 @@ describe('a right-side drag past a curved part\'s reach', () => {
 			outer = right;
 		}
 	});
+
+	it.each([
+		// The reviewer's move: the corner's depth pass lands its floor, and holding that outline was refused.
+		[1.3, 0.2],
+		// Stretched twice as wide at that floor, the third (width) pass's own first factor is refused as well.
+		[2, 0.3],
+		// Its held retry meets a factor `resizeBox` itself refuses, before any hold is tried.
+		[1.7, 1e-4],
+	])('holds the corner of the shrub\'s detail-1 stretched %d wide and flattened to %d deep', (u, v) => {
+		// Before fix round 2 both fell back to the plain scale, which threw the held corner 82 to 126 mm.
+		const shrub = preset('shrub');
+		const part: OutlinePart = { kind: 'detail', id: 'detail-1' };
+		const start = box(shrub, part);
+		const heldCorner = { x: start.centre.x + start.width / 2, y: start.centre.y + start.depth / 2 };
+		const from = { x: heldCorner.x - start.width, y: heldCorner.y - start.depth };
+		const to = { x: heldCorner.x - start.width * u, y: heldCorner.y - start.depth * v };
+		const landed = box(expectOk(draggedShape({ shape: shrub, selection: part, role: { kind: 'box', index: 0 }, from }, to, FREE)), part);
+		expect(landed.centre.x + landed.width / 2).toBeCloseTo(heldCorner.x, 6);
+		expect(landed.centre.y + landed.depth / 2).toBeCloseTo(heldCorner.y, 6);
+		expect(landed.width).toBeLessThanOrEqual(start.width * u + 1e-6);
+	});
+
+	it('holds the corner of the washbasin\'s tap hole dragged to a millionth of its width', () => {
+		// A circle 40 across: its width pass lands 0.0083 mm wide, where `REACH_MM / start` exceeds one and the depth-
+		// then-width third pass once stopped on the unscaled start it never applied — a refusal, and the plain scale
+		// moved the held side 0.004 mm. Found by the fix-round-2 grid, and on 0dccd1c56 as well.
+		const basin = preset('washbasin');
+		const part: OutlinePart = { kind: 'detail', id: 'detail-2' };
+		const start = box(basin, part);
+		const heldCorner = { x: start.centre.x + start.width / 2, y: start.centre.y + start.depth / 2 };
+		const from = { x: heldCorner.x - start.width, y: heldCorner.y - start.depth };
+		const to = { x: heldCorner.x - start.width * 1e-6, y: heldCorner.y - start.depth * 1e-3 };
+		const landed = box(expectOk(draggedShape({ shape: basin, selection: part, role: { kind: 'box', index: 0 }, from }, to, FREE)), part);
+		expect(landed.centre.x + landed.width / 2).toBeCloseTo(heldCorner.x, 6);
+		expect(landed.centre.y + landed.depth / 2).toBeCloseTo(heldCorner.y, 6);
+		expect(landed.width).toBeLessThanOrEqual(REACH_MM);
+	});
 });
+

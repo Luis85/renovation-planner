@@ -70,8 +70,9 @@ export function focusDropped(): boolean {
  * `onCanvasKeyDown` asks it too, so the canvas, the menu and the rows cannot disagree about when a key is theirs.
  *
  * **Camera mode (`null`, the toolbar's Pan) is admitted beside Select** (AD18-R20): it is not a tool and
- * owns no key, and it is the mode the designer OPENS in, so refusing it made the menu and every key do
- * nothing, silently, until the user found Select. The Plan Editor's menu admits its own `pan` the same way
+ * owns no key, and when the designer still opened in it, refusing it made the menu and every key do
+ * nothing, silently, until the user found Select. The designer rests in Select now, and a user who
+ * picks Pan keeps the keys. The Plan Editor's menu admits its own `pan` the same way
  * (`CanvasContextMenu.vue`).
  */
 export function selectionKeysRefused(gate: SelectionKeyGate): boolean {

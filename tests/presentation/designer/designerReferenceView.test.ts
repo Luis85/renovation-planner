@@ -206,7 +206,7 @@ describe('the placement group’s Custom segment (AD18-R16 Task 8)', () => {
 	it('switches the canvas to the existing Set-anchor tool, reached the way a user reaches it', async () => {
 		const rig = await designerRig({ shape: toiletShape() });
 		try {
-			expect(rig.activeToolId()).toBeNull();
+			expect(rig.activeToolId()).toBe('select');
 
 			await rig.wrapper.get('[name="placement-custom"]').trigger('click');
 

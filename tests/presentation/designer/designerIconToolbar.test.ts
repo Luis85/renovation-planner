@@ -196,8 +196,8 @@ describe('every toolbar button is an icon with a name', () => {
 
 		expect(pressed('designer.toolbar.undo')).toBeUndefined();
 		expect(pressed('designer.toolbar.redo')).toBeUndefined();
-		expect(pressed('designer.toolbar.pan')).toBe('true');
-		expect(pressed('designer.toolbar.select')).toBe('false');
+		expect(pressed('designer.toolbar.pan')).toBe('false');
+		expect(pressed('designer.toolbar.select')).toBe('true');
 		rig.unmount();
 	});
 });

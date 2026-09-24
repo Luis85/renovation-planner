@@ -1,4 +1,4 @@
-import { inject, onBeforeUnmount, provide, reactive, ref, type InjectionKey, type Ref } from 'vue';
+import { inject, onBeforeUnmount, provide, reactive, ref, watch, type InjectionKey, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger, type WriteLedger } from '../../application/editor/WriteLedger';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
@@ -152,16 +152,19 @@ export interface DesignerRuntime {
 	 * `designFrame` stays the one fit definition and reads no view state, the precedent Parts-hidden
 	 * graphics already set.
 	 *
-	 * **A boundary the user asks for is never born invisible**, so every gesture that CREATES one
-	 * switches this back on. There are three such gestures and three doors, and no fourth place all
-	 * of them pass through: arming `trace-clearance` (`clearanceRevealingSwitch` below, wrapped
-	 * round `setTool`, which the toolbar, the Add rail and the key doors all call), applying a preset
-	 * that carries one (`applyShape` below), and Generate (`DesignerClearanceHelper`, which writes
-	 * through the shape-agnostic `editShape`). A watch on the design's clearance was the other
-	 * candidate and is refused: absent-to-present never fires in the case this rule exists for — the
-	 * switch is only drawn while a clearance exists, so hiding one and then tracing is a REPLACEMENT
-	 * — and a watch for any change fires on a rotate, a resize or a calibration too, each of which
-	 * maps the clearance it already has and none of which asked to see it.
+	 * **A clearance that comes into being is shown**, and it comes in two shapes, so there are four places
+	 * that switch this back on. A READ-BACK that takes the design from no clearance to one
+	 * (`clearanceReveals` below) catches a birth that arrives with no gesture — a redo, an undo of a
+	 * removal, a peer leaf's write — as well as a gesture's own when nothing was there before. What it
+	 * cannot see is a REPLACEMENT, and that is the case the three gesture doors exist for: the switch is
+	 * drawn only while a clearance exists, so hiding one and then making another reads back
+	 * present-to-present. So a replacement that arrives with NO gesture — an undo or redo of one, or a
+	 * peer's — stays hidden: no door reaches it. The doors are arming
+	 * `trace-clearance` (`clearanceReveals`'s wrapper round `setTool`, which the toolbar, the Add rail
+	 * and the key doors all call), applying a preset that carries one (`applyShape` below), and Generate
+	 * (`DesignerClearanceHelper`, which writes through the shape-agnostic `editShape`). A watch for ANY
+	 * change of the clearance is refused: it fires on a rotate, a resize or a calibration too, each of
+	 * which maps the clearance it already has and none of which asked to see it.
 	 */
 	readonly showClearance: Ref<boolean>;
 	/**
@@ -276,15 +279,33 @@ export function designFrame(shape: AssetShape): BoundingBox | null {
 }
 
 /**
- * `setTool`, plus `showClearance`'s arming rule: switching to `trace-clearance` shows the layer
- * the traced boundary will be drawn on, so the commit does not appear to draw nothing. Arming
- * rather than completing, because the user then also sees the boundary the trace replaces. A
- * function outside `buildRuntime` for its 100-line budget.
+ * Two of `showClearance`'s reveal rules (`DesignerRuntime.showClearance` has all four), in one function
+ * outside `buildRuntime` for its 100-line budget.
+ *
+ * - The READ-BACK: whenever the design this leaf holds goes from no clearance to one, the switch goes
+ *   on. `store.design` is written by a read alone (`AssetDesignStore.hydrate`), never by a gesture's
+ *   preview, so this fires for a committed clearance and for nothing drawn in flight.
+ * - The returned `setTool`: switching to `trace-clearance` shows the layer the traced boundary will be
+ *   drawn on, so the commit does not appear to draw nothing. Arming rather than completing, because the
+ *   user then also sees the boundary the trace replaces. It asks the tool that IS active after the
+ *   switch rather than trusting the request, because `ToolManager.setActiveTool` does nothing when the
+ *   outgoing tool's `canDeactivate` refuses.
  */
-function clearanceRevealingSwitch(switchTool: (id: ToolId | null) => void, showClearance: Ref<boolean>): (id: ToolId | null) => void {
+function clearanceReveals(
+	switchTool: (id: ToolId | null) => void,
+	activeToolId: Readonly<Ref<ToolId | null>>,
+	showClearance: Ref<boolean>,
+	store: ReturnType<typeof useAssetDesignStore>,
+): (id: ToolId | null) => void {
+	watch(
+		() => (store.design?.shape?.clearance ?? null) !== null,
+		(present) => {
+			if (present) showClearance.value = true;
+		},
+	);
 	return (id) => {
 		switchTool(id);
-		if (id === 'trace-clearance') showClearance.value = true;
+		if (id === 'trace-clearance' && activeToolId.value === id) showClearance.value = true;
 	};
 }
 
@@ -656,7 +677,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	 * all `createToolSwitch` needs.
 	 */
 	const { activeToolId } = storeToRefs(editor);
-	const setTool = clearanceRevealingSwitch(createToolSwitch(toolManager, activeToolId), showClearance);
+	const setTool = clearanceReveals(createToolSwitch(toolManager, activeToolId), activeToolId, showClearance, store);
 
 	registerDesignerTools(toolManager, {
 		assetId,
@@ -669,6 +690,10 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		...calibrationDeps(useDialogStore(), store),
 		...detailDeps(store),
 	});
+	// The resting tool (AD18-R20), activated here because this is the first line its registration exists
+	// on. It needs no read first: `DesignerSelectTool` reads the store per press and never reads the
+	// context's `subject`, so the context built now, before the mount's read, holds nothing it asks for.
+	setTool('select');
 
 	// Both halves of SDD §65 — a THROWN fault and a RESOLVED refusal — bound straight to
 	// toolbar clicks, which discard the promise they are handed.

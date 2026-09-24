@@ -310,7 +310,7 @@ const gridStep = computed<number | null>(() => {
  */
 const emptyStateKey = computed<'noShape' | 'noBackground' | null>(() => {
 	const current = design.value;
-	if (current === null || runtime.activeToolId.value !== null) return null;
+	if (current === null || (runtime.activeToolId.value !== null && runtime.activeToolId.value !== 'select')) return null;
 	return selectAssetDesignerEmptyState(current);
 });
 

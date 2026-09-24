@@ -169,14 +169,19 @@ describe('camera mode', () => {
 	/**
 	 * **"No active tool" and never one more `EditorTool`.** The camera is ephemeral UI (SDD §15)
 	 * and is never a command, so the Pan button clears the manager rather than activating
-	 * anything — and it is the state a freshly opened designer rests in, which is what the
-	 * second assertion pins.
+	 * anything. It was the state a freshly opened designer rested in until AD18-R20 made that
+	 * Select, so this case starts from the rest a leaf opens in and asks Pan to leave it.
 	 */
-	it('is what the designer opens in, with no tool active', async () => {
+	it('is what Pan reaches from the Select a designer opens in, with no tool active', async () => {
 		const rig = await designerRig();
+		const pan = rig.toolbarButton(t('en', 'designer.toolbar.pan'));
+		expect(rig.activeToolId()).toBe('select');
+		expect(pan.getAttribute('aria-pressed')).toBe('false');
+
+		await press(rig, 'designer.toolbar.pan');
 
 		expect(rig.activeToolId()).toBeNull();
-		expect(rig.toolbarButton(t('en', 'designer.toolbar.pan')).getAttribute('aria-pressed')).toBe('true');
+		expect(pan.getAttribute('aria-pressed')).toBe('true');
 		rig.unmount();
 	});
 

@@ -20,6 +20,46 @@
 }
 
 /*
+ * FIX ROUND 1 (integrator's measurement): a 2px inset is not enough. `DesignerRulers.vue` paints
+ * two OPAQUE strips — `.rp-designer-ruler--top`/`--left`, `background-color:
+ * var(--background-primary)` — over the canvas's own top and left 18px
+ * (`--rp-designer-ruler-size`, `designer-rulers.css`), and the -2px ring above sits entirely
+ * under them on those two edges, invisible rather than merely dim.
+ *
+ * `:has(.rp-designer-rulers)` rather than tracking every condition that removes the strips by
+ * name (an unscaled design, no design loaded yet — `DesignerRulers.vue`'s own `model`, `v-if`).
+ * There is no View-menu toggle or narrow-width rule that hides them either — grepped rather than
+ * assumed: `.rp-view-menu__content` (`DesignerViewMenu.vue`) has no ruler row, and
+ * `grep -n ruler styles/designer-narrow.css` finds nothing — but `:has()` needs none of that
+ * enumerated: it reads whatever is actually in the DOM, so a future hiding mechanism is covered
+ * for free and this rule cannot go stale the way a condition-by-condition list would.
+ *
+ * `--rp-designer-ruler-size` does NOT inherit onto `.rp-plan-canvas` for `calc()` to read: custom
+ * properties inherit DOWNWARD, and the strips that declare it (`.rp-designer-rulers` in
+ * `designer-rulers.css`) are `.rp-plan-canvas`'s own DESCENDANTS, not an ancestor. So the value is
+ * RESTATED here — the same move `dimensionFigures.ts`'s `RULER_PX` already makes for the identical
+ * reason ("a stylesheet variable is not readable from here") — and pinned against
+ * `designer-rulers.css`'s own declared value by the test beside this file, so the two cannot
+ * silently drift the way an unpinned restatement would.
+ *
+ * ONE offset, not one per side. `outline` draws a single rectangle with a single `outline-offset`
+ * — CSS has no per-edge outline — so a true "ring only where a ruler sits" would mean abandoning
+ * `outline` for a border, box-shadow or pseudo-element built from four edges, which is a larger
+ * rewrite than a fix round over a control that isn't yet reported as visually wrong on its other
+ * two sides. Insetting all four by the ruler size instead reads as one clean rectangle framing the
+ * DRAWING area rather than the canvas's outer box — consistent with the ruler strips already
+ * occupying that same band as chrome instead of drawing surface (`designer-rulers.css`'s own
+ * header, on the 46.9%-of-a-narrow-canvas cost) — over the alternative of a ring flush on two
+ * edges and inset on the other two, which would read as off-centre rather than as one deliberate
+ * frame. A PREDICTION: no browser here to confirm which reads better, but the two are not close —
+ * asymmetry needs a border-based rewrite this fix round does not make.
+ */
+.renovation-asset-designer .rp-plan-canvas:has(.rp-designer-rulers):focus-visible {
+	--rp-designer-ruler-size: 18px;
+	outline-offset: calc(-1 * var(--rp-designer-ruler-size));
+}
+
+/*
  * THE DESIGNER'S SELECTS. Obsidian only styles a `<select>` once it carries the `.dropdown` class
  * (the vendored `tests/harness/obsidian.css` has no unqualified `select` rule at all), and this
  * card adds no class to a `.vue` file — every designer select is reached through the root instead,

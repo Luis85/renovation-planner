@@ -53,6 +53,36 @@ describe('the designer canvas’s focus ring', () => {
 		expect(declared(rules, '.rp-plan-canvas:focus-visible', 'outline')).toEqual([]);
 		expect(declared(rules, '.renovation-plan-editor .rp-plan-canvas:focus-visible', 'outline')).toEqual([]);
 	});
+
+	/**
+	 * Fix round 1 (integrator's measurement): the -2px ring above sits entirely under
+	 * `DesignerRulers.vue`'s opaque top/left strips when they are drawn. `:has(.rp-designer-rulers)`
+	 * reads whether the strips are actually in the DOM rather than naming a condition that hides
+	 * them, so this rule wins by specificity over the base ring whenever they are present and
+	 * leaves the base rule's -2px as the answer whenever they are not (an unscaled design, or no
+	 * design loaded yet — `DesignerRulers.vue`'s own `model`, `v-if`).
+	 */
+	it('insets the ring to the ruler strips’ own size once they are in the DOM', () => {
+		const selector = '.renovation-asset-designer .rp-plan-canvas:has(.rp-designer-rulers):focus-visible';
+
+		expect(declared(rules, selector, 'outline-offset')).toEqual(parsed('outline-offset', 'calc(-1 * var(--rp-designer-ruler-size))'));
+	});
+
+	/**
+	 * `--rp-designer-ruler-size` inherits DOWNWARD only, and the strips that declare it
+	 * (`.rp-designer-rulers` in `designer-rulers.css`) are `.rp-plan-canvas`'s own descendants, not
+	 * an ancestor — so the `calc()` above cannot read that declaration and this file RESTATES the
+	 * value instead, the same move `dimensionFigures.ts`'s `RULER_PX` already makes for the
+	 * identical reason. Pinned here exactly as `restingLabels.test.ts` already pins that other
+	 * restatement, so the two files cannot silently drift if the rulers' own size ever changes.
+	 */
+	it('restates the rulers’ own strip size, pinned against designer-rulers.css rather than retyped', () => {
+		const fromRulers = declared(partial('designer-rulers.css'), '.rp-designer-rulers', '--rp-designer-ruler-size');
+		const fromPolish = declared(rules, '.renovation-asset-designer .rp-plan-canvas:has(.rp-designer-rulers):focus-visible', '--rp-designer-ruler-size');
+
+		expect(fromRulers).toEqual(parsed('--rp-designer-ruler-size', '18px'));
+		expect(fromPolish).toEqual(fromRulers);
+	});
 });
 
 describe('the designer’s styled selects', () => {

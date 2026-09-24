@@ -113,10 +113,12 @@ export interface SelectionAbilities {
  * Duplicate a focused graphic; Delete a focused graphic or the clearance. The footprint cannot be
  * deleted (spec Decision 9), and the anchor and the facing are not parts one removes.
  *
- * **Only over parts the canvas draws** (`drawnPart`, AD18-R22). Each action is asked about the parts
- * it would write: Group writes every member, so one member not drawn refuses it; Ungroup, Duplicate and
- * Delete write through the focused part, so a drawn focused member keeps them while another member is
- * hidden. The Inspector's own buttons do not ask this: they sit beside a named part.
+ * **Only over parts the canvas draws** (`drawnPart`, AD18-R22), judged by what the user can SEE change.
+ * Group gathers every member into one group, so one member not drawn refuses it. Duplicate, Delete and
+ * Ungroup act on the focused part, so a drawn focused member keeps them while another member is hidden.
+ * Ungroup does rewrite the group record a hidden group-mate is listed in, and is admitted anyway: the
+ * part ungrouped is the visible focused one, and nothing of the hidden part moves or shows. The
+ * Inspector's own buttons do not ask this: they sit beside a named part.
  */
 export function selectionAbilities(shape: AssetShape | null, selected: readonly DesignerSelection[], view: DrawnView): SelectionAbilities {
 	const focused = drawnPart(view, selected.at(-1)), detail = focused?.kind === 'detail' ? focused.id : null;
@@ -223,13 +225,14 @@ function whileItExists(selection: DesignerSelection, edit: ShapeEdit): (shape: A
  * tool and what its canvas draws. Arrow-function properties, so a component may destructure one
  * without an unbound `this`.
  *
- * Each action reads the selection at the CALL and answers for itself what it can act on — a detail or
- * the clearance to delete, a detail to duplicate — rather than trusting its caller to have asked:
- * `designerShortcut` asks at the press, while `nudgeSelection` is reached through `EditorSurface`'s arrow
- * door, which asks nothing about the part. Whether the part is DRAWN (AD18-R22) is asked before the
- * other four are called, by `selectionAbilities` in `designerShortcut` and in the menu, and by the nudge
- * itself. The context menu (`designerMenu.ts`) calls the four that are not the nudge, on the SAME instance `AssetDesignerRoot` builds for the keys. The inspector's buttons
- * call none of them; they share `duplicateAndSelect`, `selectedGraphics` and `canGroup` above, and show
+ * Each action reads the selection at the CALL and answers for itself what KIND of part it can act on —
+ * a detail or the clearance to delete, a detail to duplicate — rather than trusting its caller to have
+ * asked: `designerShortcut` asks at the press, while `nudgeSelection` is reached through
+ * `EditorSurface`'s arrow door, which asks nothing about the part. Whether the part is DRAWN (AD18-R22)
+ * is the one question the four that are not the nudge leave to their callers: `selectionAbilities`
+ * answers it before any door calls them, in `designerShortcut` and in the menu. The nudge asks it
+ * itself, since its door asks nothing. The context menu (`designerMenu.ts`) calls those four on the
+ * SAME instance `AssetDesignerRoot` builds for the keys. The inspector's buttons call none of them; they share `duplicateAndSelect`, `selectedGraphics` and `canGroup` above, and show
  * a refusal in their own alert rather than a notice. The selection clears itself after a delete: the
  * refresh re-reads a shape without the part, and the store prunes a selection that names nothing.
  */

@@ -100,9 +100,10 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToo
 		// A pan still dragging refuses it too, as the Plan Editor's menu does (`CanvasContextMenu`).
 		if (dialogs.current !== null || editor.dragState !== null || selectionKeysRefused(runtime)) return;
 		const target = event.target as HTMLElement, part = partAt(event, target);
-		// A part none of the four can act on (the footprint, the anchor, the facing, a part not drawn) opens nothing: a menu
-		// of greyed items is a dead control, and the browser keeps its own event. Asked of the part ALONE,
-		// which is exact — a graphic can always be duplicated, and a non-graphic is only ever selected alone.
+		// A part none of the four can act on (the footprint, the anchor, the facing, a part not drawn) opens
+		// nothing: a menu of greyed items is a dead control, and the browser keeps its own event. Asked of the
+		// part ALONE, which is exact: a DRAWN graphic can always be duplicated, a part not drawn is refused
+		// every item whatever set it sits in (`selectionAbilities`), and a non-graphic is only ever selected alone.
 		// A part was only found on a drawn design, hence the cast.
 		if (part === null || !Object.values(selectionAbilities((store.design as AssetDesignDto).shape, [part], runtime)).includes(true)) return;
 		event.preventDefault();

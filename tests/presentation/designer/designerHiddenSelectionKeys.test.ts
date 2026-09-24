@@ -133,7 +133,8 @@ describe.each(HIDERS)('a selected part that is not drawn: %s', (_label, hider) =
 
 			await hider.show(rig);
 			expect((await key(rig.canvasEl, { key: 'F10', shiftKey: true })).defaultPrevented).toBe(true);
-			expect(menuItem(rig, 'delete')?.getAttribute('aria-disabled')).not.toBe('true');
+			expect(menuItem(rig, 'delete')).not.toBeNull();
+			expect((menuItem(rig, 'delete') as Element).getAttribute('aria-disabled')).not.toBe('true');
 		} finally {
 			rig.unmount();
 		}
@@ -226,7 +227,8 @@ describe('a set with a member that is not drawn', () => {
 			await toggleHidden(rig, TOP);
 			await key(rig.canvasEl, { key: 'F10', shiftKey: true });
 			expect(menuItem(rig, 'group')?.getAttribute('aria-disabled')).toBe('true');
-			expect(menuItem(rig, 'delete')?.getAttribute('aria-disabled')).not.toBe('true');
+			expect(menuItem(rig, 'delete')).not.toBeNull();
+			expect((menuItem(rig, 'delete') as Element).getAttribute('aria-disabled')).not.toBe('true');
 			// Closed from inside the menu: an Escape on the canvas itself would clear the selection.
 			await key(menuItem(rig, 'delete') as Element, { key: 'Escape' });
 			expect(menu(rig)).toBeNull();

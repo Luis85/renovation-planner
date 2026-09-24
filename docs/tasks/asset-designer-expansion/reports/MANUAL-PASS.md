@@ -19,13 +19,13 @@ overlooked.**
 
 ## What the pass consists of
 
-**206 human steps across seven cases**, measured rather than remembered — re-derived on
-2026-09-24 against the finished AD18-R20/R21 polish-round tree, AFTER a review round found one
-row's pass condition wrong and a later fix wave (`3405aab95`) made several more rows false, with
-the command run verbatim as it is printed. **Do not trust this number; run the command.** It has
-been 84, then 90, then 109, then 145, then 179, then 182, then 205, then this, and each time the
-session that moved it was the session that had just shipped — or, three times now, corrected — the
-thing it was counting:
+**215 human steps across seven cases**, measured rather than remembered — re-derived on
+2026-09-24 against the finished AD18-R22 tree (Task 14, "a hidden but selected part refuses the
+selection keys and menu"), AFTER a review round found one row's pass condition wrong and a later
+fix wave (`3405aab95`) made several more rows false, with the command run verbatim as it is
+printed. **Do not trust this number; run the command.** It has been 84, then 90, then 109, then
+145, then 179, then 182, then 205, then 206, then this, and each time the session that moved it was
+the session that had just shipped — or, three times now, corrected — the thing it was counting:
 
 ```bash
 for f in "Design an Asset" "Take an asset from the library into a plan" \
@@ -46,8 +46,8 @@ same mistake naming a case here guards against for the other six.
 |---|---|---|---|
 | [[Design an Asset]] | **90** | 136 | U01 (with the next row) |
 | [[Take an asset from the library into a plan]] | 19 | 28 | U01, T34 |
-| [[Compose an asset from parts]] | **15** | 55 | U02, U03 (its Repeat section) |
-| [[Calibrate a sheet and reserve space]] | **21** | 52 | U04 — **7 already confirmed**, see below |
+| [[Compose an asset from parts]] | **22** | 62 | U02, U03 (its Repeat section) |
+| [[Calibrate a sheet and reserve space]] | **23** | 54 | U04 — **7 already confirmed**, see below |
 | [[Recover an asset design rather than lose it]] | 33 | 42 | U05 |
 | [[Two designers on one asset]] | 8 | 16 | T12 |
 | [[Browse the asset library]] | **20** | 37 | AD18-R18 (Grid view), AD18-R20/R21 Task 8 (this round) |
@@ -332,6 +332,37 @@ None of these five corrections added or removed a step from `docs/tests/cases/` 
 except 49a (new, to answer the coordinator's own follow-up request about the keyboard door) — the
 other four are citation and pass-condition fixes to rows this same task wrote, caught before the
 walk that would otherwise have found them wrong against a live vault instead.
+
+**AD18-R22 (Task 14) landed next, `ea7d3d6b4`, "a hidden but selected part refuses the selection
+keys and menu" — the reason the total moved once more, from 206 to 215.** It extends AD18-R20's
+undrawn-selection rule (row 7a's, and row 21f's, own subject: a selected part the canvas is not
+drawing keeps its selection but loses its outline and handles) from DRAWING to the KEYS and the
+MENU: while the FOCUSED selection is a hidden graphic or a clearance with Show clearance off, the
+arrows, Delete/Backspace, Ctrl+D and Ctrl+Shift+G do nothing and claim nothing (so the host may
+still act on the same keypress), and a right-click on the canvas or the part's own Parts row opens
+no menu. Group (Ctrl+G and the menu) refuses the moment ANY selected member is hidden, regardless
+of which one is focused — the one action that writes every member rather than the focused one
+alone. The Inspector's own Delete and Duplicate buttons are a deliberate carve-out: they call
+neither `selectionAbilities` nor the selection-key actions, so they keep acting on a part the
+canvas is not currently drawing.
+
+- **[[Compose an asset from parts]] gained seven**, all `obsidian`: 7b (every key and the menu
+  refusing on a hidden, selected graphic), 7c (the Inspector's Duplicate and Delete still acting on
+  it), 7d (Ctrl+D and Ctrl+Shift+G recorded as OBSERVE, since no source establishes whether
+  Obsidian's own bindings fire on an unclaimed key — the same treatment row 95a already took), 7e
+  (every door restored once the part is shown again), and 51-53 (the multi-selection split: Group
+  refuses over the whole set with any one member hidden, while Delete still acts on a visible
+  FOCUSED member even with a hidden one in the same selection, and refuses once the FOCUSED member
+  itself is the hidden one). **Row 39 was REWRITTEN**: it used to delete a hidden, selected part
+  with the Delete KEY, which is exactly the door AD18-R22 now refuses — it uses the Inspector's own
+  Delete button instead, and the outcome it was written to check (the part returns SHOWN, not
+  hidden, because hiding is pruned leaf-local state) is unchanged.
+- **[[Calibrate a sheet and reserve space]] gained two, both `obsidian`**: 21i (the same
+  keys-and-menu refusal for a hidden, selected clearance, restored once shown again — explicitly
+  NOT covering Ctrl+D/Ctrl+G/Ctrl+Shift+G, since the clearance never had those abilities in the
+  first place) and 21j (the Inspector's own Delete button still removing a hidden clearance). No
+  existing row in this case claimed a hidden clearance was reachable by a key, so nothing needed
+  rewriting here — row 21f already covered only the drawing half, which AD18-R22 does not touch.
 
 ## The gate inside the pass
 

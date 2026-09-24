@@ -19,11 +19,12 @@ overlooked.**
 
 ## What the pass consists of
 
-**179 human steps across seven cases**, measured rather than remembered — re-derived on
-2026-09-24 against the finished AD18-R17/R18/R19 second-parity-round tree with the command below,
-run verbatim as it is printed. **Do not trust this number; run the command.** It has been 84,
-then 90, then 109, then 145, then this, and each time the session that moved it was the session
-that had just shipped the thing it was counting:
+**182 human steps across seven cases**, measured rather than remembered — re-derived on
+2026-09-24 against the finished AD18-R17/R18/R19 second-parity-round tree, AFTER a review round
+added three steps this file's own narrative names below, with the command run verbatim as it is
+printed. **Do not trust this number; run the command.** It has been 84, then 90, then 109, then
+145, then 179, then this, and each time the session that moved it was the session that had just
+shipped — or, this once, corrected — the thing it was counting:
 
 ```bash
 for f in "Design an Asset" "Take an asset from the library into a plan" \
@@ -45,10 +46,10 @@ same mistake naming a case here guards against for the other six.
 | [[Design an Asset]] | **82** | 128 | U01 (with the next row) |
 | [[Take an asset from the library into a plan]] | 19 | 28 | U01, T34 |
 | [[Compose an asset from parts]] | 3 | 39 | U02, U03 (its Repeat section) |
-| [[Calibrate a sheet and reserve space]] | 19 | 49 | U04 — **7 already confirmed**, see below |
+| [[Calibrate a sheet and reserve space]] | 20 | 50 | U04 — **7 already confirmed**, see below |
 | [[Recover an asset design rather than lose it]] | 33 | 42 | U05 |
 | [[Two designers on one asset]] | 8 | 16 | T12 |
-| [[Browse the asset library]] | **15** | 31 | new this round — AD18-R18 |
+| [[Browse the asset library]] | **17** | 33 | new this round — AD18-R18 |
 
 **What session fourteen ADDED, and why the total moved from 90 to 109.** A session that ships a
 feature grows the walk, and saying so is part of shipping it. **Nineteen new steps**, in two
@@ -133,7 +134,9 @@ its own text says so. Read this before walking any of them, across three cases.*
 
 **What the second parity round (AD18-R17/R18/R19) ADDED, and why the total moved from 145 to
 179.** Task 12 of that round's own plan wrote these steps against the merged tree of 2026-09-23,
-Tasks 1–11, verified at source rather than from the plan alone. **Thirty-four new steps across
+Tasks 1–11, verified at source rather than from the plan alone, **then a review round added
+three more** (named at the end of this list) once it found this file's first draft understating
+one behaviour and inventing a mechanism that does not exist. **Thirty-seven new steps across
 four cases**, all `obsidian` except one already-`judgement` row this round turned deterministic
 (see below):
 
@@ -150,23 +153,38 @@ four cases**, all `obsidian` except one already-`judgement` row this round turne
   section because whether a rounded rectangle should survive a Width/Depth edit was a pending
   ruling; AD18-R17 Task 4 closed that ruling, so 102 now states a deterministic pass condition and
   102a carries the one door left open.
-- **[[Calibrate a sheet and reserve space]] gained eight**: `15c` (the Placement point group's
+- **[[Calibrate a sheet and reserve space]] gained nine**: `15c` (the Placement point group's
   "Custom" label no longer breaking mid-word, a regression guard for a defect this same round
   found and fixed); `21a` through `21e` (the new **Show clearance** switch — its default, what
   turning it off hides, the three gestures that re-show it, and two NAMED known-gap rows: undo,
   redo and a vault refresh can bring a clearance back still hidden, and switching it off mid-trace
-  keeps the eventual commit hidden); and `37`/`38` (the read-only **Source & scale** block, Task
-  5, read for a typed footprint and for a traced-and-uncalibrated one).
+  keeps the eventual commit hidden); `21f`, from the review round (a hidden-but-SELECTED clearance
+  keeps its own selection outline and handles, and a handle drag still resizes it — `DesignerCanvas.vue`
+  gates the `asset-clearance` layer on `showClearance` but not the `asset-selection` layer beside
+  it, and `hitDesign` checks a handle before it checks `clearanceHidden`); and `37`/`38` (the
+  read-only **Source & scale** block, Task 5, read for a typed footprint and for a
+  traced-and-uncalibrated one).
 - **[[Compose an asset from parts]] gained one**: step 39, that a HIDDEN part which is deleted and
   then undone comes back VISIBLE rather than hidden — a recorded, accepted residue of Task 3's
   leaf-local pruning, not a defect.
-- **[[Browse the asset library]] gained fifteen**, its first-ever addition from this package
-  (steps 19–31): AD18-R18's Grid view end to end — the Grid/List toggle defaulting to List, a
-  tile sharing the list row's own mark and size wording, the category sidebar's open vocabulary
-  and its icons, the funnel door at a narrow width and while a selection narrows the pane, the
-  Create-your-own card, the filter reaching the search count and the empty state together, and
+- **[[Browse the asset library]] is newly counted in the command for the first time — 17 rows,
+  not all of them new writing.** Only **12** of those 17 are steps WRITTEN this round: the
+  original ten (steps 19–20, 22–24, 26–31 — 19, 21 and 25 are `suite`/`browser` and do not count)
+  plus two the review round added, `24a`/`24b`. **The other five (steps 1, 3, 11, 16, 17) already
+  existed** and are counted here only because the case itself had never been listed in the command
+  before AD18-R18 gave it its first change. What the 12 written rows cover: AD18-R18's Grid view
+  end to end — the Grid/List toggle defaulting to List, a tile sharing the list row's own mark and
+  size wording, the category sidebar's open vocabulary and its icons, the funnel door and its
+  narrow-width auto-hide, the "Show all categories" empty-state action's own focus rule (the
+  pressed "All" button when the sidebar is showing, the search field when it is not — `24a`/`24b`),
+  the Create-your-own card, the filter reaching the search count and the empty state together, and
   the chosen view and category surviving a close-and-reopen through Obsidian's own view state
-  without becoming a navigation.
+  without becoming a navigation. **One claim in the first draft named a mechanism that does not
+  exist and the review round removed it**: selecting a tile does not narrow the pane or hide the
+  sidebar on its own — the ONLY hide rule is the `@container rp-al (width < 35rem)` query on the
+  whole pane (`styles/asset-library-grid.css:324-335`; the container itself at
+  `styles/asset-library.css:48`), and step 27 now says so rather than describing a
+  selection-driven trigger that was never in the code.
 
 **Two rows were REWRITTEN rather than added, plus two whole sections' worth of "rows this round
 makes false" the previous round's own hand-off named directly.** [[Design an Asset]] steps 5 and
@@ -191,7 +209,11 @@ which is why the rows say so explicitly now, rather than leaving the two reading
 conflated) — 18 also drops the claim that "the other stays Saved" universally, since a second
 leaf that has already saved this session shows its OWN relative reading instead. Two further rows,
 18a and 18b, are new rather than rewritten: the minute tick advancing "just now" to "1 min ago" on
-its own, and a screen reader hearing nothing when that tick fires.
+its own, and a screen reader hearing nothing when that tick fires. **The review round corrected
+one more claim in row 13a**: its first draft said the second, idempotent write "returns to Saved
+just now too", which overstates the code — `settle()` only stamps `savedAt` when the batch held a
+real write (`save-state-store.ts:100-109`), so the neutral second assignment leaves the clock
+exactly where the first write set it rather than restarting it, and the row now says that.
 
 ## The gate inside the pass
 

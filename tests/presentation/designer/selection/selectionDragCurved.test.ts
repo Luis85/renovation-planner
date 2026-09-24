@@ -4,7 +4,8 @@ import { boundingBoxOf } from '../../../../src/core/geometry/operations';
 import type { Point } from '../../../../src/core/geometry/Point';
 import { unwrap } from '../../../../src/core/result/Result';
 import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
-import { stadium } from '../../../../src/domain/asset/presets/presetGeometry';
+import { validateAssetShape } from '../../../../src/domain/asset/AssetShape';
+import { rect, stadium } from '../../../../src/domain/asset/presets/presetGeometry';
 import { outlineOf, resizeBox, type OutlinePart } from '../../../../src/domain/asset/shapeEdits';
 import { partMeasure, resizeToExtent, type PartBox } from '../../../../src/presentation/designer/selection/partExtent';
 import { draggedShape, type DragOptions } from '../../../../src/presentation/designer/selection/selectionDrag';
@@ -103,6 +104,23 @@ describe('a box-handle drag of a graphic with arcs', () => {
 		const resized = box(expectOk(dragHandle(BASIN_SHAPE, BASIN, 5, { x: 0, y: 171 }, { x: 0, y: 271 })), BASIN);
 		expect(resized.depth).toBeCloseTo(370, MM);
 		expect(resized.centre.y - resized.depth / 2).toBeCloseTo(-99, MM);
+	});
+
+	it('falls back to the plain scale where the solve is refused, across a neighbourhood rather than at one bit', () => {
+		// Found by a seeded search over 400 x 300 quads with bulges in steps of 0.05: its bottom-right handle dragged
+		// to (-133, -150) asks 67 x 190. The solve's width pass keeps the full depth, and at that width the kept
+		// arcs meet, so the domain refuses it (a typed Width 67 is refused too) — while the plain scale of both axes
+		// at once is a valid shape. Every drag within 5 mm of that point behaves the same.
+		const quad = { points: rect(400, 300).points, bulges: [0.95, -0.4, 1, -0.95] };
+		const shape = expectOk(validateAssetShape({ ...BASIN_SHAPE, details: [...BASIN_SHAPE.details.slice(0, 2), { id: 'detail-3', name: 'quad', line: 'solid', pending: false, outline: quad }] }));
+		const corner = unwrap(boundingBoxOf(quad)).max;
+		expect(expectErr(resizeToExtent(shape, BASIN, 'width', 67)).code).toBe('asset.invalid-detail');
+		for (const dx of [-5, 0, 5]) {
+			for (const dy of [-5, 0, 5]) {
+				const to = { x: -133 + dx, y: -150 + dy };
+				expect(expectOk(dragHandle(shape, BASIN, 4, corner, to))).toEqual(scaledAsToday(shape, BASIN, 4, to));
+			}
+		}
 	});
 
 	it('still refuses a handle dragged past the fixed side', () => {

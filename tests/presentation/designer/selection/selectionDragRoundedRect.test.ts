@@ -62,11 +62,12 @@ describe('a box-handle drag of a rounded rectangle', () => {
 		expect(cornerRadiusOf(detail)).toBe(99);
 	});
 
-	it('scales as before once no whole-millimetre radius fits and the solved box is refused (Task 13)', () => {
-		// 2 x 2: the solve's three passes land, but the ~2 mm result moved back onto its fixed corner is refused
-		// (its kept arcs read as meeting), so the drag commits the plain scale it always did rather than a notice.
-		const to = { x: -478, y: -268 };
-		expect(expectOk(dragHandle(4, BR, to))).toEqual(scaledAsToday(SHAPE, ROUNDED, 4, to));
+	it('still commits a shape once no whole-millimetre radius fits the new box (Task 13)', () => {
+		// 2 x 2. Whether the solve lands here or is refused turns on the last bit of the box's width (the target is
+		// 2.000000000000057, and a typed 2 lands where 2.0000001 is refused), so this asserts only what holds either
+		// way — a shape rather than a notice. The fallback itself is held on a searched input in
+		// `selectionDragCurved.test.ts`.
+		expect(dragHandle(4, BR, { x: -478, y: -268 }).ok).toBe(true);
 	});
 
 	it('still refuses a handle dragged past the fixed side', () => {

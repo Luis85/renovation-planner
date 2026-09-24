@@ -133,9 +133,10 @@ function keptCurves(shape: AssetShape, part: OutlinePart, box: BoundingBox, inde
  * **The CLEARANCE keeps the plain scale**, deliberately: C07 governs how a clearance is resized, and this task
  * changes none of it. Shift and straight outlines keep it too; a uniform scale keeps every arc.
  * **A solve that is refused falls back to the plain scale**, so a release never turns into a notice where it
- * used to commit: measured on a 1000 x 600 rounded rectangle dragged to 2 x 2, the three passes land, and it is
- * the final translation's re-validation that refuses the ~2 mm result (its arcs read as meeting). A handle
- * dragged past the fixed side is refused by that same plain scale, as `invalid-scale`, exactly as before.
+ * used to commit. A solve can be refused where the plain scale is not because its passes go through shapes the
+ * plain scale never makes — a width pass leaves the depth unscaled — and one whose kept arcs meet is refused by
+ * the domain. A handle dragged past the fixed side is refused by that same plain scale, as `invalid-scale`,
+ * exactly as before.
  */
 export function draggedShape(start: DragStart, to: Point, options: DragOptions): Result<AssetShape, ValidationError> {
 	const { shape, selection, role, from } = start;

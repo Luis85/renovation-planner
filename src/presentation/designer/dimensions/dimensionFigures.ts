@@ -829,7 +829,8 @@ function overallSlot(
  * input's order; only the order of PLACING changes.
  *
  * **And an overall label takes NO slot on the footprint's side of its anchor** (fix round 2). Placed
- * first it moves only for a handle — but the FOOTPRINT's own top-middle box handle and its rotate
+ * first, it moves for a handle or for the other overall label placed before it (as five depths do in
+ * `RESTING_ROWS`' AD18-R23 measurement) — and the FOOTPRINT's own top-middle box handle and its rotate
  * handle lie under the width's outside anchor, and of two slots equally near the inward row came
  * first, so a selected rect table's width was drawn over the table (measured by the review at 251.3
  * under a top edge at 206.3; 9,050 frames of 77,964 over every preset, selection and mode). So a

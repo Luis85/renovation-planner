@@ -17,6 +17,7 @@ import { ASSET_DESIGNER_CONTEXT, type AssetDesignerContext } from '../../../src/
 import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
 import { provideDesignerRuntime, type DesignerRuntime } from '../../../src/presentation/designer/runtime';
 import type { EditorTool } from '../../../src/presentation/editor/tools/editor-tool';
+import { rect } from '../../../src/domain/asset/presets/presetGeometry';
 import { assetDesign } from '../../helpers/assetDesign';
 import { editableShape } from '../../helpers/assetShapes';
 import { emptyBackgroundVault } from '../../helpers/background';
@@ -154,6 +155,44 @@ describe('a clearance a peer write brings back', () => {
 		leaf.runtime.showClearance.value = false;
 
 		leaf.answers(editableShape({ facing: Math.PI / 2 }));
+		await leaf.peerWrote();
+
+		expect(leaf.runtime.showClearance.value).toBe(false);
+		leaf.unmount();
+	});
+});
+
+describe('a clearance a peer write swaps for a different one (AD18-R23)', () => {
+	it('is shown again once the refresh reads different geometry in its place', async () => {
+		const leaf = harness();
+		await flushPromises();
+		leaf.runtime.showClearance.value = false;
+
+		leaf.answers(editableShape({ clearance: rect(900, 700, 0, 0) }));
+		await leaf.peerWrote();
+
+		expect(leaf.runtime.showClearance.value).toBe(true);
+		leaf.unmount();
+	});
+
+	it('stays hidden when only the pending flag changes and the clearance geometry does not', async () => {
+		const leaf = harness();
+		await flushPromises();
+		leaf.runtime.showClearance.value = false;
+
+		leaf.answers(editableShape({ clearancePending: true }));
+		await leaf.peerWrote();
+
+		expect(leaf.runtime.showClearance.value).toBe(false);
+		leaf.unmount();
+	});
+
+	it('stays hidden when only the review flag changes and the clearance geometry does not', async () => {
+		const leaf = harness();
+		await flushPromises();
+		leaf.runtime.showClearance.value = false;
+
+		leaf.answers(editableShape({ clearanceNeedsReview: true }));
 		await leaf.peerWrote();
 
 		expect(leaf.runtime.showClearance.value).toBe(false);

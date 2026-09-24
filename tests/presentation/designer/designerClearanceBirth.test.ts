@@ -81,3 +81,51 @@ describe('a clearance that returns through history while Show clearance is off',
 		}
 	});
 });
+
+/**
+ * AD18-R23: a clearance a REPLACEMENT brings back, rather than a birth or a removal — both ends stay
+ * present, only the geometry differs. `editableShape()`'s own clearance (a 1400 x 1000 rectangle around
+ * (0, 200)) is the boundary this suite calls A; `RING` — well outside it, per `designerClearanceReveal
+ * .test.ts` — is B. Neither history step here is a birth: A exists from the mount's own read, so undo
+ * never takes the design past it to nothing, and redo only ever lands B.
+ */
+describe('a clearance a history step swaps for a different one while Show clearance is off (AD18-R23)', () => {
+	it('is shown again when undo swaps a traced clearance for the one it replaced', async () => {
+		const rig = await designerRig({ shape: editableShape() });
+		try {
+			await press(rig, 'designer.toolbar.trace-clearance');
+			tracePolygon(rig, RING);
+			await settle();
+			expect((await rig.document()).shape?.clearance?.points[0]).toEqual({ x: -900, y: -700 });
+			await hide(rig);
+
+			await press(rig, 'designer.toolbar.undo');
+
+			expect((await rig.document()).shape?.clearance?.points[0]).toEqual({ x: -700, y: -300 });
+			expect(layerVisible(rig)).toBe(true);
+			expect(switchedOn(rig)).toBe(true);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	it('is shown again when redo swaps it back for the traced clearance', async () => {
+		const rig = await designerRig({ shape: editableShape() });
+		try {
+			await press(rig, 'designer.toolbar.trace-clearance');
+			tracePolygon(rig, RING);
+			await settle();
+			// Undo while the switch is still ON: A is a swap too, but nothing is hidden to observe yet.
+			await press(rig, 'designer.toolbar.undo');
+			await hide(rig);
+
+			await press(rig, 'designer.toolbar.redo');
+
+			expect((await rig.document()).shape?.clearance?.points[0]).toEqual({ x: -900, y: -700 });
+			expect(layerVisible(rig)).toBe(true);
+			expect(switchedOn(rig)).toBe(true);
+		} finally {
+			rig.unmount();
+		}
+	});
+});

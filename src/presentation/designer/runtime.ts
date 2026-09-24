@@ -42,6 +42,7 @@ import { notifyOperationFailure } from '../notices/notify';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 import type { AssetDesignerContext } from './AssetDesignerContext';
 import type { ReversibleAssetDesignCommands } from '../../application/editor/asset/ReversibleAssetDesignCommands';
+import { samePolygon } from '../../application/commands/asset/updateAssetShape';
 import type { DocumentRef } from './ports';
 
 /**
@@ -153,18 +154,19 @@ export interface DesignerRuntime {
 	 * graphics already set.
 	 *
 	 * **A clearance that comes into being is shown**, and it comes in two shapes, so there are four places
-	 * that switch this back on. A READ-BACK that takes the design from no clearance to one
-	 * (`clearanceReveals` below) catches a birth that arrives with no gesture — a redo, an undo of a
-	 * removal, a peer leaf's write — as well as a gesture's own when nothing was there before. What it
-	 * cannot see is a REPLACEMENT, and that is the case the three gesture doors exist for: the switch is
-	 * drawn only while a clearance exists, so hiding one and then making another reads back
-	 * present-to-present. So a replacement that arrives with NO gesture — an undo or redo of one, or a
-	 * peer's — stays hidden: no door reaches it. The doors are arming
+	 * that switch this back on. A READ-BACK that changes the design's clearance GEOMETRY — its points and
+	 * bulges, compared by value (`clearanceReveals` below) — catches an arrival with no gesture: a redo, an
+	 * undo of a removal OR of a replacement, a peer leaf's write, as well as a gesture's own when nothing
+	 * was there before (AD18-R23). Present-to-absent never touches the switch — a removal is not a reason
+	 * to show a layer that is about to draw nothing. **What it cannot see is a replacement at the SAME
+	 * geometry**, which reads back as no change at all; the three gesture doors below exist for the
+	 * ordinary case of hiding one and then drawing a new one BY HAND, where the read-back's own geometry
+	 * check would otherwise leave the switch waiting for the commit. The doors are arming
 	 * `trace-clearance` (`clearanceReveals`'s wrapper round `setTool`, which the toolbar, the Add rail
 	 * and the key doors all call), applying a preset that carries one (`applyShape` below), and Generate
-	 * (`DesignerClearanceHelper`, which writes through the shape-agnostic `editShape`). A watch for ANY
-	 * change of the clearance is refused: it fires on a rotate, a resize or a calibration too, each of
-	 * which maps the clearance it already has and none of which asked to see it.
+	 * (`DesignerClearanceHelper`, which writes through the shape-agnostic `editShape`) — each arms or
+	 * writes before the read-back the trace or preset itself will trigger, so the layer is already showing
+	 * when the new boundary lands rather than blinking on with it.
 	 */
 	readonly showClearance: Ref<boolean>;
 	/**
@@ -282,11 +284,19 @@ export function designFrame(shape: AssetShape): BoundingBox | null {
  * Two of `showClearance`'s reveal rules (`DesignerRuntime.showClearance` has all four), in one function
  * outside `buildRuntime` for its 100-line budget.
  *
- * - The READ-BACK: whenever the design this leaf holds goes from no clearance to one, the switch goes
- *   on. `store.design` is written by a read alone (`AssetDesignStore.hydrate`), never by a gesture's
- *   preview, so this fires for a committed clearance and for nothing drawn in flight. NO design counts
- *   as no clearance, deliberately: an asset that re-arrives after a failed or authoritative-miss read
- *   blanked it re-shows its clearance, since the leaf drew nothing in between to have hidden.
+ * - The READ-BACK (AD18-R23): whenever the design this leaf holds reads back a clearance whose GEOMETRY —
+ *   its points and bulges, `samePolygon`'s comparison — differs from the one this leaf held before, the
+ *   switch goes on. That covers a birth (no clearance before) exactly as it covers a SWAP: an undo or redo
+ *   that lands a different clearance than the one just drawn, or a peer leaf's write that does the same,
+ *   each arriving with no gesture of this leaf's own to have armed a door below. A removal is the one
+ *   direction this never fires for — `next === null` returns before comparing anything, so present-to-absent
+ *   never touches the switch. And a read-back that leaves the geometry alone — a detail moved, a name
+ *   edited, the pending flag or AD14-R1's review flag flipped, the same design re-read — does NOT re-show
+ *   it: none of those four reach `shape.clearance` itself, only fields beside it. `store.design` is written
+ *   by a read alone (`AssetDesignStore.hydrate`/`refresh`), never by a gesture's preview, so this fires for
+ *   a committed clearance and for nothing drawn in flight. NO design counts as no clearance, deliberately:
+ *   an asset that re-arrives after a failed or authoritative-miss read blanked it re-shows its clearance,
+ *   since the leaf drew nothing in between to have hidden.
  * - The returned `setTool`: switching to `trace-clearance` shows the layer the traced boundary will be
  *   drawn on, so the commit does not appear to draw nothing. Arming rather than completing, because the
  *   user then also sees the boundary the trace replaces. It asks the tool that IS active after the
@@ -300,9 +310,11 @@ function clearanceReveals(
 	store: ReturnType<typeof useAssetDesignStore>,
 ): (id: ToolId | null) => void {
 	watch(
-		() => (store.design?.shape?.clearance ?? null) !== null,
-		(present) => {
-			if (present) showClearance.value = true;
+		() => store.design?.shape?.clearance ?? null,
+		(next, previous) => {
+			if (next === null) return;
+			if (previous !== null && samePolygon(next, previous)) return;
+			showClearance.value = true;
 		},
 	);
 	return (id) => {

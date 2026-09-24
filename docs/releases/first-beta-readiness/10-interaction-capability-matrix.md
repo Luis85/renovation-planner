@@ -5,7 +5,7 @@ This is BP-05 Action 1's deliverable (`01-improvement-plan.md` §BP-05). It reco
 exist at that revision. **It runs nothing.** A Tested cell says a test exists and what it asserts.
 It does not say the test passed on any candidate.
 
-**Amended 2026-09-24 (session 20), from tests added at `54f85d2a1`:** §3's and §4.9's Undo/redo cells for Asset placement, Stair, Arrow, Post, Beam, Dimension and Section, §5's "Modifier change mid-gesture" row and §6's gaps list. Then, from tests added at `215992fe7`, the Undo/redo cells in §3, §4.9 and §6 for View, Hatch, Text, Boundary and Grid. Then, from the review round's m2 finding, seven cells narrowed to name structure.elements (BP05B fix m2): Asset placement, Post, View, Hatch, Text, Boundary and Grid. Every other cell is still as assembled at `71d5bca43`.
+**Amended 2026-09-24 (session 20), from tests added at `54f85d2a1`:** §3's and §4.9's Undo/redo cells for Asset placement, Stair, Arrow, Post, Beam, Dimension and Section, §5's "Modifier change mid-gesture" row and §6's gaps list. Then, from tests added at `215992fe7`, the Undo/redo cells in §3, §4.9 and §6 for View, Hatch, Text, Boundary and Grid. Then, from the review round's m2 finding, seven cells narrowed to name structure.elements (BP05B fix m2): Asset placement, Post, View, Hatch, Text, Boundary and Grid. Then, from tests added at `b09aa7a85`, the Delete cells in §3, §4.7 and §6 for View, Hatch, Text, Boundary and Grid. Every other cell is still as assembled at `71d5bca43`.
 
 ## 1. Method
 
@@ -84,15 +84,15 @@ State per cell: **T** Tested, **I** Implemented, untested, **U** Unsupported, **
 | Beam | T | T | I | T | I | I | T | I | T | I |
 | Dimension | T | T | I | T | I | I | I | I | T | I |
 | Section | T | T | I | I | I | I | I | I | T | I |
-| View | T | T | I | I | I | I | I | I | T | I |
-| Hatch | T | T | I | I | I | I | I | I | T | I |
-| Text | T | T | I | I | U | I | I | I | T | I |
-| Boundary | T | T | I | I | I | I | I | I | T | I |
-| Grid | T | T | I | I | U | I | I | I | T | I |
+| View | T | T | I | I | I | I | T | I | T | I |
+| Hatch | T | T | I | I | I | I | T | I | T | I |
+| Text | T | T | I | I | U | I | T | I | T | I |
+| Boundary | T | T | I | I | I | I | T | I | T | I |
+| Grid | T | T | I | I | U | I | T | I | T | I |
 | Group | T | T | T | T | T | T | T | T | T | I |
-| **Tested** | 21 | 19 | 3 | 15 | 10 | 5 | 12 | 8 | 21 | 3 |
+| **Tested** | 21 | 19 | 3 | 15 | 10 | 5 | 17 | 8 | 21 | 3 |
 
-Totals over 210 cells: **117 Tested, 88 Implemented-untested, 5 Unsupported, 0 Unknown.**
+Totals over 210 cells: **122 Tested, 83 Implemented-untested, 5 Unsupported, 0 Unknown.**
 
 ## 4. Evidence, one table per column
 
@@ -271,11 +271,11 @@ Totals over 210 cells: **117 Tested, 88 Implemented-untested, 5 Unsupported, 0 U
 | Beam | Tested | `tests/presentation/editor/structuralDeletion.test.ts` › "names every load-bearing element in a multi-item confirmation" — confirm empties the elements. Called at `elementActions.removeMany`, the function multi-item Delete reaches through `deleteItems`, not at a control |
 | Dimension | Implemented, untested | Context menu `delete` → `elementActions.remove` (`useCanvasMenuActions.ts` `singleActions`); Inspector `delete-element`. Missing: an executed deletion of a dimension chain. |
 | Section | Implemented, untested | Context menu `delete` → `elementActions.remove` (`useCanvasMenuActions.ts` `singleActions`); Inspector `delete-element`. Missing: an executed deletion of a section line. |
-| View | Implemented, untested | Context menu `delete` → `elementActions.remove` (`useCanvasMenuActions.ts` `singleActions`); Inspector `delete-element`. Missing: an executed deletion of a view marker. |
-| Hatch | Implemented, untested | Context menu `delete` → `elementActions.remove` (`useCanvasMenuActions.ts` `singleActions`); Inspector `delete-element`. Missing: an executed deletion of a hatch. |
-| Text | Implemented, untested | Context menu `delete` → `elementActions.remove` (`useCanvasMenuActions.ts` `singleActions`); Inspector `delete-element`. Missing: an executed deletion of a text mark. |
-| Boundary | Implemented, untested | Context menu `delete` → `elementActions.remove` (`useCanvasMenuActions.ts` `singleActions`); Inspector `delete-element`. Missing: an executed deletion of a boundary. |
-| Grid | Implemented, untested | Context menu `delete` → `elementActions.remove` (`useCanvasMenuActions.ts` `singleActions`); Inspector `delete-element`. Missing: an executed deletion of a grid point. |
+| View | Tested | `tests/presentation/editor/draftingMenu.test.ts` › "deletes a %s mark from its context menu on confirm, and leaves every other mark and label as it was" (param 'view') — with all seven drafting marks seeded and the view marker selected, context-menu Delete plus confirm removes its id from the store's `structure.elements` and `plan.spatialElements`; every other entry of both is deep-equal to what it was before the delete |
+| Hatch | Tested | `tests/presentation/editor/draftingMenu.test.ts` › "deletes a %s mark from its context menu on confirm, and leaves every other mark and label as it was" (param 'hatch') — with all seven drafting marks seeded and the hatch selected, context-menu Delete plus confirm removes its id from the store's `structure.elements` and `plan.spatialElements`; every other entry of both is deep-equal to what it was before the delete |
+| Text | Tested | `tests/presentation/editor/draftingMenu.test.ts` › "deletes a %s mark from its context menu on confirm, and leaves every other mark and label as it was" (param 'text') — with all seven drafting marks seeded and the text mark selected, context-menu Delete plus confirm removes its id from the store's `structure.elements` and `plan.spatialElements`; every other entry of both is deep-equal to what it was before the delete |
+| Boundary | Tested | `tests/presentation/editor/draftingMenu.test.ts` › "deletes a %s mark from its context menu on confirm, and leaves every other mark and label as it was" (param 'boundary') — with all seven drafting marks seeded and the boundary selected, context-menu Delete plus confirm removes its id from the store's `structure.elements` and `plan.spatialElements`; every other entry of both is deep-equal to what it was before the delete |
+| Grid | Tested | `tests/presentation/editor/draftingMenu.test.ts` › "deletes a %s mark from its context menu on confirm, and leaves every other mark and label as it was" (param 'grid') — with all seven drafting marks seeded and the grid point selected, context-menu Delete plus confirm removes its id from the store's `structure.elements` and `plan.spatialElements`; every other entry of both is deep-equal to what it was before the delete |
 | Group | Tested | `tests/presentation/editor/deleteShortcut.test.ts` › "deletes a selected group with the Delete key as one confirmed step that one Undo restores" — Delete key plus confirm removes the room, walls and group; Ctrl+Z restores membership |
 
 ### 4.8 Cancel
@@ -438,35 +438,30 @@ One line per cell. A list of what is empty, not a plan to fill it.
 | View | Precise edit | Implemented, untested |
 | View | Rotate | Implemented, untested |
 | View | Duplicate/copy | Implemented, untested |
-| View | Delete | Implemented, untested |
 | View | Cancel | Implemented, untested |
 | View | Non-drag route | Implemented, untested |
 | Hatch | Move | Implemented, untested |
 | Hatch | Precise edit | Implemented, untested |
 | Hatch | Rotate | Implemented, untested |
 | Hatch | Duplicate/copy | Implemented, untested |
-| Hatch | Delete | Implemented, untested |
 | Hatch | Cancel | Implemented, untested |
 | Hatch | Non-drag route | Implemented, untested |
 | Text | Move | Implemented, untested |
 | Text | Precise edit | Implemented, untested |
 | Text | Rotate | Unsupported |
 | Text | Duplicate/copy | Implemented, untested |
-| Text | Delete | Implemented, untested |
 | Text | Cancel | Implemented, untested |
 | Text | Non-drag route | Implemented, untested |
 | Boundary | Move | Implemented, untested |
 | Boundary | Precise edit | Implemented, untested |
 | Boundary | Rotate | Implemented, untested |
 | Boundary | Duplicate/copy | Implemented, untested |
-| Boundary | Delete | Implemented, untested |
 | Boundary | Cancel | Implemented, untested |
 | Boundary | Non-drag route | Implemented, untested |
 | Grid | Move | Implemented, untested |
 | Grid | Precise edit | Implemented, untested |
 | Grid | Rotate | Unsupported |
 | Grid | Duplicate/copy | Implemented, untested |
-| Grid | Delete | Implemented, untested |
 | Grid | Cancel | Implemented, untested |
 | Grid | Non-drag route | Implemented, untested |
 | Group | Non-drag route | Implemented, untested |

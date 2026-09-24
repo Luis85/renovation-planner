@@ -25,10 +25,10 @@ const designer = (): Promise<DesignerRig> => designerRig({ shape: editableShape(
 const names = (rig: DesignerRig): string[] => rig.wrapper.findAll('.rp-designer-dimensions .rp-designer-dimension__value')
 	.map((button) => (button.element as HTMLElement).dataset['rpDimension'] ?? '');
 
-/** Where one label's wrapper is drawn, as the template wrote it. */
-function drawnAt(rig: DesignerRig, name: string): [string, string] {
+/** Where one label's wrapper is drawn, read back from the pixels the template wrote. */
+function placedAt(rig: DesignerRig, name: string): { x: number; y: number } {
 	const style = rig.wrapper.get(`.rp-designer-dimensions [data-rp-dimension="${name}"]`).element.parentElement?.style;
-	return [style?.left ?? '', style?.top ?? ''];
+	return { x: Number.parseFloat(style?.left ?? ''), y: Number.parseFloat(style?.top ?? '') };
 }
 
 describe('the resting dimensions while the drawing is small', () => {
@@ -64,27 +64,59 @@ describe('the resting dimensions while the drawing is small', () => {
 
 describe('a resting label and the handles the canvas draws', () => {
 	/**
-	 * With the FOOTPRINT selected, its top-middle box handle is where the overall width anchors at
-	 * this camera, (0, -300) at (48, 18) — the top edge is too near the ruler for the label to stand
-	 * outside it. Under Select, the tool the designer rests in and the one that draws handles, the
-	 * label moves off it; in camera mode no handle is drawn, so nothing moves it.
+	 * With the FOOTPRINT selected, at the camera an asset OPENS with, its top-middle box handle and
+	 * its rotate handle lie under the overall width's outside anchor, 15 px above the top edge's
+	 * middle. Under Select, the tool the designer rests in and the one that draws handles, the label
+	 * moves off them and stays OUTSIDE the footprint rather than going over the drawing (fix round 2 of
+	 * AD18-R21). This camera leaves no row above it — the ruler — so it slides along its own row by one
+	 * of its widths, 63.6 px for `1000 mm`. In camera mode no handle is drawn, so nothing moves it.
 	 */
-	it('moves a label off a drawn handle under Select, and leaves it in camera mode', async () => {
-		const rig = await designer();
+	it('moves the overall width off drawn handles, further outside, under Select, and leaves it in camera mode', async () => {
+		const rig = await designerRig({ shape: editableShape(), camera: 'opened' });
 		try {
-			expect(drawnAt(rig, 'overall-width')).toEqual(['48px', '18px']);
+			const edge = rig.at({ x: 0, y: -300 });
+			const anchor = { x: edge.x, y: edge.y - 15 };
+			expect(placedAt(rig, 'overall-width')).toEqual(anchor);
 
 			useAssetDesignStore(rig.pinia).select({ kind: 'footprint' });
 			await settle();
 			expect(rig.activeToolId()).toBe('select');
-			expect(drawnAt(rig, 'overall-width')).not.toEqual(['48px', '18px']);
+			const moved = placedAt(rig, 'overall-width');
+			expect(moved.y).toBe(anchor.y);
+			expect(moved.x).toBeCloseTo(anchor.x + 63.6);
+			expect(moved.y + 15).toBeLessThanOrEqual(edge.y);
 
 			rig.toolbarButton(t('en', 'designer.toolbar.pan')).click();
 			await settle();
 			expect(rig.activeToolId()).toBeNull();
 			// Still selected, so it is the TOOL that took the handles away and not the selection.
 			expect(useAssetDesignStore(rig.pinia).selection).toEqual({ kind: 'footprint' });
-			expect(drawnAt(rig, 'overall-width')).toEqual(['48px', '18px']);
+			expect(placedAt(rig, 'overall-width')).toEqual(anchor);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	/**
+	 * **An overall label left ON the edge moves like any other** (fix round 2 of AD18-R21). At the rig's
+	 * default camera the top edge is at y 18, too near the ruler to stand the width outside it, so it is
+	 * drawn on the edge's middle, (48, 18) — the footprint's own top-middle box handle. It never stood
+	 * outside, so nothing holds it to the outer side: it takes the nearest free slot anywhere, which is
+	 * three rows down and half its 63.6 px width right — every row above is the ruler, its own column
+	 * below runs its box onto the left ruler, and the nearer slots right of it sit on the footprint's
+	 * right-middle and corner handles. Held to the outer side instead, it would find no slot and stay.
+	 */
+	it('moves an overall label left on the edge off a handle like any label', async () => {
+		const rig = await designer();
+		try {
+			expect(placedAt(rig, 'overall-width')).toEqual({ x: 48, y: 18 });
+
+			useAssetDesignStore(rig.pinia).select({ kind: 'footprint' });
+			await settle();
+
+			const moved = placedAt(rig, 'overall-width');
+			expect(moved.x).toBeCloseTo(48 + 63.6 / 2);
+			expect(moved.y).toBe(18 + 3 * 30);
 		} finally {
 			rig.unmount();
 		}

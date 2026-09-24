@@ -479,8 +479,13 @@ interface LabelBox {
 export interface LabelAnchor {
 	readonly at: ScreenPoint;
 	readonly value: number;
-	/** An OVERALL figure standing outside the footprint, which `separateLabels` places first; `spreadLabels` ignores it. */
-	readonly outside?: boolean;
+	/**
+	 * An OVERALL figure, which `separateLabels` places first; absent for every other figure. Its axis
+	 * when `outsideAnchor` stood it outside the footprint — then it never moves onto the footprint's
+	 * side of that anchor — and `'edge'` when there was no room and it stayed on the edge, where it
+	 * moves like any label. `spreadLabels` ignores it.
+	 */
+	readonly overall?: 'x' | 'y' | 'edge';
 }
 
 /** Whether `later` would sit on `earlier`'s row, near enough along it to cover the reading. */
@@ -634,9 +639,10 @@ export function spreadLabels(labels: readonly LabelAnchor[], stage: StageSize): 
 /**
  * The rulers' strip along the canvas's top and left edges, in stage pixels —
  * `--rp-designer-ruler-size` in `designer-rulers.css`, restated because a stylesheet variable is not
- * readable from here; `restingLabels.test.ts` pins the two together. No label is PLACED on it: a
- * label paints above the rulers, so one standing there would cover the scale it is read against.
- * `separateLabels` and `outsideAnchor` both keep a label they move clear of it. A label whose own
+ * readable from here; `restingLabels.test.ts` pins the two together. No label is PLACED on it, to
+ * within `ROOM_SLACK_PX`: a label paints above the rulers, so one standing there would cover the
+ * scale it is read against. `separateLabels` and `outsideAnchor` both keep a label they move clear
+ * of it, give or take that half pixel of floating-point slack. A label whose own
  * anchor lies there is still drawn there — the camera put its edge there, not the rule.
  */
 const RULER_PX = 18;
@@ -648,7 +654,9 @@ const ROOM_SLACK_PX = 0.5;
 
 /**
  * How far a RESTING label may be moved to clear another: up to five whole label heights up or
- * down (150 px), each at no shift or at a half, one or one and a half of its own width either side.
+ * down (150 px), each at no shift or at any half-step of its own width up to three either side.
+ * **The measurements below were taken at one and a half widths**, before fix round 2 of AD18-R21
+ * widened the reach; see the last paragraph.
  *
  * Measured rather than chosen, over every catalogue preset with nothing, the clearance and each
  * detail selected in turn, at the fit camera on every stage from 280 x 280 to 900 x 700 in 40 x 20
@@ -671,9 +679,20 @@ const ROOM_SLACK_PX = 0.5;
  * two of the failing frames, which three or four rows turn red. The cost is movement: a moved label
  * travels 42 px on average and at most 150, and 654 of the 44,850 moves exceeded 100 px — each a
  * label whose nearer slots were all taken, off the stage or on the rulers.
+ *
+ * **Fix round 2 of AD18-R21 widened the sideways reach from one and a half widths to three**, for the
+ * overall width: once it may not step onto the footprint (`separateLabels`), a width whose outside
+ * row sits right under the ruler has only its own row left, and on a small footprint every slot to
+ * one and a half widths lands on the selected part's middle or corner handles. Measured over every
+ * preset with nothing, the footprint, the clearance and each detail selected, in all three selection
+ * modes, on the stage grid above plus the four modelled leaves — 77,964 frames: a label left on a
+ * handle in 2,336 frames at one and a half widths and in **205 at three**, every one an overall label
+ * on a stage 280 to 360 px wide; none overlapping and none drawn inside the footprint either way. The
+ * cost is distance: moves over 100 px rose from 190 to 2,321 of about 126,000, each a width sliding
+ * along its own row past the part's corner handle. Nearer slots are still taken first.
  */
 const RESTING_ROWS = 5;
-const RESTING_SHIFTS: readonly number[] = [0, 0.5, -0.5, 1, -1, 1.5, -1.5];
+const RESTING_SHIFTS: readonly number[] = [0, 0.5, -0.5, 1, -1, 1.5, -1.5, 2, -2, 2.5, -2.5, 3, -3];
 
 /**
  * The footprint's on-screen WIDTH, in stage pixels, below which the resting state draws the overall
@@ -687,6 +706,9 @@ const RESTING_SHIFTS: readonly number[] = [0, 0.5, -0.5, 1, -1, 1.5, -1.5];
  * wider leaf. It is read off the FOOTPRINT rather than the canvas because the canvas at a 460 leaf
  * is 460 px wide — a canvas-width threshold would never fire there — and zooming in past it brings
  * the part's figures back, since what is too small is the drawing and not the pane.
+ *
+ * **It reads the footprint's WIDTH alone, as the brief that set it asks**: a long, shallow footprint
+ * drawn 240 px across and 40 px deep rests every figure. The depth is not asked.
  */
 const RESTING_DETAIL_MIN_PX = 240;
 
@@ -724,9 +746,9 @@ const distance = (one: ScreenPoint, other: ScreenPoint): number => Math.hypot(on
  * could see them. This one asks the plain question instead: do two boxes share any area.
  *
  * **Earlier wins, as in `spreadLabels`, and a label that would touch one already placed takes the
- * NEAREST free slot** among whole label heights up or down and shifts of up to one and a half of
- * its own width sideways (`RESTING_ROWS`), inside the stage — nearest by straight distance, the
- * inward row first on a tie.
+ * NEAREST free slot** among whole label heights up or down and shifts of up to three of its own
+ * widths sideways (`RESTING_ROWS`), inside the stage — nearest by straight distance, the inward row
+ * first on a tie.
  * Each of those moves has a drafting reading, which `dimensionLines.ts` draws: a width moved up or
  * down takes its line with it on longer extension lines, a width moved sideways slides along its own
  * line, and a depth the other way round. A label nothing would touch is returned UNMOVED, which is
@@ -736,9 +758,9 @@ const distance = (one: ScreenPoint, other: ScreenPoint): number => Math.hypot(on
  * `overflow: hidden`: a label moved off it is clipped, which is worse than the overlap it was moved
  * for — and one moved onto the strip covers the scale (`RULER_PX`). When no slot is free
  * the label stays on its anchor and the overlap stands — honest rather than hidden. It happens on
- * no fit-camera frame of 280 px or more in `RESTING_ROWS`' measurement; it does happen on the two
- * 260 px frames that docblock records, and at the zoomed-out camera `dimensionCollision.test.ts`
- * pins by name.
+ * no fit-camera frame of 280 px or more in `RESTING_ROWS`' measurement, and it did happen on the two
+ * 260 px frames that docblock records; `restingLabels.test.ts`' sweep of the four modelled leaves
+ * reaches it in no frame it draws.
  *
  * **`handles` are OBSTACLES in the same search (AD18-R21)**: the stage points of the selected part's
  * handles, which no label may cover (`onHandle`). They are placed before every label and never move,
@@ -746,19 +768,30 @@ const distance = (one: ScreenPoint, other: ScreenPoint): number => Math.hypot(on
  * same slots, the same order, one more question asked of each. A part's own width and depth anchor
  * on the middles of its top and left edges, where its Transform box handles are, so a selected
  * part's size pair moves whenever its Transform handles are drawn. With no free slot the label stays
- * on its anchor, over the handle, as it stays over a label — measured over Transform handles at the
- * fit camera, `restingLabels.test.ts`'s sweep leaves no label on a handle in any frame it draws.
+ * on its anchor, over the handle, as it stays over a label — at the fit camera, `restingLabels.test.ts`'s
+ * sweep leaves no label on a handle in any frame it draws, in all three selection modes.
  *
  * **The OVERALL pair is placed FIRST, so a part's labels yield to it and never the reverse** (fix
  * round 1 of AD18-R21). Measured in Chromium on the first version of the handle rule, at a 1280 leaf
  * with the vanity's basin selected: the `126 mm` offset stepped off the basin's rotate handle into
  * the free slot above it, and the `800 mm` width, placed after it as `dimensionFigures` orders them,
  * yielded and was pushed INSIDE the footprint, its line through the tap hole. That broke AD18-R17's
- * *"outside the footprint wherever the canvas has room"*, and there was room. Placed first, the pair
- * moves only for a handle, and its nearest free slot keeps it outside the outline: at 460 the width's
- * outside anchor sits on the basin's rotate handle and slides sideways along its own row, and at 580
- * it steps one row further out.
- * The answer keeps the input's order; only the order of PLACING changes.
+ * *"outside the footprint wherever the canvas has room"*, and there was room. The answer keeps the
+ * input's order; only the order of PLACING changes.
+ *
+ * **And an overall label takes NO slot on the footprint's side of its anchor** (fix round 2). Placed
+ * first it moves only for a handle — but the FOOTPRINT's own top-middle box handle and its rotate
+ * handle lie under the width's outside anchor, and of two slots equally near the inward row came
+ * first, so a selected rect table's width was drawn over the table (measured by the review at 251.3
+ * under a top edge at 206.3; 9,050 frames of 77,964 over every preset, selection and mode). So a
+ * width's slots are its own row and the rows above it, and a depth's its own column and the columns
+ * left of it: every move is a slide along its own line or a step further out. **With no such slot
+ * free it keeps its anchor, over the handle**, rather than go inside — the choice this round took,
+ * since an overall figure drawn over the drawing is the defect AD18-R17 names and a handle under the
+ * label's box is still grabbable along the strip the box leaves. `restingLabels.test.ts`' sweep
+ * reaches that arm in no frame of the four modelled leaves, in any mode; over the whole stage grid
+ * `RESTING_ROWS` records it happens in 205 of 77,964 frames, all on canvases 280 to 360 px wide.
+ * An overall label `outsideAnchor` left ON the edge (`'edge'`, no room outside) is not held to it.
  *
  * **The rotate handle stays an obstacle, for every label** — including the `126 mm` top offset,
  * whose own vertical line runs up the handle's stem. A label on it takes the press, and a rotate
@@ -777,8 +810,8 @@ export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize,
 	// was refused as over the ruler without it.
 	const inside = (box: LabelBox): boolean => box.at.x - box.width / 2 >= RULER_PX - ROOM_SLACK_PX && box.at.x + box.width / 2 <= stage.width
 		&& box.at.y - LABEL_HEIGHT_PX / 2 >= RULER_PX - ROOM_SLACK_PX && box.at.y + LABEL_HEIGHT_PX / 2 <= stage.height;
-	// The outside pair first; `toSorted` is stable, so each group keeps `dimensionFigures`' order.
-	const order = labels.map((_, index) => index).toSorted((one, other) => Number(labels[other].outside === true) - Number(labels[one].outside === true));
+	// The overall pair first; `toSorted` is stable, so each group keeps `dimensionFigures`' order.
+	const order = labels.map((_, index) => index).toSorted((one, other) => Number(labels[other].overall !== undefined) - Number(labels[one].overall !== undefined));
 	for (const index of order) {
 		const label = labels[index];
 		const width = labelWidth(label.value);
@@ -788,7 +821,9 @@ export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize,
 			.flatMap((row) => RESTING_SHIFTS.map((shift): LabelBox => ({ at: screenPoint(label.at.x + shift * width, label.at.y + row * inward), width })))
 			.toSorted((one, other) => distance(one.at, label.at) - distance(other.at, label.at));
 		const free = (box: LabelBox): boolean => !placed.some((other) => overlaps(box, other)) && !handles.some((handle) => onHandle(box, handle));
-		const chosen = free(own) ? own : slots.find((box) => inside(box) && free(box)) ?? own;
+		// An outside overall width no lower than its anchor, an outside overall depth no further right; any other label anywhere.
+		const outward = (box: LabelBox): boolean => (label.overall === 'x' ? box.at.y <= label.at.y : label.overall !== 'y' || box.at.x <= label.at.x);
+		const chosen = free(own) ? own : slots.find((box) => inside(box) && outward(box) && free(box)) ?? own;
 		placed.push(chosen);
 		drawn[index] = chosen.at;
 	}

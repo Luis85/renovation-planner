@@ -20,7 +20,7 @@ import { selectionHandles } from '../../../../src/presentation/designer/selectio
 import { ASSET_PRESETS } from '../../../../src/domain/asset/presets/catalogue';
 import { defaultValues } from '../../../../src/domain/asset/presets/presetGeometry';
 import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
-import type { DesignerSelection } from '../../../../src/presentation/designer/selection/designerSelection';
+import type { DesignerSelection, SelectionMode } from '../../../../src/presentation/designer/selection/designerSelection';
 import { expectDefined, expectOk } from '../../../helpers/domain';
 import { propertyOf, stylesheetRules } from '../../../helpers/selectors';
 
@@ -53,6 +53,21 @@ function covering(points: readonly ScreenPoint[], values: readonly number[], han
 		.map((handle) => `${String(Math.round(values[index]))}@${handle.x.toFixed(1)},${handle.y.toFixed(1)}`));
 }
 
+/**
+ * Every OVERALL label whose anchor stood outside the footprint and which was placed back over it, as
+ * `name placed/edge`: a width whose box reaches below the top edge, a depth whose box reaches right
+ * of the left edge (AD18-R17, board 01). An anchor `outsideAnchor` left on the edge — no room —
+ * is not asked.
+ */
+function inside(drawn: { names: readonly string[]; raw: readonly ScreenPoint[]; anchors: readonly ScreenPoint[]; placed: readonly ScreenPoint[]; values: readonly number[] }): string[] {
+	return drawn.names.flatMap((name, index) => {
+		const [edge, anchor, placed] = [drawn.raw[index], drawn.anchors[index], drawn.placed[index]];
+		if (name === 'overall-width' && anchor.y < edge.y && placed.y + 15 > edge.y) return [`${name} ${placed.y.toFixed(1)}/${edge.y.toFixed(1)}`];
+		if (name === 'overall-depth' && anchor.x < edge.x && placed.x + width(drawn.values[index]) / 2 > edge.x) return [`${name} ${placed.x.toFixed(1)}/${edge.x.toFixed(1)}`];
+		return [];
+	});
+}
+
 /** The box `DesignerCanvas` fits on mount: the footprint and the clearance (`designFrame`). */
 function frame(shape: AssetShape): { min: { x: number; y: number }; max: { x: number; y: number } } {
 	const boxes = [partMeasure(shape, { kind: 'footprint' }), partMeasure(shape, { kind: 'clearance' })].filter((box) => box !== null);
@@ -73,16 +88,18 @@ function frame(shape: AssetShape): { min: { x: number; y: number }; max: { x: nu
  * **`'every'`** is the frame before it, every figure and no handle: what `separateLabels` is
  * handed on its own, which is the subject of the cases that measured its reach.
  */
-function resting(shape: AssetShape, selection: DesignerSelection | null, stage: StageSize, drawn: 'drawn' | 'every' = 'drawn') {
+function resting(shape: AssetShape, selection: DesignerSelection | null, stage: StageSize, drawn: 'drawn' | 'every' = 'drawn', mode: SelectionMode = 'transform') {
 	const camera = expectDefined(fitViewport(frame(shape), stage, 48, 1), 'the fit camera');
 	const worldPerPixel = worldPerScreenPixel(camera, STAGE_PIXELS);
 	const measured = dimensionFigures(shape, selection, false, new Set());
 	const figures = drawn === 'drawn' ? restingFigures(measured, shape, worldPerPixel) : measured;
-	const handles = drawn === 'drawn' ? selectionHandles(shape, selection, 'transform', worldPerPixel).map((handle) => worldToScreen(handle.at, camera, STAGE_PIXELS)) : [];
+	const handles = drawn === 'drawn' ? selectionHandles(shape, selection, mode, worldPerPixel).map((handle) => worldToScreen(handle.at, camera, STAGE_PIXELS)) : [];
 	const raw = figures.map((figure) => worldToScreen(figure.at, camera, STAGE_PIXELS));
 	const anchors = figures.map((figure, index) => {
 		const point = raw[index];
-		return { at: figure.outside ? outsideAnchor(figure.axis, point, figure.value) : point, value: figure.value, outside: figure.outside };
+		if (!figure.outside) return { at: point, value: figure.value };
+		const stood = outsideAnchor(figure.axis, point, figure.value);
+		return { at: stood, value: figure.value, overall: stood === point ? 'edge' as const : figure.axis };
 	});
 	return {
 		raw,
@@ -201,18 +218,22 @@ describe('the resting floor at the fit camera', () => {
 	 * real ones.
 	 *
 	 * **And no label on a handle of the selected part** (AD18-R21), over the same frames, since the
-	 * handles are obstacles in the same slot search rather than a second rule after it.
+	 * handles are obstacles in the same slot search rather than a second rule after it — in all three
+	 * selection modes, whose handles differ (Transform's box and rotate handles, Points' vertices,
+	 * Bend's edge midpoints). **And no overall label drawn back over the footprint** where its anchor
+	 * stood outside (fix round 2 of AD18-R21): the FOOTPRINT is selected here too, since its own box
+	 * handles are the ones that sit under the overall pair's outside anchors.
 	 */
-	it('leaves no two labels touching and no label on a handle, for any preset, selected part or leaf width', () => {
+	it('leaves no two labels touching, no label on a handle and no overall label inside, for any preset, selection, mode or leaf width', () => {
 		const stages: StageSize[] = [{ width: 880, height: 650 }, { width: 380, height: 650 }, { width: 290, height: 620 }, { width: 458, height: 330 }];
 		const failures = ASSET_PRESETS.flatMap((one) => {
 			const shape = preset(one.id);
-			const selections: (DesignerSelection | null)[] = [null, { kind: 'clearance' }, ...shape.details.map((detail) => ({ kind: 'detail' as const, id: detail.id }))];
-			return stages.flatMap((stage) => selections.flatMap((selection) => {
-				const { placed, values, handles } = resting(shape, selection, stage);
-				return [...overlapping(placed, values), ...covering(placed, values, handles)]
-					.map((pair) => `${one.id} ${JSON.stringify(selection)} ${String(stage.width)}: ${pair}`);
-			}));
+			const selections: (DesignerSelection | null)[] = [null, { kind: 'footprint' }, { kind: 'clearance' }, ...shape.details.map((detail) => ({ kind: 'detail' as const, id: detail.id }))];
+			return stages.flatMap((stage) => selections.flatMap((selection) => (['transform', 'points', 'bend'] as const).flatMap((mode) => {
+				const drawn = resting(shape, selection, stage, 'drawn', mode);
+				return [...overlapping(drawn.placed, drawn.values), ...covering(drawn.placed, drawn.values, drawn.handles), ...inside(drawn)]
+					.map((pair) => `${one.id} ${JSON.stringify(selection)} ${mode} ${String(stage.width)}: ${pair}`);
+			})));
 		});
 
 		expect(failures).toEqual([]);
@@ -316,12 +337,29 @@ describe('a resting label and the selected part’s handles', () => {
  * placed after it, yielded and was pushed INSIDE the footprint, its line through the tap hole. A
  * detail label yields to the overall pair, never the other way round.
  *
- * A handle can still move an overall label, and never INTO the outline: at 580 and 460 the width's
+ * A handle can still move an overall label, and never back over the outline (fix round 2's rule): at 580 and 460 the width's
  * outside anchor sits on the basin's rotate handle, so at 460 it slides sideways along its own row
  * (the ruler is directly above it) and at 580 it steps one row further out. At 1280 and 760 no
  * handle is in the way and the pair is exactly where `outsideAnchor` stood it.
  */
 describe('the overall pair with a part selected', () => {
+	/**
+	 * **Fix round 2's named frame**: the rect table with its FOOTPRINT selected at the 1280 leaf. The
+	 * width's outside anchor sits on the footprint's own top-middle box handle and its rotate handle
+	 * both, and the nearer of two equal slots was the INWARD row, over the table, measured at 251.3
+	 * below a top edge at 206.3. An overall label now takes no slot on the footprint's side of its
+	 * anchor, so it steps further OUT instead: two rows, since one row up is on the rotate handle.
+	 */
+	it('steps the rect table’s overall width further out, not over the table, when its footprint is selected', () => {
+		const table = resting(preset('rect-table'), { kind: 'footprint' }, { width: 880, height: 650 });
+		const index = table.names.indexOf('overall-width');
+
+		expect(table.anchors[index]?.y).toBeLessThan(expectDefined(table.raw[index], 'the top edge').y);
+		const anchor = expectDefined(table.anchors[index], 'the outside anchor');
+		expect(table.placed[index]).toEqual(screenPoint(anchor.x, anchor.y - 60));
+		expect(inside(table)).toEqual([]);
+	});
+
 	it.each([
 		['1280', 880, 650, 'unmoved'],
 		['760', 380, 650, 'unmoved'],

@@ -79,7 +79,7 @@ import { STAGE_PIXELS, worldPerScreenPixel, worldToScreen, type ScreenPoint } fr
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { useAssetDesignStore } from '../stores/assetDesignStore';
 import { useDesignerRuntime } from '../runtime';
-import { dimensionFigures, outsideAnchor, restingFigures, separateLabels, spreadLabels, type DimensionFigure } from './dimensionFigures';
+import { dimensionFigures, outsideAnchor, restingFigures, separateLabels, spreadLabels, type DimensionFigure, type LabelAnchor } from './dimensionFigures';
 import { selectionHandles } from '../selection/handles';
 import { drawnSelection } from '../selection/hitTest';
 import { dimensionLine, type DimensionLine } from './dimensionLines';
@@ -135,7 +135,8 @@ const MEASURING_TOOLS: readonly (string | null)[] = [null, 'select'];
 /**
  * Where the selected part's handles sit on the stage, which a resting label keeps clear of
  * (AD18-R21). `DesignerCanvas`'s own `marks` rule, asked the same way: handles only under Select,
- * the tool that grabs them, and none for a part that is not drawn (`drawnSelection`).
+ * the tool that grabs them, and none for a part that is not drawn (`drawnSelection`). The Select
+ * half is restated here, not shared — a change to it in `DesignerCanvas.vue`'s `marks` belongs here too.
  */
 function handlePoints(shape: AssetShape, worldPerPixel: number, screen: (point: DimensionFigure['at']) => ScreenPoint): ScreenPoint[] {
 	if (activeToolId.value !== 'select') return [];
@@ -173,9 +174,12 @@ const figures = computed((): readonly PlacedFigure[] => {
 	// touching at all, which `separateLabels` answers. See that function for why the two differ.
 	// AD18-R21: and none on a handle of the selected part, which it is handed as obstacles.
 	// The overall pair asks to stand OUTSIDE the footprint first, where the canvas has room (board 01).
-	const anchors = drawing.map((figure) => {
+	const anchors = drawing.map((figure): LabelAnchor => {
 		const at = screen(figure.at);
-		return { at: figure.outside ? outsideAnchor(figure.axis, at, figure.value) : at, value: figure.value, outside: figure.outside };
+		if (!figure.outside) return { at, value: figure.value };
+		const stood = outsideAnchor(figure.axis, at, figure.value);
+		// `outsideAnchor` hands back `at` itself when there is no room, which is how `'edge'` is told apart.
+		return { at: stood, value: figure.value, overall: stood === at ? 'edge' : figure.axis };
 	});
 	const points = all ? spreadLabels(anchors, editor.stageSize) : separateLabels(anchors, editor.stageSize, handlePoints(drawn, worldPerPixel, screen));
 	return drawing.map((figure, index) => {

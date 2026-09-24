@@ -25,7 +25,7 @@ and 2 need a vault with **no** renovation projects, so run them before
 **Why a human still matters here.** The whole slice turns on one decision: the Plan Editor's
 empty states are OVERLAYS over a canvas that stays mounted, never a replacement for it.
 
-The other reason is measurement. jsdom lays nothing out, so no gate here can see whether the
+The reason is measurement. jsdom lays nothing out, so no gate here can see whether the
 panel covers the thing it is explaining, whether it holds at a sidebar width, or whether it
 reads against a themed vault's colours. Steps 3, 8 and 9 are the only places those are looked
 at.

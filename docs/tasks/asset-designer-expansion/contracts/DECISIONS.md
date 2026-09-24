@@ -1631,6 +1631,29 @@ the open ones to the user in one batched round. **Taken by the user**, every one
   selected, the Parts panel shows the membership change, and it undoes in one step. AD18-R22 refused
   the keys because they moved or removed something unseen, and an Ungroup does neither.
 
+**AD18-R23 delivered 2026-09-24.** Session eighteen triaged the polish round's seven recorded items at source
+before asking anything. Two were defects, two were already fine, and three, plus the owed harness proposal,
+went to the user in one batched round, who took all four recommendations. Nine tasks then ran
+subagent-driven, and the integrator wrote the hand-off and this note. Several ran in parallel on disjoint files, staged by explicit path. Each task was
+independently reviewed, and every UI task was measured by the integrator in pinned Chromium with real mouse
+and key input. **Two defects were found during the round and added to it under this ruling.** The designer
+bound no history keys at all, which came to light when measuring the new `&writable` knob: toolbar Undo worked
+and Ctrl+Z did nothing. And `solveScale` jumped up to 587 mm the wrong way at a curve's reach limit, which Task
+5's review found. **The first successful Group ever observed in a browser was observed this session**, from the
+resting Select, with a real right-click, then undone and redone.
+
+Every one of the nine needed at least one fix round. Task 11 needed four: its first fix broke a shrub detail's corner drag in 12 of
+8,550 moves, which its review caught, and the round that closed that took held-side violations over 38,456
+moves to zero, where there had been 2,194 before the task began. Task 6's review caught two shipped stylesheet
+rules that keyed on the `aria-pressed` it removed. One integrator measurement was itself wrong: a drag that
+ended in the canvas's 40 px edge-scroll band panned the camera, and a screen-pixel read reported it as a
+246 px drift. The implementer showed it in world coordinates. Two CI runs went red, one on a fallow
+`private-type-leaks` error in `tests/harness/` and one on `solveScale`'s cognitive complexity, and each was
+fixed. A whole-round review (Opus) found no Critical or Important issue. Its Minors were fixed in one wave,
+except the harness bundle copy, which is recorded. **CI GREEN on `79239ba33`, run `36060951473`**, `verify` ×4 plus
+`audit`, read by run id. The manual pass grew from 215 to **232 steps**, re-derived by the integrator and by an
+independent reviewer, who checked every new expectation against source and had two fixed.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

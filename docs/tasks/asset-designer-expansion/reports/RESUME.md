@@ -1,6 +1,6 @@
-# RESUME — session seventeen's hand-off, for the manual-walk session
+# RESUME — session eighteen's hand-off, for the manual-walk session
 
-**Rewritten 2026-09-24, replacing session sixteen's packet wholesale.** An appended hand-off goes
+**Rewritten 2026-09-24, replacing session seventeen's packet wholesale.** An appended hand-off goes
 stale in a way its reader cannot detect.
 
 Branch `renovation-planner-asset-designer-bc5539`, worktree
@@ -11,8 +11,8 @@ ready, tags it or publishes it without asking the user.**
 | | |
 |---|---|
 | HEAD | **A hand-off cannot name its own sha.** Confirm it yourself: `gh run list --branch renovation-planner-asset-designer-bc5539 --limit 1 --json databaseId,headSha,status`, then `gh run view <id> --json status,conclusion,jobs`. The tree was clean and pushed when this was written |
-| Last sha confirmed green | **`e83202e09`**, run [`36020948497`](https://github.com/Luis85/renovation-planner/actions/runs/36020948497), `verify` ×4 plus `audit`, all success. It carries every `src/`, `styles/` and test change of this round. `git diff --name-only e83202e09..HEAD` should show only `docs/` files |
-| `origin/main` | Last merged at `0d9cdb142` (it brought main's `126f79589`). `git merge-base HEAD origin/main` was `126f79589` on 2026-09-24. Fetch and check again before assuming nothing has moved |
+| Last sha confirmed green | **`79239ba33`**, run **[`36060951473`](https://github.com/Luis85/renovation-planner/actions/runs/36060951473)**, `verify` ×4 plus `audit`, all success. It carries every `src/`, `styles/` and test change of this round. `git diff --name-only 79239ba33..HEAD` should show only `docs/` files |
+| `origin/main` | Last merged at `0d9cdb142`. `git merge-base HEAD origin/main` was still `126f79589` on 2026-09-24, with no new commits on main. Fetch and check again before assuming nothing has moved |
 
 ## The next session's job: the manual vault walk
 
@@ -20,116 +20,132 @@ Nothing agent-closable is open in this package. What is left is the deferred ter
 person does in a real Obsidian vault (`npm run test-build` builds into this repository, which IS a
 vault).
 
-- **The index is [`MANUAL-PASS.md`](MANUAL-PASS.md): 215 human steps across seven cases.** Do not
-  trust that number: run the command the index prints.
-- **Start with grouping.** It is the one defect a user hit in a real vault (below), and the steps for it
-  in `Compose an asset from parts` walk every door, at the resting Select and with Pan chosen.
+- **The index is [`MANUAL-PASS.md`](MANUAL-PASS.md): 232 human steps across seven cases**
+  (103/19/23/26/33/8/20). It was 215. Do not trust the number: run the command the index prints.
+  Two further rows for the Plan Editor's zone lock sit in `Open a floor and select a room`, outside
+  the seven counted cases.
+- **Start with grouping and undo.** Grouping is the one defect a user hit in a real vault (AD18-R20).
+  This session is the first to watch a successful Group in a browser (below), and the designer only
+  now answers Ctrl+Z at all.
 - **A walk decides nothing on its own.** A step that fails against correct code is a step to fix, and a
   step that passes a defect is worse. Every expectation added this session was checked against source by
-  an independent reviewer, but a reviewer of text is not a vault.
+  an independent reviewer, who found two wrong ones and had them fixed, but a reviewer of text is not
+  a vault.
 
-## What this session shipped (rulings AD18-R20, R21, R22)
+## What this session shipped (ruling AD18-R23)
 
-**The reported bug: grouping from the right-click menu did nothing, in a vault (AD18-R20).** Nothing in
-this repository had ever observed a successful Group from the resting state: every group test clicked
-Select first. Two faults, both root-caused in the harness with real mouse events and fixed:
-- the designer rested in camera mode (Pan), where the menu and every selection key refused silently;
-- a Parts row always replaced the selection, so Shift and `Select multiple parts` built no set.
+Session eighteen verified at source each item the polish round had recorded rather than fixed. The
+user then took four rulings in one batched round. Two defects were found during the round, one while measuring
+and one by a review, and fixed under the same ruling.
 
-The menu and keys now work under Pan too, Parts rows extend with Shift or the toggle, and (the user's
-ruling) **the designer now opens with Select active**.
+**Ruled (all four as recommended):**
+- **A clearance a read-back changes re-shows it.** While `Show clearance` is off, an undo, redo or
+  peer write that changes the clearance's geometry turns the switch back on. A write that leaves the
+  geometry alone keeps it hidden.
+- **An overall dimension label steps onto the drawing before it covers a handle.** This only happens
+  when no slot along or outside its line is free, on 280–360 px canvases. It used to sit on the handle
+  in 205 of 77,964 modelled frames, and now does in none.
+- **A curved clearance's box-handle drag solves like every other curved part.** The side opposite
+  the handle holds, and the dragged side lands on the pointer, as a typed size does.
+- **The browser harness has a `&writable` knob** over the real command bundle and an in-memory vault:
+  `?view=asset-designer&preset=<id>&writable`. It is test tooling only.
 
-**Also under AD18-R20 (defects, no ruling):**
-- a clearance re-shows when a read-back brings it back (redo, undo of a removal, a peer's write);
-- a selected part that is not drawn (hidden clearance, Parts-hidden graphic) draws no outline or handles,
-  and no press hits them;
-- a handle resize of any curved graphic or curved footprint keeps the opposite side fixed and lands the
-  typed path's size (the vanity basin used to move its fixed edge and miss the pointer);
-- focus rings on the designer's selects and checkboxes; left-aligned Library tile names; duplicated test
-  helpers moved to `tests/helpers/`.
+**Defects fixed without a ruling:**
+- the rulers' selection band and Shift+2 no longer follow a hidden selected part;
+- the Plan Editor's zone lock toggle drops `aria-pressed`, the same contradiction 3405aab95 removed
+  from the designer. Its two stylesheet rules now key on `data-rp-locked`, so an unlocked padlock in
+  the Layers list still hides until hover or focus, and a locked one is still emphasized;
+- **the designer answers Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y** (Cmd on macOS) through the Plan Editor's
+  own `editorHistoryShortcut`. Before this there was no binding at all, although a manual step
+  already expected one. Found by watching `&writable` in Chromium;
+- **a size typed or dragged past what a curved part can reach now stops at the limit.** Before, it
+  jumped up to 587 mm the wrong way (`solveScale`). Found by Task 5's review, and it took four fix
+  rounds, one of them for a corner drag the fix itself had broken.
 
-**AD18-R21 (nine polish items, approved in one round):**
-- a handle resize keeps a rounded rectangle's radius;
-- a designer canvas focus ring, clear of the rulers on all four sides;
-- a small drawing (footprint under 240 px across) rests with the overall width and depth only;
-  resting labels keep off the selected part's handles, and an overall label never lands on the drawing;
-- the five selects styled like the designer's inputs;
-- checkbox label rows at least 24 px tall;
-- the Parts row's controls as one row of icon buttons;
-- Add-rail shape tiles at one height (`grid-auto-rows: 1fr`, so German's taller labels stay equal);
-- a category icon on a Library tile with no design;
-- a save from an earlier day says which day, on both surfaces.
+**Already fine, recorded so nobody reopens them:** arrow keys on a hidden selected part stay claimed
+(`keyDoors.ts`, Finding B). An Ungroup whose group includes a hidden member is allowed, because
+Ungroup is metadata only (C06).
 
-**Declined:** one term for the placement point (`Anchor` / `Placement point` both stay).
-
-**AD18-R22 (four questions from the whole-round review):**
-- a hidden but selected part refuses the selection keys and menu (the Inspector's buttons still act);
-- the Parts-row icon buttons wrap at a 580 px leaf (the rail is 128 px there);
-- 0 mm offsets keep resting;
-- the Hide and Lock glyphs show the current state (the Plan Editor's convention).
-
-The plan is [`AD18-polish-round-plan.md`](AD18-polish-round-plan.md).
+The plan is [`AD18-followup-round-plan.md`](AD18-followup-round-plan.md). The ruling and its defect
+list are AD18-R23 in [`DECISIONS.md`](../contracts/DECISIONS.md).
 
 ## Known behaviour: the walk must NOT file these as new defects
 
-- **A hidden clearance SWAPPED for a new one** by undo, redo or a peer's write while `Show clearance` is
-  off stays hidden. Only an absent-to-present read-back re-shows it.
-- **An overall dimension label may slide along its own line, even past the line's end.** The line runs
-  on into it. It does this to keep off a handle, usually the rotate handle under the ruler (toilet
-  preset, footprint selected, 1280 leaf). Judge on screen whether it reads as attached (AD18-R14).
-- **On canvases about 280 to 360 px wide, an overall label may keep its anchor ON a handle** when no slot
-  along or outside its line is free. That handle may then be unreachable. Modelled, 205 of 77,964 frames.
-- **The rulers' selection band and Shift+2 framing still follow a hidden selected part.**
-- **The Parts-row icon buttons wrap onto two lines at a 580 px leaf** (AD18-R22).
-- **0 mm offset labels rest** (AD18-R22).
-- **A curved clearance's handle drag is still a plain scale** (C07 governs it).
-- **At the 760 and 580 leaves the overall depth label straddles the footprint's left edge.** It did before
-  this round too: there is no room beside the ruler.
-- Carried over from session sixteen and still true: `Saved at HH:MM` (same day) carries no date; on
-  Windows, arrow keys on a closed `<select>` fire one edit per step; at the zoomed-out default camera the
-  overall depth label can touch detail-1's width.
+- **A hidden clearance re-shows after ANY read-back that changes its geometry**, not only undo, redo
+  or a peer. A pending clearance that `Set dimensions` or a calibration rescales therefore comes back
+  into view, and so does an undo of either.
+- **A typed or dragged size a curved part cannot reach lands on the nearest size it CAN, with no
+  notice.** An oval-table clearance dragged inward stops at 700 mm. A hand-drawn quad typed to Width 67
+  lands on 202.5, where a refusal used to explain why.
+- **A drag whose pointer ends in the canvas's ~40 px edge band pans the camera, and the resize keeps
+  growing while it rests there.** This is true for every part and predates this round. Keep drag steps
+  clear of the band.
+- **Ctrl+Z does nothing while a `<select>` or the corner-radius slider has focus.** The shared helper
+  leaves those to the browser, and neither has native undo. The Plan Editor has the same gap.
+- **Ctrl+Z and Ctrl+Y are claimed even with nothing to undo** (the Plan Editor's rule). Ctrl+G is
+  left to Obsidian when there is nothing to group.
+- **Ctrl+Z pressed on the open dimension form's buttons undoes the design and leaves the form open**
+  (Plan Editor parity).
+- **An overall label may now sit over the drawing on a narrow canvas** (280–360 px): that is the ruled
+  trade for keeping a handle reachable.
+- Carried over and still true:
+  - an overall label may slide along its own line, even past its end (AD18-R14);
+  - the Parts-row icon buttons wrap at a 580 px leaf (AD18-R22);
+  - 0 mm offset labels rest;
+  - at the 760 and 580 leaves the overall depth label straddles the footprint's left edge;
+  - `Saved at HH:MM` (same day) carries no date;
+  - on Windows, arrow keys on a closed `<select>` fire one edit per step.
 
 ## Things only the walk can settle (no gate here can)
 
-- **Obsidian's own Ctrl+G (graph view) against the designer's Group key**, with something groupable and
-  without, and with the focused part hidden. Written as observe-and-record.
-- **Focus after a Group from a Parts row**: from the menu it lands on the canvas once the write drops it;
-  after Ctrl+G on a row it follows the panel's own rule. Neither is exercised by a real write in any test.
-- **How the styled selects, the icon row, the 24 px rows and the canvas ring look in a themed vault.** The
-  harness stylesheet is a reduction of Obsidian's.
-- **Screen-reader output** for the icon buttons (the swapping name, no `aria-pressed`) and for the save
-  indicator (`Saved` only).
+- **Obsidian's own Ctrl+G (graph view) against the designer's Group key**, and now whether any
+  user-assigned hotkey on Ctrl+Z or Ctrl+Y goes dead while a designer leaf has focus.
+- **Focus after a Group from a Parts row**, now that a successful Group has been seen in Chromium but
+  never in a vault.
+- **How the lock toggle reads to a screen reader** ("Lock Kitchen", "Unlock Terrace", no pressed
+  state), and the designer's icon buttons and save indicator.
+- **How the styled selects, icon rows, 24 px rows, canvas ring and inward labels look in a themed vault.**
+  The harness stylesheet is a reduction of Obsidian's.
+
+## Recorded, not fixed (for a later round)
+
+- `assetDesignHarness.ts` still builds its own copy of the command bundle and spec-sheet list, which
+  `tests/helpers/designerComposition.ts` now defines once (final review N2).
+- The tree footprint's validation refuses a scale factor of 1.4999944 but accepts 1.50192: a fragility
+  in footprint validation, not in the solver.
+- `samePolygon` compares bulges with strict `===`, so a round-tripped float could over-reveal a
+  clearance. That is the safe direction.
+- fallow's CSS clone between `designer-selection.css` and `project-list.css` predates this branch and
+  does not gate.
 
 ## CI, the browser, and this machine
 
-Every task was pushed and read **by run id**. No red this session. The Windows leg on
-`tests/gates/network-boundary.test.ts` (a 5000 ms timeout) remains a known flake: `gh run rerun <id> --failed`.
+Every task was pushed and read **by run id**. Two red runs this session, each root-caused and fixed:
+- **a fallow `private-type-leaks` error** in `tests/harness/assetDesigner.ts`. fallow reads
+  `tests/harness/` and `tests/helpers/` exports too;
+- **a fallow health finding**: `solveScale`'s cognitive complexity went over threshold, so it was split.
 
-**The headless browser changed mid-session.** Another session updated the shared `node_modules` to
-playwright-core 1.62.1, which pins Chromium build 1234. Captures between that update and the end of the
-session used the installed build 1223 through `RP_CHROMIUM_EXECUTABLE`, which the script announces as
-approximate. **At the user's request the pinned build was then installed** (`chromium-1234` under
-`D:dev-cacheplaywright`, verified: `scripts/chromium.mjs` resolves it with no override and it launches
-as 151.0.7922.34), so captures need no override now. The optional headless shell download stopped at a
-stale `__dirlock` left by another process; the repository's captures do not use it.
+**Only fallow's `Failed:` line and its `N above threshold` count are the gate.** A local
+`npx fallow health` flags about 170 more without coverage data; CI's coverage-aware run is the
+authority. The Windows leg on `tests/gates/network-boundary.test.ts` (a 5000 ms timeout) remains a known
+flake: `gh run rerun <id> --failed`.
 
-7.8 GB RAM, **shared**. The designer suite ran up to five times slower under load this session, and a
-worker-start timeout once turned a fully green run into exit 1. Re-run the named file alone before
-believing it.
+**The pinned Chromium (build 1234) is installed** under `D:\dev-cache\playwright`, and `scripts/chromium.mjs`
+resolves it with no override. Measurement scripts from this session are in `.superpowers/sdd/measure/`
+(gitignored). `pw.mjs` opens the harness and hands you the Pinia stores. **Two instrument lessons:**
+- Read a drag's handles in WORLD coordinates, or end it well clear of the 40 px edge-scroll band. A
+  screen-pixel read of a drag that entered the band reported a 246 px "drift" that was the camera
+  panning.
+- Measure the frames a reviewer will probe: every selection, all eight handles, both schemes.
 
-- Prefix every node-spawning command with `export TEMP=D:/tmp-claude TMP=D:/tmp-claude`.
-- The harness (`preview_start "harness"`) must be **restarted after a card creates a new file**, because
-  Vite caches a failed import resolve.
-- The browser pane's screenshots time out while the window is hidden. `resize_window` to a fixed size
-  first, then screenshot, or measure with `getBoundingClientRect` through `javascript_tool`. A headless
-  Playwright script against the running harness is the most reliable instrument.
-- **Never `git stash`.** When two agents share this worktree, each stages **by explicit path only**.
+7.8 GB RAM, **shared**. Prefix every node-spawning command with `export TEMP=D:/tmp-claude TMP=D:/tmp-claude`.
+Restart the harness (`preview_start "harness"`) after a change adds a new file. **Never `git stash`.**
+When agents share this worktree, each stages **by explicit path only**.
 
 ## The rule this session paid for
 
-**Measure the selection the reviewer will probe, not the one you happened to pick.** The integrator
-measured Task 5's labels with the basin selected and nothing selected, and called it clean. The reviewer's
-probe then selected the footprint and found the overall width inside the drawing in 9,050 of 77,964
-frames. Four fix rounds followed, each one measured before it was accepted. The same pattern held for the
-canvas ring: it was accepted on two sides, then on the wrong offset, and only a screenshot of all four
-edges settled it.
+**A fix is measured against every caller, not the one that asked for it.** Task 11 fixed the solver
+for the oval clearance's side drag, and its review found that the fix broke a shrub detail's corner
+drag in 12 of 8,550 moves. The fix round that closed that took held-side violations over 38,456 moves
+to zero, where there had been 2,194 before the task began. The first measurement that said "fixed"
+was true for the frame it measured and for no other.

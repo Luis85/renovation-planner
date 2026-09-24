@@ -10,7 +10,6 @@
  * entry — so every assertion reads the sidecar rather than a store.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import type { Point } from '../../../src/core/geometry/Point';
 import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
 import { settle } from '../../helpers/editor';
 import { click, held, selecting, type DesignerRig } from '../../helpers/designerRig';
@@ -47,14 +46,6 @@ async function afterDelete(): Promise<DesignerRig> {
 	await settle();
 	expect(await detailIds(rig)).toEqual(['detail-1']);
 	return rig;
-}
-
-/** One primary pointer event on the canvas, held on the press — `designerKeyboard.test.ts`'s own. */
-function pointer(rig: DesignerRig, type: 'pointerdown' | 'pointerup', world: Point): void {
-	const at = rig.at(world);
-	rig.canvasEl.dispatchEvent(
-		new PointerEvent(type, { button: 0, buttons: type === 'pointerup' ? 0 : 1, pointerId: 1, clientX: at.x, clientY: at.y, bubbles: true }),
-	);
 }
 
 describe('the history chords', () => {
@@ -128,14 +119,14 @@ describe('what the chords leave alone', () => {
 	it('a chord pressed while a press is still held is claimed and undoes nothing', async () => {
 		const rig = await afterDelete();
 		const empty = { x: 1000, y: 1000 };
-		pointer(rig, 'pointerdown', empty);
+		held(rig, 'pointerdown', empty, 1);
 
 		const undo = key(rig.canvasEl, { key: 'z', ctrlKey: true });
 		await settle();
 		expect(undo.defaultPrevented).toBe(true);
 		expect(await detailIds(rig)).toEqual(['detail-1']);
 
-		pointer(rig, 'pointerup', empty);
+		held(rig, 'pointerup', empty, 0);
 		await settle();
 		key(rig.canvasEl, { key: 'z', ctrlKey: true });
 		await settle();

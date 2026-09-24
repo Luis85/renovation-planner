@@ -21,8 +21,10 @@ import { flushGesture, pointerAt } from '../../../helpers/tool-context';
  *
  * The two presets at their defaults, as the integrator measured them: the round table's clearance is a circle
  * of diameter 2100 about the origin (curve box ±1050), the oval table's a stadium 3000 x 2200 whose half-circle
- * ends of radius 1100 sit on the vertical chords at x ±400. The round-table side drag is the measured one: the
- * right handle dragged 40 px at zoom ~0.293 took the plain scale's right vertex from 1050 to 1186.4.
+ * ends of radius 1100 sit on the vertical chords at x ±400. The measured drag — the right handle dragged 40 px
+ * at zoom ~0.293, taking the plain scale's right vertex from 1050 to 1186.4 — drives the corner and Shift cases
+ * below. The side case reverses it to 913.6: outward, to 1186.4, every arc's x-extreme already sits on a vertex,
+ * so the plain scale already lands the right width and cannot be discriminated from the solve.
  */
 const CLEARANCE: OutlinePart = { kind: 'clearance' };
 const FREE: DragOptions = { shift: false, snapRotation: (radians) => radians };
@@ -101,22 +103,19 @@ describe('a box-handle drag on a curved clearance', () => {
 	});
 
 	// The flags are not this module's to decide: both paths write through `resizeBox`, whose `mapPartOutline` carries
-	// `clearancePending` and clears the review flag (AD14-R1). This pins that the solve reaches the same door.
+	// `clearancePending` and clears the review flag (AD14-R1). This pins that the solve reaches the same door, using
+	// the oval side drag (the discriminating input above) rather than the round table's outward drag, where solve
+	// and plain scale coincide and a reinstated exclusion would leave this case green.
 	it('treats clearancePending and the review flag as the typed Width does', () => {
-		const flagged = expectOk(validateAssetShape({ ...ROUND, clearancePending: true, clearanceNeedsReview: true }));
-		const dragged = expectOk(drag(flagged, 3, { x: 1050, y: 0 }, { x: 1186.4, y: 0 }));
-		const typed = expectOk(resizeToExtent(flagged, CLEARANCE, 'width', 2236.4));
+		const flagged = expectOk(validateAssetShape({ ...OVAL, clearancePending: true, clearanceNeedsReview: true }));
+		const dragged = expectOk(drag(flagged, 3, { x: 1500, y: 0 }, { x: 1640, y: 0 }));
+		const typed = expectOk(resizeToExtent(flagged, CLEARANCE, 'width', 3140));
 		expect([dragged.clearancePending, dragged.clearanceNeedsReview]).toEqual([true, false]);
 		expect([typed.clearancePending, typed.clearanceNeedsReview]).toEqual([true, false]);
 	});
 });
 
-/**
- * Fix round 1: the integrator's browser drag (oval table, right-middle handle, pointer ending 8 px inside an 880 px
- * stage) read the held side moving on SCREEN. It was the camera: the pointer sat inside `EDGE_SCROLL_ZONE_PX`, so
- * the canvas panned under a world-fixed side — the footprint dragged to the same pixel drifts the same way. This
- * is that drag through the tool's own entry, the preset's real clearance and the same handle, read in the WORLD.
- */
+/** Pins that the select tool's own entry holds the clearance handle's opposite side in WORLD coordinates, immune to the edge-scroll pan that reading it in screen pixels would show as drift. */
 describe('the select tool dragging the oval table’s clearance handle', () => {
 	it('holds the left side in the world and lands the pointer’s width', async () => {
 		const rig = selectToolRig({ shape: OVAL, selection: CLEARANCE });

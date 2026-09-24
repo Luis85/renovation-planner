@@ -13,11 +13,14 @@ import { buttonClasses } from '../helpers/buttonRules';
  * as an action. That opt-out is one word long, is the only reason the partial exists, and is
  * exactly the kind of line a later reader tidies as redundant.
  *
- * **What no check here — or anywhere in this repository — can see.** jsdom resolves no CSS, and no
- * fixture reaches this state: `tests/harness/page.ts` passes its `stale` knob to the PLAN EDITOR
- * branch only (`mountAssetDesignerHarness` takes `select`, `mode`, `draw`, `camera`, `pending`,
- * `grid` and `viewMenu`, and no stale knob), so there is no capture of the result and nothing below
- * asserts a rendered box. This reads DECLARATIONS. The measurement is an injected probe's.
+ * **What no check here — or anywhere in this repository — can see.** jsdom resolves no CSS.
+ * `mountAssetDesignerHarness` takes `select`, `mode`, `draw`, `camera`, `pending`, `grid`,
+ * `viewMenu`, `stale` and `writable` (AD18-R23) — `tests/harness/page.ts` passes `&stale` to the
+ * asset designer branch too, reaching the real retry button, and `scripts/harness-shot.mjs`'s
+ * `SHOTS` table does capture it (`asset-designer-stale`, `asset-designer-stale-light`). But that
+ * capture is a PNG with no baseline to diff against, outside `npm run check` and CI, so nothing
+ * there or here asserts a rendered box. This reads DECLARATIONS. The measurement is an injected
+ * probe's.
  *
  * Read through `lightningcss` rather than through a regex, per `tests/helpers/selectors.ts` — which
  * is also why the value is compared against the parser's own typed node rather than against text.

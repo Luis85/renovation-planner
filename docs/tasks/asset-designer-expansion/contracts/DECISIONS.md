@@ -1456,6 +1456,12 @@ with deciding them:
 
 The work plan is [`reports/AD18-parity-round-2-plan.md`](../reports/AD18-parity-round-2-plan.md).
 
+**Delivered 2026-09-24.** All eleven tasks shipped, each independently reviewed, followed by a whole-round
+review (verdict: ready for the manual pass after one fix wave). CI green on `16c00093a`, run `35936599580`,
+read by run id. The manual pass grew from 145 to 182 steps across seven cases, re-derived by the integrator.
+**One item stays open by this ruling's own scope:** a canvas HANDLE resize of a rounded rectangle still
+drops its radius, because the handle previews a non-uniform scale; only typed Width/Depth edits keep it.
+
 ### AD18-R18 — the Asset Library gains a GRID view beside its list; the list is not replaced. (2026-09-23)
 
 **Taken by the user**, asked separately because the library has its own authority,

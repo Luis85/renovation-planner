@@ -7,8 +7,9 @@
  * it, `&select=<part>` and `&mode=<mode>` selecting one part in one mode, `&draw=<tool>` holding a draw
  * tool mid-gesture, `&camera=default` putting the default camera back after the opening fit, `&grid`
  * showing the designer's grid (snapping spec 2026-09-15), `&view-menu` opening its View menu (F1's fix
- * instrument) and `&pending`
- * marking the design unscaled — `?view=asset-library` (Task 17) opens the
+ * instrument), `&pending`
+ * marking the design unscaled and `&writable` (AD18-R23) composing it over the in-memory stack so a
+ * write really persists until reload — `?view=asset-library` (Task 17) opens the
  * asset library — with `&asset=<id>` seeding a selection, which is what §7's narrow composition
  * needs to draw at all — `?project=<id>` opens the Renovation Project view's DETAIL state on a
  * seeded project of that id rather than its list — with `&plans=<n>` seeding that many plans
@@ -267,6 +268,7 @@ if (wantsIndex) {
 					// Editor: the two branches are mutually exclusive on `view=`, so one flag
 					// answers both without a second parse.
 					stale: wantsStale,
+					writable: params.has('writable'),
 				}).view
 			: wantsAssetLibrary
 				? mountAssetLibraryHarness(

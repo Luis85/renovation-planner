@@ -27,6 +27,9 @@ import { accessibleName } from '../helpers/accessibleName';
 import { settleUntil } from '../helpers/settle';
 import { FakeLeaf } from '../helpers/workspace';
 import { useWorkspaceStore } from '../../src/presentation/stores/WorkspaceStore';
+import type { AssetDesignerQueryServices } from '../../src/presentation/read-models/assetDesignerQueries';
+import { ObsidianAssetGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
+import { composeDesigner, type DesignerComposition } from '../helpers/designerComposition';
 import { pointer } from './itemKnob';
 
 /**
@@ -43,9 +46,18 @@ import { pointer } from './itemKnob';
  * the button-carrying state Task B10's own axe case has to prove present. Nothing on this page
  * ever presses it; `pick()` answering `null` (a cancelled pick) is the honest inert answer.
  *
- * Every WRITE refuses with `settings.unrecovered`, the same honest stand-in `planEditor.ts`'s
- * `harnessDeps` uses — the buttons render and a gesture fails like any other failed write
- * rather than pretending to persist against a vault this page does not have.
+ * **Without `&writable`, every WRITE refuses** with `settings.unrecovered`, the same honest stand-in
+ * `planEditor.ts`'s `harnessDeps` uses — the buttons render and a gesture fails like any other
+ * failed write rather than pretending to persist against a vault this page does not have.
+ *
+ * **`&writable` (AD18-R23) composes the leaf over the in-memory repository stack instead**, through
+ * `../helpers/designerComposition` — the same function `designerRig` builds the suite's designer
+ * with: the real design commands, `createAssetDesignerCommands`' reversible adapters (so Group, undo
+ * and redo really write), `GetAssetDesignQuery` reading back what was written and `onDesignChanged`
+ * over a real bus. The asset is seeded with the preset's shape and `makeAsset`'s own name, not
+ * `Kitchen island`. Writes live in the page's memory and are gone on reload. The rest of
+ * `assetDesignerHarnessDeps` is kept as it is: the inert picker and logger, the fixed two-plan usage
+ * scope, `indexScanCompleted`, and the theme and vault-file doors that never fire.
  */
 
 // Module-private: unlike `planEditor.ts`'s `HARNESS_PLAN`/`HARNESS_ZONES`/`harnessDeps`, nothing
@@ -127,6 +139,36 @@ function designFor(presetId: string | null, pending: boolean): AssetDesignDto {
 	return { ...HARNESS_ASSET_DESIGN, shape, dimensions: measured.ok ? measured.value : null, dimensionsUnscaled: shape.footprintPending };
 }
 
+/**
+ * A POPULATED scope rather than a refusal (AD13-R1), because this page exists to be looked at: the
+ * state worth photographing is the one a user meets — two plans and a placement count — and the
+ * refusal line is a sentence any capture of the library's own panel already shows. Two plans and
+ * not one, so the capture measures a LIST's spacing rather than a single row's. `&writable` answers
+ * the same scope, since its stack seeds no project or plan to walk.
+ */
+const harnessPlanUsage: AssetDesignerQueryServices['listPlansUsingAsset'] = () =>
+	Promise.resolve(
+		ok({
+			plans: [
+				{
+					planId: createPlanId(),
+					planName: 'Ground floor',
+					projectId: createProjectId(),
+					projectName: 'Flat renovation',
+					placements: 2,
+				},
+				{
+					planId: createPlanId(),
+					planName: 'Loft conversion',
+					projectId: createProjectId(),
+					projectName: 'Garden studio',
+					placements: 1,
+				},
+			],
+			unreadable: 0,
+		}),
+	);
+
 function assetDesignerHarnessDeps(presetId: string | null, pending: boolean): AssetDesignerDeps {
 	return {
 		// A fresh DTO per call, not the constant — `planEditor.ts`'s `getPlan` carries the same
@@ -134,33 +176,7 @@ function assetDesignerHarnessDeps(presetId: string | null, pending: boolean): As
 		// module object would let a mutation through Pinia's reactive state edit the fixture.
 		queries: {
 			getAssetDesign: () => Promise.resolve(ok(structuredClone(designFor(presetId, pending)))),
-			// A POPULATED scope rather than a refusal (AD13-R1), because this page exists to be
-			// looked at: the state worth photographing is the one a user meets — two plans and a
-			// placement count — and the refusal line is a sentence any capture of the library's
-			// own panel already shows. Two plans and not one, so the capture measures a LIST's
-			// spacing rather than a single row's.
-			listPlansUsingAsset: () =>
-				Promise.resolve(
-					ok({
-						plans: [
-							{
-								planId: createPlanId(),
-								planName: 'Ground floor',
-								projectId: createProjectId(),
-								projectName: 'Flat renovation',
-								placements: 2,
-							},
-							{
-								planId: createPlanId(),
-								planName: 'Loft conversion',
-								projectId: createProjectId(),
-								projectName: 'Garden studio',
-								placements: 1,
-							},
-						],
-						unreadable: 0,
-					}),
-				),
+			listPlansUsingAsset: harnessPlanUsage,
 		},
 		commands: unavailableAssetDesignerCommands(),
 		logger: inertLogger,
@@ -193,6 +209,8 @@ function assetDesignerHarnessDeps(presetId: string | null, pending: boolean): As
 export interface MountedAssetDesigner {
 	leafEl: HTMLElement;
 	view: AssetDesignerView;
+	/** `&writable`'s stack, for reading back what a gesture wrote; `null` on the refusing page. */
+	composed: Promise<DesignerComposition<ObsidianAssetGeometrySidecar>> | null;
 }
 
 /** `&select=` spells a part as `partKey` does, minus the `detail:` prefix a URL has no need for. */
@@ -341,31 +359,69 @@ async function driveHarness(
 	view.contentEl.dataset.rpHarnessReady = '';
 }
 
+type HarnessKnobs = Parameters<typeof driveHarness>[1];
+
+/** State first, then open — the restored-leaf order `mountPlanEditorHarness` uses. */
+function openHarness(view: AssetDesignerView, assetId: string, presetId: string | null, knobs: HarnessKnobs): void {
+	// `void` rather than awaited: the page entry cannot await, and both do their work
+	// synchronously before resolving.
+	void view.setState({ assetId }, {} as never);
+	void view.onOpen();
+	// `void`: a wait that times out rejects, which the page reports as an error and `harness-shot` fails on.
+	if (presetId !== null) void driveHarness(view, knobs);
+}
+
 /**
  * `knobs` are `page.ts`'s `&select=`, `&mode=`, `&draw=`, `&camera=`, `&grid`, `&view-menu`,
  * `&pending` and `&stale`, honoured only beside a preset: a shapeless fixture has no part to
  * select or draw beside, and a capture of one would photograph a state nobody could reach.
+ * `&writable` is honoured with or without one — see the header.
+ *
+ * **`&stale` beside `&writable` is REFUSED on the console and dropped**, `drawInHarness`'s
+ * precedent: `driveHarness`'s stale step re-hydrates `HARNESS_ASSET_ID` through a query that
+ * always fails, and a writable leaf is open on the stack's own asset id instead, so the two
+ * describe different leaves.
+ *
+ * With `&writable` the view is returned at once and opened only when the stack is seeded, through
+ * `rebind` — the door `AssetDesignerView` already offers for replacing its deps, which before the
+ * first `setState` only stores them.
  */
 export function mountAssetDesignerHarness(
 	root: HTMLElement,
 	presetId: string | null = null,
-	knobs: { readonly select?: string; readonly mode?: string; readonly draw?: string; readonly camera?: string; readonly grid?: boolean; readonly viewMenu?: boolean; readonly pending?: boolean; readonly stale?: boolean } = {},
+	knobs: HarnessKnobs & { readonly pending?: boolean; readonly writable?: boolean } = {},
 ): MountedAssetDesigner {
 	// Obsidian's DOM prototype extensions. Installed first, because the mount below uses them.
 	installObsidianDom();
 	root.empty();
 
 	const leafEl = root.createDiv('rp-harness-leaf');
-	const view = new AssetDesignerView(new FakeLeaf() as never, assetDesignerHarnessDeps(presetId, knobs.pending === true));
+	const pending = knobs.pending === true;
+	const view = new AssetDesignerView(new FakeLeaf() as never, assetDesignerHarnessDeps(presetId, pending));
 	leafEl.appendChild(view.containerEl);
 
-	// State first, then open — the restored-leaf order `mountPlanEditorHarness` uses. `void`
-	// rather than awaited: the page entry cannot await, and both do their work synchronously
-	// before resolving.
-	void view.setState({ assetId: HARNESS_ASSET_ID }, {} as never);
-	void view.onOpen();
-	// `void`: a wait that times out rejects, which the page reports as an error and `harness-shot` fails on.
-	if (presetId !== null) void driveHarness(view, knobs);
+	if (knobs.writable !== true) {
+		openHarness(view, HARNESS_ASSET_ID, presetId, knobs);
+		return { leafEl, view, composed: null };
+	}
 
-	return { leafEl, view };
+	if (knobs.stale === true) console.error('&stale does not compose with &writable, which opens a different asset; &stale is ignored');
+	const composed = composeDesigner({
+		shape: designFor(presetId, pending).shape,
+		sidecar: (store) => new ObsidianAssetGeometrySidecar(store),
+		usage: harnessPlanUsage,
+	});
+	// `void`: a refused seed rejects, which the page reports as an error and `harness-shot` fails on.
+	void (async () => {
+		const writable = await composed;
+		view.rebind({
+			...assetDesignerHarnessDeps(presetId, pending),
+			queries: writable.queries,
+			commands: writable.commands,
+			vault: writable.vault,
+			onDesignChanged: writable.onDesignChanged,
+		});
+		openHarness(view, writable.assetId, presetId, { ...knobs, stale: false });
+	})();
+	return { leafEl, view, composed };
 }

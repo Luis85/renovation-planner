@@ -52,38 +52,17 @@ import {
 	ASSET_DESIGNER_CONTEXT,
 	type AssetDesignerContext,
 } from '../../src/presentation/designer/AssetDesignerContext';
-import {
-	createAssetDesignerCommands,
-	unavailableAssetDesignerCommands,
-} from '../../src/presentation/designer/designerCommands';
-import { createAssetDesignerQueries } from '../../src/presentation/read-models/assetDesignerQueries';
-import { GetAssetDesignQuery } from '../../src/application/queries/GetAssetDesign';
-import { createAssetDesignChangeSource } from '../../src/application/events/assetDesignChangeSource';
-import { SetAssetAnchorCommand } from '../../src/application/commands/asset/SetAssetAnchor';
-import { SetAssetClearanceCommand } from '../../src/application/commands/asset/SetAssetClearance';
-import { SetAssetFacingCommand } from '../../src/application/commands/asset/SetAssetFacing';
-import {
-	SetAssetFootprintCommand,
-	SetAssetFootprintFromDimensionsCommand,
-} from '../../src/application/commands/asset/SetAssetFootprint';
-import { SetAssetShapeCommand } from '../../src/application/commands/asset/SetAssetShape';
-import { SetAssetHeightCommand } from '../../src/application/commands/asset/SetAssetHeight';
-import { CalibrateAssetCommand } from '../../src/application/commands/asset/CalibrateAsset';
-import { SetAssetBackgroundCommand } from '../../src/application/commands/asset/SetAssetBackground';
-import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
-import type { VaultFileProbe } from '../../src/application/ports/VaultFileProbe';
-import type { AssetDesignCommandBundle } from '../../src/application/editor/asset/ReversibleAssetDesignCommands';
+import { unavailableAssetDesignerCommands } from '../../src/presentation/designer/designerCommands';
+import type { SetAssetFacingCommand } from '../../src/application/commands/asset/SetAssetFacing';
 import { ObsidianAssetGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import type { AssetGeometryDocument } from '../../src/application/ports/AssetGeometrySidecar';
-import { createEventBus } from '../../src/core/events/EventBus';
 import type { Point } from '../../src/core/geometry/Point';
 import type { AssetId } from '../../src/domain/asset/AssetId';
 import type { AssetShape } from '../../src/domain/asset/AssetShape';
 import { DEFAULT_VIEWPORT, STAGE_PIXELS, worldToScreen } from '../../src/presentation/editor/viewport/Viewport';
 import { t } from '../../src/presentation/i18n/strings';
 import { useEditorStore } from '../../src/presentation/stores/EditorStore';
-import { createRepositoryStack } from './vault';
-import { makeAsset } from './entities';
+import { composeDesigner } from './designerComposition';
 import { expectOk } from './domain';
 import { recorder } from './logger';
 import { installCanvas } from './canvas';
@@ -248,16 +227,6 @@ class FaultingSidecar extends ObsidianAssetGeometrySidecar {
 }
 
 /**
- * `SetAssetBackground`'s file probe, over the paths the cases driving this rig pick as spec
- * sheets. A LIST rather than the real probe over the fake vault, because the probe answers a
- * question those entries cannot: a spec sheet is a PNG or a PDF, and this fake vault holds note
- * text. A case that invents a fourth path is refused at the file check, loudly, which is the
- * failure this list is allowed to have.
- */
-const SPEC_SHEETS: readonly string[] = ['Specs/oven.pdf', 'Specs/other.png', 'Specs/a.png'];
-const specSheetProbe: VaultFileProbe = { fileExists: (path) => SPEC_SHEETS.includes(path) };
-
-/**
  * The real designer over the real in-memory persistence stack.
  *
  * Everything below the view is genuine: `ObsidianAssetGeometrySidecar` over the fake vault's
@@ -271,60 +240,24 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 	installCanvas();
 	installResizeObserver();
 
-	const stack = createRepositoryStack();
-	const events = createEventBus();
 	/** The listeners a real `css-change` subscription holds, so `fireThemeChange` can fire them. */
 	const themeListeners = new Set<() => void>();
-	const sidecar = new FaultingSidecar(stack.assetGeometry);
-	const written = expectOk(
-		await stack.assets.save(
-			makeAsset({
-				height: 700,
-				...(options.background === true
-					? { background: { path: 'Specs/oven.png', kind: 'image' as const, page: null } }
-					: {}),
-			}),
-			'absent',
-		),
-	);
-	const assetId = written.entity.id;
-	expectOk(await sidecar.write(assetId, { calibration: null, shape: options.shape ?? null }));
-
-	const commandDeps = { sidecar, assets: stack.assets, events, locks: new ReferenceLocks() };
-	// Held as a CONCRETE instance beside the annotated bundle below, for `assetDesignHarness`'s
-	// reason: the bundle's members are `VersionedDesignCommand`s, which is the door the
-	// reversible adapters take, while a PEER's gesture dispatches the plain `execute` a user's
-	// own would. Naming only the bundle would leave `execute` unreachable and turn every peer
-	// into a second versioned dispatcher, which is not the input being modelled.
-	const setFacingCommand = new SetAssetFacingCommand(commandDeps);
-	// The REAL bundle, every door of it, so a gesture that reaches a command reaches the one
-	// production reaches. Annotated as the bundle rather than inferred, so a seventh design
-	// command is a build error here rather than a door this rig silently lacks.
-	const bundle: AssetDesignCommandBundle = {
-		setFootprintFromDimensions: new SetAssetFootprintFromDimensionsCommand(commandDeps),
-		setFootprint: new SetAssetFootprintCommand(commandDeps),
-		setShape: new SetAssetShapeCommand(commandDeps),
-		setClearance: new SetAssetClearanceCommand(commandDeps),
-		setAnchor: new SetAssetAnchorCommand(commandDeps),
-		setFacing: setFacingCommand,
-		setHeight: new SetAssetHeightCommand(stack.assets, events),
-		calibrate: new CalibrateAssetCommand(commandDeps),
-		setBackground: new SetAssetBackgroundCommand(commandDeps, specSheetProbe),
-	};
+	// The usage scope refuses here: this rig's stack is the ASSET side, and AD13-R1's scope walks
+	// the project and plan repositories, which nothing in a canvas-and-gestures rig seeds.
+	// `unwiredPlanUsage` says *I could not find out* rather than *no plan places this*, which is
+	// what an unwired bundle actually knows — see its own docblock.
+	const composed = await composeDesigner({
+		shape: options.shape ?? null,
+		background: options.background,
+		sidecar: (store) => new FaultingSidecar(store),
+		usage: unwiredPlanUsage,
+	});
+	const { assetId, sidecar } = composed;
 
 	const context: AssetDesignerContext = {
 		assetId,
-		// The usage scope refuses here: this rig's stack is the ASSET side, and AD13-R1's scope
-		// walks the project and plan repositories, which nothing in a canvas-and-gestures rig
-		// seeds. `unwiredPlanUsage` says *I could not find out* rather than *no plan places this*,
-		// which is what an unwired bundle actually knows — see its own docblock.
-		queries: createAssetDesignerQueries(
-			{ get: new GetAssetDesignQuery(stack.assets, sidecar) },
-			{ execute: unwiredPlanUsage },
-		),
-		commands: options.unrecoveredSettings === true
-			? unavailableAssetDesignerCommands()
-			: createAssetDesignerCommands(commandDeps, bundle),
+		queries: composed.queries,
+		commands: options.unrecoveredSettings === true ? unavailableAssetDesignerCommands() : composed.commands,
 		logger: recorder,
 		// This rig is about the canvas, the toolbar and the gestures — nothing here asserts on
 		// the empty-state picker, so `null` is simply "unused by this rig", never a claim about
@@ -333,11 +266,11 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 		// The stack's OWN fake vault, not an inert triple: the designer's background layer reads
 		// through this, and a rig whose vault answered nothing would be a fake thinner than the
 		// one every other read in this file goes through.
-		vault: stack.vault,
+		vault: composed.vault,
 		// The SAME source the composition root binds, over a bus that really dispatches: a
 		// committed write publishes `AssetDesignChanged` and this leaf re-reads because of it,
 		// rather than because a fixture said so.
-		onDesignChanged: (listener) => createAssetDesignChangeSource(events)(assetId, listener),
+		onDesignChanged: (listener) => composed.onDesignChanged(assetId, listener),
 		// The real subscription shape, so `fireThemeChange` below delivers through the member the
 		// composition root binds rather than past it — and so the unsubscribe a leaf makes on
 		// unmount is a real one.
@@ -418,7 +351,7 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 			return found2.element as HTMLButtonElement;
 		},
 		activeToolId: () => editor.activeToolId,
-		peer: { setFacing: setFacingCommand },
+		peer: { setFacing: composed.setFacing },
 		faultNextGeometryRead: () => {
 			sidecar.throwNext = true;
 		},

@@ -61,8 +61,9 @@ function mountPanel(
 			editShape,
 			view,
 			// The selection keys' store and gate. No case here presses one — `designerPartShortcuts.test.ts`
-			// drives them in the real root — so these only satisfy the props.
-			selectionStore: { selected: options.selected ?? [], selection: null, select, focus: vi.fn<(next: DesignerSelection) => void>() },
+			// drives them in the real root, and `designerGroupFromRest.test.ts` the rows' Shift press that
+			// reaches `extend` — so these only satisfy the props.
+			selectionStore: { selected: options.selected ?? [], selection: null, select, focus: vi.fn<(next: DesignerSelection) => void>(), extend: vi.fn<(next: DesignerSelection) => void>() },
 			tools: { activeToolId: { value: 'select' }, toolManager: { activeToolHasDraft: () => false } },
 			// A value down and a setter up, exactly as `DesignerInspector` took it before AD18-R16
 			// Task 7 moved the control here: `v-model` on a prop is a mutation of one, which

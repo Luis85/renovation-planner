@@ -65,12 +65,17 @@ export function focusDropped(): boolean {
 
 /**
  * The selection keys' ONE refusal, asked by the canvas, the context menu and the Parts rows (AD18-R17 Task 3):
- * any tool but Select owns the keyboard for its own gesture (Backspace mid-trace takes a point back),
+ * any TOOL but Select owns the keyboard for its own gesture (Backspace mid-trace takes a point back),
  * and a press still held on the selection is about to write that very part. `AssetDesignerRoot`'s
  * `onCanvasKeyDown` asks it too, so the canvas, the menu and the rows cannot disagree about when a key is theirs.
+ *
+ * **Camera mode (`null`, the toolbar's Pan) is admitted beside Select** (AD18-R20): it is not a tool and
+ * owns no key, and it is the mode the designer OPENS in, so refusing it made the menu and every key do
+ * nothing, silently, until the user found Select. The Plan Editor's menu admits its own `pan` the same way
+ * (`CanvasContextMenu.vue`).
  */
 export function selectionKeysRefused(gate: SelectionKeyGate): boolean {
-	return gate.activeToolId.value !== 'select' || gate.toolManager.activeToolHasDraft();
+	return (gate.activeToolId.value !== 'select' && gate.activeToolId.value !== null) || gate.toolManager.activeToolHasDraft();
 }
 
 /** What each selection action would act on right now; `false` is an action that would do nothing. */

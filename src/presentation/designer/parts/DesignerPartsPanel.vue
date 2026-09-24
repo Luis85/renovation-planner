@@ -70,7 +70,7 @@ const props = defineProps<{
 	 * The leaf's selection store, for the selection keys (AD18-R17 Task 3): their actions read it at the
 	 * CALL — a prop re-renders a tick late — and `focus` retargets a member first, as the context menu does.
 	 */
-	selectionStore: Parameters<typeof selectionKeyActions>[0] & { focus(next: DesignerSelection): void };
+	selectionStore: Parameters<typeof selectionKeyActions>[0] & { focus(next: DesignerSelection): void; extend(next: DesignerSelection): void };
 	/** The leaf's runtime, asked only whether the keys are refused (`selectionKeysRefused`). */
 	tools: SelectionKeyGate;
 }>();
@@ -138,16 +138,21 @@ const tabbableKey = computed((): string => {
 const list = ref<HTMLElement | null>(null);
 
 /**
- * A row press: remember it for the roving tabindex, and select what it names.
+ * A row press: remember it for the roving tabindex, and select what it names — or, with Shift held or
+ * `Select multiple` on, ADD it to the selection (`AssetDesignStore.extend`, which takes a member back
+ * out and selects a non-graphic alone), the canvas press's own `additive` rule. Until AD18-R20 a row
+ * always replaced the selection, so the toggle this panel draws as C05's modifier-free way to build a
+ * set built nothing here, and a keyboard user could not group at all.
  *
  * `row.selection` goes through as it is, `null` included, rather than behind a guard. Only the
  * selectable rows bind this — a group header is a disclosure and the reference sheet is plain text —
  * so the null case is unreachable AND harmless: `select(null)` is the store's own "nothing is
  * selected", which is the right answer for pressing a row that names no part.
  */
-function choose(row: PartRow): void {
+function choose(row: PartRow, shift: boolean): void {
 	focusedKey.value = row.key;
-	props.select(row.selection);
+	if (shift || props.multiSelectionMode === true) props.selectionStore.extend(row.selection as DesignerSelection);
+	else props.select(row.selection);
 }
 
 /**
@@ -321,7 +326,7 @@ function reorder(id: string, direction: 'forward' | 'backward'): void {
 				:tabbable="row.key === tabbableKey"
 				:view="view"
 				:graphic-ids="graphicIds"
-				:choose="() => choose(row)"
+				:choose="(shift: boolean) => choose(row, shift)"
 				:shortcut="(event: KeyboardEvent) => shortcut(event, row)"
 				:reorder="reorder"
 				:rename="rename"

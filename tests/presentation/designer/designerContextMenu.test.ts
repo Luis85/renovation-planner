@@ -19,6 +19,7 @@ import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { settle } from '../../helpers/editor';
 import { placeAt } from '../../helpers/layout';
 import { designerRig, selecting, type DesignerRig } from '../../helpers/designerRig';
+import { rightClick } from '../../helpers/designerRightClick';
 import { TOILET, detailOutline, justInsideBottom } from '../../helpers/designerSelection';
 
 const BOWL = justInsideBottom(detailOutline('detail-2'));
@@ -28,16 +29,6 @@ const FOOTPRINT: Point = { x: TOILET.footprint.points[1].x - 15, y: 0 };
 const DETAIL_1 = { kind: 'detail', id: 'detail-1' } as const;
 const DETAIL_2 = { kind: 'detail', id: 'detail-2' } as const;
 const GROUPED: AssetShape = { ...TOILET, groups: [{ id: 'group-1', members: ['detail-1', 'detail-2'] }] };
-
-/** A right-click at a world point: the secondary press, then the `contextmenu` it raises. Answers the event. */
-function rightClick(rig: DesignerRig, world: Point, target: Element = rig.canvasEl): MouseEvent {
-	const at = rig.at(world);
-	target.dispatchEvent(new PointerEvent('pointerdown', { button: 2, buttons: 2, pointerId: 1, clientX: at.x, clientY: at.y, bubbles: true }));
-	target.dispatchEvent(new PointerEvent('pointerup', { button: 2, buttons: 0, pointerId: 1, clientX: at.x, clientY: at.y, bubbles: true }));
-	const event = new MouseEvent('contextmenu', { button: 2, clientX: at.x, clientY: at.y, bubbles: true, cancelable: true });
-	target.dispatchEvent(event);
-	return event;
-}
 
 function key(target: Element, init: KeyboardEventInit): KeyboardEvent {
 	const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });

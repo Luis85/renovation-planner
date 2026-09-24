@@ -34,7 +34,8 @@ const props = defineProps<{
 	view: PartView;
 	/** Every graphic id in draw order, handed through to the controls. */
 	graphicIds: readonly string[];
-	choose: () => void;
+	/** A press on the row; `true` when Shift was held, which ADDS the part to the selection instead. */
+	choose: (shift: boolean) => void;
 	/**
 	 * The selection keys, bound on the part's own BUTTON (AD18-R17 Task 3) — so a key typed in the Label
 	 * field beneath it, a sibling rather than a child, never reaches it and edits the text instead.
@@ -96,7 +97,7 @@ const groupId = computed(() => (props.row.kind === 'group' ? props.row.groupId :
 			:name="row.key"
 			:aria-pressed="pressed"
 			:tabindex="tabIndex"
-			@click="choose"
+			@click="choose($event.shiftKey)"
 			@keydown="shortcut"
 		>
 			<span class="rp-designer-part-name">{{ name }}</span>

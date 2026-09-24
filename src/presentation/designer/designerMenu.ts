@@ -42,7 +42,7 @@ const CONTROLS = '.rp-plan-overlay, button, a, input, textarea, select, [content
  * **A right-click on a part makes it the FOCUSED part** (`AssetDesignStore.focus`, the Plan Editor's
  * `selection.focus`): a part outside the selection is selected alone, and a member keeps the whole set
  * but becomes the member every per-part item acts on. The canvas keys' refusals apply
- * (`AssetDesignerRoot`'s `onCanvasKeyDown`): only under Select, never with a press still held, never
+ * (`AssetDesignerRoot`'s `onCanvasKeyDown`): only under Select or camera mode, never with a press still held, never
  * over a dialog. Empty canvas, a group row, a control or the canvas overlay, and a part none of the
  * four can act on open nothing, and the browser keeps its own event. A right press claims no camera and no tool gesture: `EditorSurface`
  * forwards only a primary press, and its pan override claims only the middle button or a space-held

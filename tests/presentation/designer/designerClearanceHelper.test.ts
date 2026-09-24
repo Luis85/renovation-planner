@@ -23,6 +23,7 @@ import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
 import { editableShape } from '../../helpers/assetShapes';
 import { click, designerRig, selecting, type DesignerRig } from '../../helpers/designerRig';
+import { rightClick } from '../../helpers/designerRightClick';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import type { Point } from '../../../src/core/geometry/Point';
 import { settle } from '../../helpers/editor';
@@ -168,16 +169,6 @@ async function hiding(): Promise<DesignerRig> {
 	await rig.wrapper.get('[name="show-clearance"]').setValue(false);
 	await settle();
 	return rig;
-}
-
-/** A real right-click: the button's down and up, then the `contextmenu` event the menu listens for. */
-function rightClick(rig: DesignerRig, world: Point): MouseEvent {
-	const at = rig.at(world);
-	rig.canvasEl.dispatchEvent(new PointerEvent('pointerdown', { button: 2, buttons: 2, pointerId: 1, clientX: at.x, clientY: at.y, bubbles: true }));
-	rig.canvasEl.dispatchEvent(new PointerEvent('pointerup', { button: 2, buttons: 0, pointerId: 1, clientX: at.x, clientY: at.y, bubbles: true }));
-	const event = new MouseEvent('contextmenu', { button: 2, clientX: at.x, clientY: at.y, bubbles: true, cancelable: true });
-	rig.canvasEl.dispatchEvent(event);
-	return event;
 }
 
 const selection = (rig: DesignerRig) => useAssetDesignStore(rig.pinia).selection;

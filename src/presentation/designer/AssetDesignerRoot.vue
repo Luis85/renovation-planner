@@ -559,7 +559,8 @@ function onFailureAction(): void {
  * - a key whose target is not that element itself — `keyDoors.ts`'s `isCanvasKey` rule, so a
  *   control inside the canvas (the overlay's action button, a later field) keeps its own Backspace;
  * - any tool but Select — the plan editor's `nudge.ts` rule, since every other tool owns the keyboard
- *   for its own gesture, and Backspace mid-trace must not delete the part still selected;
+ *   for its own gesture, and Backspace mid-trace must not delete the part still selected. Camera mode
+ *   is not a tool and is admitted (`selectionKeysRefused`, AD18-R20);
  * - a press still held on the selection (`hasDraft`), whose release is about to write that very part.
  */
 const keyActions = selectionKeyActions(designStore, runtime.editShape, runtime.activeToolId);

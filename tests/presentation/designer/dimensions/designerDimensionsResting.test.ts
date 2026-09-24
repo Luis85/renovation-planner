@@ -98,15 +98,14 @@ describe('a resting label and the handles the canvas draws', () => {
 	});
 
 	/**
-	 * **An overall label left ON the edge moves like any other** (fix round 2 of AD18-R21). At the rig's
-	 * default camera the top edge is at y 18, too near the ruler to stand the width outside it, so it is
-	 * drawn on the edge's middle, (48, 18) — the footprint's own top-middle box handle. It never stood
-	 * outside, so nothing holds it to the outer side: it takes the nearest free slot anywhere, which is
-	 * three rows down and half its 63.6 px width right — every row above is the ruler, its own column
-	 * below runs its box onto the left ruler, and the nearer slots right of it sit on the footprint's
-	 * right-middle and corner handles. Held to the outer side instead, it would find no slot and stay.
+	 * **An overall label left ON the edge slides along its own line first** (fix round 3 of AD18-R21).
+	 * At the rig's default camera the top edge is at y 18, too near the ruler to stand the width outside
+	 * it, so it is drawn on the edge's middle, (48, 18) — the footprint's own top-middle box handle. Its
+	 * own row is tried before any other slot: half and one of its 63.6 px widths right still sit on the
+	 * right corner handle at (98, 18), and to the left its box runs off the stage, so it takes one and a
+	 * half widths right, (143.4, 18). Round 2 sent it to (79.8, 108), over the drawing and below it.
 	 */
-	it('moves an overall label left on the edge off a handle like any label', async () => {
+	it('slides an overall label left on the edge along its own row, off a handle and not over the drawing', async () => {
 		const rig = await designer();
 		try {
 			expect(placedAt(rig, 'overall-width')).toEqual({ x: 48, y: 18 });
@@ -115,8 +114,8 @@ describe('a resting label and the handles the canvas draws', () => {
 			await settle();
 
 			const moved = placedAt(rig, 'overall-width');
-			expect(moved.x).toBeCloseTo(48 + 63.6 / 2);
-			expect(moved.y).toBe(18 + 3 * 30);
+			expect(moved.x).toBeCloseTo(48 + 1.5 * 63.6);
+			expect(moved.y).toBe(18);
 		} finally {
 			rig.unmount();
 		}

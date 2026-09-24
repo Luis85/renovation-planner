@@ -176,10 +176,9 @@ const figures = computed((): readonly PlacedFigure[] => {
 	// The overall pair asks to stand OUTSIDE the footprint first, where the canvas has room (board 01).
 	const anchors = drawing.map((figure): LabelAnchor => {
 		const at = screen(figure.at);
-		if (!figure.outside) return { at, value: figure.value };
-		const stood = outsideAnchor(figure.axis, at, figure.value);
-		// `outsideAnchor` hands back `at` itself when there is no room, which is how `'edge'` is told apart.
-		return { at: stood, value: figure.value, overall: stood === at ? 'edge' : figure.axis };
+		return figure.outside
+			? { at: outsideAnchor(figure.axis, at, figure.value), value: figure.value, overall: figure.axis }
+			: { at, value: figure.value };
 	});
 	const points = all ? spreadLabels(anchors, editor.stageSize) : separateLabels(anchors, editor.stageSize, handlePoints(drawn, worldPerPixel, screen));
 	return drawing.map((figure, index) => {

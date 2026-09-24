@@ -480,12 +480,11 @@ export interface LabelAnchor {
 	readonly at: ScreenPoint;
 	readonly value: number;
 	/**
-	 * An OVERALL figure, which `separateLabels` places first; absent for every other figure. Its axis
-	 * when `outsideAnchor` stood it outside the footprint — then it never moves onto the footprint's
-	 * side of that anchor — and `'edge'` when there was no room and it stayed on the edge, where it
-	 * moves like any label. `spreadLabels` ignores it.
+	 * The axis of an OVERALL figure, which `separateLabels` places first and moves only along its own
+	 * line or further out (`overallSlot`) — whether `outsideAnchor` stood it outside the footprint or
+	 * left it on the edge for want of room. Absent for every other figure. `spreadLabels` ignores it.
 	 */
-	readonly overall?: 'x' | 'y' | 'edge';
+	readonly overall?: 'x' | 'y';
 }
 
 /** Whether `later` would sit on `earlier`'s row, near enough along it to cover the reading. */
@@ -689,7 +688,9 @@ const ROOM_SLACK_PX = 0.5;
  * handle in 2,336 frames at one and a half widths and in **205 at three**, every one an overall label
  * on a stage 280 to 360 px wide; none overlapping and none drawn inside the footprint either way. The
  * cost is distance: moves over 100 px rose from 190 to 2,321 of about 126,000, each a width sliding
- * along its own row past the part's corner handle. Nearer slots are still taken first.
+ * along its own row past the part's corner handle, and to 2,967 once fix round 3 had an overall
+ * label try its own line before any nearer slot across it (\`overallSlot\`). Every other label still
+ * takes the nearest free slot first.
  */
 const RESTING_ROWS = 5;
 const RESTING_SHIFTS: readonly number[] = [0, 0.5, -0.5, 1, -1, 1.5, -1.5, 2, -2, 2.5, -2.5, 3, -3];
@@ -738,6 +739,44 @@ function onHandle(box: LabelBox, handle: ScreenPoint): boolean {
 
 const distance = (one: ScreenPoint, other: ScreenPoint): number => Math.hypot(one.x - other.x, one.y - other.y);
 
+/** Whether a slot lies inside the stage and off the rulers, asked along each axis on its own. */
+interface SlotBounds {
+	readonly x: (box: LabelBox) => boolean;
+	readonly y: (box: LabelBox) => boolean;
+}
+
+/**
+ * Where an OVERALL label goes when its own anchor is not free — two tiers, each nearest-first, the
+ * second tried only when every slot of the first is taken (fix round 3 of AD18-R21); `undefined`
+ * when both are, and the label keeps its anchor:
+ *
+ * 1. **Along its own line**, whatever the raw distance: a width's own row, a depth's own column. A
+ *    slide along the line keeps the label on the edge it measures and changes nothing ACROSS it, so
+ *    only the bounds along the line are asked — a width on the ruler's edge, or a depth over the left
+ *    ruler, is no further onto the ruler for sliding along its line than it already was.
+ * 2. **Further out**: a width's rows above, a depth's columns to the left.
+ *
+ * Asked the same way whether `outsideAnchor` stood the label outside or left it on the edge. The
+ * review measured the carve-out round 2 gave an edge label — nearest-first over every slot — putting
+ * 1,652 of 24,309 edge overall depths across the drawing, up to 86 px: a sofa's `700 mm` over its arm
+ * at a 460 leaf, seen in Chromium. A third tier, "anywhere, for an edge label", was built and
+ * measured before being dropped: over the 77,964 frames `RESTING_ROWS` records it never found a slot
+ * the first two had not, because tier 1's bound along the line is what freed those labels.
+ */
+function overallSlot(
+	axis: 'x' | 'y',
+	anchor: ScreenPoint,
+	slots: readonly LabelBox[],
+	free: (box: LabelBox) => boolean,
+	bounds: SlotBounds,
+): LabelBox | undefined {
+	const along = axis === 'x'
+		? (box: LabelBox): boolean => box.at.y === anchor.y && bounds.x(box)
+		: (box: LabelBox): boolean => box.at.x === anchor.x && bounds.y(box);
+	const out = (box: LabelBox): boolean => (axis === 'x' ? box.at.y <= anchor.y : box.at.x <= anchor.x) && bounds.x(box) && bounds.y(box);
+	return slots.find((box) => along(box) && free(box)) ?? slots.find((box) => out(box) && free(box));
+}
+
 /**
  * Where each label of the RESTING state is drawn — nothing selected, or one part selected, with
  * `All dimensions` off (AD18-R17). AD18-R14 set that state's floor at ZERO overlapping pairs and it
@@ -785,13 +824,15 @@ const distance = (one: ScreenPoint, other: ScreenPoint): number => Math.hypot(on
  * first, so a selected rect table's width was drawn over the table (measured by the review at 251.3
  * under a top edge at 206.3; 9,050 frames of 77,964 over every preset, selection and mode). So a
  * width's slots are its own row and the rows above it, and a depth's its own column and the columns
- * left of it: every move is a slide along its own line or a step further out. **With no such slot
- * free it keeps its anchor, over the handle**, rather than go inside — the choice this round took,
- * since an overall figure drawn over the drawing is the defect AD18-R17 names and a handle under the
- * label's box is still grabbable along the strip the box leaves. `restingLabels.test.ts`' sweep
- * reaches that arm in no frame of the four modelled leaves, in any mode; over the whole stage grid
- * `RESTING_ROWS` records it happens in 205 of 77,964 frames, all on canvases 280 to 360 px wide.
- * An overall label `outsideAnchor` left ON the edge (`'edge'`, no room outside) is not held to it.
+ * left of it: every move is a slide along its own line or a step further out, tried in that order
+ * (`overallSlot`, fix round 3). That holds for an overall label `outsideAnchor` left ON the edge too:
+ * it may not move further onto the drawing than its anchor either. **With no such slot free it keeps
+ * its anchor, over the handle**, rather than go inside — since an overall figure drawn over the
+ * drawing is the defect AD18-R17 names. The handle may then be unreachable: the slot search counted
+ * it blocked, and in the geometry that forces this arm — a width right under the ruler — the strip of
+ * it the box leaves is under the ruler too. `restingLabels.test.ts`' sweep reaches that arm in no
+ * frame of the four modelled leaves, in any mode; over the whole stage grid `RESTING_ROWS` records,
+ * it happens in 205 of 77,964 frames, all on canvases 280 to 360 px wide.
  *
  * **The rotate handle stays an obstacle, for every label** — including the `126 mm` top offset,
  * whose own vertical line runs up the handle's stem. A label on it takes the press, and a rotate
@@ -808,8 +849,11 @@ export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize,
 	// `ROOM_SLACK_PX` on the ruler edges for `outsideAnchor`'s reason: at the fit camera an overall
 	// width stands exactly on the ruler's edge, computed as 17.99999, and a slide along its own row
 	// was refused as over the ruler without it.
-	const inside = (box: LabelBox): boolean => box.at.x - box.width / 2 >= RULER_PX - ROOM_SLACK_PX && box.at.x + box.width / 2 <= stage.width
-		&& box.at.y - LABEL_HEIGHT_PX / 2 >= RULER_PX - ROOM_SLACK_PX && box.at.y + LABEL_HEIGHT_PX / 2 <= stage.height;
+	const bounds: SlotBounds = {
+		x: (box) => box.at.x - box.width / 2 >= RULER_PX - ROOM_SLACK_PX && box.at.x + box.width / 2 <= stage.width,
+		y: (box) => box.at.y - LABEL_HEIGHT_PX / 2 >= RULER_PX - ROOM_SLACK_PX && box.at.y + LABEL_HEIGHT_PX / 2 <= stage.height,
+	};
+	const inside = (box: LabelBox): boolean => bounds.x(box) && bounds.y(box);
 	// The overall pair first; `toSorted` is stable, so each group keeps `dimensionFigures`' order.
 	const order = labels.map((_, index) => index).toSorted((one, other) => Number(labels[other].overall !== undefined) - Number(labels[one].overall !== undefined));
 	for (const index of order) {
@@ -821,9 +865,8 @@ export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize,
 			.flatMap((row) => RESTING_SHIFTS.map((shift): LabelBox => ({ at: screenPoint(label.at.x + shift * width, label.at.y + row * inward), width })))
 			.toSorted((one, other) => distance(one.at, label.at) - distance(other.at, label.at));
 		const free = (box: LabelBox): boolean => !placed.some((other) => overlaps(box, other)) && !handles.some((handle) => onHandle(box, handle));
-		// An outside overall width no lower than its anchor, an outside overall depth no further right; any other label anywhere.
-		const outward = (box: LabelBox): boolean => (label.overall === 'x' ? box.at.y <= label.at.y : label.overall !== 'y' || box.at.x <= label.at.x);
-		const chosen = free(own) ? own : slots.find((box) => inside(box) && outward(box) && free(box)) ?? own;
+		const moved = label.overall === undefined ? slots.find((box) => inside(box) && free(box)) : overallSlot(label.overall, label.at, slots, free, bounds);
+		const chosen = free(own) ? own : moved ?? own;
 		placed.push(chosen);
 		drawn[index] = chosen.at;
 	}

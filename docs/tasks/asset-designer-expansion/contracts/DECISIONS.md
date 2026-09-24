@@ -1491,6 +1491,75 @@ places. **The cost this accepts:** the change reaches the Plan Editor, and needs
 the save-state store. The derived `Saved · refresh needed` qualifier keeps its precedence, because a
 stale canvas must never read as freshly saved (C08).
 
+### AD18-R20 — grouping did nothing from the state the designer OPENS in, and the resting tool is Select. (2026-09-24)
+
+**Reported by the user from a real vault:** Group from the right-click menu did nothing at all. Nothing
+in this repository had ever observed a successful Group from the resting state, because every group
+test clicked Select first. Root-caused in the browser harness with real mouse events and at source.
+Two faults, **fixed without a ruling** because each breaks a contract that already stands:
+
+- **The designer rests in camera mode** (`activeToolId === null`, drawn as Pan), and
+  `selectionKeysRefused` refused every mode but Select. So the context menu, Ctrl+G, Ctrl+Shift+G,
+  Ctrl+D and Delete refused silently until the user found Select. Camera mode is not a tool and owns
+  no key; it is admitted now, as the Plan Editor's menu admits its own `pan` (b261b1866). Camera mode
+  draws no handles, so the menu never hit-tests one there, and a pan still dragging refuses the menu
+  as the Plan Editor's does (22c1319eb).
+- **A Parts row always REPLACED the selection.** Shift and the panel's own `Select multiple parts`
+  toggle, which is C05's modifier-free way to build a set, did nothing there, so a keyboard user could
+  not group at all. A row now toggles membership with Shift or with the toggle on, through the same
+  `extend` the canvas's additive press uses. A PLAIN row press on a set member still replaces the set:
+  a row carries no drag, unlike the canvas press AD08 keeps the set for.
+
+**The resting tool becomes Select, asked and taken by the user.** IMPLEMENTATION-PLAN's *"Selection is
+the resting tool"* and C12's *"Selection is the resting mode"* are binding, and both boards draw Select
+pressed. The designer opening in camera mode broke them, and had not been ruled as a deviation.
+Opening in Select keeps the new-asset empty state visible (the Plan Editor already admits Select
+there). What stays as it is: arrows nudge only under Select (`nudge.ts`'s rule), and camera mode keeps
+the selection keys when the user picks Pan.
+
+**Also fixed without a ruling** (the polish audit's defects):
+- a hidden but SELECTED clearance still drew its outline and handles, and a handle drag resized it;
+- a clearance that comes back through redo, an undo of its removal or an external refresh came back
+  hidden. Any read-back where the clearance goes from absent to present re-shows it, which is the
+  birth rule the round-2 final review already applied to trace, preset and Generate;
+- the `setTool` wrapper asks the REQUESTED tool id, not the tool that became active;
+- the five designer `<select>`s and the designer's checkboxes lose every focus ring to Obsidian's
+  global `:focus { outline: none }`;
+- in the library Grid, a one-line tile name is centred and a two-line one left-aligned, because
+  Obsidian's `button` centres its flex children. Board 01 left-aligns every tile name;
+- duplicated test helpers (`handed()`, `VAULT_FAILED`) move to `tests/helpers/`, where fallow can see
+  them; `rightClick` already has.
+
+**Recorded as already fine or ruled out, so nobody reopens them:** `placement(s)` stays (AD18-R7). The
+prune watcher's `pre` flush has no visible window. `DesignerSelectionInspector.vue` counts 261/400 and
+`dimensionFigures.ts` 254/400, so neither needs a split. The `shape === null` arms in the clearance
+helper are reachable, because a new asset has no shape yet. `AssetLibraryContext.browse` is optional
+for a documented harness reason. The 460 px stacked rail is AD18-R5/R10's.
+
+### AD18-R21 — a polish round: nine items approved, one declined. (2026-09-24)
+
+**Taken by the user** in one batched round after an audit of the running harness at 1280, 760, 580 and
+460 px in both schemes. None is in AD18's *Deliberately absent* table; none needs a stored field, a
+schema change or a dependency:
+
+| Item | Shipped before |
+|---|---|
+| A canvas HANDLE resize of a rounded rectangle keeps its radius, clamped, through the rule typed edits use (closes the item AD18-R17 left open) | the corners go sharp |
+| A focus ring on the DESIGNER canvas at `:focus-visible`; the Plan Editor's is not touched | no indicator, though arrows, Delete and Ctrl+G act there |
+| While the footprint draws smaller than about 240 px across (the 580 and 460 px leaves today; a canvas-width threshold would never fire at 460, where the stacked canvas is 460 px wide), the resting labels are the overall width and depth only; zooming in brings the rest back, and `All dimensions` still shows every label | detail labels nearly cover the drawing at 580/460 |
+| The five designer `<select>`s styled with host variables, like the designer's inputs | browser default: 1px black border |
+| Checkbox label rows at least 24 px tall (WCAG 2.5.8) | 13 px boxes in 19 px rows |
+| A selected Parts row's controls as ONE row of icon buttons, each with an accessible name and tooltip; pinned Lucide fixtures named to the user before download | five text buttons wrapping on two to four lines |
+| Every Add-rail shape tile at one height | 73 px and 58 px |
+| A library tile with no design draws its CATEGORY icon, muted, where the mark goes (derived, never stored) | an empty box |
+| A save from an earlier calendar day says which day, on both surfaces (AD18-R19's indicator) | `Saved at HH:MM`, which reads as today after midnight |
+
+**Declined: one term for the placement point.** The toolbar's `Set anchor` and the Parts row's `Anchor`
+(DE *Ankerpunkt*) stay beside `Placement point` (DE *Platzierungspunkt*) in the legend and the
+Placement block. The split is in the English source, and German mirrors it key for key.
+
+The work plan is [`reports/AD18-polish-round-plan.md`](../reports/AD18-polish-round-plan.md).
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

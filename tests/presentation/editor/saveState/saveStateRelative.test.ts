@@ -203,4 +203,64 @@ describe('the relative save time', () => {
 		wrapper.unmount();
 		expect(vi.getTimerCount()).toBe(0);
 	});
+
+	/**
+	 * AD18-R21: a save from an earlier CALENDAR day (local time), once it is over an hour old, names
+	 * the day rather than reading as today. The same-day-over-an-hour case is already covered above
+	 * ("reads just now, then minutes, then the clock time once an hour has passed" never crosses a
+	 * day boundary); these four cover the day-dependent branch the brief asks for by name.
+	 */
+	it('names yesterday once a save from the day before is over an hour old', async () => {
+		saved(); // SAVED_AT: Sep 23, 2026, 14:05
+		vi.setSystemTime(new Date(2026, 8, 24, 9, 0));
+		const wrapper = mount(SaveStateIndicator);
+		await wrapper.vm.$nextTick();
+
+		const date = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(SAVED_AT);
+		const clock = new Intl.DateTimeFormat('en', { timeStyle: 'short' }).format(SAVED_AT);
+		expect(shown(wrapper)).toBe(`Saved ${date} at ${clock}`);
+	});
+
+	it('names a save from several days ago the same way', async () => {
+		saved(); // SAVED_AT: Sep 23, 2026, 14:05
+		vi.setSystemTime(new Date(2026, 8, 27, 9, 0));
+		const wrapper = mount(SaveStateIndicator);
+		await wrapper.vm.$nextTick();
+
+		const date = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(SAVED_AT);
+		const clock = new Intl.DateTimeFormat('en', { timeStyle: 'short' }).format(SAVED_AT);
+		expect(shown(wrapper)).toBe(`Saved ${date} at ${clock}`);
+	});
+
+	/**
+	 * An indicator left open across local midnight moves to the dated form on the SAME minute tick
+	 * that already carries the hour switch — no new save, and no second interval.
+	 */
+	it('moves an open indicator from the clock form to the dated form across local midnight, with no new save', async () => {
+		const at = new Date(2026, 8, 23, 22, 50);
+		vi.setSystemTime(at);
+		const wrapper = mount(SaveStateIndicator);
+		saved();
+		await wrapper.vm.$nextTick();
+
+		await advance(61 * MINUTE); // 23:51, same day, over an hour: still the plain clock form
+		const clock = new Intl.DateTimeFormat('en', { timeStyle: 'short' }).format(at);
+		expect(shown(wrapper)).toBe(`Saved at ${clock}`);
+
+		await advance(20 * MINUTE); // 00:11 the next day, with no second save in between
+		const date = new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(at);
+		expect(shown(wrapper)).toBe(`Saved ${date} at ${clock}`);
+	});
+
+	it('names the day in German too, word order and all', async () => {
+		host.language = 'de';
+		saved(); // SAVED_AT: Sep 23, 2026, 14:05
+		vi.setSystemTime(new Date(2026, 8, 27, 9, 0));
+		const wrapper = mount(SaveStateIndicator);
+		await wrapper.vm.$nextTick();
+
+		const date = new Intl.DateTimeFormat('de', { month: 'short', day: 'numeric' }).format(SAVED_AT);
+		const clock = new Intl.DateTimeFormat('de', { timeStyle: 'short' }).format(SAVED_AT);
+		expect(shown(wrapper)).toBe(`Am ${date} um ${clock} gespeichert`);
+	});
 });

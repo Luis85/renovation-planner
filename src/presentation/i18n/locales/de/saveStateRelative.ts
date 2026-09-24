@@ -5,4 +5,5 @@ export const saveStateRelativeDe: Record<keyof typeof saveStateRelativeEn, strin
 	'save-state.saved-just-now': 'Gerade gespeichert',
 	'save-state.saved-minutes-ago': 'Vor {minutes} Min. gespeichert',
 	'save-state.saved-at': 'Um {time} gespeichert',
+	'save-state.saved-on-date': 'Am {date} um {time} gespeichert',
 };

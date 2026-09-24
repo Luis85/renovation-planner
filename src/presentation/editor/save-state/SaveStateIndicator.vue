@@ -48,6 +48,13 @@
  * write this session it stays plain `Saved`: an earlier save's time is not known. The derived
  * qualifier outranks it (C08), since a stale canvas must never read as freshly saved.
  *
+ * **A fifth tier past the hour mark (AD18-R21): a save from an earlier local calendar day names
+ * the day** — `Saved {date} at {time}` — rather than reading `Saved at HH:MM` as though it
+ * happened today. The day check runs only once a save is already over an hour old, so a save
+ * under an hour old still reads in minutes even just past local midnight. The same minute tick
+ * that carries the hour switch is what moves an indicator left open across midnight into the
+ * dated form: no second interval, since `now` keeps ticking for as long as the first one runs.
+ *
  * **The phrase is `aria-hidden`, and a visually-hidden copy of the plain word stands in for it.**
  * `StatusBar.vue` mounts this inside a `role="status"` region, so any text change in here is
  * announced, and a minute tick is not an event. So what a screen reader has is the state word
@@ -121,15 +128,29 @@ watch(
 );
 onBeforeUnmount(() => window.clearInterval(tick));
 
-/** `null` means "say the label alone". */
+/** Same local calendar day, for "does this save's HH:MM still read as today". */
+function sameLocalDay(a: number, b: number): boolean {
+	const da = new Date(a);
+	const db = new Date(b);
+	return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
+}
+
+/**
+ * `null` means "say the label alone". The day check only applies past the hour mark (AD18-R21):
+ * a save under an hour old stays the minutes form even if it lands just past local midnight,
+ * which is the brief's own scope. The tick that already runs every minute past that mark is what
+ * catches a leaf left open across midnight — no second interval.
+ */
 const relative = computed(() => {
 	if (shown.value !== 'saved' || savedAt.value === null) return null;
 	const minutes = Math.floor((now.value - savedAt.value + TICK_TOLERANCE) / MINUTE);
 	if (minutes < 1) return tr('save-state.saved-just-now');
 	if (minutes < 60) return tr('save-state.saved-minutes-ago', { minutes: String(minutes) });
-	return tr('save-state.saved-at', {
-		time: new Intl.DateTimeFormat(currentLanguage(), { timeStyle: 'short' }).format(savedAt.value),
-	});
+	const language = currentLanguage();
+	const time = new Intl.DateTimeFormat(language, { timeStyle: 'short' }).format(savedAt.value);
+	if (sameLocalDay(savedAt.value, now.value)) return tr('save-state.saved-at', { time });
+	const date = new Intl.DateTimeFormat(language, { month: 'short', day: 'numeric' }).format(savedAt.value);
+	return tr('save-state.saved-on-date', { date, time });
 });
 </script>
 

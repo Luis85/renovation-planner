@@ -324,3 +324,34 @@ settle, and what is still open. **Owns:** `reports/RESUME.md`. The integrator wr
 
 A `Delivered` paragraph under AD18-R20 and AD18-R21 in `contracts/DECISIONS.md`, and an evidence line in
 `execution/state.json`, in the same edit. **Owns:** those two files. The integrator writes it.
+
+## Task 13: A handle resize of curved geometry keeps its fixed side and follows the pointer (AD18-R20)
+
+**Measured by the integrator** in real Chromium (1280, vanity preset, `&select=detail-2`): the basin is a
+4-point stadium (points x ±45, y -99..171, bulges `[0,1,0,1]`, 360 × 270 mm, NOT a detected rounded
+rectangle). Dragging its right-middle box handle about 169 mm to the left previewed points x
+-112.5..-67.5. The curve-aware extent is then x -247.5..67.5, 315 mm wide. **The fixed LEFT side moved
+from -180 to -247.5, and the width is 315 where the pointer asked for about 191.** The Task 4 reviewer
+confirmed the mechanism and that it predates Task 4: `resizeBox` (reached from
+`selection/selectionDrag.ts` `draggedShape`) scales the points by the plain ratio over the curve-aware
+box, and keeps each bulge over its new chord, so an arc on a side whose chord does not change keeps its
+full sagitta. The TYPED Width/Depth path does not have this defect: it solves the extent numerically
+(`domain/asset/scaleSolve.ts` `solveScale`, used through `selection/partExtent.ts` and
+`scaleDesignToDimensions`). DECISIONS revision r1 row 1 (C04) allows non-uniform scale of arcs AND makes
+"the numbers the guarantee", so a handle drag whose numbers miss is a defect under a ruling that stands.
+
+Requirements:
+- A box-handle resize of any graphic with arcs keeps the side (or corner) opposite the handle FIXED, and
+  its curve-aware extent matches the dragged box to the same tolerance the typed path guarantees. It does
+  this by reusing the typed path's solve, not by a second solver. Preview and commit stay one function.
+- If the solve cannot reach the box (for example, narrowing a stadium below twice its end radius, if the
+  bulge model makes that impossible), do the SAME as the typed path does for that input: refuse the same
+  way, or clamp the same way. Find which it does and say so in the report.
+- Straight-only graphics, detected rounded rectangles (Task 4's path), Shift-proportional drags, rotate,
+  vertex and edge handles, and the footprint/clearance behave exactly as today.
+- Tests (NEW file): the basin case above keeps x = -180 fixed and lands the dragged width within
+  tolerance; a corner drag on an arc shape keeps the opposite corner; a straight rectangle is unchanged;
+  preview equals commit. Watch each fail against the current code.
+
+**Owns:** `src/presentation/designer/selection/selectionDrag.ts` and new tests. `domain/asset/scaleSolve.ts`
+and `selection/partExtent.ts` may be IMPORTED from; editing them needs NEEDS_CONTEXT. Model: **Opus**.

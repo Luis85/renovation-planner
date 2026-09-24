@@ -1560,6 +1560,22 @@ Placement block. The split is in the English source, and German mirrors it key f
 
 The work plan is [`reports/AD18-polish-round-plan.md`](../reports/AD18-polish-round-plan.md).
 
+### AD18-R22 — four questions the polish round's reviews raised. (2026-09-24)
+
+**Taken by the user** in one batched round after the whole-round review:
+
+- **A hidden but selected part refuses the selection keys.** Since AD18-R20, a selected part that is
+  not drawn (the clearance while `Show clearance` is off, a graphic hidden in Parts) shows no outline
+  and no handles. Arrow keys, Delete, Ctrl+D, Ctrl+G and the right-click menu then acted on something
+  the user cannot see. They refuse now; the Inspector's own buttons, which sit beside a named part,
+  still act. Shipped as the plan's Task 14.
+- **The Parts row's icon buttons WRAP at a 580 px leaf.** Five 24 px buttons need 128 px, and the rail
+  there is 128 px with about 104 px inside it. At 1280, 760 and 460 they stay on one row. Smaller
+  buttons and a wider rail (which would reopen AD18-R10's canvas share) were declined.
+- **A 0 mm offset keeps resting on the canvas.** Hiding it was declined.
+- **The Hide and Lock glyphs show the CURRENT state**, following the Plan Editor's `ZoneLockToggle` and
+  `LayerRow`. The accessible name and tooltip say the action. An action glyph was declined.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

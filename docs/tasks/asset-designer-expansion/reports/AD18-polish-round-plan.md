@@ -355,3 +355,30 @@ Requirements:
 
 **Owns:** `src/presentation/designer/selection/selectionDrag.ts` and new tests. `domain/asset/scaleSolve.ts`
 and `selection/partExtent.ts` may be IMPORTED from; editing them needs NEEDS_CONTEXT. Model: **Opus**.
+
+## Task 14: A hidden but selected part refuses the selection keys and menu (AD18-R22)
+
+Since AD18-R20 a selected part that is not drawn — `hitTest.ts`'s `drawnSelection` answers `null` for it
+(the clearance while `Show clearance` is off, a graphic in `partView.hidden`) — shows no outline and no
+handles, and the selection is kept. Arrow keys (the nudge through `EditorSurface`'s arrow door and
+`selectionKeyActions(...).nudgeSelection`), Delete/Backspace, Ctrl+D, Ctrl+G/Ctrl+Shift+G (canvas and
+Parts-row doors, `designerShortcut` / `selectionKeysRefused`) and the right-click menu (`designerMenu.ts`)
+still act on it. The user ruled they refuse (AD18-R22).
+
+Requirements:
+- While the FOCUSED selection is not drawn, every one of those doors does nothing and claims nothing
+  (a key it does not act on stays the host's, `designerShortcut`'s own rule). Decide the gate once, where
+  the doors already share one (`selectionAbilities` / `selectionKeysRefused` / the nudge), reusing
+  `drawnSelection` — not a second hidden-part rule. For a multi-selection, say what you chose (a set of
+  graphics where some member is hidden) and why.
+- The Inspector's own buttons (Delete, Duplicate, Group in the Arrange panel) are NOT refused: they sit
+  beside a named part.
+- Showing the part again restores every key.
+- Tests over the real write path (the designer rig), each watched failing: arrows, Delete, Ctrl+D, Ctrl+G
+  and the menu refuse for a hidden clearance and a Parts-hidden graphic, and act again once shown; the
+  Inspector's Delete still deletes a hidden part.
+
+**Owns:** `src/presentation/designer/designerKeys.ts`, `src/presentation/designer/designerMenu.ts`,
+the nudge path in `src/presentation/designer/DesignerCanvas.vue` only if the gate cannot live in
+`designerKeys.ts`, and new tests. `AssetDesignerRoot.vue` and `DesignerPartsPanel.vue` need
+NEEDS_CONTEXT. Model: **Opus**.

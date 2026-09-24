@@ -224,7 +224,8 @@ describe('the resting floor at the fit camera', () => {
 	 * selection modes, whose handles differ (Transform's box and rotate handles, Points' vertices,
 	 * Bend's edge midpoints). **And no overall label drawn back over the footprint** where its anchor
 	 * stood outside (fix round 2 of AD18-R21): the FOOTPRINT is selected here too, since its own box
-	 * handles are the ones that sit under the overall pair's outside anchors.
+	 * handles are the ones that sit under the overall pair's outside anchors. AD18-R23's exception — an
+	 * overall label stepping onto the drawing off a handle — reaches no frame here, so `inside` stays strict.
 	 */
 	it('leaves no two labels touching, no label on a handle and no overall label inside, for any preset, selection, mode or leaf width', () => {
 		const stages: StageSize[] = [{ width: 880, height: 650 }, { width: 380, height: 650 }, { width: 290, height: 620 }, { width: 458, height: 330 }];
@@ -339,7 +340,7 @@ describe('a resting label and the selected part’s handles', () => {
  * placed after it, yielded and was pushed INSIDE the footprint, its line through the tap hole. A
  * detail label yields to the overall pair, never the other way round.
  *
- * A handle can still move an overall label, and never back over the outline (fix round 2's rule): at 580 and 460 the width's
+ * A handle can still move an overall label, and not back over the outline while a slot along its line or further out is free (fix round 2's rule): at 580 and 460 the width's
  * outside anchor sits on the basin's rotate handle, so at 460 it slides sideways along its own row
  * (the ruler is directly above it) and at 580 it steps one row further out. At 1280 and 760 no
  * handle is in the way and the pair is exactly where `outsideAnchor` stood it.
@@ -393,9 +394,9 @@ const downColumn = (x: number): ScreenPoint[] => Array.from({ length: 11 }, (_, 
 
 /**
  * **Which slots an OVERALL label may take** (fix rounds 3 and 4 of AD18-R21): the nearest free one
- * along its own line or further out, and otherwise its own anchor — never a slot further onto the
- * drawing. A `100 mm` label is 57.2 px wide, so a handle blocks it within 36.6 px along
- * a row (half of that plus the 8 px grab) and 23 px across one.
+ * along its own line or further out, and otherwise its own anchor — unless the anchor covers a HANDLE,
+ * when it takes the nearest free slot on the drawing's side too (AD18-R23). A `100 mm` label is 57.2 px
+ * wide, so a handle blocks it within 36.6 px along a row (half of that plus the 8 px grab) and 23 px across one.
  */
 describe('where an overall label goes when its anchor is taken', () => {
 	it('takes the nearest slot on its own side of the edge: a row further out before a longer slide along its row', () => {
@@ -404,20 +405,44 @@ describe('where an overall label goes when its anchor is taken', () => {
 		expect(separateLabels([overall(400, 300, 'x')], STAGE, [screenPoint(400, 300)])).toEqual([screenPoint(400, 270)]);
 	});
 
-	it('steps a width whose row is taken further OUT, and never onto the drawing', () => {
+	it('steps a width whose row is taken further OUT, rather than onto the drawing', () => {
 		// In the stage's top half the inward row, down, is tried first by any other label.
 		expect(separateLabels([overall(400, 200, 'x')], STAGE, alongRow(200))).toEqual([screenPoint(400, 170)]);
 	});
 
-	it('moves a depth whose column is taken further LEFT, and never onto the drawing', () => {
+	it('moves a depth whose column is taken further LEFT, rather than onto the drawing', () => {
 		const [placed] = separateLabels([overall(400, 200, 'y')], STAGE, downColumn(400));
 
 		expect(placed?.y).toBe(200);
 		expect(placed?.x).toBeCloseTo(400 - width(100));
 	});
 
-	it('keeps its anchor when nothing along its line or further out is free', () => {
-		// Right under the ruler, so every row above is refused; its own row is all handles.
-		expect(separateLabels([overall(400, 33, 'x')], STAGE, alongRow(33))).toEqual([screenPoint(400, 33)]);
+	it('steps onto the drawing when nothing along its line or further out is free and its anchor covers a handle', () => {
+		// Right under the ruler, so every row above is refused; its own row is all handles (AD18-R23).
+		expect(separateLabels([overall(400, 33, 'x')], STAGE, alongRow(33))).toEqual([screenPoint(400, 63)]);
+	});
+
+	it('keeps its anchor when nothing along its line or further out is free and only a label covers it', () => {
+		// 100 px wide: every shift along the row runs off the stage or onto the left ruler, every row
+		// above onto the ruler — and the row below is free, which only a handle may take it to.
+		expect(separateLabels([overall(50, 33, 'x'), overall(50, 33, 'x')], { width: 100, height: 600 })).toEqual([screenPoint(50, 33), screenPoint(50, 33)]);
+	});
+
+	/**
+	 * **A real frame from the 205 the review's grid left on a handle** (AD18-R23): the vanity with its
+	 * footprint selected on a 280 x 300 canvas. The width stands 15 px under the ruler, over the
+	 * footprint's top-middle box handle and its rotate handle; nothing along its row or above is free,
+	 * so it steps two rows onto the drawing — one row down is still on the top-middle handle. (The depth,
+	 * on the left-middle handle, has a free slot of its own and takes it as before.)
+	 */
+	it('steps the vanity’s overall width off its footprint’s handles on a 280 x 300 canvas', () => {
+		const drawn = resting(preset('vanity'), { kind: 'footprint' }, { width: 280, height: 300 });
+		const index = drawn.names.indexOf('overall-width');
+		const anchor = expectDefined(drawn.anchors[index], 'the outside anchor');
+
+		expect(covering(drawn.anchors, drawn.values, drawn.handles)).toEqual(['800@140.0,48.0', '800@140.0,18.0', '450@62.3,91.7']);
+		expect(drawn.placed[index]).toEqual(screenPoint(anchor.x, anchor.y + 60));
+		expect(covering(drawn.placed, drawn.values, drawn.handles)).toEqual([]);
+		expect(inside(drawn)).toEqual(['overall-width 93.0/48.0']);
 	});
 });

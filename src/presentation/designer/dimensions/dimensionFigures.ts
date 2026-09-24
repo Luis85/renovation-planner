@@ -480,9 +480,10 @@ export interface LabelAnchor {
 	readonly at: ScreenPoint;
 	readonly value: number;
 	/**
-	 * The axis of an OVERALL figure, which `separateLabels` places first and moves only along its own
-	 * line or further out (`overallSlot`) — whether `outsideAnchor` stood it outside the footprint or
-	 * left it on the edge for want of room. Absent for every other figure. `spreadLabels` ignores it.
+	 * The axis of an OVERALL figure, which `separateLabels` places first and moves along its own line
+	 * or further out (`overallSlot`) — whether `outsideAnchor` stood it outside the footprint or left
+	 * it on the edge for want of room — and onto the drawing only when neither is free and its anchor
+	 * covers a handle (AD18-R23). Absent for every other figure. `spreadLabels` ignores it.
 	 */
 	readonly overall?: 'x' | 'y';
 }
@@ -692,6 +693,12 @@ const ROOM_SLACK_PX = 0.5;
  * own line before any nearer slot further out, which took that to 2,967 and put 3,521 overall widths
  * and 1,186 depths wholly past their own line's end; fix round 4 went back to nearest-first over both
  * (`overallSlot`): **2,366**, **2,737** and **720**, every floor above unchanged.
+ *
+ * **AD18-R23 closed those 205**: an overall label with nothing free along its line or further out now
+ * steps onto the drawing when its anchor covers a handle (`separateLabels`). Re-measured on the same
+ * 77,964 frames on 2026-09-24: a label on a handle in **0**; an overall label drawn onto the footprint
+ * in 205, exactly those frames, each a width moved straight down 60 or 90 px; five overall depths in
+ * them moved 28.6 px to make room; no overlapping pair; moves over 100 px still 2,366.
  */
 const RESTING_ROWS = 5;
 const RESTING_SHIFTS: readonly number[] = [0, 0.5, -0.5, 1, -1, 1.5, -1.5, 2, -2, 2.5, -2.5, 3, -3];
@@ -749,8 +756,9 @@ interface SlotBounds {
 /**
  * Where an OVERALL label goes when its own anchor is not free: the NEAREST free slot that is either
  * **along its own line** — a width's own row, a depth's own column — or **further out**, a width's
- * rows above, a depth's columns to the left; `undefined` when none is, and the label keeps its
- * anchor. Never a slot further onto the drawing (fix rounds 2 and 3 of AD18-R21).
+ * rows above, a depth's columns to the left; `undefined` when none is. It answers no slot
+ * further onto the drawing (fix rounds 2 and 3 of AD18-R21); what `undefined` leads to is
+ * `separateLabels`' call — the anchor, or onto the drawing when the anchor covers a handle (AD18-R23).
  *
  * **A slide along the line asks only the bounds ALONG it**, and that bound is the part that matters.
  * The slide changes nothing across the line, so a width on the ruler's edge, or a depth over the left
@@ -807,9 +815,10 @@ function overallSlot(
  * so a label on one takes the nearest slot clear of both the labels before it and every handle — the
  * same slots, the same order, one more question asked of each. A part's own width and depth anchor
  * on the middles of its top and left edges, where its Transform box handles are, so a selected
- * part's size pair moves whenever its Transform handles are drawn. With no free slot the label stays
- * on its anchor, over the handle, as it stays over a label — at the fit camera, `restingLabels.test.ts`'s
- * sweep leaves no label on a handle in any frame it draws, in all three selection modes.
+ * part's size pair moves whenever its Transform handles are drawn. With no free slot anywhere the
+ * label stays on its anchor, over the handle, as it stays over a label — at the fit camera,
+ * `restingLabels.test.ts`'s sweep leaves no label on a handle in any frame it draws, in all three
+ * selection modes.
  *
  * **The OVERALL pair is placed FIRST, so a part's labels yield to it and never the reverse** (fix
  * round 1 of AD18-R21). Measured in Chromium on the first version of the handle rule, at a 1280 leaf
@@ -827,13 +836,19 @@ function overallSlot(
  * width's slots are its own row and the rows above it, and a depth's its own column and the columns
  * left of it: every move is a slide along its own line or a step further out, the nearest free one
  * first (`overallSlot`). That holds for an overall label `outsideAnchor` left ON the edge too:
- * it may not move further onto the drawing than its anchor either. **With no such slot free it keeps
- * its anchor, over the handle**, rather than go inside — since an overall figure drawn over the
- * drawing is the defect AD18-R17 names. The handle may then be unreachable: the slot search counted
- * it blocked, and in the geometry that forces this arm — a width right under the ruler — the strip of
- * it the box leaves is under the ruler too. `restingLabels.test.ts`' sweep reaches that arm in no
- * frame of the four modelled leaves, in any mode; over the whole stage grid `RESTING_ROWS` records,
- * it happens in 205 of 77,964 frames, all on canvases 280 to 360 px wide.
+ * it may not move further onto the drawing than its anchor either — with ONE exception, below.
+ * **With no such slot free, a label whose anchor touches only another LABEL keeps its anchor**, since
+ * an overall figure drawn over the drawing is the defect AD18-R17 names.
+ *
+ * **The exception is a HANDLE (AD18-R23): an overall label whose anchor covers one, with nothing free
+ * along its line or further out, takes the nearest free slot on the drawing's side too.** Before this
+ * rule it kept its anchor, and the handle could be unreachable: in the geometry that forces the arm —
+ * a width right under the ruler, over the top-middle box handle and the rotate handle — the strip the
+ * box leaves is under the ruler too. Over the stage grid `RESTING_ROWS` records that was 205 of
+ * 77,964 frames, all on canvases 280 to 360 px wide, every one a width in Transform mode; now none is
+ * on a handle, and those 205 widths are drawn 60 or 90 px down, over the footprint — in that set, the
+ * only frames with an overall label there. `restingLabels.test.ts`' sweep reaches this arm in no
+ * frame of the four modelled leaves, in any mode.
  *
  * **The rotate handle stays an obstacle, for every label** — including the `126 mm` top offset,
  * whose own vertical line runs up the handle's stem. A label on it takes the press, and a rotate
@@ -866,7 +881,12 @@ export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize,
 			.flatMap((row) => RESTING_SHIFTS.map((shift): LabelBox => ({ at: screenPoint(label.at.x + shift * width, label.at.y + row * inward), width })))
 			.toSorted((one, other) => distance(one.at, label.at) - distance(other.at, label.at));
 		const free = (box: LabelBox): boolean => !placed.some((other) => overlaps(box, other)) && !handles.some((handle) => onHandle(box, handle));
-		const moved = label.overall === undefined ? slots.find((box) => inside(box) && free(box)) : overallSlot(label.overall, label.at, slots, free, bounds);
+		const nearest = (): LabelBox | undefined => slots.find((box) => inside(box) && free(box));
+		// AD18-R23: an overall label with nothing free along its line or further out steps onto the
+		// drawing only when its anchor covers a HANDLE; one over a label alone keeps its anchor.
+		const moved = label.overall === undefined
+			? nearest()
+			: overallSlot(label.overall, label.at, slots, free, bounds) ?? (handles.some((handle) => onHandle(own, handle)) ? nearest() : undefined);
 		const chosen = free(own) ? own : moved ?? own;
 		placed.push(chosen);
 		drawn[index] = chosen.at;

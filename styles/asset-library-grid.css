@@ -254,15 +254,37 @@
 }
 
 /*
- * AD18-R21's category placeholder, drawn instead of the mark when the asset has none: the same
- * 4rem box (`--icon-size`, which `.rp-host-icon` reads) and `align-self: center`, since
- * `align-items: stretch` above would otherwise stretch this child too. Muted, because it names a
- * CATEGORY rather than the asset's own shape.
+ * AD18-R21's category placeholder, drawn instead of the mark when the asset has none (fix round
+ * 2, integrator measurement in Chromium). The SLOT stays the mark's own 4rem box (`--icon-size`,
+ * which `.rp-host-icon` reads), so the tile's height and the name/size position below it are
+ * unaffected — `align-self: center` is unchanged for the reason it was added (`align-items:
+ * stretch` above would otherwise stretch this child too).
+ *
+ * The ICON drawn inside that box is not: at the full box, `.rp-host-icon svg`'s default
+ * 1.75-unit stroke (`editor-icons.css`) scaled up to about 4.7 rendered pixels and the
+ * placeholder read HEAVIER than a real design (the mark's own 1.5 SCREEN-pixel stroke, above). A
+ * placeholder that names a category rather than the asset's own shape has to read quieter, not
+ * louder, so it draws at half the slot — `.rp-host-icon`'s own `align-items: center;
+ * justify-content: center` (its span is a flex container) is what centres the smaller svg inside
+ * the still-4rem span, so no extra centring rule is needed here — at `--text-faint` rather than
+ * `--text-muted`, and at the mark's own held-stroke technique: `--icon-stroke` overrides the
+ * 1.75 default to 1.5, and `vector-effect: non-scaling-stroke` on the icon's own paths (below)
+ * is what keeps that value in SCREEN pixels rather than letting the halved box scale it again.
  */
 .rp-al-tiles .rp-al-tile .rp-al-tile__category-icon {
 	--icon-size: 4rem;
+	--icon-stroke: 1.5;
 	align-self: center;
-	color: var(--text-muted);
+	color: var(--text-faint);
+}
+
+.rp-al-tiles .rp-al-tile .rp-al-tile__category-icon svg {
+	width: 50%;
+	height: 50%;
+}
+
+.rp-al-tiles .rp-al-tile .rp-al-tile__category-icon svg > * {
+	vector-effect: non-scaling-stroke;
 }
 
 /*

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from 'vitest';
 import { settle, settleUntil } from '../../helpers/editor';
+import { expectDefined } from '../../helpers/domain';
 import { editorWith, type EditorRig } from '../../helpers/structural';
 import { BOUNDARY_A, DIMENSION_A, GRID_A, SECTION_A, TEXT_A } from '../../helpers/drafting';
 import { dimensionEdit, dimensionText } from '../../../src/presentation/editor/elements/dimensionInput';
@@ -24,8 +25,12 @@ it('flips a section line from its Inspector through undoable history', async () 
 	expect(rig.wrapper.get('.rp-element-inspector').text()).toContain('Section line');
 	await rig.wrapper.get('[data-rp-action="flip-section"]').trigger('click');
 	await settleUntil(() => rig.project.structure.elements?.[0].flipped === true, 'flipped');
+	const flipped = expectDefined(rig.project.structure.elements?.[0], 'the flipped section');
 	await rig.runtime.undo(); await settle();
 	expect(rig.project.structure.elements?.[0].flipped).toBe(false);
+	// Redo through the same door, `runtime.redo()`: exactly the flipped section line comes back.
+	await rig.runtime.redo(); await settle();
+	expect(rig.project.structure.elements?.[0]).toEqual(flipped);
 });
 
 it('edits a dimension chain\'s offset and keeps its points', async () => {
@@ -37,8 +42,12 @@ it('edits a dimension chain\'s offset and keeps its points', async () => {
 	await form.get('input[name="dimension-offset"]').setValue('-0,8');
 	await form.trigger('submit'); await editing; await settle();
 	expect(rig.project.structure.elements?.[0]).toMatchObject({ offset: -800, points: DIMENSION_A.points });
+	const edited = expectDefined(rig.project.structure.elements?.[0], 'the edited chain');
 	await rig.runtime.undo(); await settle();
 	expect(rig.project.structure.elements?.[0].offset).toBe(-600);
+	// Redo through the same door, `runtime.redo()`: exactly the edited chain comes back, offset -800 over the same points.
+	await rig.runtime.redo(); await settle();
+	expect(rig.project.structure.elements?.[0]).toEqual(edited);
 });
 
 it('labels a text\'s name field Text when its geometry is edited', async () => {

@@ -45,8 +45,12 @@ it('places one post per click at the typed section, stays on the tool, and undoe
 	expect(rig.stage.find('.post-outline')).toHaveLength(2);
 	expect(rig.stage.find('.post-diagonal')).toHaveLength(4);
 	expect(expectOk(await rig.stack.store.read(rig.plan.id)).dto.schemaVersion).toBe(11);
+	const placed = { elements: rig.project.structure.elements, metadata: rig.project.plan?.spatialElements };
 	await rig.runtime.undo(); await settle();
 	expect(rig.project.structure.elements).toEqual([first]);
+	// Redo through the same door, `runtime.redo()`: the second post comes back as it was saved, geometry and name.
+	await rig.runtime.redo(); await settle();
+	expect({ elements: rig.project.structure.elements, metadata: rig.project.plan?.spatialElements }).toEqual(placed);
 });
 
 it('saves a beam on its second click with the typed width and draws it as two dashed edges', async () => {

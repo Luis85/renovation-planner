@@ -91,8 +91,14 @@ it.each(['Delete', 'Backspace'])('removes a selected placement with %s as one co
 	await confirmation(rig, 'the placement deletion confirmation');
 	rig.dialogs.resolve('confirm');
 	await settleUntil(() => (rig.project.structure.elements ?? []).length === 0, 'the removed placement');
+	const removed = { elements: rig.project.structure.elements ?? [], metadata: rig.project.plan?.spatialElements ?? [] };
 	key(rig.canvasEl, { key: 'z', ctrlKey: true });
 	await settleUntil(() => rig.project.structure.elements?.some(item => item.id === id && item.assetId === radiator.id) === true, 'the restored placement');
+	// Redo through the same door, the keyboard: Ctrl+Y takes the placement out again, and only it.
+	expect(key(rig.canvasEl, { key: 'y', ctrlKey: true }).defaultPrevented).toBe(true);
+	await settleUntil(() => (rig.project.structure.elements ?? []).length === 0, 'the redone removal');
+	expect({ elements: rig.project.structure.elements ?? [], metadata: rig.project.plan?.spatialElements ?? [] }).toEqual(removed);
+	expect(expectOk(await rig.geometry.read(rig.plan.id)).document.structure?.elements ?? []).toEqual([]);
 });
 
 it('leaves chords, repeats, composition, dialogs, a stale floor, Review and fields alone', async () => {

@@ -151,8 +151,9 @@ const DOOR = { duplicate: 'duplicateSelection', group: 'groupSelection', ungroup
 
 /**
  * true when the press was one of these shortcuts AND its action would act (`selectionAbilities`), and
- * it was handled. **A key that would do nothing is not claimed**, which is `historyShortcut.ts`'s rule
- * ("a chord that does nothing here stays the host's"), so Obsidian's own Ctrl+G, its graph view, still
+ * it was handled. **A key that would do nothing is not claimed**, which is `editorClipboardShortcut`'s rule
+ * ("a chord that does nothing here stays the host's"; the history chord is claimed even with nothing to
+ * undo, as the Plan Editor does), so Obsidian's own Ctrl+G, its graph view, still
  * works whenever there is nothing here to group. A chord that DOES act has its default AND its
  * propagation taken away, so the host's hotkey does not fire as well; a bare Delete has no default
  * worth taking.

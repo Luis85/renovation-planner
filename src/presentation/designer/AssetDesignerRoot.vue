@@ -577,7 +577,8 @@ function onCanvasKeyDown(event: KeyboardEvent): void {
  * dialog's keys, autorepeat and the mid-gesture refusal. Bound CAPTURE on the root, as `PlanEditorRoot`
  * binds it, so the canvas, the Parts rows, the Inspector and the toolbar all reach it and a descendant's
  * `@keydown.stop` (a dimension label's form) does not hide it. A claimed chord goes no further, so
- * `contextMenu.key` and the canvas's own keys below it never see one.
+ * `contextMenu.key` and the canvas's own keys below it never see one — and the chord is claimed even
+ * with nothing to undo, as the Plan Editor does, unlike the Ctrl+G rule in `designerKeys.ts`.
  *
  * `gesture` is the toolbar's `blocked()`: a tool's press still held, or a camera pan. `writesBlocked` is
  * `false` because this surface blocks no write — `runtime.ts`'s `writesBlocked: () => false` carries why

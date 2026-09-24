@@ -9,14 +9,23 @@
  * The write undone is a Delete of the bowl, pressed on the canvas — one real `SetAssetShape`, one undo
  * entry — so every assertion reads the sidecar rather than a store.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { Point } from '../../../src/core/geometry/Point';
 import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
 import { settle } from '../../helpers/editor';
-import { click, selecting, type DesignerRig } from '../../helpers/designerRig';
+import { click, held, selecting, type DesignerRig } from '../../helpers/designerRig';
+import { t } from '../../../src/presentation/i18n/strings';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { TOILET, detailOutline, justInsideBottom } from '../../helpers/designerSelection';
 
 const BOWL = detailOutline('detail-2');
+
+/** The case's leaf, unmounted after it whether it passed or not, so a failure leaks no leaf into the next case. */
+let live: DesignerRig | null = null;
+afterEach(() => {
+	live?.unmount();
+	live = null;
+});
 
 function key(target: Element, init: KeyboardEventInit): KeyboardEvent {
 	const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
@@ -31,6 +40,7 @@ async function detailIds(rig: DesignerRig): Promise<string[] | undefined> {
 /** The toilet with its bowl deleted by a real key on the canvas: one write, one undo entry. */
 async function afterDelete(): Promise<DesignerRig> {
 	const rig = await selecting(TOILET);
+	live = rig;
 	click(rig, justInsideBottom(BOWL));
 	await settle();
 	key(rig.canvasEl, { key: 'Delete' });
@@ -59,7 +69,6 @@ describe('the history chords', () => {
 		key(rig.canvasEl, { key: 'Z', ctrlKey: true, shiftKey: true });
 		await settle();
 		expect(await detailIds(rig)).toEqual(['detail-1']);
-		rig.unmount();
 	});
 
 	it('Ctrl+Y redoes, and Cmd stands for Ctrl', async () => {
@@ -72,7 +81,6 @@ describe('the history chords', () => {
 		key(rig.canvasEl, { key: 'y', ctrlKey: true });
 		await settle();
 		expect(await detailIds(rig)).toEqual(['detail-1']);
-		rig.unmount();
 	});
 
 	it('reaches a Parts row and an Inspector control, not the canvas alone', async () => {
@@ -87,10 +95,14 @@ describe('the history chords', () => {
 		key(tab, { key: 'y', ctrlKey: true });
 		await settle();
 		expect(await detailIds(rig)).toEqual(['detail-1']);
-		rig.unmount();
 	});
 
-	it('reaches a control inside an open dimension form, whose own keydown.stop is bubble-phase', async () => {
+	/**
+	 * Undo runs while the inline form stays open. That is the ACCEPTED parity with the Plan Editor, whose
+	 * capture-bound root takes the chord from inside its AddMenu the same way, and not an accident this
+	 * case happens to lock in: it pins that the form's bubble-phase `keydown.stop` cannot hide the chord.
+	 */
+	it('reaches a control inside an open dimension form, whose own keydown.stop is bubble-phase (Plan Editor parity: the form stays open)', async () => {
 		const rig = await afterDelete();
 		(rig.wrapper.get('.rp-designer-dimensions [data-rp-dimension="overall-width"]').element as HTMLButtonElement).click();
 		await settle();
@@ -98,7 +110,6 @@ describe('the history chords', () => {
 		key(rig.wrapper.get('.rp-designer-dimension__form button[type="submit"]').element, { key: 'z', ctrlKey: true });
 		await settle();
 		expect(await detailIds(rig)).toEqual(['detail-1', 'detail-2']);
-		rig.unmount();
 	});
 });
 
@@ -112,7 +123,6 @@ describe('what the chords leave alone', () => {
 
 		expect(undo.defaultPrevented).toBe(false);
 		expect(await detailIds(rig)).toEqual(['detail-1']);
-		rig.unmount();
 	});
 
 	it('a chord pressed while a press is still held is claimed and undoes nothing', async () => {
@@ -130,7 +140,28 @@ describe('what the chords leave alone', () => {
 		key(rig.canvasEl, { key: 'z', ctrlKey: true });
 		await settle();
 		expect(await detailIds(rig)).toEqual(['detail-1', 'detail-2']);
-		rig.unmount();
+	});
+
+	it('a chord pressed while a camera pan is dragging is claimed and undoes nothing', async () => {
+		const rig = await afterDelete();
+		rig.toolbarButton(t('en', 'designer.toolbar.pan')).click();
+		await settle();
+		// Camera mode: a primary drag pans, so `dragState` is set and no tool holds a gesture.
+		const empty = { x: 1000, y: 1000 };
+		held(rig, 'pointerdown', empty, 1);
+		held(rig, 'pointermove', { x: 1400, y: 1000 }, 1);
+		expect(useEditorStore(rig.pinia).dragState).not.toBeNull();
+
+		const undo = key(rig.canvasEl, { key: 'z', ctrlKey: true });
+		await settle();
+		expect(undo.defaultPrevented).toBe(true);
+		expect(await detailIds(rig)).toEqual(['detail-1']);
+
+		held(rig, 'pointerup', { x: 1400, y: 1000 }, 0);
+		await settle();
+		key(rig.canvasEl, { key: 'z', ctrlKey: true });
+		await settle();
+		expect(await detailIds(rig)).toEqual(['detail-1', 'detail-2']);
 	});
 
 	it('a chord pressed with a dialog open is left to the dialog and undoes nothing', async () => {
@@ -147,6 +178,5 @@ describe('what the chords leave alone', () => {
 
 		dialogs.resolve('cancel');
 		await closed;
-		rig.unmount();
 	});
 });

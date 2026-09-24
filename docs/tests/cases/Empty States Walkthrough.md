@@ -22,14 +22,8 @@ Preconditions: `npm run test-build`, this folder open as a vault, the plugin ena
 and 2 need a vault with **no** renovation projects, so run them before
 `Create sample renovation project` — or move `Renovation/` aside and reload.
 
-**Why a human still matters here, and it is the sharpest example in this suite.** The whole
-slice turns on one decision: the Plan Editor's empty states are OVERLAYS over a canvas that
-stays mounted, never a replacement for it. Nothing automated can see whether that was right,
-because the two things it protects are both unreachable from the suite —
-`create-sample-project` seeds a plan with **no background** and five zones, and the browser
-harness refuses a background outright on SDD §55 grounds. Replace the region instead of
-floating over it and both draw an empty state where the scene belongs, with every one of 1976
-tests still green. Step 4 is the step that can tell.
+**Why a human still matters here.** The whole slice turns on one decision: the Plan Editor's
+empty states are OVERLAYS over a canvas that stays mounted, never a replacement for it.
 
 The other reason is measurement. jsdom lays nothing out, so no gate here can see whether the
 panel covers the thing it is explaining, whether it holds at a sidebar width, or whether it

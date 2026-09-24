@@ -99,21 +99,21 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 138 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 62 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 139 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 61 |
 | `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 205 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 17 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 15 |
 
-**437 steps — 419 table rows plus 18 list steps in [[Canvas Navigation]], measured on 2026-09-20
-by running both greps below in the edit that added
-[[Edit a zone corner by typing its position]].** Per tier: `suite` 138, `browser` 62, `obsidian` 205, `desktop` 17, `judgement` 15 —
-each tier counted with the same two greps narrowed to that token, and the five summing to 437.
-The new case contributes nineteen rows, spread across all five tiers (`suite` 5, `browser` 2,
-`obsidian` 9, `desktop` 2, `judgement` 1), so every tier moves by exactly what that case added
-and the table above matches the greps row for row — additive per tier and not merely in total,
-which is what says the edit re-tiered nothing outside its own case. The previous table read the
-figures in the paragraph below and the two agreed, so no disagreement was carried forward.
+**437 steps, unchanged, re-tiered rather than re-counted in the edit that closed BP-06's walkthrough
+review round: [[Empty States Walkthrough]] step 4 moves from `browser` to `suite`**, at `90e0e4ade`,
+since the seeded plan's five zones now suppress the `noBackground` overlay outright and the claim
+the step pins (`emptyStateOverlay.test.ts`'s "does not mistake rooms without a reference for an
+empty floor") is expressible in the jsdom suite. No row was added or removed, so the total holds at
+437; only that one row's own tier moved, taking `browser` 62 → 61 and `suite` 138 → 139 with it.
+The other three tiers are unchanged, and both greps below, run on 2026-09-24, printed 419 + 18
+against the tree it was taken from — `suite` 139, `browser` 61, `obsidian` 205, `desktop` 17,
+`judgement` 15.
 
 **The previous measurement's own account follows, kept as history.**
 
@@ -610,13 +610,9 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   seventeenth, `browser`, step — hovering a selected room's vertex handle and its body for the
   Select tool's two new cursor classes — so the ratio needing a host or a desktop is unchanged
   at nine while the denominator moves.
-- [[Empty States Walkthrough]] — design slice 14's two central-view empty states. Its step 4
-  is the sharpest example in this suite of a claim only a vault can settle: the Plan Editor's
-  empty states are OVERLAYS over a canvas that stays mounted, and the two things that
-  protects are both unreachable from the suite — `create-sample-project` seeds a
-  backgroundless plan with five zones, and the browser harness refuses a background outright.
-  A replacement would draw an empty state where the scene belongs with every test still
-  green.
+- [[Empty States Walkthrough]] — design slice 14's two central-view empty states: the Plan
+  Editor's empty states are OVERLAYS over a canvas that stays mounted, never a replacement for
+  it.
 - [[Notices and save state]] — design slice 13's notice queue and save-state indicator. The
   only rendered surface in this repository with NO capture to read by eye: the vendored
   `tests/harness/obsidian.css` carries no `.notice` rule at all, so neither `npm run harness`

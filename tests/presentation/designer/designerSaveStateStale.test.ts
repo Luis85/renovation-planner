@@ -41,7 +41,7 @@ import {
 import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { t } from '../../../src/presentation/i18n/strings';
-import { assetDesign } from '../../helpers/assetDesign';
+import { assetDesign, VAULT_FAILED } from '../../helpers/assetDesign';
 import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
 import { installObsidianDom } from '../../helpers/dom';
@@ -57,11 +57,6 @@ installResizeObserver();
 
 const THE_ASSET = createAssetId();
 const THE_DESIGN = assetDesign({ assetId: THE_ASSET, height: 900 });
-const VAULT_FAILED: AssetDesignError = {
-	category: 'Persistence',
-	code: 'vault.unexpected-failure',
-	message: 'the vault could not be read',
-};
 
 interface Rig {
 	readonly wrapper: ReturnType<typeof mount>;

@@ -1,12 +1,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { err, ok } from '../../../src/core/result/Result';
-import type { AssetDesignError } from '../../../src/application/queries/GetAssetDesign';
 import type { AssetShape } from '../../../src/domain/asset/AssetShape';
 import type { DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
 import type { AssetDesignerQueryServices } from '../../../src/presentation/read-models/assetDesignerQueries';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
-import { assetDesign } from '../../helpers/assetDesign';
+import { assetDesign, VAULT_FAILED } from '../../helpers/assetDesign';
 import { unwiredPlanUsage } from '../../helpers/designerQueries';
 import { toiletShape } from '../../helpers/assetShapes';
 
@@ -17,7 +16,6 @@ import { toiletShape } from '../../helpers/assetShapes';
  */
 const BOWL = { kind: 'detail', id: 'detail-2' } as const;
 const OPTIONS = { indexScanCompleted: true } as const;
-const VAULT_FAILED: AssetDesignError = { category: 'Persistence', code: 'vault.unexpected-failure', message: 'the vault could not be read' };
 
 function answering(shape: AssetShape | null): AssetDesignerQueryServices {
 	return { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape }))), listPlansUsingAsset: unwiredPlanUsage };

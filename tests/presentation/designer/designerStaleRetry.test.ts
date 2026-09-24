@@ -39,7 +39,7 @@ import { ASSET_DESIGNER_CONTEXT, type AssetDesignerContext } from '../../../src/
 import { err, ok, type Result } from '../../../src/core/result/Result';
 import type { AssetDesignDto, AssetDesignError } from '../../../src/application/queries/GetAssetDesign';
 import { t } from '../../../src/presentation/i18n/strings';
-import { assetDesign } from '../../helpers/assetDesign';
+import { assetDesign, VAULT_FAILED } from '../../helpers/assetDesign';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { recorder } from '../../helpers/logger';
 import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
@@ -53,7 +53,6 @@ installCanvas();
 installResizeObserver();
 
 const ASSET_ID = 'asset-01JABC';
-const VAULT_FAILED: AssetDesignError = { category: 'Persistence', code: 'vault.unexpected-failure', message: 'the vault could not be read' };
 
 type Answer = () => Promise<Result<AssetDesignDto, AssetDesignError>>;
 

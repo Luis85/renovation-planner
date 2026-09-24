@@ -31,21 +31,11 @@ import { sameSelection, type DesignerSelection } from '../../../src/presentation
 import type { EditShape } from '../../../src/presentation/designer/selection/editShape';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { t } from '../../../src/presentation/i18n/strings';
-import { assetDesign } from '../../helpers/assetDesign';
+import { assetDesign, handed } from '../../helpers/assetDesign';
 import { openGraphic, shapeWithOpenGraphic, shapeWithRoundedRect, toiletShape } from '../../helpers/assetShapes';
 import { expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
 import { designerRig } from '../../helpers/designerRig';
-
-/**
- * The inspector's `editShape` is the leaf's own `EditShape` since AD18-R17, whose edit may answer `null`
- * for "nothing to do" (a corner radius committed at the radius it has). No case in this file commits one,
- * so the fake refuses it loudly rather than inventing a result.
- */
-function handed(result: Result<AssetShape, ValidationError> | null): Result<AssetShape, ValidationError> {
-	if (result === null) throw new Error('an edit answered nothing to do; this fake does not model it');
-	return result;
-}
 
 const TOILET = toiletShape();
 

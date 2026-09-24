@@ -36,7 +36,7 @@ import { provideDesignerRuntime, useDesignerRuntime, type DesignerRuntime } from
 import type { EditorContext } from '../../../src/presentation/editor/tools/editor-context';
 import type { EditorTool } from '../../../src/presentation/editor/tools/editor-tool';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
-import { assetDesign } from '../../helpers/assetDesign';
+import { assetDesign, VAULT_FAILED } from '../../helpers/assetDesign';
 import { installObsidianDom } from '../../helpers/dom';
 import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
@@ -62,11 +62,6 @@ const THE_ASSET = createAssetId();
 const WITH_SHAPE = assetDesign({ assetId: THE_ASSET, height: 900 });
 const AFTER_WRITE = assetDesign({ assetId: THE_ASSET, height: 1200 });
 
-const VAULT_FAILED: AssetDesignError = {
-	category: 'Persistence',
-	code: 'vault.unexpected-failure',
-	message: 'the vault could not be read',
-};
 const NOT_FOUND: AssetDesignError = {
 	category: 'Reference',
 	code: 'asset.not-found',

@@ -5,6 +5,8 @@ This is BP-05 Action 1's deliverable (`01-improvement-plan.md` §BP-05). It reco
 exist at that revision. **It runs nothing.** A Tested cell says a test exists and what it asserts.
 It does not say the test passed on any candidate.
 
+**Amended 2026-09-24 (session 20), from tests added at `54f85d2a1`:** §3's and §4.9's Undo/redo cells for Asset placement, Stair, Arrow, Post, Beam, Dimension and Section, §5's "Modifier change mid-gesture" row and §6's gaps list. Every other cell is still as assembled at `71d5bca43`.
+
 ## 1. Method
 
 | Instrument | What it gave | What it cannot see |
@@ -72,25 +74,25 @@ State per cell: **T** Tested, **I** Implemented, untested, **U** Unsupported, **
 | Wall | T | T | U | T | T | T | T | I | T | U |
 | Opening | T | T | I | T | U | T | I | T | T | T |
 | Item | T | T | I | T | T | I | T | T | T | I |
-| Asset placement | T | T | I | T | T | T | T | I | I | I |
+| Asset placement | T | T | I | T | T | T | T | I | T | I |
 | Path | T | T | T | T | T | I | T | T | T | T |
 | Fence | T | I | I | T | T | I | T | I | T | I |
 | Measurement | T | T | I | T | T | I | T | I | T | I |
-| Stair | T | T | I | T | T | I | T | T | I | I |
-| Arrow | T | I | I | T | I | I | T | T | I | I |
-| Post | T | T | I | T | I | I | T | I | I | I |
-| Beam | T | T | I | T | I | I | T | I | I | I |
-| Dimension | T | T | I | T | I | I | I | I | I | I |
-| Section | T | T | I | I | I | I | I | I | I | I |
+| Stair | T | T | I | T | T | I | T | T | T | I |
+| Arrow | T | I | I | T | I | I | T | T | T | I |
+| Post | T | T | I | T | I | I | T | I | T | I |
+| Beam | T | T | I | T | I | I | T | I | T | I |
+| Dimension | T | T | I | T | I | I | I | I | T | I |
+| Section | T | T | I | I | I | I | I | I | T | I |
 | View | T | T | I | I | I | I | I | I | I | I |
 | Hatch | T | T | I | I | I | I | I | I | I | I |
 | Text | T | T | I | I | U | I | I | I | I | I |
 | Boundary | T | T | I | I | I | I | I | I | I | I |
 | Grid | T | T | I | I | U | I | I | I | I | I |
 | Group | T | T | T | T | T | T | T | T | T | I |
-| **Tested** | 21 | 19 | 3 | 15 | 10 | 5 | 12 | 8 | 9 | 3 |
+| **Tested** | 21 | 19 | 3 | 15 | 10 | 5 | 12 | 8 | 16 | 3 |
 
-Totals over 210 cells: **105 Tested, 100 Implemented-untested, 5 Unsupported, 0 Unknown.**
+Totals over 210 cells: **112 Tested, 93 Implemented-untested, 5 Unsupported, 0 Unknown.**
 
 ## 4. Evidence, one table per column
 
@@ -311,16 +313,16 @@ Totals over 210 cells: **105 Tested, 100 Implemented-untested, 5 Unsupported, 0 
 | Wall | Tested | `tests/presentation/editor/wallThickness.test.ts` › "previews direct millimetre entry, commits once, undoes, redoes and reads the saved structure" — a thickness edit: Undo restores the prior sidecar, Redo the edited structure |
 | Opening | Tested | `tests/presentation/editor/openingUsability.test.ts` › "places one %s centred at the clicked wall position through the normal history path" (param 'door', 'window', 'opening') — Undo leaves no opening; Redo restores the same object |
 | Item | Tested | `tests/presentation/editor/transformBox.e2e.test.ts` › "resizes a selected item through its transform box in one undoable write" — Undo restores the original points, Redo the resized corner |
-| Asset placement | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Undo asserted; missing: Redo. `tests/presentation/editor/deleteShortcut.test.ts` › "removes a selected placement with %s as one confirmed step that Undo restores" (param 'Delete', 'Backspace') — Ctrl+Z restores the deleted placement; Redo is not asserted |
+| Asset placement | Tested | `tests/presentation/editor/deleteShortcut.test.ts` › "removes a selected placement with %s as one confirmed step that Undo restores" (param 'Delete', 'Backspace') — the key plus confirm removes the placement; Ctrl+Z restores it with its assetId; Ctrl+Y removes it again, the store's elements and element metadata deep-equal to what the delete left and the saved geometry with no elements |
 | Path | Tested | `tests/presentation/editor/objectRotationRuntime.test.ts` › "reconstructs index, repositories and runtime from persisted %s rotation and restores it exactly" (param 'path') — Undo restores the saved structure; Redo changes the points again |
 | Fence | Tested | `tests/presentation/editor/objectRotationRuntime.test.ts` › "reconstructs index, repositories and runtime from persisted %s rotation and restores it exactly" (param 'fence') — Undo restores the saved structure; Redo changes the points again |
 | Measurement | Tested | `tests/presentation/editor/objectRotationRuntime.test.ts` › "reconstructs index, repositories and runtime from persisted %s rotation and restores it exactly" (param 'measurement') — Undo restores the saved structure; Redo changes the points again |
-| Stair | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Undo asserted; missing: Redo. `tests/presentation/editor/stairsArrows.test.ts` › "creates, renders, edits and rotates a stair with one geometry/metadata history and a full-width hit target" — Undo restores the saved stair after an edit; Redo is called but not asserted |
-| Arrow | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Undo asserted; missing: Redo. `tests/presentation/editor/linearElements.e2e.test.ts` › "creates/selects/edits/deletes %s with atomic label and geometry history" (param 'arrow') — Undo restores an edited name and a deleted arrow; Redo is not exercised |
-| Post | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Undo asserted; missing: Redo. `tests/presentation/editor/structuralCreation.test.ts` › "places one post per click at the typed section, stays on the tool, and undoes each post alone" — after two posts, Undo leaves only the first |
-| Beam | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Undo asserted; missing: Redo. `tests/presentation/editor/structuralInspector.test.ts` › "summarises a beam, switches load-bearing through undoable history, and edits its width" — Undo returns a switched-off load-bearing flag to true; Redo is not exercised |
-| Dimension | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Undo asserted; missing: Redo. `tests/presentation/editor/draftingInspector.test.ts` › "edits a dimension chain's offset and keeps its points" — Undo returns the offset to -600 |
-| Section | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Undo asserted; missing: Redo. `tests/presentation/editor/draftingInspector.test.ts` › "flips a section line from its Inspector through undoable history" — Undo reverts a flip |
+| Stair | Tested | `tests/presentation/editor/stairsArrows.test.ts` › "creates, renders, edits and rotates a stair with one geometry/metadata history and a full-width hit target" — after a `stair-edit`, Undo restores the saved stair and its prior name; Redo (`runtime.redo()`) brings back the store's element deep-equal to the edited one and the name 'Back stairs' |
+| Arrow | Tested | `tests/presentation/editor/linearElements.e2e.test.ts` › "creates/selects/edits/deletes %s with atomic label and geometry history" (param 'arrow') — after an Inspector `outline-points` edit, Undo restores the saved element and its name; Redo (`runtime.redo()`) brings back the store's element deep-equal to the edited one and the name 'Side route'; Undo of a delete restores element and name |
+| Post | Tested | `tests/presentation/editor/structuralCreation.test.ts` › "places one post per click at the typed section, stays on the tool, and undoes each post alone" — after two posts, Undo leaves only the first; Redo (`runtime.redo()`) brings back the store's elements and element metadata deep-equal to both posts as placed |
+| Beam | Tested | `tests/presentation/editor/structuralInspector.test.ts` › "summarises a beam, switches load-bearing through undoable history, and edits its width" — Undo returns a switched-off load-bearing flag to true; Redo (`runtime.redo()`) brings back the store's element deep-equal to the switched beam |
+| Dimension | Tested | `tests/presentation/editor/draftingInspector.test.ts` › "edits a dimension chain's offset and keeps its points" — Undo returns the offset to -600; Redo (`runtime.redo()`) brings back the store's element deep-equal to the edited chain (offset -800, same points) |
+| Section | Tested | `tests/presentation/editor/draftingInspector.test.ts` › "flips a section line from its Inspector through undoable history" — Undo reverts a flip; Redo (`runtime.redo()`) brings back the store's element deep-equal to the flipped section line |
 | View | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Missing: Undo and Redo of a view marker operation. |
 | Hatch | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Missing: Undo and Redo of a hatch operation. |
 | Text | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Missing: Undo and Redo of a text mark operation. |
@@ -364,7 +366,7 @@ Totals over 210 cells: **105 Tested, 100 Implemented-untested, 5 Unsupported, 0 
 | Wall plus hosted openings | Present | `tests/presentation/editor/wallRotationRuntime.test.ts` › "reviews %s host rotation, writes once and restores exact hosted facts and independent Room geometry"; `tests/presentation/editor/curveTask.e2e.test.ts` › "edits a Wall through the same task while preserving attached openings and refusing Review"; `tests/presentation/editor/groupEditing.test.ts` › "moves a grouped Room, walls and later hosted opening from the immutable pointer baseline with one write" |
 | Copy/paste across plans | Present | `tests/presentation/editor/clipboard.test.ts` › "pastes on one floor what was copied on another" (two editors sharing one clipboard) |
 | Click versus drag rotation | Present | `tests/presentation/editor/rotationInteraction.test.ts` › "uses the entire invisible rectangle and a four-screen-pixel threshold at scale %s" (0.2, 1, 5); same file › "never turns a completed drag back into a click when it returns to its start" |
-| Modifier change mid-gesture | Partial | Pan: `tests/presentation/editor/canvasNavigation.test.ts` › "releasing space mid-drag lets the pan finish rather than stranding the pointer". Rotate, Shift pressed after the drag started: `tests/presentation/editor/objectRotation.test.ts` › "previews without drift and commits the final release position exactly once with Shift snapping" and `tests/presentation/editor/rotationInteraction.test.ts` › "retains a stable bearing near the pivot and exposes the configured Shift increment". Draw, Shift pressed mid-draw with `draw-polygon`: `tests/presentation/editor/canvasGestureOwnership.test.ts` › "still reaches the tool while the TOOL’s own gesture is in flight" (button held; the drawn lines change) and `tests/presentation/editor/interactionLayer.test.ts` › "flattens the rubber band the moment Shift goes down, with the pointer still" (the rubber band's loose end moves from y 105 to 100, level with the first vertex); both assert the preview, not a save. **Absent for a move drag**, by a `git grep` for `shift: true`, `alt: true`, `shiftKey: true` and `altKey: true` under `tests/presentation/editor`, with the hits in the move, resize and rotate files read |
+| Modifier change mid-gesture | Partial | Pan: `tests/presentation/editor/canvasNavigation.test.ts` › "releasing space mid-drag lets the pan finish rather than stranding the pointer". Rotate, Shift pressed after the drag started: `tests/presentation/editor/objectRotation.test.ts` › "previews without drift and commits the final release position exactly once with Shift snapping" and `tests/presentation/editor/rotationInteraction.test.ts` › "retains a stable bearing near the pivot and exposes the configured Shift increment". Draw, Shift pressed mid-draw with `draw-polygon`: `tests/presentation/editor/canvasGestureOwnership.test.ts` › "still reaches the tool while the TOOL’s own gesture is in flight" (button held; the drawn lines change) and `tests/presentation/editor/interactionLayer.test.ts` › "flattens the rubber band the moment Shift goes down, with the pointer still" (the rubber band's loose end moves from y 105 to 100, level with the first vertex); both assert the preview, not a save. Move, a body drag of a Room with Shift or Alt pressed after the drag started: `tests/presentation/editor/zoneMoveModifier.test.ts` › "keeps a body move drag when %s goes down mid-drag: one write of the plain translation, and the gesture ends" (param 'Shift', 'Alt') — one save of the outline translated by exactly the pointer delta, no gesture or draft left, the next click on empty canvas clears the selection and writes nothing, and one Undo restores the outline. A PIN of current behaviour, not a requirement: no spec, PBI or ADR states what a modifier does once a move has started. Still without a case: a modifier RELEASED mid-move, Ctrl or Meta, and a modifier change during an element, point or group drag, a resize or a label move |
 | Input-focused shortcuts | Partial | Integration only: `tests/presentation/editor/inputInteractions.test.ts` › "routes Ctrl Z/Y from editor buttons through real history and leaves text/modal editing alone"; `tests/presentation/editor/deleteShortcut.test.ts` › "leaves chords, repeats, composition, dialogs, a stale floor, Review and fields alone". No file under `tests/` names `historyShortcut` |
 | Pending command | Present | `tests/presentation/editor/wallRotationRuntime.test.ts` › "keeps the reviewed angle immutable and rejects duplicate Apply or Cancel while its write is pending"; `tests/presentation/editor/clipboard.test.ts` › "offers no paste while a structure or element edit is in flight, from the menu or the shortcut" |
 | Both locales | Partial | German is checked at the string level only: `tests/presentation/editor/add/creationCatalogue.test.ts` › "offers Room and Area, each activating its own geometry path" (an Add search in `de`); `tests/presentation/editor/spatialMessage.test.ts` › "answers every command-level spatial code with its own sentence in both locales". All five files under `tests/presentation/editor` that name `'de'` call a string function with it, and none of them mounts the editor in German. No editor test calls the mock's `setLanguage` |
@@ -390,7 +392,6 @@ One line per cell. A list of what is empty, not a plan to fill it.
 | Item | Non-drag route | Implemented, untested |
 | Asset placement | Move | Implemented, untested |
 | Asset placement | Cancel | Implemented, untested |
-| Asset placement | Undo/redo | Implemented, untested |
 | Asset placement | Non-drag route | Implemented, untested |
 | Path | Duplicate/copy | Implemented, untested |
 | Fence | Select | Implemented, untested |
@@ -404,32 +405,27 @@ One line per cell. A list of what is empty, not a plan to fill it.
 | Measurement | Non-drag route | Implemented, untested |
 | Stair | Move | Implemented, untested |
 | Stair | Duplicate/copy | Implemented, untested |
-| Stair | Undo/redo | Implemented, untested |
 | Stair | Non-drag route | Implemented, untested |
 | Arrow | Select | Implemented, untested |
 | Arrow | Move | Implemented, untested |
 | Arrow | Rotate | Implemented, untested |
 | Arrow | Duplicate/copy | Implemented, untested |
-| Arrow | Undo/redo | Implemented, untested |
 | Arrow | Non-drag route | Implemented, untested |
 | Post | Move | Implemented, untested |
 | Post | Rotate | Implemented, untested |
 | Post | Duplicate/copy | Implemented, untested |
 | Post | Cancel | Implemented, untested |
-| Post | Undo/redo | Implemented, untested |
 | Post | Non-drag route | Implemented, untested |
 | Beam | Move | Implemented, untested |
 | Beam | Rotate | Implemented, untested |
 | Beam | Duplicate/copy | Implemented, untested |
 | Beam | Cancel | Implemented, untested |
-| Beam | Undo/redo | Implemented, untested |
 | Beam | Non-drag route | Implemented, untested |
 | Dimension | Move | Implemented, untested |
 | Dimension | Rotate | Implemented, untested |
 | Dimension | Duplicate/copy | Implemented, untested |
 | Dimension | Delete | Implemented, untested |
 | Dimension | Cancel | Implemented, untested |
-| Dimension | Undo/redo | Implemented, untested |
 | Dimension | Non-drag route | Implemented, untested |
 | Section | Move | Implemented, untested |
 | Section | Precise edit | Implemented, untested |
@@ -437,7 +433,6 @@ One line per cell. A list of what is empty, not a plan to fill it.
 | Section | Duplicate/copy | Implemented, untested |
 | Section | Delete | Implemented, untested |
 | Section | Cancel | Implemented, untested |
-| Section | Undo/redo | Implemented, untested |
 | Section | Non-drag route | Implemented, untested |
 | View | Move | Implemented, untested |
 | View | Precise edit | Implemented, untested |

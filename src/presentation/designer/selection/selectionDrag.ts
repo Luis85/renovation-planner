@@ -56,7 +56,9 @@ function held(moves: boolean, fixed: number, min: number, centre: number, extent
 /**
  * A box-handle resize of a graphic with arcs (AD18-R20 Task 13): its CURVE-AWARE extent solved onto the
  * dragged box by `resizeToExtent` — the typed Width/Depth path, so a drag and a typed size land the same
- * numbers, and reach the same NEAREST extent for a box the kept bulges cannot reach — then moved so the side
+ * numbers, and for a box the kept bulges cannot reach the same extent, within `solveScale`'s 0.01 mm of the
+ * nearest one they can; a side handle moved further in does not push it back out (AD18-R23 Task 11, measured on
+ * the oval and round tables' clearances and the vanity's basin) — then moved so the side
  * or corner opposite the handle is back where it was. A plain ratio misses here because every arc keeps its
  * bulge, so an arc whose chord a scale leaves alone keeps its whole sagitta (`scaleSolve.ts`).
  *
@@ -67,8 +69,8 @@ function held(moves: boolean, fixed: number, min: number, centre: number, extent
  *
  * A refusal comes back as it is; `keptCurves` turns it into the plain scale.
  *
- * ponytail: up to three `solveScale` runs of at most four attempts each, so twelve `resizeBox` calls per
- * pointer move at worst (four for a side handle); bounded, and cheap beside a render.
+ * ponytail: up to three `solveScale` runs of at most 24 attempts each, so 72 `resizeBox` calls per pointer move at
+ * worst (24 for a side handle); a preset part took at most seven per run, measured. Bounded, and cheap beside a render.
  */
 function fittedResize(
 	shape: AssetShape,

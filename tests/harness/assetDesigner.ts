@@ -389,7 +389,9 @@ function openHarness(view: AssetDesignerView, assetId: string, presetId: string 
 export function mountAssetDesignerHarness(
 	root: HTMLElement,
 	presetId: string | null = null,
-	knobs: HarnessKnobs & { readonly pending?: boolean; readonly writable?: boolean } = {},
+	// Spelled out rather than `HarnessKnobs & {…}`: an exported signature naming that private alias
+	// is a `private-type-leaks` error in fallow, and exporting it would be an export nothing imports.
+	knobs: { readonly select?: string; readonly mode?: string; readonly draw?: string; readonly camera?: string; readonly grid?: boolean; readonly viewMenu?: boolean; readonly stale?: boolean; readonly pending?: boolean; readonly writable?: boolean } = {},
 ): MountedAssetDesigner {
 	// Obsidian's DOM prototype extensions. Installed first, because the mount below uses them.
 	installObsidianDom();

@@ -133,7 +133,7 @@ its own text says so. Read this before walking any of them, across three cases.*
   "← Back to library" with an arrow-left icon, clipped below a sidebar width rather than removed.
 
 **What the second parity round (AD18-R17/R18/R19) ADDED, and why the total moved from 145 to
-179.** Task 12 of that round's own plan wrote these steps against the merged tree of 2026-09-23,
+182.** Task 12 of that round's own plan wrote these steps against the merged tree of 2026-09-23,
 Tasks 1–11, verified at source rather than from the plan alone, **then a review round added
 three more** (named at the end of this list) once it found this file's first draft understating
 one behaviour and inventing a mechanism that does not exist. **Thirty-seven new steps across

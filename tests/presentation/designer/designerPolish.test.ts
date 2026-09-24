@@ -187,10 +187,11 @@ describe('the Add rail’s equal tile height', () => {
 	/**
 	 * Fix round: `grid-auto-rows: 1fr` on the tiles' own grid container, not a `min-height` pinned to
 	 * one English pixel measurement — a fixed floor would not track a longer label in another
-	 * language or a larger host font. `1fr` on every implicit row makes each row match its own
-	 * tallest tile's content, in any language.
+	 * language or a larger host font. Equal `1fr` on every implicit row stretches every row to the
+	 * tallest tile in ANY row (not merely its own), in any language — plain `auto` rows would size
+	 * each row to only its own content and leave row 2 shorter than row 1, as it did before.
 	 */
-	it('floors every Add-rail row at its own tallest tile via grid-auto-rows, not a pixel min-height', () => {
+	it('floors every Add-rail row at the tallest tile in the whole grid via grid-auto-rows, not a pixel min-height', () => {
 		expect(declared(rules, '.rp-designer-add-shapes', 'grid-auto-rows')).toEqual(parsed('grid-auto-rows', '1fr'));
 		expect(declared(rules, '.rp-designer-add button.rp-designer-tool-button', 'min-height')).toEqual([]);
 	});

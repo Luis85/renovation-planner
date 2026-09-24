@@ -87,6 +87,25 @@
  * than one grid. Grid's own default `stretch` gives every tile in a row the row's own height, the
  * same fix `.rp-designer-placement-modes` already carries in `designer-selection.css` for the
  * identical shape — that file's own comment is the fuller account of the trade.
+ *
+ * **`grid-auto-rows: 1fr` (Task 6, AD18-R20/R21, fix round) is EVERY Add-rail tile the same
+ * height — the tallest across the WHOLE grid — rather than the two heights the integrator first
+ * measured in English: 73px for row 1 (the two-line "Rounded rectangle" tile) and 58px for row 2.**
+ * `align-items: stretch` above only equalises tiles that already share a ROW; it cannot reach
+ * across rows, which an auto-sized grid otherwise sizes independently by their own content. `1fr`
+ * on every implicit row does reach across them: on an auto-height grid a flexible track is sized
+ * to the larger of its own content and an equal share of the space the content-sized rows already
+ * claim, so giving every row the SAME flex factor makes them claim an equal share of each
+ * other's content-driven height too — which is what stretches a shorter row up to the tallest
+ * tile in ANY row, not merely its own. (Plain `auto` rows would size each row only to ITS OWN
+ * tallest tile, leaving row 2 at 58px beside row 1's 73px — the defect this rule exists to fix.)
+ * Preferred over a `min-height` pinned to one English pixel measurement: a fixed floor is correct
+ * only for the label and font that produced it, and a longer label in another language or a
+ * larger host font would either fall short of a floor sized for English or sit inside needless
+ * empty space once English no longer measures the tallest tile. `1fr` needs no number and cannot
+ * fall out of date. Applies to this grid only — `.rp-designer-placement-modes
+ * .rp-designer-selection-button`'s three-column row is single-row already, so `align-items:
+ * stretch` alone equalises it and this rule's claim does not reach it.
  */
 .rp-designer-add-shapes {
 	display: grid;
@@ -164,28 +183,6 @@
 	height: auto;
 	white-space: normal;
 }
-
-/*
- * Task 6 (AD18-R20/R21, fix round): EVERY Add-rail tile the same height — the tallest in ANY row —
- * rather than the two heights the integrator first measured in English: 73px for row 1 (the
- * two-line "Rounded rectangle" tile) and 58px for row 2. `align-items: stretch` above (the rule's
- * own default, unset) only equalises tiles that share a ROW; it cannot reach across rows, which
- * are sized independently by the grid.
- *
- * **`grid-auto-rows: 1fr` on the tiles' own grid container** (`.rp-designer-add-shapes`, above)
- * rather than a `min-height` pinned to one English measurement in pixels: a fixed floor is correct
- * only for the label and font that produced it, and a longer label in another language or a larger
- * host font would either fall short of a floor sized for English or sit inside needless empty
- * space once English no longer measures the tallest tile. `1fr` on every implicit row instead makes
- * each row exactly as tall as its own tallest tile's content demands, in any language or font,
- * with no number to fall out of date — the same reasoning `.rp-designer-placement-modes`'s three
- * columns already get for free from `align-items: stretch` within one row, extended across rows by
- * `grid-auto-rows` here since the Add rail wraps to more than one.
- *
- * Applies to the Add rail's own grid only, not `.rp-designer-placement-modes .rp-designer-selection-button`'s
- * three-column row — that row is single-row already, so `align-items: stretch` alone equalises it and
- * this card's claim does not reach it.
- */
 
 /*
  * AD18 second parity round, task 1: the integrator's browser measurement found `Custom` — one

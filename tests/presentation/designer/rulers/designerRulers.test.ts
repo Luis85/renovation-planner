@@ -42,11 +42,12 @@ const STAGE = { width: 800, height: 600 };
  * The component alone over a seeded store — the three states the mounted designer cannot be put
  * into, since `AssetDesignerRoot` mounts the canvas only over a design it has already read. The
  * selection is the component's PROP — the selection as drawn, which `DesignerCanvas` passes — so a
- * case sets it there; `designerHiddenSelectionFrame.test.ts` drives what the canvas passes.
+ * case sets it there; `designerHiddenSelectionFrame.test.ts` drives what the canvas passes. Left out,
+ * the mount is BARE, as the harness index mounts it, and takes the prop's `null` default.
  */
-function rulers(design: AssetDesignDto | null, selection: DesignerSelection | null = null): { wrapper: VueWrapper; pinia: Pinia } {
+function rulers(design: AssetDesignDto | null, selection?: DesignerSelection): { wrapper: VueWrapper; pinia: Pinia } {
 	const pinia = createPinia();
-	const wrapper = mount(DesignerRulers, { props: { selection }, global: { plugins: [pinia] } });
+	const wrapper = mount(DesignerRulers, { props: selection === undefined ? {} : { selection }, global: { plugins: [pinia] } });
 	useAssetDesignStore(pinia).design = design;
 	const editor = useEditorStore(pinia);
 	editor.viewport = DEFAULT_VIEWPORT;

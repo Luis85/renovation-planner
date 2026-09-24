@@ -4,7 +4,9 @@
  * AD18-R23: the rulers' extent band and `Shift+2` follow `drawnSelection` (AD18-R20), as the canvas
  * marks do. A SELECTED part the canvas does not draw — the clearance while `Show clearance` is off, a
  * graphic hidden in Parts — gets no band and no frame, and showing it again brings back exactly the band
- * and the frame it had. `designerHiddenSelection.test.ts` is the marks half of the same rule.
+ * and the frame it had. Another part selected meanwhile — the footprint — keeps both, which is what
+ * catches a rule applied at the mount site rather than per part. `designerHiddenSelection.test.ts` is
+ * the marks half of the same rule.
  *
  * Driven through `designerRig`, the real wiring: selection by Parts row, hiding by the two real
  * controls, `Shift+2` as a keydown on the canvas. Every press starts from one fixed camera, so a
@@ -74,6 +76,12 @@ describe.each(HIDERS)('the rulers’ band and Shift+2 over a selected part that 
 			expect(store.selection).toEqual(part);
 			expect(bands(rig)).toEqual([]);
 
+			// Another part's band is untouched by the rule, and its row still selects the hidden part again.
+			await press(rig, 'footprint');
+			expect(bands(rig)).toHaveLength(2);
+			await press(rig, hider.row);
+			expect(bands(rig)).toEqual([]);
+
 			await hider.show(rig);
 			expect(store.selection).toEqual(part);
 			expect(bands(rig)).toEqual(before);
@@ -95,7 +103,14 @@ describe.each(HIDERS)('the rulers’ band and Shift+2 over a selected part that 
 			expect(store.selection).toEqual(part);
 			expect(await frameSelection(rig)).toEqual(PARKED);
 
+			// Another part still frames while this one is hidden.
+			await press(rig, 'footprint');
+			expect(await frameSelection(rig)).not.toEqual(PARKED);
+			await press(rig, hider.row);
+			expect(await frameSelection(rig)).toEqual(PARKED);
+
 			await hider.show(rig);
+			expect(store.selection).toEqual(part);
 			expect(await frameSelection(rig)).toEqual(framed);
 		} finally {
 			rig.unmount();

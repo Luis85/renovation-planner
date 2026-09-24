@@ -62,7 +62,10 @@
  * `drawnPart`, `drawnSelection`'s answer (AD18-R20) — and not the store's. A selected part the canvas
  * does not draw, the clearance while `Show clearance` is off or a Parts-hidden graphic, gets no band,
  * and showing it again brings the band back (AD18-R23). A prop rather than a second call here because
- * the view facts that rule asks over are the leaf runtime's, and the canvas already asks it once.
+ * the canvas already asks that rule once, for its marks and `Shift+2`, and the band takes the same
+ * answer — where `DesignerDimensions`, beside it, asks the leaf runtime itself. `DesignerCanvas` always
+ * passes it; the `null` default is a bare mount (the harness index, this component's own tests), which
+ * draws no band, as it did before the prop.
  *
  * **Nothing is drawn over an UNSCALED design.** `dimensionsUnscaled` is a footprint captured
  * before the asset had a scale, whose coordinates are placeholder pixels; a millimetre ruler over
@@ -93,7 +96,7 @@ import type { DesignerSelection } from '../selection/designerSelection';
 import { useAssetDesignStore } from '../stores/assetDesignStore';
 import { rulerLabels } from './rulerMarks';
 
-const props = defineProps<{ readonly selection: DesignerSelection | null }>();
+const props = withDefaults(defineProps<{ readonly selection?: DesignerSelection | null }>(), { selection: null });
 const editor = useEditorStore();
 const { design, preview } = storeToRefs(useAssetDesignStore());
 

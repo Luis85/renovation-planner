@@ -158,7 +158,7 @@ const footprintEdgeLine = computed(() => footprintEdge(shape.value, tokens.value
  *
  * A selected part that is not drawn — the clearance while `Show clearance` is off, a Parts-hidden
  * graphic — draws no marks at all (AD18-R20, `drawnSelection`, the rule `hitDesign` asks too). `drawnPart`
- * is that one reading, and the rulers' extent band and `Shift+2` below take it too (AD18-R23).
+ * is this component's one reading, and the rulers' extent band and `Shift+2` below take it too (AD18-R23).
  */
 const drawnPart = computed(() => drawnSelection(selection.value, { hidden: partView.hidden.value, clearanceHidden: !showClearance.value }));
 const marks = computed(() => {

@@ -74,9 +74,9 @@ it('?locked locks the named seeded zones and no others', async () => {
 	// The lock toggle is `ZoneLockToggle`'s own `.rp-editor-inspector-lock` button — a SIBLING of
 	// `.rp-room-list__row` under `RoomSummaryList`'s `<li>`, not a descendant of the row, and
 	// present (unlocked) on every row rather than only the locked ones (ADR-0027). So the marker
-	// is the closest item's toggle read as PRESSED, not the toggle's bare presence.
+	// is the closest item's toggle drawing the CLOSED padlock, not the toggle's bare presence.
 	const locked = [...leafEl.querySelectorAll('.rp-floor-inspector .rp-room-list__row')].filter(
-		(row) => row.closest('.rp-room-list__item')?.querySelector('.rp-editor-inspector-lock[aria-pressed="true"]') !== null,
+		(row) => row.closest('.rp-room-list__item')?.querySelector('.rp-editor-inspector-lock .lucide-lock') !== null,
 	);
 	expect(locked.map((row) => row.getAttribute('data-rp-id'))).toEqual(['harness-terrace']);
 	await view.onClose();

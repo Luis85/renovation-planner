@@ -486,8 +486,8 @@ const SHOTS = [
 		selector: [PLAN_CANVAS, '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail', DETAIL_ANCESTRY_CRUMB],
 		width: 460,
 	},
-	{ name: 'plan-editor-locked', query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
-	{ name: 'plan-editor-locked-dark', query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
+	{ name: 'plan-editor-locked', query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: '.rp-floor-inspector .rp-editor-inspector-lock .lucide-lock' },
+	{ name: 'plan-editor-locked-dark', query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: '.rp-floor-inspector .rp-editor-inspector-lock .lucide-lock' },
 	// Property-tree polish (2026-09-12): the `?tree` knob's four-plan property, so the tree's
 	// THIRD level — the one no other knob reaches — can be looked at in both schemes and at a
 	// sidebar's width. Every shot waits on a level-3 treeitem, which exists only once the knob's

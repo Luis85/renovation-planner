@@ -787,12 +787,14 @@ describe('the headless harness capture script', () => {
 	 * halves: the query carries the knob (`&detail` or `&locked=`), and the selector is one that
 	 * exists only once that knob's own state has landed — the guide explainer for the two wide
 	 * detail shots, `DETAIL_ANCESTRY_CRUMB` for the narrow one (the Inspector carrying the guide
-	 * explainer is hidden at 460px — see that constant's own comment), and a PRESSED lock toggle
-	 * for the two locked shots (present, unpressed, on every row regardless of the knob —
-	 * ADR-0027 — so only the pressed state proves the knob actually locked one).
+	 * explainer is hidden at 460px — see that constant's own comment), and a lock toggle drawing
+	 * the CLOSED padlock for the two locked shots (present, open, on every row regardless of the
+	 * knob — ADR-0027 — so only the closed glyph proves the knob actually locked one; the toggle
+	 * carries no `aria-pressed` since AD18-R23, and `.lucide-lock` is a class TOKEN, which
+	 * `lucide-lock-open` does not match).
 	 */
 	it('takes the detail-plan and locked-zone shots through their own knobs, waiting on what only a landed knob produces', () => {
-		const lockPressed = '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]';
+		const lockPressed = '.rp-floor-inspector .rp-editor-inspector-lock .lucide-lock';
 
 		expect(shot('plan-editor-detail')).toEqual({ query: '?view=plan-editor&detail&theme=light', selector: '.rp-floor-inspector__guide' });
 		expect(shot('plan-editor-detail-dark')).toEqual({ query: '?view=plan-editor&detail', selector: '.rp-floor-inspector__guide' });

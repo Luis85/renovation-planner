@@ -32,8 +32,8 @@ import type { PartView } from './partView';
  * `aria-pressed` for the same state, so a hidden part announced "Show, toggle button, pressed" —
  * the checked state saying the opposite of what "Show" means. The swapping name alone already
  * carries the state; `aria-pressed` on top of it is a second, contradictory channel, not a
- * confirmation of the first. `ZoneLockToggle.vue` (Plan Editor) carries the identical flaw and is
- * a recorded follow-up rather than fixed here.
+ * confirmation of the first. `ZoneLockToggle.vue` (Plan Editor) carried the identical flaw and
+ * dropped its `aria-pressed` in AD18-R23.
  */
 interface RowAction {
 	readonly name: string;

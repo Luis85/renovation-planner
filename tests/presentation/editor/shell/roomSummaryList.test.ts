@@ -137,10 +137,14 @@ describe('RoomSummaryList', () => {
 		expect(selectAndFrame).toHaveBeenLastCalledWith('zone-terrace', true);
 	});
 
-	it('puts a named lock toggle beside every row, pressed only for a locked record', () => {
+	// The state rides the swapping name and the glyph, never `aria-pressed` (AD18-R23): the pair
+	// announced a locked zone as "Unlock Terrace, toggle button, pressed".
+	it('puts a named lock toggle beside every row, drawing the closed padlock only for a locked record', async () => {
 		const { wrapper } = mountList();
+		await flushPromises(); // HostIcon draws its glyph on a post-flush watcher
 		const toggles = wrapper.findAll('[data-rp-lock]');
-		expect(toggles.map((toggle) => toggle.attributes('aria-pressed'))).toEqual(['false', 'true']);
+		expect(toggles.map((toggle) => toggle.attributes('aria-pressed'))).toEqual([undefined, undefined]);
+		expect(toggles.map((toggle) => toggle.find('.lucide-lock').exists())).toEqual([false, true]);
 		expect(toggles.map((toggle) => toggle.attributes('aria-label'))).toEqual(['Lock Kitchen', 'Unlock Terrace']);
 	});
 

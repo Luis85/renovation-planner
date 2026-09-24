@@ -1611,6 +1611,10 @@ the open ones to the user in one batched round. **Taken by the user**, every one
 - the Plan Editor's `ZoneLockToggle.vue` carries a swapping accessible name AND `aria-pressed`, the
   contradiction 3405aab95 removed from the designer's part controls ("Unlock Kitchen, toggle button,
   pressed"). The swapping name alone carries the state, as on the designer side.
+- **the designer binds no history keys** (found by the integrator while measuring the `&writable` knob: a
+  Group, then the toolbar's Undo and Redo, read back correctly, while Ctrl+Z on the focused canvas did nothing).
+  The Plan Editor answers Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y on its root through `editorHistoryShortcut`; C12 binds
+  the designer to the Plan Editor's conventions, and the manual pass already expects Ctrl+Z there.
 
 **Recorded as already fine, so nobody reopens them:**
 - **Arrow keys on a hidden selected part are claimed and do nothing.** `keyDoors.ts` takes an arrow's

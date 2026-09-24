@@ -182,6 +182,36 @@ contradiction 3405aab95 removed from the designer's `DesignerPartControls.vue` (
 the same pair and REPORT it (do not fix it). Tests watched red; the accessibility suites under `tests/harness/`
 must still pass.
 
+## Task 10: The designer's Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y (AD18-R23 defect, found while measuring Task 1)
+
+**Runs before Task 7.** Numbered 10 because it was added after the plan was written.
+
+**Owns:** `src/presentation/designer/AssetDesignerRoot.vue` (see the cap rule below), one NEW module under
+`src/presentation/designer/` if the wiring needs a home, and their tests.
+
+Measured by the integrator in Chromium on `&writable` (Task 1): a Group, then the toolbar's Undo and Redo, read
+back correctly, but **Ctrl+Z with the designer canvas focused did nothing**. `grep` finds no history key binding
+anywhere under `src/presentation/designer/`. The Plan Editor binds one on its ROOT element
+(`PlanEditorRoot.vue`'s `onRootKeydown` calls `editorHistoryShortcut` from
+`src/presentation/editor/surface/historyShortcut.ts`, which owns the chord rule, the focused-field and modal
+exemptions, and the autorepeat and mid-gesture refusal). C12 binds the designer to the Plan Editor's interaction
+conventions, and the manual case `Calibrate a sheet and reserve space` step 13 already expects Ctrl+Z in the
+designer.
+
+Requirements:
+- The designer's root answers Ctrl+Z (undo), Ctrl+Shift+Z and Ctrl+Y (redo), Cmd on macOS, through
+  `editorHistoryShortcut` itself rather than a copy, with the designer runtime's `undo`/`redo`/`canUndo`/`canRedo`
+  and whatever the designer has for "writes blocked", a modal dialog open, and a gesture in flight. Verify each of
+  those at source; if the designer has no equivalent of one, report what you used and why.
+- A focused text field, number field or select keeps its own native undo (the helper's `EDITING` rule): the
+  Inspector's inputs must not lose Ctrl+Z to the leaf.
+- The existing root `@keydown` handler (`contextMenu.key`) keeps working: the menu's keys are unchanged.
+- **`AssetDesignerRoot.vue` is AT its 400-line cap, and SFC template comments count against it.** Net growth is not
+  allowed. Move wiring into your new module, or move a TEMPLATE comment's prose into the script docblock
+  (script comments are skipped) and leave a one-line pointer, which is the house remedy.
+- Tests: each chord undoes or redoes a real write (`designerRig` over the real write path), a focused Inspector
+  input keeps its native Ctrl+Z, and a chord pressed mid-gesture or with a dialog open is refused. Watch each fail.
+
 ## Task 7: Manual-pass steps for the new work, and the count re-derived
 
 **Owns:** `docs/tests/cases/*.md` and `docs/tasks/asset-designer-expansion/reports/MANUAL-PASS.md`.

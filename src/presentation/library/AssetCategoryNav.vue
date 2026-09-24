@@ -13,12 +13,11 @@
 -->
 <script setup lang="ts">
 import { computed } from 'vue';
-import type { IconName } from 'obsidian';
 import HostIcon from '../components/HostIcon.vue';
 import { tr } from '../i18n/strings';
-import type { AssetCategory } from '../../domain/asset/AssetCategory';
 import type { Shelf } from './shelfList';
 import { moveFocus } from './shelfFocus';
+import { categoryIcon } from './categoryIcons';
 
 const props = defineProps<{
 	shelves: readonly Shelf[];
@@ -38,22 +37,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{ choose: [category: string] }>();
 
-const ICONS: ReadonlyMap<string, IconName> = new Map<AssetCategory, IconName>([
-	['material', 'layers'],
-	['furniture', 'armchair'],
-	['fixture', 'bath'],
-	['plant', 'sprout'],
-	['equipment', 'hammer'],
-	['building-element', 'brick-wall'],
-	['custom', 'pencil'],
-]);
-
 const options = computed(() => [
 	{ category: '', label: tr('view.asset-library.category.all'), icon: 'grid-2x-2' },
 	...props.shelves.map((shelf) => ({
 		category: shelf.category,
 		label: shelf.label,
-		icon: ICONS.get(shelf.category) ?? 'tag',
+		icon: categoryIcon(shelf.category),
 	})),
 ]);
 </script>

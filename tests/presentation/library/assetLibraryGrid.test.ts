@@ -120,6 +120,36 @@ describe('a tile', () => {
 		expect(tile.get('.rp-al-mark').classes()).toContain('rp-al-mark--measured');
 	});
 
+	/**
+	 * AD18-R21: a design-less asset (SOFA carries no `OUTLINES` entry, so its outline is
+	 * `{ kind: 'none' }`) draws its CATEGORY icon where the mark goes instead of the mark's own
+	 * empty box, through the same lookup the sidebar uses (`categoryIcons.ts`'s `categoryIcon`,
+	 * `furniture` → `armchair`), muted and `aria-hidden` so the tile's accessible name — carried
+	 * by the button's own text content — is unchanged.
+	 */
+	it('draws its category icon where the mark goes when the asset has no design', async () => {
+		const root = await mountLibrary();
+		await showGrid(root);
+
+		const tile = tileNamed(root, 'Sofa');
+
+		expect(tile.find('.rp-al-mark').exists()).toBe(false);
+		const icon = tile.get('.rp-al-tile__category-icon');
+		expect(icon.attributes('data-icon')).toBe('armchair');
+		expect(icon.attributes('aria-hidden')).toBe('true');
+	});
+
+	/** The other half of the same rule: a tile whose asset HAS a design draws its mark and no icon. */
+	it('draws its mark and no category icon when the asset has a design', async () => {
+		const root = await mountLibrary();
+		await showGrid(root);
+
+		const tile = tileNamed(root, 'Alder plank');
+
+		expect(tile.find('.rp-al-tile__category-icon').exists()).toBe(false);
+		expect(tile.get('.rp-al-mark').classes()).toContain('rp-al-mark--measured');
+	});
+
 	it('selects into the same inspector a row does, marked by aria-current', async () => {
 		const root = await mountLibrary();
 		await showGrid(root);

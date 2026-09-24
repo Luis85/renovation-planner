@@ -254,6 +254,18 @@
 }
 
 /*
+ * AD18-R21's category placeholder, drawn instead of the mark when the asset has none: the same
+ * 4rem box (`--icon-size`, which `.rp-host-icon` reads) and `align-self: center`, since
+ * `align-items: stretch` above would otherwise stretch this child too. Muted, because it names a
+ * CATEGORY rather than the asset's own shape.
+ */
+.rp-al-tiles .rp-al-tile .rp-al-tile__category-icon {
+	--icon-size: 4rem;
+	align-self: center;
+	color: var(--text-muted);
+}
+
+/*
  * Up to TWO lines, then an ellipsis. The tile inherits Obsidian's `button { white-space: nowrap }`,
  * and at 460px three names in the harness fixture ran 2 to 10px past a 134px tile (measured at
  * 521bf09b2). So `white-space` is released here, a word longer than the tile may break

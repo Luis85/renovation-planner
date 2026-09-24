@@ -11,6 +11,12 @@
 
 	The visible size is `aria-hidden` because the description already says it, with its state word
 	in front, and a screen reader would otherwise hear the figures twice.
+
+	AD18-R21: an outline of `kind === 'none'` draws no mark at all (§3.4's own empty box), so this
+	draws the asset's CATEGORY icon there instead — muted, at the mark's own box, and `aria-hidden`
+	(HostIcon's own root carries that already) — through `categoryIcons.ts`'s `categoryIcon`, the
+	SAME lookup the category sidebar reads, never a second table. Every other outline kind,
+	`null` (not yet read) included, still draws the mark exactly as before.
 -->
 <script setup lang="ts">
 import { computed, useId } from 'vue';
@@ -18,7 +24,9 @@ import type { CatalogueEntryDto } from '../../application/queries/ListCatalogueE
 import type { AssetOutline } from '../../application/queries/ListAssetOutlines';
 import type { AssetId } from '../../domain/asset/AssetId';
 import AssetMark from './AssetMark.vue';
+import HostIcon from '../components/HostIcon.vue';
 import { sizeText, spokenMark } from './markWords';
+import { categoryIcon } from './categoryIcons';
 
 const props = defineProps<{
 	entry: CatalogueEntryDto;
@@ -46,7 +54,15 @@ const descriptionId = computed((): string => `${baseId}-mark-${String(props.ordi
 			:aria-describedby="descriptionId"
 			@click="emit('select', entry.assetId)"
 		>
-			<AssetMark :outline="outline" />
+			<AssetMark
+				v-if="outline?.kind !== 'none'"
+				:outline="outline"
+			/>
+			<HostIcon
+				v-else
+				:name="categoryIcon(entry.category)"
+				class="rp-al-tile__category-icon"
+			/>
 			<span class="rp-al-tile__name">{{ entry.name }}</span>
 			<span
 				class="rp-al-tile__size"

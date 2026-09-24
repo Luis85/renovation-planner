@@ -327,3 +327,22 @@ describe('the legend below the designer’s narrow width', () => {
 		expect(declared(rules, '.renovation-asset-designer .rp-designer-legend', 'display', narrow())).toEqual(parsed('display', 'none'));
 	});
 });
+
+/**
+ * AD18-R21 Task 7, fix round 1: the integrator's Chromium capture found the selected part's five
+ * icon buttons overflowing horizontally at a 580px leaf — `nowrap` (this row's first answer) had
+ * turned a rail too narrow for five 24px buttons into a 12px sideways scroll inside `.rp-designer-parts`
+ * rather than a second line. `wrap` only reflows a row that does not already fit — the 1280/760/460
+ * measurements stayed one line under it — so it is the fix rather than a weaker constraint. jsdom
+ * lays out nothing, so what this file can pin is the declared properties the layout rests on, not
+ * the reflow itself; the integrator's capture is that check.
+ */
+describe('the selected part’s action row wraps rather than scrolling', () => {
+	it('lets the row wrap, with each button still floored at 24×24px', () => {
+		const rules = partial('designer-parts.css');
+
+		expect(declared(rules, '.rp-designer-part-actions', 'flex-wrap')).toEqual(parsed('flex-wrap', 'wrap'));
+		expect(declared(rules, '.rp-designer-parts .rp-designer-part-action', 'min-width')).toEqual(parsed('min-width', '24px'));
+		expect(declared(rules, '.rp-designer-parts .rp-designer-part-action', 'min-height')).toEqual(parsed('min-height', '24px'));
+	});
+});

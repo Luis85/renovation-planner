@@ -127,13 +127,18 @@
 }
 
 /*
- * AD18-R21 Task 7: one row of icon-only buttons, never wrapping — `nowrap` rather than relying on
- * the buttons being narrow enough, so a future icon or a wider fixture cannot quietly reflow this
- * row across lines again the way the five TEXT buttons it replaces did.
+ * AD18-R21 Task 7: one row of icon-only buttons, ONE ROW WHEREVER IT FITS. `nowrap` was this
+ * partial's first answer and was wrong — the integrator's fix-round-1 capture measured the Parts
+ * rail at 128px at a 580px leaf (`designer-toolbar.css`'s `@container` rule narrows it to
+ * `min(11rem, 22cqi)` there), five 24px buttons cannot fit the ~104px content box that leaves, and
+ * `nowrap` turned the shortfall into a 12px horizontal SCROLL inside the rail rather than a second
+ * line. `wrap` is the fix: at 1280 (176px rail), 760 (167px) and 460 (full width) the row already
+ * fits and stays on one line — `flex-wrap` only reflows a row that does not fit, never one that
+ * does — and at 580 it drops to two lines instead of scrolling.
  */
 .rp-designer-part-actions {
 	display: flex;
-	flex-wrap: nowrap;
+	flex-wrap: wrap;
 	gap: var(--size-2-1);
 }
 

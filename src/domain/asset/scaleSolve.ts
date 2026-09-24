@@ -149,7 +149,7 @@ function nearest<T>(landed: readonly Landed<T>[], last: Result<T, ValidationErro
  * shrub's detail-1 reaches this: flattened to its floor and then widened, its arcs meet.
  *
  * A refusal comes back only when nothing landed at all: `apply`'s own answer to a first factor at or below
- * zero, or a bisection that never landed. A factor that is not finite — a secant off a flat extent — ends the
+ * zero or not finite, or a bisection that never landed. A factor that is not finite — a secant off a flat extent — ends the
  * solve at its refusal, on the nearest landing.
  *
  * ponytail: at most `MAX_STEPS` calls to `apply`; the drag makes up to three solves per pointer move.

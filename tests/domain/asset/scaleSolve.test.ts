@@ -48,11 +48,17 @@ describe('solveScale', () => {
 	});
 
 	it('answers the nearest landing when the target cannot be reached', () => {
+		// A non-finite factor refused, as `resizeBox` refuses one: the secant runs off towards infinity as the extent
+		// flattens, so the solve ends on that refusal and answers the nearest finite landing, at the ceiling.
 		const solved = expectOk(
-			solveScale({ start: 100, target: 900, apply: (factor) => ok(capped(factor)), measure: (extent) => extent }),
+			solveScale({
+				start: 100,
+				target: 900,
+				apply: (factor) => (Number.isFinite(factor) ? ok(capped(factor)) : err(assetError('invalid-scale', 'Not finite.'))),
+				measure: (extent) => extent,
+			}),
 		);
 
-		// The ceiling itself, which a large enough factor reaches in floating point.
 		expect(solved).toBeGreaterThan(200 - REACH_MM);
 		expect(solved).toBeLessThanOrEqual(200);
 	});
@@ -95,17 +101,19 @@ function solveOn(extent: (factor: number) => number, target: number, refuse = (_
 }
 
 /**
- * Targets from 100 above `reach` to 700 below it in half millimetres, and every one that breaks a rule: landing
- * more than `REACH_MM` above the nearest extent `extent` can reach, or under it, or further out than the target
- * above it did give or take `slack`, or past the 24 attempts `MAX_STEPS` allows.
+ * Targets from 100 above `reach` down to half a millimetre, in half millimetres, and every one that breaks a rule:
+ * landing more than `REACH_MM` above the nearest extent `extent` can reach, or under it, or more than 1e-6 off a
+ * target that far above the reach, or further out than the target above it did give or take `slack`, or past the
+ * 24 attempts `MAX_STEPS` allows. A refusal throws out of `solveOn`.
  */
 function sweepInward(extent: (factor: number) => number, reach: number, slack: number, refuse?: (factor: number) => boolean) {
 	const broken: string[] = [];
 	let outer = Number.POSITIVE_INFINITY;
-	for (let target = reach + 100; target >= reach - 700; target -= 0.5) {
+	for (let target = reach + 100; target > 0; target -= 0.5) {
 		const { landed, tries } = solveOn(extent, target, refuse);
 		const nearest = Math.max(target, reach);
-		const far = landed < nearest - 1e-6 || landed > nearest + REACH_MM;
+		const exact = target >= reach + REACH_MM ? 1e-6 : REACH_MM;
+		const far = landed < nearest - 1e-6 || landed > nearest + exact;
 		if (far || landed > outer + slack || tries.length > 24) broken.push(`${target} lands ${landed} in ${tries.length}`);
 		outer = landed;
 	}
@@ -120,7 +128,8 @@ describe('solveScale at the reach limit (AD18-R23 Task 11)', () => {
 	});
 
 	it('lands the smallest factor validation accepts when it refuses those near zero', () => {
-		// Refused below a quarter, as an outline whose kept arcs meet would be: nothing under 2400 is reachable. The
+		// Refused below a quarter, as an outline whose kept arcs meet would be: nothing under 2400 is reachable. Under
+		// 750 the FIRST factor is refused too, and bisects up from itself rather than coming back as a refusal. The
 		// bisection stops within the floor factor of the boundary, so a landing is monotone to within REACH_MM here.
 		expect(sweepInward(stadium, 2400, REACH_MM, (factor) => factor < 0.25)).toEqual([]);
 	});

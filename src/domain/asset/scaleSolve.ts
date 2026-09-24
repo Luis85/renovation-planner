@@ -12,8 +12,10 @@ const TOLERANCE_MM = 1e-6;
 const REACH_MM = 0.01;
 /**
  * Attempts at most. A reachable shrink takes the first guess, the floor and a secant (three, exact when the extent
- * is linear in the factor); a curved one converges a few steps later. The cap is for the bisection a degenerate
- * outline needs, `log2(target / REACH_MM)` steps: nineteen for a 3 m target.
+ * is linear in the factor); a curved one converges a few steps later. The cap is for the bisection a refused factor
+ * starts, about `log2(start / REACH_MM)` steps, and that is not only a user's degenerate outline: a corner drag's
+ * third pass starts from the width pass 1 left at its floor, and the oval table's clearance, with 0.0027 mm of
+ * straight run left, meets its own arcs at that pass's floor — twenty attempts in one solve, measured.
  */
 const MAX_STEPS = 24;
 
@@ -39,9 +41,10 @@ interface Bracket {
 }
 
 /**
- * The next factor to try, positive whenever every factor measured so far is. Without a factor measured short of the target, the floor, then
- * a bisection upward from a refused floor; with both sides, the secant while it stays inside them and the midpoint
- * when it does not; with only the short side, the secant while it grows and a doubling when it does not.
+ * The next factor to try, positive whenever every factor measured so far is. Without a factor measured short of
+ * the target, the floor, then a bisection upward from a refused factor; with both sides, the secant while it
+ * stays inside them and the midpoint when it does not; with only the short side, the secant while it grows and
+ * a doubling when it does not.
  */
 function nextFactor({ lo, hi, below, floor }: Bracket, secant: number): number {
 	// `hi` is there: with no `lo`, the start or a landing measured past the target.
@@ -74,10 +77,19 @@ function outOfReach({ lo, hi, below, floor }: Bracket): boolean {
  * the answer — within `REACH_MM` of the nearest reachable extent (for a part that widens as `REACH_MM`
  * states), and the same landing for every target short of it, so the landed extent does not move outward
  * as the target moves in, beyond the `TOLERANCE_MM` each reachable landing may sit either side of its own
- * target. If validation refuses that factor (a degenerate outline), the solve bisects upward to the
- * smallest factor it accepts, to within the floor, so there both nearness and that ordering hold to within
- * `REACH_MM`. A refusal comes back only when nothing landed at all, which is `apply`'s own answer to the
- * first factor; a later refusal ends the solve on the nearest landing.
+ * target. A target between the infimum and that landing is reachable and lands it too, so "out of reach"
+ * above means out of reach or within `REACH_MM` of it.
+ *
+ * If validation refuses a factor on the way down — the floor, or the first guess itself — the solve bisects
+ * upward, towards the unscaled outline, which is valid, until the smallest factor it accepts is within the
+ * floor. The landing then depends on where the bisection started, so nearness and ordering hold to within
+ * the extent the part moves across one floor factor: at most `REACH_MM`, and about 1e-8 mm on the oval
+ * table's clearance `MAX_STEPS` names (0.0027 mm of run across a floor factor of 4.5e-6, computed rather than
+ * measured).
+ *
+ * A refusal comes back only when nothing landed at all: `apply`'s own answer to a first factor at or below
+ * zero or above one, or a bisection that never landed. A refusal once a factor short of the target is known
+ * (the start, or a landing) ends the solve on the nearest landing.
  *
  * ponytail: at most `MAX_STEPS` calls to `apply`; the drag makes up to three solves per pointer move.
  */
@@ -87,7 +99,7 @@ export function solveScale<T>(attempt: ScaleAttempt<T>): Result<T, ValidationErr
 	const unscaled = { factor: 1, extent: start };
 	let bracket: Bracket = {
 		lo: start < target ? unscaled : undefined,
-		hi: start > target ? unscaled : undefined,
+		hi: start >= target ? unscaled : undefined,
 		below: 0,
 		floor: REACH_MM / start,
 	};
@@ -104,7 +116,7 @@ export function solveScale<T>(attempt: ScaleAttempt<T>): Result<T, ValidationErr
 			bracket = extent < target ? { ...bracket, lo: probe } : { ...bracket, hi: probe };
 			secant = factor + ((target - extent) * (factor - previous.factor)) / (extent - previous.extent);
 			previous = probe;
-		} else if (step === 1 || bracket.lo !== undefined) break;
+		} else if (bracket.lo !== undefined || !(factor > 0)) break;
 		else bracket = { ...bracket, below: factor };
 		if (step === MAX_STEPS || outOfReach(bracket)) break;
 		factor = nextFactor(bracket, secant);

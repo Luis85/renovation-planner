@@ -40,7 +40,8 @@ describe('Set dimensions past a curved footprint\'s reach', () => {
 			const landed = size(expectOk(scaleDesignToDimensions(shape, typed.width, typed.depth)))[axis];
 			const nearest = Math.max(target, floor);
 			expect(landed, `target ${target}`).toBeGreaterThanOrEqual(nearest - slack - 1e-6);
-			expect(landed, `target ${target}`).toBeLessThanOrEqual(nearest + REACH_MM);
+			// A size the footprint reaches with room to spare lands within TOLERANCE_MM of it, not merely REACH_MM.
+			expect(landed, `target ${target}`).toBeLessThanOrEqual(nearest + (target >= floor + REACH_MM ? 1e-6 : REACH_MM));
 			expect(landed, `target ${target}`).toBeLessThanOrEqual(outer + 2e-6);
 			outer = landed;
 		}

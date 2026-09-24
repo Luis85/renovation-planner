@@ -70,7 +70,10 @@ function held(moves: boolean, fixed: number, min: number, centre: number, extent
  * A refusal comes back as it is; `keptCurves` turns it into the plain scale.
  *
  * ponytail: up to three `solveScale` runs of at most 24 attempts each, so 72 `resizeBox` calls per pointer move at
- * worst (24 for a side handle); a preset part took at most seven per run, measured. Bounded, and cheap beside a render.
+ * most (24 for a side handle). Measured over every preset part's side and corner drags, the most is 20 in one run
+ * and 23 in one move, on the oval table's clearance: a corner drag's third pass starts from the width its first
+ * left at the floor and bisects (`scaleSolve.ts`'s `MAX_STEPS`). That move took 0.67 ms in node, against the
+ * 16.7 ms of a 60 Hz frame; `selectionDragReachCost.test.ts` holds the 23.
  */
 function fittedResize(
 	shape: AssetShape,
@@ -142,7 +145,8 @@ function keptCurves(shape: AssetShape, part: OutlinePart, box: BoundingBox, inde
  * used to commit. A solve can be refused where the plain scale is not because its passes go through shapes the
  * plain scale never makes — a width pass leaves the depth unscaled — and one whose kept arcs meet is refused by
  * the domain. A handle dragged past the fixed side is refused by that same plain scale, as `invalid-scale`,
- * exactly as before.
+ * exactly as before. A handle just short of it is not a refusal: `solveScale` answers a first factor validation
+ * refuses with the smallest one it accepts, since the plain scale there would move the side the drag holds.
  */
 export function draggedShape(start: DragStart, to: Point, options: DragOptions): Result<AssetShape, ValidationError> {
 	const { shape, selection, role, from } = start;

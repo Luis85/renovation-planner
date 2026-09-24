@@ -36,6 +36,14 @@ const PARTS = [
 ] as const;
 const [OVAL] = PARTS;
 
+/** Pointer x from `from` down to just above `to`, `step` millimetres apart. */
+function inward(from: number, to: number, step = 0.5): number[] {
+	return Array.from({ length: Math.ceil((from - to) / step) }, (_, index) => from - index * step).filter((x) => x > to);
+}
+
+/** The last millimetre before a fixed side at `side`, where the first factor itself can be refused (review I1). */
+const nearSide = (side: number): number[] => [1, 0.1, 0.01, 0.001].map((gap) => side + gap);
+
 const box = (shape: AssetShape, part: OutlinePart): PartBox => expectDefined(partMeasure(shape, part), 'part');
 
 /** Where the right edge and the left side land when the right-middle handle (3) is dragged from `handle` to `x`. */
@@ -58,16 +66,40 @@ describe('a right-side drag past a curved part\'s reach', () => {
 
 	it.each(PARTS)('lands the $name nearest the pointer and never further out as it moves in', (subject) => {
 		let outer = Number.POSITIVE_INFINITY;
-		// Short of the fixed side: a pointer past it is refused as a mirror, as it always was.
-		for (let x = subject.limit + 40; x > Math.max(subject.limit - 400, subject.left); x -= 0.5) {
+		// Short of the fixed side, and into the last hundredth of a millimetre before it: a pointer past it is refused
+		// as a mirror, as it always was.
+		for (const x of [...inward(subject.limit + 40, Math.max(subject.limit - 400, subject.left)), ...nearSide(subject.left)]) {
 			const landed = dragRight(subject, x);
 			const nearest = Math.max(x, subject.limit);
 			expect(landed.right, `pointer ${x}`).toBeGreaterThanOrEqual(nearest - 1e-6);
-			expect(landed.right, `pointer ${x}`).toBeLessThanOrEqual(nearest + REACH_MM);
+			// A pointer the part reaches with room to spare lands within TOLERANCE_MM of it, not merely REACH_MM.
+			expect(landed.right, `pointer ${x}`).toBeLessThanOrEqual(nearest + (x >= subject.limit + REACH_MM ? 1e-6 : REACH_MM));
 			// A reachable edge sits within TOLERANCE_MM (1e-6) of its own pointer, so neighbours may cross by twice that.
 			expect(landed.right, `pointer ${x}`).toBeLessThanOrEqual(outer + 2e-6);
 			expect(landed.left, `pointer ${x}`).toBeCloseTo(subject.left, 6);
 			outer = landed.right;
+		}
+	});
+
+	it('holds the opposite corner from a corner drag on the oval clearance, to the last hundredth before it', () => {
+		// Handle 4, the bottom-right corner, along the bottom edge. The third pass (width again) starts from the width
+		// the first left at its floor, and its own floor factor makes the arcs meet (`asset.invalid-clearance`), so it
+		// bisects upward — and within 0.01 mm of the left side its FIRST factor is refused as well. Before fix round 1
+		// that refusal fell back to the plain scale: pointer -1499.99 threw the left side from -1500 to -2600.
+		const from = { x: 1500, y: 1100 };
+		let outer = Number.POSITIVE_INFINITY;
+		// Five millimetres apart: three solves a move, the third a bisection, is the costliest drag there is.
+		for (const x of [...inward(740, -1499, 5), ...nearSide(OVAL.left)]) {
+			const landed = box(expectOk(draggedShape({ shape: OVAL.shape, selection: CLEARANCE, role: { kind: 'box', index: 4 }, from }, { x, y: from.y }, FREE)), CLEARANCE);
+			const [left, right] = [landed.centre.x - landed.width / 2, landed.centre.x + landed.width / 2];
+			const nearest = Math.max(x, OVAL.limit);
+			expect(left, `pointer ${x}`).toBeCloseTo(OVAL.left, 6);
+			expect(landed.centre.y - landed.depth / 2, `pointer ${x}`).toBeCloseTo(-1100, 6);
+			expect(landed.depth, `pointer ${x}`).toBeCloseTo(2200, 6);
+			expect(right, `pointer ${x}`).toBeGreaterThanOrEqual(nearest - 1e-6);
+			expect(right, `pointer ${x}`).toBeLessThanOrEqual(nearest + (x >= OVAL.limit + REACH_MM ? 1e-6 : REACH_MM));
+			expect(right, `pointer ${x}`).toBeLessThanOrEqual(outer + 2e-6);
+			outer = right;
 		}
 	});
 });

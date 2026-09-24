@@ -106,19 +106,26 @@ describe('a box-handle drag of a graphic with arcs', () => {
 		expect(resized.centre.y - resized.depth / 2).toBeCloseTo(-99, MM);
 	});
 
-	it('falls back to the plain scale where the solve is refused, across a neighbourhood rather than at one bit', () => {
+	it('lands the nearest width the arcs allow where they would meet, rather than falling back, across a neighbourhood', () => {
 		// Found by a seeded search over 400 x 300 quads with bulges in steps of 0.05: its bottom-right handle dragged
-		// to (-133, -150) asks 67 x 190. The solve's width pass keeps the full depth, and at that width the kept
-		// arcs meet, so the domain refuses it (a typed Width 67 is refused too) — while the plain scale of both axes
-		// at once is a valid shape. Every drag within 5 mm of that point behaves the same.
+		// to (-133, -150) asks 67 x 190. At the full depth the kept arcs meet below about 202.5 wide, so a typed
+		// Width 67 used to be REFUSED and this drag fell back to the plain scale. Since AD18-R23 Task 11 fix round 1
+		// `solveScale` answers a refused first factor with the smallest one validation accepts, so the typed Width
+		// lands that 202.5 and the drag solves: the opposite corner held, the width on the pointer. Its depth lands
+		// wherever the third pass's coupling leaves it, which is `scaleDesignToDimensions`' ceiling too.
 		const quad = { points: rect(400, 300).points, bulges: [0.95, -0.4, 1, -0.95] };
 		const shape = expectOk(validateAssetShape({ ...BASIN_SHAPE, details: [...BASIN_SHAPE.details.slice(0, 2), { id: 'detail-3', name: 'quad', line: 'solid', pending: false, outline: quad }] }));
 		const corner = unwrap(boundingBoxOf(quad)).max;
-		expect(expectErr(resizeToExtent(shape, BASIN, 'width', 67)).code).toBe('asset.invalid-detail');
+		const typed = box(expectOk(resizeToExtent(shape, BASIN, 'width', 67)), BASIN);
+		expect(typed.width).toBeGreaterThan(202.4);
+		expect(typed.width).toBeLessThan(202.52);
 		for (const dx of [-5, 0, 5]) {
 			for (const dy of [-5, 0, 5]) {
 				const to = { x: -133 + dx, y: -150 + dy };
-				expect(expectOk(dragHandle(shape, BASIN, 4, corner, to))).toEqual(scaledAsToday(shape, BASIN, 4, to));
+				const resized = box(expectOk(dragHandle(shape, BASIN, 4, corner, to)), BASIN);
+				expect(minX(resized)).toBeCloseTo(-200, MM);
+				expect(resized.centre.y - resized.depth / 2).toBeCloseTo(-340, MM);
+				expect(resized.centre.x + resized.width / 2).toBeCloseTo(to.x, MM);
 			}
 		}
 	});

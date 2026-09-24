@@ -5,6 +5,7 @@ import { rect } from '../../../../src/domain/asset/presets/presetGeometry';
 import { facingTip } from '../../../../src/presentation/designer/layers/anchorLayer';
 import type { DesignerSelection, SelectionMode } from '../../../../src/presentation/designer/selection/designerSelection';
 import { hitDesign, type DesignerHit } from '../../../../src/presentation/designer/selection/hitTest';
+import { selectionHandles } from '../../../../src/presentation/designer/selection/handles';
 import { editableShape, openGraphic, shapeWithOpenGraphic, toiletShape } from '../../../helpers/assetShapes';
 import { validateAssetShape } from '../../../../src/domain/asset/AssetShape';
 import { expectOk } from '../../../helpers/domain';
@@ -131,6 +132,28 @@ describe('a hidden graphic', () => {
 		const band = { x: 300, y: 0 };
 		expect(hitDesign(TOILET, band, { selection: null, mode: 'transform', worldPerPixel: 1, clearanceHidden: true })).toBeNull();
 		expect(hitDesign(TOILET, { x: 150, y: 0 }, { selection: null, mode: 'transform', worldPerPixel: 1, clearanceHidden: true })).toEqual(part(FOOTPRINT));
+	});
+
+	/**
+	 * AD18-R20: a SELECTED clearance keeps its selection while hidden, and its handles went on being
+	 * hit — `nearestHandle` ran before the hidden check, so a drag where a handle would be resized a
+	 * boundary nobody could see. Every handle is swept, and each is first proven hit while shown, so
+	 * the hidden half cannot pass by reaching points that were never handles.
+	 */
+	it('hits no handle of a selected clearance while Show clearance is off (AD18-R20)', () => {
+		const handles = selectionHandles(TOILET, CLEARANCE, 'transform', 1);
+		expect(handles.length).toBeGreaterThan(0);
+		for (const { at } of handles) {
+			expect(hitDesign(TOILET, at, { selection: CLEARANCE, mode: 'transform', worldPerPixel: 1 })?.kind).toBe('handle');
+			expect(hitDesign(TOILET, at, { selection: CLEARANCE, mode: 'transform', worldPerPixel: 1, clearanceHidden: true })?.kind).not.toBe('handle');
+		}
+	});
+
+	it('still hits another selected part’s handle while Show clearance is off', () => {
+		expect(hitDesign(TOILET, { x: 190, y: 352 }, { selection: FOOTPRINT, mode: 'transform', worldPerPixel: 1, clearanceHidden: true })).toEqual({
+			kind: 'handle',
+			role: { kind: 'box', index: 4 },
+		});
 	});
 
 	it('lets the press fall through to the footprint beneath it once it is hidden', () => {

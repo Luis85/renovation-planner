@@ -22,7 +22,10 @@ import { rect } from '../../../src/domain/asset/presets/presetGeometry';
 import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
 import { editableShape } from '../../helpers/assetShapes';
-import { click, designerRig, selecting, type DesignerRig } from '../../helpers/designerRig';
+import { click, designerRig, drag, selecting, type DesignerRig } from '../../helpers/designerRig';
+import { selectionHandles } from '../../../src/presentation/designer/selection/handles';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { STAGE_PIXELS, worldPerScreenPixel } from '../../../src/presentation/editor/viewport/Viewport';
 import { rightClick } from '../../helpers/designerRightClick';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import type { Point } from '../../../src/core/geometry/Point';
@@ -173,6 +176,14 @@ async function hiding(): Promise<DesignerRig> {
 
 const selection = (rig: DesignerRig) => useAssetDesignStore(rig.pinia).selection;
 const legendKinds = (rig: DesignerRig) => rig.wrapper.findAll('.rp-designer-legend__swatch').map((swatch) => swatch.classes().find((name) => name.startsWith('rp-designer-legend__swatch--')));
+const partRow = (rig: DesignerRig, name: string) => rig.wrapper.element.querySelector(`.rp-designer-part-row[name="${name}"]`) as HTMLButtonElement;
+// Read as `isVisible()`, which asks every ancestor too: a hidden LAYER still holds its nodes for `find`.
+const drawnCount = (rig: DesignerRig, name: string) => rig.stage.find(name).filter((node) => node.isVisible()).length;
+const selectionDrawn = (rig: DesignerRig) => ({
+	outline: drawnCount(rig, '.asset-selection-outline') > 0,
+	handles: drawnCount(rig, '.asset-selection-handle'),
+	stem: drawnCount(rig, '.asset-rotate-stem') > 0,
+});
 
 /**
  * AD18-R17 review: "off" means off everywhere on the canvas, not just in the pixels. A press on the
@@ -260,14 +271,57 @@ describe('with Show clearance off', () => {
 		}
 	});
 
-	it('still selects it from its Parts row, which draws the selection outline over the hidden layer', async () => {
+	/**
+	 * AD18-R20: the Parts row still selects it, and the selection is KEPT — the row stays pressed — but
+	 * nothing of it is drawn: no outline, no handles, no rotate arrow, until the switch is on again.
+	 * This case pinned the OPPOSITE before AD18-R20: an outline drawn over the hidden layer.
+	 */
+	it('still selects it from its Parts row, drawing none of the selection until it is shown again', async () => {
 		const rig = await hiding();
 		try {
-			(rig.wrapper.element.querySelector('.rp-designer-part-row[name="clearance"]') as HTMLButtonElement).click();
+			partRow(rig, 'clearance').click();
 			await settle();
 			expect(selection(rig)).toEqual({ kind: 'clearance' });
+			expect(partRow(rig, 'clearance').getAttribute('aria-pressed')).toBe('true');
 			expect(rig.stage.findOne('.asset-clearance')?.visible()).toBe(false);
-			expect(rig.stage.findOne('.asset-selection-outline')).toBeDefined();
+			expect(selectionDrawn(rig)).toEqual({ outline: false, handles: 0, stem: false });
+
+			await rig.wrapper.get('[name="show-clearance"]').setValue(true);
+			await settle();
+			expect(selection(rig)).toEqual({ kind: 'clearance' });
+			expect(selectionDrawn(rig)).toMatchObject({ outline: true, stem: true });
+			expect(selectionDrawn(rig).handles).toBeGreaterThan(0);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	it('takes no drag on where a handle of the selected clearance would be', async () => {
+		const rig = await hiding();
+		try {
+			partRow(rig, 'clearance').click();
+			await settle();
+			const before = (await rig.document()).shape?.clearance;
+			const store = useAssetDesignStore(rig.pinia);
+			const worldPerPixel = worldPerScreenPixel(useEditorStore(rig.pinia).viewport, STAGE_PIXELS);
+			// The corner handle furthest toward +x +y: nothing else of `editableShape()` lies under it.
+			const handles = selectionHandles(editableShape(), store.selection, store.mode, worldPerPixel);
+			const corner = handles.reduce((best, each) => (each.at.x + each.at.y > best.at.x + best.at.y ? each : best)).at;
+			drag(rig, corner, { x: corner.x + 200, y: corner.y + 200 });
+			await settle();
+			expect((await rig.document()).shape?.clearance).toEqual(before);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	it('leaves another selected part’s handles drawn', async () => {
+		const rig = await hiding();
+		try {
+			partRow(rig, 'footprint').click();
+			await settle();
+			expect(selectionDrawn(rig)).toMatchObject({ outline: true });
+			expect(selectionDrawn(rig).handles).toBeGreaterThan(0);
 		} finally {
 			rig.unmount();
 		}

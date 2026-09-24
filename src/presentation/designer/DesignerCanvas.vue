@@ -154,9 +154,13 @@ const footprintEdgeLine = computed(() => footprintEdge(shape.value, tokens.value
  * is a control that does nothing. What stays is what SHOWS the selection — an outline's accent restroke,
  * and the anchor's or the facing's ring, which is that selection's only mark (follow-up A1). With nothing
  * selected `selectionMarks` draws nothing, so that case needs no arm here.
+ *
+ * A clearance selected while `Show clearance` is off draws NOTHING (AD18-R20): the selection is kept, so
+ * switching it back on redraws its marks, and `hitDesign` hits none of the handles this hides.
  */
 const marks = computed(() => {
-	const drawn = selectionMarks(shape.value, selection.value, mode.value, tokens.value, worldPerPixel.value);
+	const owner = !showClearance.value && selection.value?.kind === 'clearance' ? null : selection.value;
+	const drawn = selectionMarks(shape.value, owner, mode.value, tokens.value, worldPerPixel.value);
 	return activeToolId.value === 'select' || !isOutlineSelection(selection.value) ? drawn : { outline: drawn.outline, handles: [], rotate: null };
 });
 const clearance = computed(() => clearanceOutline(shape.value, tokens.value, worldPerPixel.value));

@@ -264,15 +264,20 @@ describe('RoomSummaryList', () => {
  * switched them off with every gate green, because nothing asked whether a real toggle still
  * matched. `element.matches` over each rule's own selector is that question. The selectors come
  * from jsdom's own CSSOM of the sheet, because `selectors.ts`'s `show` is a DISPLAY form (it
- * spells a child combinator as the word `child`, which `matches` reads as a `<child>` type selector). jsdom matches no
- * `:hover` or `:focus-within`, so this reads the RESTING state, which is the one the quiet lock
- * is about. Whether it LOOKS right is the integrator's Chromium to answer.
+ * spells a child combinator as the word `child`, which `matches` reads as a `<child>` type
+ * selector). These cases hover nothing and move focus into nothing, so the `:hover` /
+ * `:focus-within` reveal matches neither toggle and what they read is the RESTING state, which is
+ * the one the quiet lock is about. Whether it LOOKS right is the integrator's Chromium to answer.
  */
+
+/** What these cases appended to the document — the parsed `<style>` and the Layers ancestors — and nothing else. */
+const appended: Element[] = [];
 const flatRules = (list: CSSRuleList): CSSRule[] => [...list].flatMap((rule) => ['cssRules' in rule ? flatRules((rule as CSSGroupingRule).cssRules) : [], [rule]].flat());
 
 /** The assembled sheet's rules naming the toggle, parsed by jsdom into a `<style>` the case's `afterEach` removes. */
 function lockRules(): CSSStyleRule[] {
 	const style = document.head.appendChild(document.createElement('style'));
+	appended.push(style);
 	style.textContent = assembleStyles();
 	return flatRules(style.sheet?.cssRules ?? ([] as unknown as CSSRuleList))
 		.filter((rule): rule is CSSStyleRule => 'selectorText' in rule && (rule as CSSStyleRule).selectorText.includes('.rp-editor-inspector-lock'));
@@ -286,10 +291,11 @@ const declared = (rules: readonly CSSStyleRule[], element: Element, property: st
 
 describe('the stylesheet rules keyed on the lock state', () => {
 	const attached: { unmount: () => void }[] = [];
-	afterEach(() => { for (const wrapper of attached.splice(0)) wrapper.unmount(); document.head.replaceChildren(); document.body.replaceChildren(); });
+	afterEach(() => { for (const wrapper of attached.splice(0)) wrapper.unmount(); for (const element of appended.splice(0)) element.remove(); });
 
 	async function layersToggles(): Promise<{ unlocked: Element; locked: Element }> {
 		const editor = document.body.appendChild(document.createElement('div'));
+		appended.push(editor);
 		editor.className = 'renovation-plan-editor';
 		const layers = editor.appendChild(document.createElement('div'));
 		layers.className = 'rp-editor-layers';

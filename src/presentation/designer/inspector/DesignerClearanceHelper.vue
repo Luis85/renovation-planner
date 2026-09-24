@@ -39,10 +39,12 @@
  *
  * **That switch-on is one of three gesture doors** — Generate here, arming `trace-clearance` and
  * applying a preset that carries one — beside the runtime's READ-BACK, which re-shows a clearance
- * whenever a read takes the design from none to one (a redo, an undo of a removal, a peer's write).
- * The doors exist for what the read-back cannot see, a REPLACEMENT: a hidden clearance swapped for a
- * new one by any of the three gestures is re-shown by that gesture's door, but one swapped by an
- * undo, a redo or a peer stays hidden, since no door reaches it. The other two doors and the read-back live in `runtime.ts`;
+ * whenever a read-back changes the design's clearance GEOMETRY (points and bulges, compared by
+ * value), including but not limited to a birth (no clearance before): a redo, an undo of a removal
+ * OR of a replacement, a peer's write, all reach it now (AD18-R23). The doors exist for what the
+ * read-back cannot see, a replacement at the SAME geometry: a hidden clearance re-drawn BY HAND at
+ * the identical points reads back as no change at all, so the three gesture doors are what re-show
+ * it there instead. The other two doors and the read-back live in `runtime.ts`;
  * `DesignerRuntime.showClearance` says which cases each covers.
  */
 import { computed, reactive, ref } from 'vue';

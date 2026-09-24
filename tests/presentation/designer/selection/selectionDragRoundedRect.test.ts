@@ -9,6 +9,7 @@ import { cornerRadiusOf } from '../../../../src/domain/asset/cornerRadius';
 import { roundedRect } from '../../../../src/domain/asset/presets/presetGeometry';
 import { outlineOf, resizeBox, type OutlinePart } from '../../../../src/domain/asset/shapeEdits';
 import type { DesignerSelection } from '../../../../src/presentation/designer/selection/designerSelection';
+import { partMeasure } from '../../../../src/presentation/designer/selection/partExtent';
 import { draggedShape, type DragOptions } from '../../../../src/presentation/designer/selection/selectionDrag';
 import { ROUNDED_RECT, shapeWithRoundedRect } from '../../../helpers/assetShapes';
 import { selectToolRig } from '../../../helpers/designerSelection';
@@ -61,9 +62,10 @@ describe('a box-handle drag of a rounded rectangle', () => {
 		expect(cornerRadiusOf(detail)).toBe(99);
 	});
 
-	it('scales as before once no whole-millimetre radius fits the new box', () => {
-		const to = { x: -478, y: -268 };
-		expect(expectOk(dragHandle(4, BR, to))).toEqual(scaledAsToday(SHAPE, ROUNDED, 4, to));
+	it('solves the box as any curved graphic once no whole-millimetre radius fits it, refusing what the typed path refuses (Task 13)', () => {
+		// 2 x 2: typed Width 2 lands its nearest, 62.3; typed Depth 2 then lands 2 with the width at 0.42; and a
+		// typed Width 2 on THAT crosses the kept arcs — the third pass `scaleDesignToDimensions` also takes.
+		expect(expectErr(dragHandle(4, BR, { x: -478, y: -268 })).code).toBe('asset.invalid-detail');
 	});
 
 	it('still refuses a handle dragged past the fixed side', () => {
@@ -76,19 +78,23 @@ describe('a box-handle drag of a rounded rectangle', () => {
 		expect(cornerRadiusOf(detail)).toBeCloseTo(75, 9);
 	});
 
-	it('scales one rotated off the axes as before, since a typed edit does not keep its radius either', () => {
+	it('solves one rotated off the axes as any curved graphic, since a typed edit does not keep its radius either', () => {
 		const turned = rotate(ROUNDED_RECT, Math.PI / 6, { x: 20, y: 30 });
 		const shape = shapeWithRoundedRect(turned);
 		const box = unwrap(boundingBoxOf(turned));
-		const to = { x: box.max.x - 100, y: box.max.y - 50 };
-		expect(expectOk(dragHandle(4, box.max, to, FREE, shape))).toEqual(scaledAsToday(shape, ROUNDED, 4, to));
+		const resized = expectDefined(partMeasure(expectOk(dragHandle(4, box.max, { x: box.max.x - 100, y: box.max.y - 50 }, FREE, shape)), ROUNDED), 'part');
+		// Width is the LAST of the three passes, so it lands to 1e-6; depth lands as near as the typed two-axis
+		// path's does, which is about 0.3 here, with the top-left corner held.
+		expect(resized.width).toBeCloseTo(box.max.x - 100 - box.min.x, 6);
+		expect(resized.centre.x - resized.width / 2).toBeCloseTo(box.min.x, 6);
+		expect(resized.depth).toBeCloseTo(box.max.y - 50 - box.min.y, 0);
+		expect(resized.centre.y - resized.depth / 2).toBeCloseTo(box.min.y, 6);
 	});
 });
 
-describe('a box-handle drag of anything else', () => {
+describe('a box-handle drag of anything straight', () => {
 	it.each([
 		['a plain rectangle', { kind: 'detail', id: 'detail-1' }, { min: { x: -400, y: -100 }, max: { x: 0, y: 100 } }],
-		['a circle', { kind: 'detail', id: 'detail-2' }, { min: { x: 150, y: -100 }, max: { x: 350, y: 100 } }],
 		['the footprint', { kind: 'footprint' }, { min: { x: -500, y: -300 }, max: { x: 500, y: 300 } }],
 	] as const)('scales %s as before', (_label, selection, box) => {
 		const to = { x: box.max.x - 50, y: box.max.y + 30 };

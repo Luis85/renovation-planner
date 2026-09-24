@@ -279,7 +279,7 @@
  * is not a column of open padlocks. A locked room's always shows. `opacity` rather than
  * `visibility`, so the button stays in the tab order and `:focus-within` can reveal it.
  */
-.renovation-plan-editor .rp-editor-layers .rp-room-list__item > .rp-editor-inspector-lock[aria-pressed='false'] {
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item > .rp-editor-inspector-lock[data-rp-locked='false'] {
 	opacity: 0;
 }
 

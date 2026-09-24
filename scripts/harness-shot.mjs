@@ -476,8 +476,8 @@ const SHOTS = [
 	// read, so a broken knob would still exit 0 with a picture of the resting editor under this
 	// shot's name. `DETAIL_ANCESTRY_CRUMB` (see its own comment) is the third selector that
 	// closes that gap: it exists only once the hierarchy read has landed. The locked shots wait
-	// on a pressed lock toggle in the floor Inspector, which only renders once the knob has
-	// locked a zone.
+	// on a lock toggle drawing the CLOSED padlock in the floor Inspector, which only renders once
+	// the knob has locked a zone.
 	{ name: 'plan-editor-detail', query: '?view=plan-editor&detail&theme=light', selector: '.rp-floor-inspector__guide' },
 	{ name: 'plan-editor-detail-dark', query: '?view=plan-editor&detail', selector: '.rp-floor-inspector__guide' },
 	{

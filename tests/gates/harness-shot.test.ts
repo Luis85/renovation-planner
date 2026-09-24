@@ -794,7 +794,7 @@ describe('the headless harness capture script', () => {
 	 * `lucide-lock-open` does not match).
 	 */
 	it('takes the detail-plan and locked-zone shots through their own knobs, waiting on what only a landed knob produces', () => {
-		const lockPressed = '.rp-floor-inspector .rp-editor-inspector-lock .lucide-lock';
+		const closedPadlock = '.rp-floor-inspector .rp-editor-inspector-lock .lucide-lock';
 
 		expect(shot('plan-editor-detail')).toEqual({ query: '?view=plan-editor&detail&theme=light', selector: '.rp-floor-inspector__guide' });
 		expect(shot('plan-editor-detail-dark')).toEqual({ query: '?view=plan-editor&detail', selector: '.rp-floor-inspector__guide' });
@@ -804,8 +804,8 @@ describe('the headless harness capture script', () => {
 			width: 460,
 		});
 		expect(namesIn('plan-editor-detail-narrow-de', 'selector')).toEqual(['PLAN_CANVAS', 'DETAIL_ANCESTRY_CRUMB']);
-		expect(shot('plan-editor-locked')).toEqual({ query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: lockPressed });
-		expect(shot('plan-editor-locked-dark')).toEqual({ query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: lockPressed });
+		expect(shot('plan-editor-locked')).toEqual({ query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: closedPadlock });
+		expect(shot('plan-editor-locked-dark')).toEqual({ query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: closedPadlock });
 	});
 
 	/**

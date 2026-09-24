@@ -82,7 +82,7 @@ function resting(shape: AssetShape, selection: DesignerSelection | null, stage: 
 	const raw = figures.map((figure) => worldToScreen(figure.at, camera, STAGE_PIXELS));
 	const anchors = figures.map((figure, index) => {
 		const point = raw[index];
-		return { at: figure.outside ? outsideAnchor(figure.axis, point, figure.value) : point, value: figure.value };
+		return { at: figure.outside ? outsideAnchor(figure.axis, point, figure.value) : point, value: figure.value, outside: figure.outside };
 	});
 	return {
 		raw,
@@ -306,5 +306,40 @@ describe('a resting label and the selected part’s handles', () => {
 
 		expect(covering(anchors, values, handles)).toContain(covered);
 		expect(covering(placed, values, handles)).toEqual([]);
+	});
+});
+
+/**
+ * **The OVERALL pair keeps its outside line with a part selected** (AD18-R17, board 01; fix round 1
+ * of AD18-R21). Measured in Chromium on a2f313e32 at a 1280 leaf with the basin selected: the
+ * `126 mm` offset stepped off the basin's rotate handle into the top slot, and the `800 mm` width,
+ * placed after it, yielded and was pushed INSIDE the footprint, its line through the tap hole. A
+ * detail label yields to the overall pair, never the other way round.
+ *
+ * A handle can still move an overall label, and never INTO the outline: at 580 and 460 the width's
+ * outside anchor sits on the basin's rotate handle, so at 460 it slides sideways along its own row
+ * (the ruler is directly above it) and at 580 it steps one row further out. At 1280 and 760 no
+ * handle is in the way and the pair is exactly where `outsideAnchor` stood it.
+ */
+describe('the overall pair with a part selected', () => {
+	it.each([
+		['1280', 880, 650, 'unmoved'],
+		['760', 380, 650, 'unmoved'],
+		['580', 290, 620, 'one row out'],
+		['460', 458, 330, 'along its row'],
+	] as const)('keeps the overall pair outside the footprint at a %s leaf', (_leaf, stageWidth, stageHeight, how) => {
+		const { names, raw, anchors, placed } = resting(preset('vanity'), { kind: 'detail', id: 'detail-2' }, { width: stageWidth, height: stageHeight });
+		const [across, down] = [names.indexOf('overall-width'), names.indexOf('overall-depth')];
+		const top = expectDefined(raw[across], 'the top edge').y;
+		const wanted = expectDefined(anchors[across], 'the width’s outside anchor');
+		const label = expectDefined(placed[across], 'the width');
+		const expected = { 'unmoved': wanted, 'one row out': screenPoint(wanted.x, wanted.y - 30), 'along its row': screenPoint(label.x, wanted.y) }[how];
+
+		// The width's whole box above the top edge — outside, where the canvas had room at all four.
+		expect(label.y + 15).toBeLessThanOrEqual(top);
+		expect(label).toEqual(expected);
+		expect(label.x === wanted.x).toBe(how !== 'along its row');
+		// The depth exactly where `outsideAnchor` stood it: outside where there was room, on the edge at 760.
+		expect(placed[down]).toEqual(anchors[down]);
 	});
 });

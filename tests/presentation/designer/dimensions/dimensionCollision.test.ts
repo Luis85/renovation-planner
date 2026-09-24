@@ -399,8 +399,9 @@ describe('what the mounted overlay draws once the rule has run', () => {
 	 * footprint draws 100 px across, under AD18-R21's 240, and the part's own figures do not rest.
 	 * Opened, it is about 503 px. The part's width and depth anchor on the middles of its top and
 	 * left edges, which is where two of its Transform box handles are, so both move — the width one
-	 * row inward, the depth one of its widths left. Three more are off their anchors too: the left
-	 * and top offsets and `overall-depth`, pinned below. The residual this
+	 * row inward, the depth down a row and right. The overall pair is placed FIRST since fix round 1
+	 * of AD18-R21, so it stands where `outsideAnchor` put it and the part's labels yield to it; the
+	 * left and top offsets are off their anchors too, pinned below. The residual this
 	 * case used to pin (`overall-depth` with no free slot) was a fact about the zoomed-out camera,
 	 * which no longer rests these labels at all.
 	 */
@@ -413,13 +414,13 @@ describe('what the mounted overlay draws once the rule has run', () => {
 			const labels = drawn(rig).map(([name, left, top]) => [name, tenth(left), tenth(top)] as const);
 			expect(labels).toEqual([
 				['detail-detail-1-width', 299.4, 179.1],
-				['detail-detail-1-depth', 141.7, 199.4],
+				['detail-detail-1-depth', 256.1, 229.4],
 				['detail-detail-1-offset-left', 145.1, 229.4],
 				['detail-detail-1-offset-right', 525.7, 199.4],
 				['detail-detail-1-offset-top', 299.4, 68.9],
 				['detail-detail-1-offset-bottom', 299.4, 300],
 				['overall-width', 400, 33.6],
-				['overall-depth', 112.6, 169.4],
+				['overall-depth', 112.6, 199.4],
 			]);
 			const values = [400, 200, 100, 500, 200, 200, 1000, 600];
 			const touching = labels.flatMap(([name, x, y], index) => labels.slice(index + 1)

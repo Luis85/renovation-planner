@@ -175,7 +175,7 @@ const figures = computed((): readonly PlacedFigure[] => {
 	// The overall pair asks to stand OUTSIDE the footprint first, where the canvas has room (board 01).
 	const anchors = drawing.map((figure) => {
 		const at = screen(figure.at);
-		return { at: figure.outside ? outsideAnchor(figure.axis, at, figure.value) : at, value: figure.value };
+		return { at: figure.outside ? outsideAnchor(figure.axis, at, figure.value) : at, value: figure.value, outside: figure.outside };
 	});
 	const points = all ? spreadLabels(anchors, editor.stageSize) : separateLabels(anchors, editor.stageSize, handlePoints(drawn, worldPerPixel, screen));
 	return drawing.map((figure, index) => {

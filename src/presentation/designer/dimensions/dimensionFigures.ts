@@ -479,6 +479,8 @@ interface LabelBox {
 export interface LabelAnchor {
 	readonly at: ScreenPoint;
 	readonly value: number;
+	/** An OVERALL figure standing outside the footprint, which `separateLabels` places first; `spreadLabels` ignores it. */
+	readonly outside?: boolean;
 }
 
 /** Whether `later` would sit on `earlier`'s row, near enough along it to cover the reading. */
@@ -638,6 +640,11 @@ export function spreadLabels(labels: readonly LabelAnchor[], stage: StageSize): 
  * anchor lies there is still drawn there — the camera put its edge there, not the rule.
  */
 const RULER_PX = 18;
+/**
+ * Floating-point slack in the room tests, so a fit camera's 48 px margin is not read as 47.999 —
+ * `outsideAnchor`'s, and `separateLabels`' ruler edges since fix round 1 of AD18-R21.
+ */
+const ROOM_SLACK_PX = 0.5;
 
 /**
  * How far a RESTING label may be moved to clear another: up to five whole label heights up or
@@ -742,25 +749,50 @@ const distance = (one: ScreenPoint, other: ScreenPoint): number => Math.hypot(on
  * on its anchor, over the handle, as it stays over a label — measured over Transform handles at the
  * fit camera, `restingLabels.test.ts`'s sweep leaves no label on a handle in any frame it draws.
  *
+ * **The OVERALL pair is placed FIRST, so a part's labels yield to it and never the reverse** (fix
+ * round 1 of AD18-R21). Measured in Chromium on the first version of the handle rule, at a 1280 leaf
+ * with the vanity's basin selected: the `126 mm` offset stepped off the basin's rotate handle into
+ * the free slot above it, and the `800 mm` width, placed after it as `dimensionFigures` orders them,
+ * yielded and was pushed INSIDE the footprint, its line through the tap hole. That broke AD18-R17's
+ * *"outside the footprint wherever the canvas has room"*, and there was room. Placed first, the pair
+ * moves only for a handle, and its nearest free slot keeps it outside the outline: at 460 the width's
+ * outside anchor sits on the basin's rotate handle and slides sideways along its own row, and at 580
+ * it steps one row further out.
+ * The answer keeps the input's order; only the order of PLACING changes.
+ *
+ * **The rotate handle stays an obstacle, for every label** — including the `126 mm` top offset,
+ * whose own vertical line runs up the handle's stem. A label on it takes the press, and a rotate
+ * handle nobody can grab is the defect this rule exists for; the offset slides one of its widths
+ * sideways instead, which carries its line with it on extension lines, as any moved offset does.
+ *
  * `spreadLabels` stays the rule for `All dimensions`, whose floor is a different one: 26 labels
  * cannot all be kept apart at the camera the designer opens with, and AD18-R14 asks only that none
  * is impossible to click. It is handed no handles.
  */
 export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize, handles: readonly ScreenPoint[] = []): ScreenPoint[] {
 	const placed: LabelBox[] = [];
-	const inside = (box: LabelBox): boolean => box.at.x - box.width / 2 >= RULER_PX && box.at.x + box.width / 2 <= stage.width
-		&& box.at.y - LABEL_HEIGHT_PX / 2 >= RULER_PX && box.at.y + LABEL_HEIGHT_PX / 2 <= stage.height;
-	for (const label of labels) {
+	const drawn: ScreenPoint[] = labels.map((label) => label.at);
+	// `ROOM_SLACK_PX` on the ruler edges for `outsideAnchor`'s reason: at the fit camera an overall
+	// width stands exactly on the ruler's edge, computed as 17.99999, and a slide along its own row
+	// was refused as over the ruler without it.
+	const inside = (box: LabelBox): boolean => box.at.x - box.width / 2 >= RULER_PX - ROOM_SLACK_PX && box.at.x + box.width / 2 <= stage.width
+		&& box.at.y - LABEL_HEIGHT_PX / 2 >= RULER_PX - ROOM_SLACK_PX && box.at.y + LABEL_HEIGHT_PX / 2 <= stage.height;
+	// The outside pair first; `toSorted` is stable, so each group keeps `dimensionFigures`' order.
+	const order = labels.map((_, index) => index).toSorted((one, other) => Number(labels[other].outside === true) - Number(labels[one].outside === true));
+	for (const index of order) {
+		const label = labels[index];
 		const width = labelWidth(label.value);
 		const own: LabelBox = { at: label.at, width };
 		const inward = label.at.y < stage.height / 2 ? LABEL_HEIGHT_PX : -LABEL_HEIGHT_PX;
-		const slots = Array.from({ length: 2 * RESTING_ROWS + 1 }, (_, index) => (index % 2 === 0 ? -index / 2 : (index + 1) / 2))
+		const slots = Array.from({ length: 2 * RESTING_ROWS + 1 }, (_, step) => (step % 2 === 0 ? -step / 2 : (step + 1) / 2))
 			.flatMap((row) => RESTING_SHIFTS.map((shift): LabelBox => ({ at: screenPoint(label.at.x + shift * width, label.at.y + row * inward), width })))
 			.toSorted((one, other) => distance(one.at, label.at) - distance(other.at, label.at));
 		const free = (box: LabelBox): boolean => !placed.some((other) => overlaps(box, other)) && !handles.some((handle) => onHandle(box, handle));
-		placed.push(free(own) ? own : slots.find((box) => inside(box) && free(box)) ?? own);
+		const chosen = free(own) ? own : slots.find((box) => inside(box) && free(box)) ?? own;
+		placed.push(chosen);
+		drawn[index] = chosen.at;
 	}
-	return placed.map((box) => box.at);
+	return drawn;
 }
 
 /**
@@ -774,8 +806,6 @@ export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize,
  */
 const WIDTH_OUTSET_PX = 15;
 const DEPTH_OUTSET_PX = 36;
-/** Floating-point slack in the room test, so a fit camera's 48 px margin is not read as 47.999. */
-const ROOM_SLACK_PX = 0.5;
 
 /**
  * Where an OVERALL label stands (AD18-R17, board 01): its line moved OUTSIDE the footprint — up for

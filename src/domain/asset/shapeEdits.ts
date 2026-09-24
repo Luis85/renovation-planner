@@ -321,9 +321,9 @@ interface Sized {
 
 /**
  * Maps `dimensionsOf`'s own overflow guard onto a design edit's refusal shape. Called both on the
- * shape a caller hands in AND, inside `scaleDesignToDimensions`'s loop, on every candidate a secant
- * step produces — `solveScale` clamps a factor only away from non-positive, never away from large,
- * so an internally-computed factor can stretch a footprint past what a double can represent, the
+ * shape a caller hands in AND, inside `scaleDesignToDimensions`'s loop, on every candidate the solve
+ * tries — `solveScale` hands `apply` no non-positive factor after the first but caps no large one, so
+ * a secant or a doubling can stretch a footprint past what a double can represent, the
  * same `-1e308`-to-`1e308` overflow `AssetShape.dimensionsOf` already refuses as `dimensions-overflow`.
  * Refused here rather than solved against, since `Infinity` is not a measurement a secant can use.
  */
@@ -352,7 +352,9 @@ function sized(shape: AssetShape): Result<Sized, ValidationError> {
  * check. A straight-sided design lands both axes exactly on the first pass and the later ones change
  * nothing.
  *
- * Its ceiling is `solveScale`'s: an unreachable extent lands near the typed value rather than on it.
+ * Its ceiling is `solveScale`'s: an extent the kept bulges cannot reach lands within its `REACH_MM`
+ * (0.01 mm) of the nearest one they can, not on the typed value — 1 x 1000 typed on the round table
+ * lands 207.1 wide, measured — as `scaleDesignReach.test.ts` holds for six curved preset footprints.
  */
 export function scaleDesignToDimensions(shape: AssetShape, width: number, depth: number): Result<AssetShape, ValidationError> {
 	const start = sized(shape);

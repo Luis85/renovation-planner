@@ -1,2 +1,90 @@
 /* AD18 polish round, Task 6 (reports/AD18-polish-round-plan.md): the designer canvas focus ring, styled selects,
    focus rings on selects and checkboxes, and 24 px checkbox rows. Every rule is scoped to the designer. */
+
+/*
+ * THE CANVAS FOCUS RING. `.rp-plan-canvas` (`EditorSurface.vue`, `tabindex="0"`) is SHARED between
+ * the Plan Editor and this designer — `DesignerCanvas.vue` wraps the same component rather than
+ * copying it — so a rule on the bare class would ring both. Obsidian's global `:focus { outline:
+ * none }` (`tests/harness/obsidian.css`) already takes the outline and nothing puts one back, which
+ * is why the integrator measured no indicator at all when tabbing onto the canvas. Scoped under
+ * `.renovation-asset-designer` so the Plan Editor's own canvas is untouched; that surface's ring,
+ * if it turns out to need one, is a claim for whoever owns `styles/editor.css`.
+ *
+ * `outline-offset: -2px` draws the ring INSET, inside the canvas's own box, rather than outward
+ * where `.rp-plan-canvas`'s own `overflow: hidden` or the leaf around it could clip it — the same
+ * reason `editor-context-menu.css`'s menu-button ring is inset.
+ */
+.renovation-asset-designer .rp-plan-canvas:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+/*
+ * THE DESIGNER'S SELECTS. Obsidian only styles a `<select>` once it carries the `.dropdown` class
+ * (the vendored `tests/harness/obsidian.css` has no unqualified `select` rule at all), and this
+ * card adds no class to a `.vue` file — every designer select is reached through the root instead,
+ * so a future one needs no class added to read as one of the designer's own fields. The integrator
+ * measured the unstyled result as the browser default: a 1px black border, 19px tall.
+ *
+ * The six declarations are the SAME host variables the vendored sheet gives `input[type='text']`
+ * and its siblings (`textarea, input.metadata-input-text, input[type='text'], …` in
+ * `tests/harness/obsidian.css`), so a select reads like the designer's own text and number fields
+ * rather than like a different control that happens to sit beside them.
+ */
+.renovation-asset-designer select {
+	height: var(--input-height);
+	padding: var(--input-padding);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background: var(--background-modifier-form-field);
+	border: var(--input-border-width) solid var(--background-modifier-border);
+	border-radius: var(--input-radius);
+}
+
+/*
+ * The ring, restored for the reason every other flattened-then-styled control here carries one —
+ * `asset-library-inspector.css`'s `.rp-al-fields__input`/`.rp-al-fields__select` is the precedent
+ * this borrows the shape from, `outline-offset: 1px` included, over the OUTSIDE of the select's own
+ * border rather than inset: unlike the canvas, a select is not clipped by an ancestor's overflow.
+ */
+.renovation-asset-designer select:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/*
+ * THE TWO DESIGNER CHECKBOXES OBSIDIAN'S OWN THEME LEAVES WITH NO RING: `designer-parts.css`'s
+ * `Select multiple parts` and `designer-clearance.css`'s `Show clearance`. Obsidian themes the
+ * checkbox's own box (`--checkbox-*`, vendored sheet) — which is why neither partial draws a second
+ * appearance rule for it — but nothing restores what the global `:focus { outline: none }` removed
+ * from the box's own indicator.
+ *
+ * The brief that opened this card also named the View menu's four toggles as unringed; verified
+ * against the source rather than taken on the brief's word, that one is already false —
+ * `.rp-view-menu__content input:focus-visible` (`editor-view.css`, shared unscoped with the Plan
+ * Editor) already rings every checkbox in that menu, in both surfaces, so it is not repeated here.
+ */
+.renovation-asset-designer .rp-designer-parts .rp-designer-multi-select input:focus-visible,
+.renovation-asset-designer .rp-designer-clearance-toggle input:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/*
+ * THE 24PX CHECKBOX ROWS. The three label rows the brief names sit at 19px today. The box itself is
+ * untouched — this is `min-height` on the ROW, and each row is already `display: flex; align-items:
+ * center` (`designer-parts.css`, `designer-clearance.css`, `editor-view.css`), so the 13px box stays
+ * centred in the taller row rather than growing with it.
+ *
+ * The View menu's four toggle rows share `.rp-view-menu__content label` with the Plan Editor's own
+ * menu (`editor-view.css`, not owned by this card), so this reaches them through the designer root
+ * rather than editing that shared, unscoped selector — the Plan Editor's own rows are untouched.
+ * The one other label under that selector, the reference-opacity slider row, gets the same floor
+ * too: harmless, since nothing asked for it to stay under 24px and a range input already measures
+ * taller than that.
+ */
+.renovation-asset-designer .rp-designer-parts .rp-designer-multi-select,
+.renovation-asset-designer .rp-designer-clearance-toggle,
+.renovation-asset-designer .rp-view-menu__content label {
+	min-height: var(--size-4-6);
+}

@@ -165,6 +165,26 @@
 }
 
 /*
+ * Task 6 (AD18-R20/R21): EVERY Add-rail tile the same height — the tallest — rather than the two
+ * heights the integrator measured: 73px for row 1 (the two-line "Rounded rectangle" tile) and 58px
+ * for row 2. `align-items: stretch` above (the rule's own default, unset) only equalises tiles that
+ * share a ROW; it cannot reach across rows, which are sized independently by the grid. A
+ * `min-height` floor pinned to the tallest measured tile does: a shorter row's tiles grow to meet
+ * it, so every tile in the rail ends up 73px rather than each row keeping its own content height.
+ *
+ * Applies to the Add rail's own tiles only, not the selector list above shared with
+ * `.rp-designer-placement-modes .rp-designer-selection-button` — that three-column row already
+ * stretches evenly within itself and is not this card's claim, and `designerStyles.test.ts`'s own
+ * "reuses the Add rail's tile layout" case pins the shared block's declared values against each
+ * other, which a `min-height` added there would leave unaffected but is simplest to just not touch.
+ * 73px is a PREDICTION: jsdom lays out nothing, so this is only checked in the assembled sheet by
+ * the test beside this file; the integrator's harness capture is what confirms or corrects it.
+ */
+.rp-designer-add button.rp-designer-tool-button {
+	min-height: 73px;
+}
+
+/*
  * AD18 second parity round, task 1: the integrator's browser measurement found `Custom` — one
  * word, with no space for `designer-selection.css`'s `overflow-wrap: anywhere` (on the label
  * span, that file's own rule) to prefer over a mid-word break — splitting `Custo` / `m` inside a

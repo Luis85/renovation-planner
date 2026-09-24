@@ -5,6 +5,7 @@ import { boundingBoxOf } from '../../../core/geometry/operations';
 import type { ValidationError } from '../../../core/errors/AppError';
 import { err, isErr, ok, unwrap, type Result } from '../../../core/result/Result';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
+import { scaleRoundedRect } from '../../../domain/asset/cornerRadius';
 import {
 	moveAnchor,
 	moveOutline,
@@ -49,6 +50,12 @@ function boxOf(shape: AssetShape, part: OutlinePart): Result<BoundingBox, Valida
  *
  * The anchor and the facing have no handles, so their drags ignore `role`: the anchor moves by the
  * pointer's travel, and the facing takes the pointer's bearing from the anchor.
+ *
+ * **A box handle keeps a rounded rectangle one** (AD18-R21): `scaleRoundedRect` rebuilds it in the new box
+ * with its radius kept or clamped, by the rule a typed Width or Depth takes, and answers `null` for every
+ * other part — which then scales as before, as does a rounded rectangle turned off the axes, since the
+ * typed path does not keep that one's radius either. Shift is left out: a proportional scale keeps the
+ * outline a rounded rectangle already, with the radius scaled by the same factor, as it always has.
  */
 export function draggedShape(start: DragStart, to: Point, options: DragOptions): Result<AssetShape, ValidationError> {
 	const { shape, selection, role, from } = start;
@@ -65,7 +72,8 @@ export function draggedShape(start: DragStart, to: Point, options: DragOptions):
 	if (isErr(box)) return box;
 	if (role.kind === 'box') {
 		const { factors, origin } = boxResize(box.value, role.index, to, options.shift);
-		return resizeBox(shape, selection, factors, origin);
+		const rounded = selection.kind === 'detail' && !options.shift ? scaleRoundedRect(shape, selection.id, factors, origin) : null;
+		return rounded ?? resizeBox(shape, selection, factors, origin);
 	}
 	const centre = { x: (box.value.min.x + box.value.max.x) / 2, y: (box.value.min.y + box.value.max.y) / 2 };
 	const by = Math.atan2(to.y - centre.y, to.x - centre.x) - Math.atan2(from.y - centre.y, from.x - centre.x);

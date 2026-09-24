@@ -97,17 +97,46 @@ function rebuilt(shape: AssetShape, detail: AssetDetail, box: RoundedBox): Resul
  * is its point box — its quarter arcs are tangent to the sides — so `target` is the curve-aware extent the
  * inspector's field and the canvas's dimension label show.
  *
- * The canvas's HANDLE resize does not come here, deliberately: it previews a non-uniform scale
- * (`resizeBox`), so committing a rebuilt rounded rectangle would disagree with its own preview, and
- * AD18-R17 covers Width/Depth edits only (recorded by the integrator as an open item).
+ * The canvas's HANDLE resize keeps the radius through the same clamp, in `scaleRoundedRect` (AD18-R21).
  */
 export function resizeRoundedRect(shape: AssetShape, id: string, axis: 'width' | 'depth', target: number): Result<AssetShape, ValidationError> | null {
+	return refitted(shape, id, (box) => (axis === 'width' ? { ...box, width: target } : { ...box, depth: target }));
+}
+
+/**
+ * A box-handle resize that keeps a rounded rectangle one (AD18-R21): the box scaled by `factors` about
+ * `origin`, exactly as `resizeBox` would scale its corners, and the radius kept or clamped by
+ * `resizeRoundedRect`'s rule — the one rule, in `refitted`, so a drag and a typed size clamp a radius alike.
+ *
+ * `null` means "not mine", as there: no such rounded rectangle, or no whole-millimetre radius fits the new
+ * box — which includes a factor of zero or below, since a non-positive side leaves no radius over 0. The
+ * caller (`draggedShape`) then scales as it always has, and `resizeBox` refuses the bad factor.
+ */
+export function scaleRoundedRect(
+	shape: AssetShape,
+	id: string,
+	factors: { readonly sx: number; readonly sy: number },
+	origin: Point,
+): Result<AssetShape, ValidationError> | null {
+	return refitted(shape, id, (box) => ({
+		width: box.width * factors.sx,
+		depth: box.depth * factors.sy,
+		centre: { x: origin.x + (box.centre.x - origin.x) * factors.sx, y: origin.y + (box.centre.y - origin.y) * factors.sy },
+	}));
+}
+
+/**
+ * The rounded rectangle `id` names, rebuilt in the box `resize` makes of its own, with the radius KEPT where
+ * the new box has room for it and clamped to `largestWholeRadius` where it has not; `null` when it is no
+ * rounded rectangle or no whole-millimetre radius fits.
+ */
+function refitted(shape: AssetShape, id: string, resize: (box: RoundedBox) => Omit<RoundedBox, 'radius'>): Result<AssetShape, ValidationError> | null {
 	const detail = shape.details.find((found) => found.id === id);
 	const box = detail === undefined ? null : roundedBoxOf(detail);
 	if (detail === undefined || box === null) return null;
-	const [width, depth] = axis === 'width' ? [target, box.depth] : [box.width, target];
+	const { width, depth, centre } = resize(box);
 	const radius = box.radius < Math.min(width, depth) / 2 ? box.radius : largestWholeRadius(width, depth);
-	return radius > 0 ? rebuilt(shape, detail, { width, depth, radius, centre: box.centre }) : null;
+	return radius > 0 ? rebuilt(shape, detail, { width, depth, radius, centre }) : null;
 }
 
 /**

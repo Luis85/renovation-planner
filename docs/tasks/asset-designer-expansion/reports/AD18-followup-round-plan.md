@@ -212,6 +212,38 @@ Requirements:
 - Tests: each chord undoes or redoes a real write (`designerRig` over the real write path), a focused Inspector
   input keeps its native Ctrl+Z, and a chord pressed mid-gesture or with a dialog open is refused. Watch each fail.
 
+## Task 11: `solveScale` lands the NEAREST reachable extent, monotonically (AD18-R23 defect, found by Task 5's review)
+
+**Runs before Task 7.** Numbered 11 because it was added after the plan was written.
+
+**Owns:** `src/domain/asset/scaleSolve.ts`, `tests/domain/asset/scaleSolve.test.ts`, the docblocks (only) of
+`src/presentation/designer/selection/selectionDrag.ts` and `src/presentation/designer/selection/partExtent.ts`, and
+new tests beside them.
+
+Task 5's reviewer measured `draggedShape` and the typed Width on the oval-table preset's clearance (a stadium whose
+width is `800·f + 2200`, so 2200 is an asymptote no positive factor reaches), left side held at -1500, handle 3
+dragged inward: pointer x 700.5 lands the right edge on 700.50; x 700 (typed Width 2200) lands **1286.67**, 587 mm
+OUTWARD of the pointer; x 699.5 lands 773.32; x 650 lands 771.67; x 0 lands 750.00; x -1400 lands 703.33. The
+round-table clearance stalls past about -600 with reversals up to 21 mm; the vanity basin (a detail) jumps 8 mm
+(pointer 90.5 lands 90.50, 90 lands 98.44). Cause (`solveScale`): a secant step to a factor at or below zero is
+HALVED toward zero, and the best of `MAX_STEPS` = 4 attempts wins, so an unreachable target lands wherever the
+fourth halving stopped. The docblock promises "the NEAREST attempt", and that sentence and
+`selectionDrag.ts`'s "reach the same NEAREST extent" are false at the limit.
+
+Requirements:
+- For a target the kept bulges cannot reach, the solve lands the NEAREST reachable extent (the infimum as the factor
+  goes to zero, within a tolerance you state and justify against the whole millimetres the inspector shows), and
+  the landed extent is MONOTONE non-decreasing in the target: moving the pointer inward never throws the side
+  outward. A reachable target still lands within `TOLERANCE_MM` as today; a straight outline still lands exactly.
+- Never a refusal where something landed, and never a mirror (a non-positive factor). If validation refuses a factor
+  close to zero (a degenerate outline), the answer is the nearest factor that validation accepts, not a jump.
+- Bounded: state the new worst-case count of `apply` calls per solve; the drag calls this on every pointer move.
+- Tests: a sweep of targets across each preset's reach limit (oval-table and round-table clearances, the vanity basin,
+  and the curved footprints `scaleDesignToDimensions` solves) asserts monotonicity and nearness; the reviewer's
+  table above is pinned. Watch them fail on today's solver.
+- Every caller keeps its contract: `scaleDesignToDimensions` (`shapeEdits.ts`), `resizeToExtent` (`partExtent.ts`)
+  and `fittedResize` (`selectionDrag.ts`). Correct the "NEAREST" sentences in all three files' docblocks.
+
 ## Task 7: Manual-pass steps for the new work, and the count re-derived
 
 **Owns:** `docs/tests/cases/*.md` and `docs/tasks/asset-designer-expansion/reports/MANUAL-PASS.md`.

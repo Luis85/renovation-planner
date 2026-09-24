@@ -1615,6 +1615,11 @@ the open ones to the user in one batched round. **Taken by the user**, every one
   Group, then the toolbar's Undo and Redo, read back correctly, while Ctrl+Z on the focused canvas did nothing).
   The Plan Editor answers Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y on its root through `editorHistoryShortcut`; C12 binds
   the designer to the Plan Editor's conventions, and the manual pass already expects Ctrl+Z there.
+- **`solveScale` does not land the nearest reachable extent at a curve's reach limit** (found by Task 5's review of the
+  curved clearance drag): a typed or dragged size just past a stadium clearance's asymptote landed up to 587 mm the
+  wrong way, and the landed size was not monotone in the pointer. Its own docblock promises the NEAREST attempt. The
+  plain scale this round replaced was continuous there, and the vanity basin has carried an 8 mm version since the
+  polish round's Task 13.
 
 **Recorded as already fine, so nobody reopens them:**
 - **Arrow keys on a hidden selected part are claimed and do nothing.** `keyDoors.ts` takes an arrow's

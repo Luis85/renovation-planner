@@ -5,7 +5,7 @@ This is BP-05 Action 1's deliverable (`01-improvement-plan.md` §BP-05). It reco
 exist at that revision. **It runs nothing.** A Tested cell says a test exists and what it asserts.
 It does not say the test passed on any candidate.
 
-**Amended 2026-09-24 (session 20), from tests added at `54f85d2a1`:** §3's and §4.9's Undo/redo cells for Asset placement, Stair, Arrow, Post, Beam, Dimension and Section, §5's "Modifier change mid-gesture" row and §6's gaps list. Every other cell is still as assembled at `71d5bca43`.
+**Amended 2026-09-24 (session 20), from tests added at `54f85d2a1`:** §3's and §4.9's Undo/redo cells for Asset placement, Stair, Arrow, Post, Beam, Dimension and Section, §5's "Modifier change mid-gesture" row and §6's gaps list. Then, from tests added at `215992fe7`, the Undo/redo cells in §3, §4.9 and §6 for View, Hatch, Text, Boundary and Grid. Every other cell is still as assembled at `71d5bca43`.
 
 ## 1. Method
 
@@ -84,15 +84,15 @@ State per cell: **T** Tested, **I** Implemented, untested, **U** Unsupported, **
 | Beam | T | T | I | T | I | I | T | I | T | I |
 | Dimension | T | T | I | T | I | I | I | I | T | I |
 | Section | T | T | I | I | I | I | I | I | T | I |
-| View | T | T | I | I | I | I | I | I | I | I |
-| Hatch | T | T | I | I | I | I | I | I | I | I |
-| Text | T | T | I | I | U | I | I | I | I | I |
-| Boundary | T | T | I | I | I | I | I | I | I | I |
-| Grid | T | T | I | I | U | I | I | I | I | I |
+| View | T | T | I | I | I | I | I | I | T | I |
+| Hatch | T | T | I | I | I | I | I | I | T | I |
+| Text | T | T | I | I | U | I | I | I | T | I |
+| Boundary | T | T | I | I | I | I | I | I | T | I |
+| Grid | T | T | I | I | U | I | I | I | T | I |
 | Group | T | T | T | T | T | T | T | T | T | I |
-| **Tested** | 21 | 19 | 3 | 15 | 10 | 5 | 12 | 8 | 16 | 3 |
+| **Tested** | 21 | 19 | 3 | 15 | 10 | 5 | 12 | 8 | 21 | 3 |
 
-Totals over 210 cells: **112 Tested, 93 Implemented-untested, 5 Unsupported, 0 Unknown.**
+Totals over 210 cells: **117 Tested, 88 Implemented-untested, 5 Unsupported, 0 Unknown.**
 
 ## 4. Evidence, one table per column
 
@@ -323,11 +323,11 @@ Totals over 210 cells: **112 Tested, 93 Implemented-untested, 5 Unsupported, 0 U
 | Beam | Tested | `tests/presentation/editor/structuralInspector.test.ts` › "summarises a beam, switches load-bearing through undoable history, and edits its width" — Undo returns a switched-off load-bearing flag to true; Redo (`runtime.redo()`) brings back the store's element deep-equal to the switched beam |
 | Dimension | Tested | `tests/presentation/editor/draftingInspector.test.ts` › "edits a dimension chain's offset and keeps its points" — Undo returns the offset to -600; Redo (`runtime.redo()`) brings back the store's element deep-equal to the edited chain (offset -800, same points) |
 | Section | Tested | `tests/presentation/editor/draftingInspector.test.ts` › "flips a section line from its Inspector through undoable history" — Undo reverts a flip; Redo (`runtime.redo()`) brings back the store's element deep-equal to the flipped section line |
-| View | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Missing: Undo and Redo of a view marker operation. |
-| Hatch | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Missing: Undo and Redo of a hatch operation. |
-| Text | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Missing: Undo and Redo of a text mark operation. |
-| Boundary | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Missing: Undo and Redo of a boundary operation. |
-| Grid | Implemented, untested | `CommandHistory` (`src/presentation/editor/tools/command-history.ts`) over the element `RenovationCommand`. Missing: Undo and Redo of a grid point operation. |
+| View | Tested | `tests/presentation/editor/draftingCreation.test.ts` › "saves a view marker on its second point as A-01" — after the view marker is saved, one Undo (`runtime.undo()`) leaves the store's elements and element metadata (an absent list read as empty) deep-equal to what they were before the save; Redo (`runtime.redo()`) brings both back deep-equal to what the save left |
+| Hatch | Tested | `tests/presentation/editor/draftingCreation.test.ts` › "saves a hatched area and a boundary line on Finish, and refuses a hatch outline that crosses itself" — after the hatch is saved, one Undo (`runtime.undo()`) leaves the store's elements and element metadata (an absent list read as empty) deep-equal to what they were before the save; Redo (`runtime.redo()`) brings both back deep-equal to what the save left |
+| Text | Tested | `tests/presentation/editor/draftingCreation.test.ts` › "places a text point without saving, moves it on a further point, and saves it once it has words" — after the text is saved, one Undo (`runtime.undo()`) leaves the store's elements and element metadata (an absent list read as empty) deep-equal to what they were before the save; Redo (`runtime.redo()`) brings both back deep-equal to what the save left |
+| Boundary | Tested | `tests/presentation/editor/draftingCreation.test.ts` › "saves a hatched area and a boundary line on Finish, and refuses a hatch outline that crosses itself" — after the boundary line is saved beside the hatch, one Undo (`runtime.undo()`) leaves the store's elements and element metadata (an absent list read as empty) deep-equal to what they were before the save; Redo (`runtime.redo()`) brings both back deep-equal to what the save left |
+| Grid | Tested | `tests/presentation/editor/draftingMenu.test.ts` › "offers every drafting tool from the empty canvas with a known icon, and starts the chosen one at the menu's point" — after context menu › Drafting › Grid saves a grid point, one Undo (`runtime.undo()`) leaves the store's elements and element metadata (an absent list read as empty) deep-equal to what they were before the save; Redo (`runtime.redo()`) brings both back deep-equal to what the save left |
 | Group | Tested | `tests/presentation/editor/groupEditing.test.ts` › "encloses a Room in one saved group and restores both walls and membership on undo/redo" — Undo leaves no group and no walls; Redo restores both |
 
 ### 4.10 Non-drag route
@@ -440,7 +440,6 @@ One line per cell. A list of what is empty, not a plan to fill it.
 | View | Duplicate/copy | Implemented, untested |
 | View | Delete | Implemented, untested |
 | View | Cancel | Implemented, untested |
-| View | Undo/redo | Implemented, untested |
 | View | Non-drag route | Implemented, untested |
 | Hatch | Move | Implemented, untested |
 | Hatch | Precise edit | Implemented, untested |
@@ -448,7 +447,6 @@ One line per cell. A list of what is empty, not a plan to fill it.
 | Hatch | Duplicate/copy | Implemented, untested |
 | Hatch | Delete | Implemented, untested |
 | Hatch | Cancel | Implemented, untested |
-| Hatch | Undo/redo | Implemented, untested |
 | Hatch | Non-drag route | Implemented, untested |
 | Text | Move | Implemented, untested |
 | Text | Precise edit | Implemented, untested |
@@ -456,7 +454,6 @@ One line per cell. A list of what is empty, not a plan to fill it.
 | Text | Duplicate/copy | Implemented, untested |
 | Text | Delete | Implemented, untested |
 | Text | Cancel | Implemented, untested |
-| Text | Undo/redo | Implemented, untested |
 | Text | Non-drag route | Implemented, untested |
 | Boundary | Move | Implemented, untested |
 | Boundary | Precise edit | Implemented, untested |
@@ -464,7 +461,6 @@ One line per cell. A list of what is empty, not a plan to fill it.
 | Boundary | Duplicate/copy | Implemented, untested |
 | Boundary | Delete | Implemented, untested |
 | Boundary | Cancel | Implemented, untested |
-| Boundary | Undo/redo | Implemented, untested |
 | Boundary | Non-drag route | Implemented, untested |
 | Grid | Move | Implemented, untested |
 | Grid | Precise edit | Implemented, untested |
@@ -472,7 +468,6 @@ One line per cell. A list of what is empty, not a plan to fill it.
 | Grid | Duplicate/copy | Implemented, untested |
 | Grid | Delete | Implemented, untested |
 | Grid | Cancel | Implemented, untested |
-| Grid | Undo/redo | Implemented, untested |
 | Grid | Non-drag route | Implemented, untested |
 | Group | Non-drag route | Implemented, untested |
 

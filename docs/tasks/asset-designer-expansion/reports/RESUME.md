@@ -106,10 +106,12 @@ Every task was pushed and read **by run id**. No red this session. The Windows l
 `tests/gates/network-boundary.test.ts` (a 5000 ms timeout) remains a known flake: `gh run rerun <id> --failed`.
 
 **The headless browser changed mid-session.** Another session updated the shared `node_modules` to
-playwright-core 1.62.1, which pins Chromium build 1234; only build 1223 is installed under
-`D:\dev-cache\playwright`. Captures after that point used `RP_CHROMIUM_EXECUTABLE=D:/dev-cache/playwright/chromium-1223/chrome-win64/chrome.exe`,
-which the script announces as approximate. `npx playwright install chromium` would fetch the pinned build;
-it is a download, so ask the user first.
+playwright-core 1.62.1, which pins Chromium build 1234. Captures between that update and the end of the
+session used the installed build 1223 through `RP_CHROMIUM_EXECUTABLE`, which the script announces as
+approximate. **At the user's request the pinned build was then installed** (`chromium-1234` under
+`D:dev-cacheplaywright`, verified: `scripts/chromium.mjs` resolves it with no override and it launches
+as 151.0.7922.34), so captures need no override now. The optional headless shell download stopped at a
+stale `__dirlock` left by another process; the repository's captures do not use it.
 
 7.8 GB RAM, **shared**. The designer suite ran up to five times slower under load this session, and a
 worker-start timeout once turned a fully green run into exit 1. Re-run the named file alone before

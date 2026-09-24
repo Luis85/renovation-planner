@@ -14,16 +14,29 @@
  * just told the panel they are working on — one press away from any other.
  */
 import { computed } from 'vue';
+import type { IconName } from 'obsidian';
 import type { AssetDetail } from '../../../domain/asset/AssetDetail';
 import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
+import HostIcon from '../../components/HostIcon.vue';
 import type { PartView } from './partView';
 
-/** One control: its `name`, its words, whether it has anything to do, and what it does. */
+/**
+ * One control: its `name`, its words, its glyph, whether it has anything to do, and what it does.
+ *
+ * AD18-R21 Task 7: icon-only now, through `HostIcon`, following `ZoneLockToggle.vue`'s own
+ * convention — the glyph draws the CURRENT state (open eye while visible, closed padlock while
+ * locked), never the action a press would take, and `label` (still the action, unchanged) is what
+ * `aria-label` carries as the accessible name. `pressed` is set only for the two controls that
+ * hold a state to report; Isolate replaces the hidden set outright rather than toggling one, and
+ * the two reorder actions are one-shot, so neither takes `aria-pressed` at all.
+ */
 interface RowAction {
 	readonly name: string;
 	readonly label: StringKey;
+	readonly icon: IconName;
 	readonly disabled: boolean;
+	readonly pressed?: boolean;
 	readonly run: () => void;
 }
 
@@ -42,13 +55,13 @@ const locked = computed(() => props.view.locked.value.has(props.detail.id));
 const actions = computed((): readonly RowAction[] => {
 	const { id } = props.detail;
 	return [
-		{ name: 'toggle-hidden', label: hidden.value ? 'designer.parts.show' : 'designer.parts.hide', disabled: false, run: () => props.view.toggleHidden(id) },
-		{ name: 'toggle-locked', label: locked.value ? 'designer.parts.unlock' : 'designer.parts.lock', disabled: false, run: () => props.view.toggleLocked(id) },
-		{ name: 'isolate', label: 'designer.parts.isolate', disabled: false, run: () => props.view.isolate(id, props.graphicIds) },
+		{ name: 'toggle-hidden', label: hidden.value ? 'designer.parts.show' : 'designer.parts.hide', icon: hidden.value ? 'eye-off' : 'eye', pressed: hidden.value, disabled: false, run: () => props.view.toggleHidden(id) },
+		{ name: 'toggle-locked', label: locked.value ? 'designer.parts.unlock' : 'designer.parts.lock', icon: locked.value ? 'lock' : 'lock-open', pressed: locked.value, disabled: false, run: () => props.view.toggleLocked(id) },
+		{ name: 'isolate', label: 'designer.parts.isolate', icon: 'focus', disabled: false, run: () => props.view.isolate(id, props.graphicIds) },
 		// The LAST id draws on top, so Bring forward has nothing to do there and Send backward has
 		// nothing to do at the first — `reorderDetail`'s own directions, read off the same array.
-		{ name: 'bring-forward', label: 'designer.selection.bring-forward', disabled: props.graphicIds.at(-1) === id, run: () => props.reorder(id, 'forward') },
-		{ name: 'send-backward', label: 'designer.selection.send-backward', disabled: props.graphicIds[0] === id, run: () => props.reorder(id, 'backward') },
+		{ name: 'bring-forward', label: 'designer.selection.bring-forward', icon: 'arrow-up', disabled: props.graphicIds.at(-1) === id, run: () => props.reorder(id, 'forward') },
+		{ name: 'send-backward', label: 'designer.selection.send-backward', icon: 'arrow-down', disabled: props.graphicIds[0] === id, run: () => props.reorder(id, 'backward') },
 	];
 });
 
@@ -86,10 +99,12 @@ function onRename(event: Event): void {
 				type="button"
 				class="rp-designer-part-action"
 				:name="action.name"
+				:aria-label="tr(action.label)"
+				:aria-pressed="action.pressed"
 				:aria-disabled="ariaDisabled(action)"
 				@click="run(action)"
 			>
-				{{ tr(action.label) }}
+				<HostIcon :name="action.icon" />
 			</button>
 		</div>
 	</div>

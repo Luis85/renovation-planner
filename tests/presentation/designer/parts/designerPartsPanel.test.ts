@@ -235,7 +235,7 @@ describe('the Parts panel', () => {
 			await wrapper.find('[name="toggle-hidden"]').trigger('click');
 
 			expect(rowFor(wrapper, 'detail:detail-2').text()).toContain(t('en', 'designer.parts.hidden'));
-			expect(wrapper.find('[name="toggle-hidden"]').text()).toBe(t('en', 'designer.parts.show'));
+			expect(wrapper.find('[name="toggle-hidden"]').attributes('aria-label')).toBe(t('en', 'designer.parts.show'));
 		});
 
 		it('offers Show all only once something is hidden, and clears everything when pressed', async () => {
@@ -258,7 +258,7 @@ describe('the Parts panel', () => {
 
 			expect([...view.locked.value]).toEqual(['detail-2']);
 			expect(rowFor(wrapper, 'detail:detail-2').text()).toContain(t('en', 'designer.parts.locked'));
-			expect(wrapper.find('[name="toggle-locked"]').text()).toBe(t('en', 'designer.parts.unlock'));
+			expect(wrapper.find('[name="toggle-locked"]').attributes('aria-label')).toBe(t('en', 'designer.parts.unlock'));
 			expect(editShape).not.toHaveBeenCalled();
 		});
 	});

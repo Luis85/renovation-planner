@@ -126,15 +126,32 @@
 	padding: var(--size-2-1) var(--size-4-1) var(--size-4-1);
 }
 
+/*
+ * AD18-R21 Task 7: one row of icon-only buttons, never wrapping — `nowrap` rather than relying on
+ * the buttons being narrow enough, so a future icon or a wider fixture cannot quietly reflow this
+ * row across lines again the way the five TEXT buttons it replaces did.
+ */
 .rp-designer-part-actions {
 	display: flex;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	gap: var(--size-2-1);
 }
 
+/*
+ * The icon-only button: centred on both axes (`.rp-designer-inspector button.rp-designer-icon-button`'s
+ * own shape in `designer-selection.css`, written out here rather than shared — that rule is qualified
+ * on an ancestor this panel is not inside, and a cross-file selector would drift the moment either
+ * changes). `min-width`/`min-height` are the floor rather than the padding and the glyph's own box
+ * being trusted to clear 24px on their own.
+ */
 .rp-designer-parts .rp-designer-part-action {
-	padding: var(--size-2-1) var(--size-4-1);
-	font-size: var(--font-ui-smaller);
+	display: flex;
+	flex: 0 0 auto;
+	align-items: center;
+	justify-content: center;
+	min-width: 24px;
+	min-height: 24px;
+	padding: var(--size-2-1);
 	color: var(--text-normal);
 }
 

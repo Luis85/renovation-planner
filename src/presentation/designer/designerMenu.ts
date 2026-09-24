@@ -88,13 +88,17 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToo
 		if (shape === null) return null;
 		const bounds = canvas.getBoundingClientRect();
 		const world = screenToWorld(screenPoint(event.clientX - bounds.left, event.clientY - bounds.top), editor.viewport, STAGE_PIXELS);
-		const hit = hitDesign(shape, world, { selection: store.selection, mode: store.mode, worldPerPixel: worldPerScreenPixel(editor.viewport, STAGE_PIXELS), hidden: runtime.partView.hidden.value, clearanceHidden: !runtime.showClearance.value });
+		// Handles are hit only where they are DRAWN, which is under Select (`DesignerCanvas`): in camera mode a
+		// press on the place a hidden handle would be is about whatever is drawn there.
+		const handleOwner = runtime.activeToolId.value === 'select' ? store.selection : null;
+		const hit = hitDesign(shape, world, { selection: handleOwner, mode: store.mode, worldPerPixel: worldPerScreenPixel(editor.viewport, STAGE_PIXELS), hidden: runtime.partView.hidden.value, clearanceHidden: !runtime.showClearance.value });
 		// A handle belongs to the focused part, so a right-click on one is about that part.
 		return hit === null ? null : hit.kind === 'handle' ? store.selection : hit.selection;
 	}
 
 	async function show(event: MouseEvent | KeyboardEvent): Promise<void> {
-		if (dialogs.current !== null || selectionKeysRefused(runtime)) return;
+		// A pan still dragging refuses it too, as the Plan Editor's menu does (`CanvasContextMenu`).
+		if (dialogs.current !== null || editor.dragState !== null || selectionKeysRefused(runtime)) return;
 		const target = event.target as HTMLElement, part = partAt(event, target);
 		// A part none of the four can act on (the footprint, the anchor, the facing) opens nothing: a menu
 		// of greyed items is a dead control, and the browser keeps its own event. Asked of the part ALONE,

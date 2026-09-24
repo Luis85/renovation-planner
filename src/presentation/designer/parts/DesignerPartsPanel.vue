@@ -146,8 +146,13 @@ const list = ref<HTMLElement | null>(null);
  *
  * `row.selection` goes through as it is, `null` included, rather than behind a guard. Only the
  * selectable rows bind this — a group header is a disclosure and the reference sheet is plain text —
- * so the null case is unreachable AND harmless: `select(null)` is the store's own "nothing is
- * selected", which is the right answer for pressing a row that names no part.
+ * so the null case is unreachable AND harmless on both arms: `select(null)` is the store's own
+ * "nothing is selected", and `extend(null)` falls through to that same `select(null)`, since a
+ * `null` is not an outline selection.
+ *
+ * A PLAIN press on a member of a set replaces the set, unlike a plain canvas press on one, which keeps
+ * it for a drag (AD08). A row carries no drag, and pressing a row to take it alone is the list's own
+ * convention (the Plan Editor's `ElementList`).
  */
 function choose(row: PartRow, shift: boolean): void {
 	focusedKey.value = row.key;

@@ -14,7 +14,9 @@ import { describe, expect, it } from 'vitest';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { settle } from '../../helpers/editor';
-import { designerRig, type DesignerRig } from '../../helpers/designerRig';
+import { designerRig, held, type DesignerRig } from '../../helpers/designerRig';
+import { selectionHandles } from '../../../src/presentation/designer/selection/handles';
+import { STAGE_PIXELS, worldPerScreenPixel } from '../../../src/presentation/editor/viewport/Viewport';
 import { rightClick } from '../../helpers/designerRightClick';
 import { TOILET, detailOutline, justInsideBottom } from '../../helpers/designerSelection';
 
@@ -94,6 +96,16 @@ describe('grouping at rest, through a real write', () => {
 		rig.unmount();
 	});
 
+	it('groups the set with Ctrl+G on the canvas itself', async () => {
+		const rig = await atRest();
+		await press(rig, 'detail:detail-1');
+		await press(rig, 'detail:detail-2', { shiftKey: true });
+		rig.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'g', ctrlKey: true, bubbles: true, cancelable: true }));
+		await settle();
+		expect((await rig.document()).shape?.groups).toEqual(GROUP);
+		rig.unmount();
+	});
+
 	it('groups the set with Ctrl+G on a selected row', async () => {
 		const rig = await atRest();
 		await press(rig, 'detail:detail-1');
@@ -101,6 +113,34 @@ describe('grouping at rest, through a real write', () => {
 		row(rig, 'detail:detail-2').dispatchEvent(new KeyboardEvent('keydown', { key: 'g', ctrlKey: true, bubbles: true, cancelable: true }));
 		await settle();
 		expect((await rig.document()).shape?.groups).toEqual(GROUP);
+		rig.unmount();
+	});
+});
+
+describe('what camera mode does NOT hand the menu', () => {
+	it('is never about a handle, which only Select draws', async () => {
+		const rig = await atRest();
+		await press(rig, 'detail:detail-2');
+		const store = useAssetDesignStore(rig.pinia);
+		const rotate = selectionHandles(TOILET, store.selection, 'transform', worldPerScreenPixel(useEditorStore(rig.pinia).viewport, STAGE_PIXELS)).find((handle) => handle.role.kind === 'rotate');
+		rightClick(rig, rotate?.at ?? { x: 0, y: 0 });
+		await settle();
+		// Under Select this point is the bowl's rotate handle, and the menu would be about the bowl.
+		expect(menuItem(rig, 'group') !== null && store.selected.length === 1 && store.selection?.kind === 'detail' && store.selection.id === 'detail-2').toBe(false);
+		rig.unmount();
+	});
+
+	it('opens nothing while a pan is still dragging', async () => {
+		const rig = await atRest();
+		await press(rig, 'detail:detail-2');
+		const bowl = justInsideBottom(detailOutline('detail-2'));
+		held(rig, 'pointerdown', bowl, 1);
+		held(rig, 'pointermove', { x: bowl.x + 40, y: bowl.y }, 1);
+		expect(useEditorStore(rig.pinia).dragState).not.toBeNull();
+		rightClick(rig, bowl);
+		await settle();
+		expect(menuItem(rig, 'group')).toBeNull();
+		held(rig, 'pointerup', bowl, 0);
 		rig.unmount();
 	});
 });

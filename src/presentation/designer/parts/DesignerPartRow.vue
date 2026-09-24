@@ -34,7 +34,7 @@ const props = defineProps<{
 	view: PartView;
 	/** Every graphic id in draw order, handed through to the controls. */
 	graphicIds: readonly string[];
-	/** A press on the row; `true` when Shift was held, which ADDS the part to the selection instead. */
+	/** A press on the row, and whether Shift was held: `DesignerPartsPanel`'s `choose` decides what that does. */
 	choose: (shift: boolean) => void;
 	/**
 	 * The selection keys, bound on the part's own BUTTON (AD18-R17 Task 3) — so a key typed in the Label

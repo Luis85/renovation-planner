@@ -2,9 +2,9 @@
  * @vitest-environment jsdom
  *
  * The designer's history chords (AD18-R23): Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y, and Cmd, on the ROOT
- * through `editorHistoryShortcut`, MOUNTED over a real sidecar. `historyShortcut.test.ts` holds the
- * chord rule's own arms; this file asks whether the designer reaches it, from each region, and whether
- * it passes the right refusals.
+ * through `editorHistoryShortcut`, MOUNTED over a real sidecar. The helper has no unit file of its own;
+ * the Plan Editor's side is driven in `inputInteractions.test.ts` and its neighbours. This file asks
+ * whether the designer reaches it, from each region, and whether it passes the right refusals.
  *
  * The write undone is a Delete of the bowl, pressed on the canvas — one real `SetAssetShape`, one undo
  * entry — so every assertion reads the sidecar rather than a store.

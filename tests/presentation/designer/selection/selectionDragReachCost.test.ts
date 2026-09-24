@@ -15,7 +15,7 @@ import { expectDefined, expectOk } from '../../../helpers/domain';
  *
  * Its third pass (width again) bisects: it starts from the width pass 1 left at its floor, with 0.0027 mm of
  * straight run, and that pass's own floor factor makes the arcs meet. Measured over every curved preset part's
- * drags, that pass is the costliest run there is, twenty calls, and this drag costs twenty-three a move. The
+ * drags, that pass is the costliest run there is — up to 21 calls — and this drag costs up to 23 a move. The
  * costliest MOVE is elsewhere: 34 on the shrub's detail-1 (`selectionDrag.ts`'s `fittedResize` names it).
  */
 const runs = vi.hoisted(() => [] as number[]);

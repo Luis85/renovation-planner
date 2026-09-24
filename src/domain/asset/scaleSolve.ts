@@ -15,7 +15,7 @@ const REACH_MM = 0.01;
  * is linear in the factor); a curved one converges a few steps later. The cap is for the bisection a refused factor
  * starts, about `log2(start / REACH_MM)` steps, and that is not only a user's degenerate outline: a corner drag's
  * third pass starts from the width pass 1 left at its floor, and the oval table's clearance, with 0.0027 mm of
- * straight run left, meets its own arcs at that pass's floor — twenty attempts in one solve, measured.
+ * straight run left, meets its own arcs at that pass's floor — up to 21 attempts in one solve, measured.
  */
 const MAX_STEPS = 24;
 
@@ -99,8 +99,10 @@ function outOfReach({ lo, hi, below, above, floor }: Bracket): boolean {
  * oval table's clearance `MAX_STEPS` names (its corner lands 700.0000001 against a side at 700).
  *
  * A factor refused on the way UP — growing, or inside a bracket — is the mirror: an upper bound the solve
- * bisects down from, to the largest factor it accepts within the floor, and the nearest landing below it is
- * the answer. The shrub's detail-1 reaches it: flattened to its floor and then widened, its arcs meet.
+ * bisects down from, to within the floor of the largest factor it accepts BELOW THAT REFUSAL, and the nearest
+ * landing is the answer. That need not be the largest factor accepted anywhere, since validity is not always
+ * one interval: the review found the tree's footprint accepting 1.50192 above a refused 1.4999944. The
+ * shrub's detail-1 reaches this: flattened to its floor and then widened, its arcs meet.
  *
  * A refusal comes back only when nothing landed at all: `apply`'s own answer to a first factor at or below
  * zero, or a bisection that never landed.

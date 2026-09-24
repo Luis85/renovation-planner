@@ -111,12 +111,12 @@ function heldExtent(shape: AssetShape, part: OutlinePart, { axis, target }: Pass
  *
  * ponytail: up to three `solveScale` runs and one retry of at most 24 attempts each, so 96 `resizeBox` calls per
  * pointer move at most (48 for a side handle). Measured over every curved preset part, all eight handles and a
- * 19 x 19 pointer grid down to a millionth of the span: the most is 20 in one run, on the oval table's clearance,
- * whose corner third pass starts from the width its first left at the floor and bisects (`scaleSolve.ts`'s
- * `MAX_STEPS`), and 34 in one move, on the shrub's detail-1 stretched twice as wide and flattened to 0.3 (runs
- * of 2, 17 and 15). The slowest move took 7.3 ms in node, a corner drag of the tree's footprint, whose many arcs
- * make each validation dear — 7.1 ms before this retry existed, which only a refused hold pays for.
- * `selectionDragReachCost.test.ts` holds the oval's 23.
+ * 22 x 22 pointer grid from three times the span down to a millionth of it: the most is 21 in one run, on the
+ * oval table's clearance, whose corner third pass starts from the width its first left at the floor and bisects
+ * (`scaleSolve.ts`'s `MAX_STEPS`), and 34 in one move, on the shrub's detail-1 stretched twice as wide and
+ * flattened to 0.3 (runs of 2, 17 and 15). Time is the tree's footprint, whose many arcs make each validation
+ * dear: in Chromium a 40-move corner drag of it held a steady 16.7 ms frame interval (max 16.8) with no long
+ * tasks (the integrator, 2026-09-24). `selectionDragReachCost.test.ts` holds the oval's 23 in a move.
  */
 function fittedResize(
 	shape: AssetShape,

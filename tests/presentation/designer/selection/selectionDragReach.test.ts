@@ -140,4 +140,3 @@ describe('a right-side drag past a curved part\'s reach', () => {
 		expect(landed.width).toBeLessThanOrEqual(REACH_MM);
 	});
 });
-

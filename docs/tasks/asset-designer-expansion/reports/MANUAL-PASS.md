@@ -19,29 +19,36 @@ overlooked.**
 
 ## What the pass consists of
 
-**145 human steps across six cases**, measured rather than remembered — re-derived on 2026-09-23
-against the finished AD18-R16 parity-round tree with the command below, run verbatim as it is
-printed. **Do not trust this number; run the command.** It has been 84, then 90, then 109, then
-this, and each time the session that moved it was the session that had just shipped the thing it
-was counting:
+**179 human steps across seven cases**, measured rather than remembered — re-derived on
+2026-09-24 against the finished AD18-R17/R18/R19 second-parity-round tree with the command below,
+run verbatim as it is printed. **Do not trust this number; run the command.** It has been 84,
+then 90, then 109, then 145, then this, and each time the session that moved it was the session
+that had just shipped the thing it was counting:
 
 ```bash
 for f in "Design an Asset" "Take an asset from the library into a plan" \
          "Compose an asset from parts" "Calibrate a sheet and reserve space" \
-         "Recover an asset design rather than lose it" "Two designers on one asset"; do
+         "Recover an asset design rather than lose it" "Two designers on one asset" \
+         "Browse the asset library"; do
   printf "%-46s %s\n" "$f" \
     "$(grep -cE '^\| [0-9]+[a-z]? \| `(obsidian|desktop|judgement)` \|' "docs/tests/cases/$f.md")"
 done
 ```
 
+**[[Browse the asset library]] joins the command and the table below for the first time this
+round.** AD18-R18's Grid view is the first user-visible change this package has made to that
+case, and a case the command does not name is a case whose steps never reach this total — the
+same mistake naming a case here guards against for the other six.
+
 | Case | Human steps | Of total | Discharges |
 |---|---|---|---|
-| [[Design an Asset]] | **72** | 118 | U01 (with the next row) |
+| [[Design an Asset]] | **82** | 128 | U01 (with the next row) |
 | [[Take an asset from the library into a plan]] | 19 | 28 | U01, T34 |
-| [[Compose an asset from parts]] | 2 | 38 | U02, U03 (its Repeat section) |
-| [[Calibrate a sheet and reserve space]] | 11 | 38 | U04 — **7 already confirmed**, see below |
-| [[Recover an asset design rather than lose it]] | **33** | 42 | U05 |
+| [[Compose an asset from parts]] | 3 | 39 | U02, U03 (its Repeat section) |
+| [[Calibrate a sheet and reserve space]] | 19 | 49 | U04 — **7 already confirmed**, see below |
+| [[Recover an asset design rather than lose it]] | 33 | 42 | U05 |
 | [[Two designers on one asset]] | 8 | 16 | T12 |
+| [[Browse the asset library]] | **15** | 31 | new this round — AD18-R18 |
 
 **What session fourteen ADDED, and why the total moved from 90 to 109.** A session that ships a
 feature grows the walk, and saying so is part of shipping it. **Nineteen new steps**, in two
@@ -123,6 +130,68 @@ its own text says so. Read this before walking any of them, across three cases.*
 - **[[Take an asset from the library into a plan]] step 12**: its 2026-09-20 amendment already
   pointed at the header for both doors; this round only changes the library door's own text, to
   "← Back to library" with an arrow-left icon, clipped below a sidebar width rather than removed.
+
+**What the second parity round (AD18-R17/R18/R19) ADDED, and why the total moved from 145 to
+179.** Task 12 of that round's own plan wrote these steps against the merged tree of 2026-09-23,
+Tasks 1–11, verified at source rather than from the plan alone. **Thirty-four new steps across
+four cases**, all `obsidian` except one already-`judgement` row this round turned deterministic
+(see below):
+
+- **[[Design an Asset]] gained ten**: `59a` (the overall width/depth labels sitting OUTSIDE the
+  footprint where there is room, AD18-R17 Task 8); `71a` and `71b` (the resting dimension-label
+  overlap floor re-measured at four leaf widths, and a label painting above the canvas key rather
+  than under it, both Task 8); `85a` (the legend's Clearance row following a live drag preview,
+  Task 6); `88a` and `88b` (the header's own "Saved just now" and the fact its region is NOT live,
+  so nothing here is ever announced, AD18-R19); `90a` and `90b` (Ctrl+G/Ctrl+Shift+G now working
+  from a focused Parts row too, and never while typing in its Label field, Task 3); `98a` (the
+  Corner radius slider committing on release, not on drag, Task 4); and `102a`, a NEW known-gap
+  row — a canvas HANDLE resize still drops the Corner radius, which Task 4's own fix does not
+  reach. **Step 102 itself changed KIND, not only text**: it was a `judgement` row in the AD18-R16
+  section because whether a rounded rectangle should survive a Width/Depth edit was a pending
+  ruling; AD18-R17 Task 4 closed that ruling, so 102 now states a deterministic pass condition and
+  102a carries the one door left open.
+- **[[Calibrate a sheet and reserve space]] gained eight**: `15c` (the Placement point group's
+  "Custom" label no longer breaking mid-word, a regression guard for a defect this same round
+  found and fixed); `21a` through `21e` (the new **Show clearance** switch — its default, what
+  turning it off hides, the three gestures that re-show it, and two NAMED known-gap rows: undo,
+  redo and a vault refresh can bring a clearance back still hidden, and switching it off mid-trace
+  keeps the eventual commit hidden); and `37`/`38` (the read-only **Source & scale** block, Task
+  5, read for a typed footprint and for a traced-and-uncalibrated one).
+- **[[Compose an asset from parts]] gained one**: step 39, that a HIDDEN part which is deleted and
+  then undone comes back VISIBLE rather than hidden — a recorded, accepted residue of Task 3's
+  leaf-local pruning, not a defect.
+- **[[Browse the asset library]] gained fifteen**, its first-ever addition from this package
+  (steps 19–31): AD18-R18's Grid view end to end — the Grid/List toggle defaulting to List, a
+  tile sharing the list row's own mark and size wording, the category sidebar's open vocabulary
+  and its icons, the funnel door at a narrow width and while a selection narrows the pane, the
+  Create-your-own card, the filter reaching the search count and the empty state together, and
+  the chosen view and category surviving a close-and-reopen through Obsidian's own view state
+  without becoming a navigation.
+
+**Two rows were REWRITTEN rather than added, plus two whole sections' worth of "rows this round
+makes false" the previous round's own hand-off named directly.** [[Design an Asset]] steps 5 and
+23 (the toolbar's tool-list overview and its narrow-sidebar behaviour) no longer describe a
+wide-width text label at all — AD18-R17 Task 2 retired it, so both rows now describe an icon-only
+toolbar at every width. Step 77 keeps its shape and adds that the zoom icons are now magnifiers,
+not the previous round's bare circled minus/plus. Steps 29–31 and 39, and their own preceding
+preamble paragraph, are the promised fix for the hand-off naming them: "Horizontal centre" and
+"Vertical centre" were never the field names AD18-R17 Task 4 shipped — the paired rows read **X**
+and **Y** under a "Position" heading, and Width/Depth under a "Size" heading, with Line and
+Order folded shut beneath them. Steps 81–85 (the legend) each gained the parenthetical detail and
+the new scale bar Task 6 draws beside them, without changing what each row's own subject is.
+[[Calibrate a sheet and reserve space]] steps 15, 18 and 20 are the other three named directly:
+15 replaces the retired "Toward the …" sentence with the new Front-direction picker described
+above; 18 replaces the deleted "45° from …" fallback (and the test it cited) with the picker's
+Custom state and its preview's actual angle; 20 quotes the Clearance hint's CURRENT wording
+("What you enter here…", not "These four numbers…") and adds the All-sides field and the
+Advanced fold around the four it already named. [[Notices and save state]] rows 13a, 14, 17 and
+18 are the fourth: each expected a bare **"Saved"** immediately after a write, which AD18-R19
+replaces with **"Saved just now"** on the visible text (a screen reader still hears only "Saved",
+which is why the rows say so explicitly now, rather than leaving the two readings to be
+conflated) — 18 also drops the claim that "the other stays Saved" universally, since a second
+leaf that has already saved this session shows its OWN relative reading instead. Two further rows,
+18a and 18b, are new rather than rewritten: the minute tick advancing "just now" to "1 min ago" on
+its own, and a screen reader hearing nothing when that tick fires.
 
 ## The gate inside the pass
 

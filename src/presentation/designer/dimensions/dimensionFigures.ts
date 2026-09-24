@@ -8,9 +8,10 @@
  * the component owns only `worldToScreen` and the markup. Nothing here reads a store, a camera or
  * a DOM node.
  *
- * **Four exported FUNCTIONS, and the last three work in PIXELS rather than millimetres.** Counted
- * from `grep -n "^export"` over this file after AD18-R17's change, which prints six lines: the
- * types `DimensionFigure` and `LabelAnchor` and the four functions — `outsideAnchor`, last, stands
+ * **Five exported FUNCTIONS, and the last four work in PIXELS rather than millimetres.** Counted
+ * from `grep -n "^export"` over this file after AD18-R21's change, which prints seven lines: the
+ * types `DimensionFigure` and `LabelAnchor` and the five functions — `restingFigures` thins the
+ * resting set while the drawing is small on screen (AD18-R21), and `outsideAnchor`, last, stands
  * the overall pair outside the footprint where the canvas has room. `dimensionFigures` answers what
  * is measured and where in the world it belongs; `spreadLabels` answers where a label is actually
  * drawn under `All dimensions` once the camera has crowded several of them onto one row —
@@ -36,6 +37,7 @@ import { err, type Result } from '../../../core/result/Result';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import type { AssetDetail } from '../../../domain/asset/AssetDetail';
 import { moveOutline, partNotFound, type OutlinePart } from '../../../domain/asset/shapeEdits';
+import { VERTEX_GRAB_RADIUS_PX } from '../../editor/handleMetrics';
 import { screenPoint, type ScreenPoint, type StageSize } from '../../editor/viewport/Viewport';
 import type { StringKey } from '../../i18n/locales/en';
 import type { DesignerSelection } from '../selection/designerSelection';
@@ -666,6 +668,45 @@ const RULER_PX = 18;
 const RESTING_ROWS = 5;
 const RESTING_SHIFTS: readonly number[] = [0, 0.5, -0.5, 1, -1, 1.5, -1.5];
 
+/**
+ * The footprint's on-screen WIDTH, in stage pixels, below which the resting state draws the overall
+ * width and depth alone (AD18-R21). `All dimensions` is not asked: it still draws every label.
+ *
+ * **A dated snapshot of ONE preset, the vanity, at the camera `DesignerCanvas` fits on mount**,
+ * measured by the integrator in the harness on 2026-09-24: the footprint drew about 470 px across at
+ * a 1280 leaf, 285 at 760, 190 at 580 and 170 at 460, and at the last two the selected part's
+ * figures — the 270, 220, 126 and 54 mm offsets and sizes — nearly covered the drawing, though no
+ * label overlapped another. 240 falls between 190 and 285, so it fires at 580 and 460 and at neither
+ * wider leaf. It is read off the FOOTPRINT rather than the canvas because the canvas at a 460 leaf
+ * is 460 px wide — a canvas-width threshold would never fire there — and zooming in past it brings
+ * the part's figures back, since what is too small is the drawing and not the pane.
+ */
+const RESTING_DETAIL_MIN_PX = 240;
+
+/**
+ * The figures the RESTING state draws (AD18-R21): `figures` as `dimensionFigures` measured them,
+ * or the overall pair alone while `shape`'s footprint draws under `RESTING_DETAIL_MIN_PX` across
+ * at `worldPerPixel`. The overall pair is the `outside` pair — the only figures `sizeFigures`
+ * marks that way — so it is picked by that fact rather than by name.
+ */
+export function restingFigures(figures: readonly DimensionFigure[], shape: AssetShape, worldPerPixel: number): readonly DimensionFigure[] {
+	const outer = footprintCorners(shape);
+	return (outer.max.x - outer.min.x) / worldPerPixel < RESTING_DETAIL_MIN_PX ? figures.filter((figure) => figure.outside) : figures;
+}
+
+/**
+ * Whether a label's box reaches into a selection handle's GRAB square (AD18-R21) — the
+ * `VERTEX_GRAB_RADIUS_PX` `hitDesign` grabs a handle within, taken each way of its point. The
+ * overlay paints over the stage, so a label there takes the press the handle was meant to get:
+ * measured at a 1280 leaf, the vanity basin's `54 mm` offset sat on its bottom-middle box handle and
+ * the handle could not be grabbed. A square rather than the disc, because a label is a box and the
+ * corner the square adds is 3.3 px at most.
+ */
+function onHandle(box: LabelBox, handle: ScreenPoint): boolean {
+	return Math.abs(box.at.x - handle.x) < box.width / 2 + VERTEX_GRAB_RADIUS_PX
+		&& Math.abs(box.at.y - handle.y) < LABEL_HEIGHT_PX / 2 + VERTEX_GRAB_RADIUS_PX;
+}
+
 const distance = (one: ScreenPoint, other: ScreenPoint): number => Math.hypot(one.x - other.x, one.y - other.y);
 
 /**
@@ -692,11 +733,20 @@ const distance = (one: ScreenPoint, other: ScreenPoint): number => Math.hypot(on
  * 260 px frames that docblock records, and at the zoomed-out camera `dimensionCollision.test.ts`
  * pins by name.
  *
+ * **`handles` are OBSTACLES in the same search (AD18-R21)**: the stage points of the selected part's
+ * handles, which no label may cover (`onHandle`). They are placed before every label and never move,
+ * so a label on one takes the nearest slot clear of both the labels before it and every handle — the
+ * same slots, the same order, one more question asked of each. A part's own width and depth anchor
+ * on the middles of its top and left edges, where its Transform box handles are, so a selected
+ * part's size pair moves whenever its Transform handles are drawn. With no free slot the label stays
+ * on its anchor, over the handle, as it stays over a label — measured over Transform handles at the
+ * fit camera, `restingLabels.test.ts`'s sweep leaves no label on a handle in any frame it draws.
+ *
  * `spreadLabels` stays the rule for `All dimensions`, whose floor is a different one: 26 labels
  * cannot all be kept apart at the camera the designer opens with, and AD18-R14 asks only that none
- * is impossible to click.
+ * is impossible to click. It is handed no handles.
  */
-export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize): ScreenPoint[] {
+export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize, handles: readonly ScreenPoint[] = []): ScreenPoint[] {
 	const placed: LabelBox[] = [];
 	const inside = (box: LabelBox): boolean => box.at.x - box.width / 2 >= RULER_PX && box.at.x + box.width / 2 <= stage.width
 		&& box.at.y - LABEL_HEIGHT_PX / 2 >= RULER_PX && box.at.y + LABEL_HEIGHT_PX / 2 <= stage.height;
@@ -707,7 +757,7 @@ export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize)
 		const slots = Array.from({ length: 2 * RESTING_ROWS + 1 }, (_, index) => (index % 2 === 0 ? -index / 2 : (index + 1) / 2))
 			.flatMap((row) => RESTING_SHIFTS.map((shift): LabelBox => ({ at: screenPoint(label.at.x + shift * width, label.at.y + row * inward), width })))
 			.toSorted((one, other) => distance(one.at, label.at) - distance(other.at, label.at));
-		const free = (box: LabelBox): boolean => !placed.some((other) => overlaps(box, other));
+		const free = (box: LabelBox): boolean => !placed.some((other) => overlaps(box, other)) && !handles.some((handle) => onHandle(box, handle));
 		placed.push(free(own) ? own : slots.find((box) => inside(box) && free(box)) ?? own);
 	}
 	return placed.map((box) => box.at);

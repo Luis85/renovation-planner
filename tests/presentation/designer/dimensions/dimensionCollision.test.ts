@@ -24,7 +24,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { dimensionFigures, spreadLabels } from '../../../../src/presentation/designer/dimensions/dimensionFigures';
-import { screenPoint, worldToScreen, fitViewport, STAGE_PIXELS, type ScreenPoint, type StageSize } from '../../../../src/presentation/editor/viewport/Viewport';
+import { screenPoint, worldToScreen, worldPerScreenPixel, fitViewport, STAGE_PIXELS, type ScreenPoint, type StageSize } from '../../../../src/presentation/editor/viewport/Viewport';
+import { selectionHandles } from '../../../../src/presentation/designer/selection/handles';
+import { useEditorStore } from '../../../../src/presentation/stores/EditorStore';
 import { partMeasure } from '../../../../src/presentation/designer/selection/partExtent';
 import { ASSET_PRESETS } from '../../../../src/domain/asset/presets/catalogue';
 import { defaultValues } from '../../../../src/domain/asset/presets/presetGeometry';
@@ -39,6 +41,9 @@ import { settle } from '../../../helpers/editor';
 const designer = (): Promise<DesignerRig> => designerRig({ shape: editableShape(), camera: 'default' });
 
 const STAGE: StageSize = { width: 800, height: 600 };
+
+/** A drawn pixel read back to a tenth, so a pin reads as the template wrote it rather than to float noise. */
+const tenth = (value: string): number => Math.round(Number.parseFloat(value) * 10) / 10;
 
 /** `[name, left, top]` for every dimension button the overlay draws, in DOM order. */
 function drawn(rig: DesignerRig): [string, string, string][] {
@@ -385,43 +390,48 @@ describe('what the mounted overlay draws once the rule has run', () => {
 
 	/**
 	 * **A selected part's eight labels are the RESTING state, and since AD18-R17 none of them may
-	 * touch another** — `separateLabels`, not `spreadLabels`. At this rig's zoomed-out camera the
-	 * part is 40 x 20 px and its labels are ~55 px wide, so most of them move: the case pins WHERE,
-	 * by exact array in DOM order rounded to a tenth of a pixel, so a retune cannot move one quietly,
-	 * and asserts the property itself with this file's own box model.
+	 * touch another** — `separateLabels`, not `spreadLabels` — **and since AD18-R21 none may sit on
+	 * one of its handles.** The case pins WHERE, by exact array in DOM order rounded to a tenth of a
+	 * pixel, so a retune cannot move one quietly, and asserts both properties with this file's own
+	 * box model.
 	 *
-	 * The first label keeps its anchor (earlier wins). A MOVED label never leaves the stage or lands on
-	 * the rulers' 18 px strip, which is why `detail-1`'s depth and left offset jump right, off the left
-	 * edge and past the left ruler.
-	 *
-	 * **And this camera shows the rule's one residual, pinned rather than hidden.** `overall-depth`,
-	 * placed last, finds every slot within five rows either taken, off the stage or on a ruler, so it
-	 * stays on its anchor and touches `detail-1`'s width — `separateLabels`' "no slot is free" arm.
-	 * (Before moved labels were kept off the rulers it found one five rows down.) At the camera the
-	 * designer OPENS with, the floor AD18-R17 names, `restingLabels.test.ts` finds no such frame.
+	 * **At the camera an asset OPENS with, and no longer at this rig's zoomed-out one**: there the
+	 * footprint draws 100 px across, under AD18-R21's 240, and the part's own figures do not rest.
+	 * Opened, it is about 503 px. The part's width and depth anchor on the middles of its top and
+	 * left edges, which is where two of its Transform box handles are, so both move — the width one
+	 * row inward, the depth one of its widths left. Three more are off their anchors too: the left
+	 * and top offsets and `overall-depth`, pinned below. The residual this
+	 * case used to pin (`overall-depth` with no free slot) was a fact about the zoomed-out camera,
+	 * which no longer rests these labels at all.
 	 */
-	it('keeps a selected part’s labels apart but for one the zoomed-out camera leaves no slot', async () => {
-		const rig = await designer();
+	it('keeps a selected part’s labels apart and off its handles at the camera an asset opens with', async () => {
+		const rig = await designerRig({ shape: editableShape(), camera: 'opened' });
 		try {
 			useAssetDesignStore(rig.pinia).select({ kind: 'detail', id: 'detail-1' });
 			await settle();
 
-			const labels = drawn(rig).map(([name, left, top]) => [name, Math.round(Number.parseFloat(left) * 10) / 10, Number.parseFloat(top)] as const);
+			const labels = drawn(rig).map(([name, left, top]) => [name, tenth(left), tenth(top)] as const);
 			expect(labels).toEqual([
-				['detail-detail-1-width', 28, 38],
-				['detail-detail-1-depth', 65.2, 78],
-				['detail-detail-1-offset-left', 60.2, 108],
-				['detail-detail-1-offset-right', 101.6, 48],
-				['detail-detail-1-offset-top', 56.6, 148],
-				['detail-detail-1-offset-bottom', 56.6, 188],
-				['overall-width', 143.4, 78],
-				['overall-depth', -2, 48],
+				['detail-detail-1-width', 299.4, 179.1],
+				['detail-detail-1-depth', 141.7, 199.4],
+				['detail-detail-1-offset-left', 145.1, 229.4],
+				['detail-detail-1-offset-right', 525.7, 199.4],
+				['detail-detail-1-offset-top', 299.4, 68.9],
+				['detail-detail-1-offset-bottom', 299.4, 300],
+				['overall-width', 400, 33.6],
+				['overall-depth', 112.6, 169.4],
 			]);
 			const values = [400, 200, 100, 500, 200, 200, 1000, 600];
 			const touching = labels.flatMap(([name, x, y], index) => labels.slice(index + 1)
 				.filter(([, ox, oy], offset) => Math.abs(x - ox) < (width(values[index]) + width(values[index + 1 + offset])) / 2 && Math.abs(y - oy) < 30)
 				.map(([other]) => `${name} / ${other}`));
-			expect(touching).toEqual(['detail-detail-1-width / overall-depth']);
+			expect(touching).toEqual([]);
+			// The handles `DesignerCanvas` draws for it, each a grab square 8 px each way (`VERTEX_GRAB_RADIUS_PX`).
+			const worldPerPixel = worldPerScreenPixel(useEditorStore(rig.pinia).viewport, STAGE_PIXELS);
+			const handles = selectionHandles(editableShape(), { kind: 'detail', id: 'detail-1' }, 'transform', worldPerPixel).map((handle) => rig.at(handle.at));
+			const onHandle = labels.filter(([, x, y], index) => handles.some((handle) => Math.abs(x - handle.x) < width(values[index]) / 2 + 8 && Math.abs(y - handle.y) < 15 + 8));
+			expect(handles).toHaveLength(9);
+			expect(onHandle).toEqual([]);
 		} finally {
 			rig.unmount();
 		}

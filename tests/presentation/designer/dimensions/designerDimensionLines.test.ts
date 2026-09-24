@@ -58,13 +58,14 @@ describe('the lines each dimension draws', () => {
 	});
 
 	/**
-	 * **The line goes where the LABEL went.** At this zoomed-out camera a selected `detail-1`'s labels
-	 * mostly move off their anchors (`dimensionCollision.test.ts` pins where), and each one's line has
-	 * to follow: a width's or a horizontal gap's line runs along the label's row, a depth's or a
+	 * **The line goes where the LABEL went.** At the camera an asset opens with, a selected `detail-1`'s
+	 * size pair moves off the box handles its anchors sit on (AD18-R21; `dimensionCollision.test.ts`
+	 * pins where), and each one's line has to follow: a width's or a horizontal gap's line runs along the label's row, a depth's or a
 	 * vertical gap's up the label's column. Read off the first point of each path.
 	 */
 	it('runs each line through its label wherever the collision rule put it', async () => {
-		const rig = await designer();
+		// Opened rather than at the rig's default camera, whose 100 px footprint rests no part figure (AD18-R21).
+		const rig = await designerRig({ shape: editableShape(), camera: 'opened' });
 		try {
 			useAssetDesignStore(rig.pinia).select({ kind: 'detail', id: 'detail-1' });
 			await settle();
@@ -154,7 +155,9 @@ describe('the clearance’s figures under Show clearance', () => {
 	 * under `All dimensions` — and come back with it. Driven through the REAL switch.
 	 */
 	it('draws no clearance figure or line while Show clearance is off', async () => {
-		const rig = await designer();
+		// Framed as an asset opens: at the default camera the footprint draws 100 px across, under
+		// AD18-R21's 240, where a selected part's own figures do not rest.
+		const rig = await designerRig({ shape: editableShape(), camera: 'opened' });
 		try {
 			useAssetDesignStore(rig.pinia).select({ kind: 'clearance' });
 			await settle();

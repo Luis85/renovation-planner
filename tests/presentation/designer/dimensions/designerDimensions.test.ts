@@ -127,7 +127,9 @@ describe('what the designer’s dimensions draw', () => {
 	 * prop: selecting a detail adds its size and its four offsets, and clearing puts it back.
 	 */
 	it('adds the selected part’s size and offsets, and drops them when the selection clears', async () => {
-		const rig = await designer();
+		// Framed as an asset opens (the footprint ~500 px across): at the default camera it draws 100 px,
+		// under AD18-R21's 240, where a selected part's own figures do not rest.
+		const rig = await designer({ camera: 'opened' });
 		try {
 			useAssetDesignStore(rig.pinia).select({ kind: 'detail', id: 'detail-1' });
 			await settle();
@@ -376,7 +378,9 @@ describe('the inline field a dimension opens', () => {
 
 	/** An offset writes the same way, which is the family that MOVES a part rather than resizing it. */
 	it('writes a typed offset by moving the part, leaving its size alone', async () => {
-		const rig = await designer();
+		// Framed as an asset opens (the footprint ~500 px across): at the default camera it draws 100 px,
+		// under AD18-R21's 240, where a selected part's own figures do not rest.
+		const rig = await designer({ camera: 'opened' });
 		try {
 			useAssetDesignStore(rig.pinia).select({ kind: 'detail', id: 'detail-1' });
 			await settle();
@@ -499,7 +503,9 @@ describe('the inline field a dimension opens', () => {
 	 * and a fix that cleared only one would leave a stale alert over a fresh field.
 	 */
 	it('clears a draft whose figure was withdrawn, so re-selecting opens a button and not a stale field', async () => {
-		const rig = await designer();
+		// Framed as an asset opens (the footprint ~500 px across): at the default camera it draws 100 px,
+		// under AD18-R21's 240, where a selected part's own figures do not rest.
+		const rig = await designer({ camera: 'opened' });
 		try {
 			const store = useAssetDesignStore(rig.pinia);
 			store.select({ kind: 'detail', id: 'detail-1' });

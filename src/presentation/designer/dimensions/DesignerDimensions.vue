@@ -46,6 +46,10 @@
  * part's labels overlapped in five pairs. `separateLabels` answers it, and the nothing-selected pair
  * is untouched by construction, since a label touching nothing is returned where it asked to be.
  *
+ * **AD18-R21 narrows the resting state twice more.** While the footprint draws under 240 px across it
+ * is the overall pair alone (`restingFigures`), and no resting label covers a handle of the selected
+ * part: the handles `DesignerCanvas` draws are handed to `separateLabels` as obstacles.
+ *
  * **Each figure is drawn as a dimension LINE, not only a number** (AD18-R17, board 01): a line
  * through the placed label with an arrowhead at each end and an extension line to each edge it
  * measures, in one `aria-hidden` SVG before the labels so each opaque label interrupts its own line.
@@ -71,14 +75,17 @@ import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { useEditorStore } from '../../stores/EditorStore';
-import { STAGE_PIXELS, worldToScreen } from '../../editor/viewport/Viewport';
+import { STAGE_PIXELS, worldPerScreenPixel, worldToScreen, type ScreenPoint } from '../../editor/viewport/Viewport';
+import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { useAssetDesignStore } from '../stores/assetDesignStore';
 import { useDesignerRuntime } from '../runtime';
-import { dimensionFigures, outsideAnchor, separateLabels, spreadLabels, type DimensionFigure } from './dimensionFigures';
+import { dimensionFigures, outsideAnchor, restingFigures, separateLabels, spreadLabels, type DimensionFigure } from './dimensionFigures';
+import { selectionHandles } from '../selection/handles';
+import { drawnSelection } from '../selection/hitTest';
 import { dimensionLine, type DimensionLine } from './dimensionLines';
 
 const editor = useEditorStore();
-const { design, selection, preview } = storeToRefs(useAssetDesignStore());
+const { design, selection, mode, preview } = storeToRefs(useAssetDesignStore());
 const { allDimensions, editShape, activeToolId, partView, showClearance } = useDesignerRuntime();
 
 /** The overlay's own element, so focus is handed back within it and never stolen from elsewhere. */
@@ -126,6 +133,17 @@ interface PlacedFigure extends Omit<DimensionFigure, 'at' | 'from' | 'to'> {
 const MEASURING_TOOLS: readonly (string | null)[] = [null, 'select'];
 
 /**
+ * Where the selected part's handles sit on the stage, which a resting label keeps clear of
+ * (AD18-R21). `DesignerCanvas`'s own `marks` rule, asked the same way: handles only under Select,
+ * the tool that grabs them, and none for a part that is not drawn (`drawnSelection`).
+ */
+function handlePoints(shape: AssetShape, worldPerPixel: number, screen: (point: DimensionFigure['at']) => ScreenPoint): ScreenPoint[] {
+	if (activeToolId.value !== 'select') return [];
+	const owner = drawnSelection(selection.value, { hidden: partView.hidden.value, clearanceHidden: !showClearance.value });
+	return selectionHandles(shape, owner, mode.value, worldPerPixel).map((handle) => screen(handle.at));
+}
+
+/**
  * ONE computed over the whole overlay, as `DesignerRulers`' own model is and for its reason: every
  * figure needs the same design, the same camera and the same preview, and splitting them would ask
  * `design === null` again in each — an arm nothing in a mounted designer can reach a second time,
@@ -138,7 +156,11 @@ const figures = computed((): readonly PlacedFigure[] => {
 	const drawn = preview.value ?? view.shape;
 	if (drawn === null) return [];
 	const editing = draft.value?.name;
-	const drawing = dimensionFigures(drawn, selection.value, allDimensions.value, partView.hidden.value, showClearance.value);
+	const all = allDimensions.value;
+	const worldPerPixel = worldPerScreenPixel(editor.viewport, STAGE_PIXELS);
+	const measured = dimensionFigures(drawn, selection.value, all, partView.hidden.value, showClearance.value);
+	// AD18-R21: the resting state thins to the overall pair while the drawing is small on screen.
+	const drawing = all ? measured : restingFigures(measured, drawn, worldPerPixel);
 	const screen = (point: DimensionFigure['at']) => worldToScreen(point, editor.viewport, STAGE_PIXELS);
 	// AD18-R14: several figures can want one row of pixels at a zoomed-out camera, and the ones
 	// drawn later cover the ones beneath them — a control that cannot be pressed. The rule is
@@ -149,12 +171,13 @@ const figures = computed((): readonly PlacedFigure[] => {
 	//
 	// AD18-R17: the RESTING state — `All dimensions` off — is held to a stricter floor, no two labels
 	// touching at all, which `separateLabels` answers. See that function for why the two differ.
+	// AD18-R21: and none on a handle of the selected part, which it is handed as obstacles.
 	// The overall pair asks to stand OUTSIDE the footprint first, where the canvas has room (board 01).
 	const anchors = drawing.map((figure) => {
 		const at = screen(figure.at);
 		return { at: figure.outside ? outsideAnchor(figure.axis, at, figure.value) : at, value: figure.value };
 	});
-	const points = allDimensions.value ? spreadLabels(anchors, editor.stageSize) : separateLabels(anchors, editor.stageSize);
+	const points = all ? spreadLabels(anchors, editor.stageSize) : separateLabels(anchors, editor.stageSize, handlePoints(drawn, worldPerPixel, screen));
 	return drawing.map((figure, index) => {
 		// The world point is DROPPED here rather than carried: the rule has already answered
 		// where this label goes, and a `PlacedFigure` holding both would offer two answers.

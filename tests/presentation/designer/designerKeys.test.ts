@@ -47,6 +47,8 @@ function pressed(init: Partial<DesignerKeyPress>): { readonly event: DesignerKey
 	return { event, prevented: () => prevented, stopped: () => stopped };
 }
 
+/** Nothing hidden: every part is drawn, which `designerHiddenSelectionKeys.test.ts` varies over a mounted leaf. */
+const SHOWN = { partView: { hidden: { value: new Set<string>() } }, showClearance: { value: true } };
 const PAIR: readonly DesignerSelection[] = [{ kind: 'detail', id: 'detail-1' }, DETAIL];
 const NO_DESIGN = Symbol('no design read yet');
 
@@ -129,7 +131,7 @@ describe('designerShortcut', () => {
 		const { event, prevented, stopped } = pressed(init);
 		const recorded = doors();
 
-		expect(designerShortcut(event, state(selected, shape), recorded.doors)).toBe(true);
+		expect(designerShortcut(event, state(selected, shape), recorded.doors, SHOWN)).toBe(true);
 		expect(recorded.calls).toEqual([door]);
 		// Only a chord has a default worth taking away — the browser's, and the host's own hotkey
 		// (Obsidian binds Ctrl+G to its graph view); a bare Delete on a focused canvas has neither.
@@ -141,7 +143,7 @@ describe('designerShortcut', () => {
 		const { event, prevented, stopped } = pressed(init);
 		const recorded = doors();
 
-		expect(designerShortcut(event, state(selected, shape), recorded.doors)).toBe(false);
+		expect(designerShortcut(event, state(selected, shape), recorded.doors, SHOWN)).toBe(false);
 		expect(recorded.calls).toEqual([]);
 		expect(prevented()).toBe(false);
 		expect(stopped()).toBe(false);
@@ -171,7 +173,7 @@ function actionsOver(
 			edited.push(edit(shape));
 			return Promise.resolve(answer);
 		},
-		{ value: tool },
+		{ activeToolId: { value: tool }, ...SHOWN },
 	);
 	return { actions, selected, edited };
 }

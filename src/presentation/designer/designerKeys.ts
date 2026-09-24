@@ -9,6 +9,7 @@ import { plainPress } from '../editor/surface/keyboard';
 import type { ToolId } from '../editor/tools/editor-tool';
 import { selectionExists, type DesignerSelection } from './selection/designerSelection';
 import type { EditShape, ShapeEdit } from './selection/editShape';
+import { drawnSelection } from './selection/hitTest';
 
 /**
  * The asset designer's selection keys (symbols spec, Decision 10). Delete, Ctrl+D, and Ctrl+G and
@@ -47,8 +48,26 @@ export interface DesignerKeyDoors {
 	ungroupSelection(): void;
 }
 
+/**
+ * What the canvas DRAWS, as the selection keys read it — the leaf's `DesignerRuntime` satisfies it
+ * structurally. `drawnSelection` is the rule; these are the two view facts it is asked over.
+ */
+export interface DrawnView {
+	readonly partView: { readonly hidden: { readonly value: ReadonlySet<string> } };
+	readonly showClearance: { readonly value: boolean };
+}
+
+/**
+ * `part` when the canvas draws it, else `null` (`drawnSelection`, AD18-R20). A selected part that is
+ * not drawn — the clearance behind `Show clearance`, a graphic hidden in Parts — shows no outline and
+ * no handles, so no selection key and no menu item acts on it (AD18-R22).
+ */
+function drawnPart(view: DrawnView, part: DesignerSelection | null | undefined): DesignerSelection | null {
+	return drawnSelection(part ?? null, { hidden: view.partView.hidden.value, clearanceHidden: !view.showClearance.value });
+}
+
 /** What the selection keys' refusal reads — the leaf's `DesignerRuntime` satisfies it structurally. */
-export interface SelectionKeyGate {
+export interface SelectionKeyGate extends DrawnView {
 	readonly activeToolId: { readonly value: ToolId | null };
 	readonly toolManager: { activeToolHasDraft(): boolean };
 }
@@ -93,11 +112,16 @@ export interface SelectionAbilities {
  * (the last member): Group needs `canGroup` over the whole set; Ungroup a focused graphic in a group;
  * Duplicate a focused graphic; Delete a focused graphic or the clearance. The footprint cannot be
  * deleted (spec Decision 9), and the anchor and the facing are not parts one removes.
+ *
+ * **Only over parts the canvas draws** (`drawnPart`, AD18-R22). Each action is asked about the parts
+ * it would write: Group writes every member, so one member not drawn refuses it; Ungroup, Duplicate and
+ * Delete write through the focused part, so a drawn focused member keeps them while another member is
+ * hidden. The Inspector's own buttons do not ask this: they sit beside a named part.
  */
-export function selectionAbilities(shape: AssetShape | null, selected: readonly DesignerSelection[]): SelectionAbilities {
-	const focused = selected.at(-1), detail = focused?.kind === 'detail' ? focused.id : null;
+export function selectionAbilities(shape: AssetShape | null, selected: readonly DesignerSelection[], view: DrawnView): SelectionAbilities {
+	const focused = drawnPart(view, selected.at(-1)), detail = focused?.kind === 'detail' ? focused.id : null;
 	return {
-		group: shape !== null && canGroup(shape, selectedGraphics(shape, selected)),
+		group: shape !== null && selected.every((part) => drawnPart(view, part) !== null) && canGroup(shape, selectedGraphics(shape, selected)),
 		ungroup: shape !== null && detail !== null && groupOfDetail(shape, detail) !== null,
 		duplicate: detail !== null,
 		delete: detail !== null || focused?.kind === 'clearance',
@@ -131,8 +155,8 @@ const DOOR = { duplicate: 'duplicateSelection', group: 'groupSelection', ungroup
  * propagation taken away, so the host's hotkey does not fire as well; a bare Delete has no default
  * worth taking.
  */
-export function designerShortcut(event: DesignerKeyPress, state: DesignerKeyState, doors: DesignerKeyDoors): boolean {
-	const can = selectionAbilities(state.design?.shape ?? null, state.selected);
+export function designerShortcut(event: DesignerKeyPress, state: DesignerKeyState, doors: DesignerKeyDoors, view: DrawnView): boolean {
+	const can = selectionAbilities(state.design?.shape ?? null, state.selected, view);
 	if (deletes(event) && can.delete) {
 		doors.deleteSelection();
 		return true;
@@ -157,7 +181,7 @@ export function canGroup(shape: AssetShape, ids: readonly string[]): boolean {
 
 /**
  * The key actions, built by `selectionKeyActions`. A leaf builds THREE instances over the same store,
- * `editShape` and active tool: `AssetDesignerRoot`'s, for its canvas keys and its context menu alike;
+ * `editShape`, active tool and view: `AssetDesignerRoot`'s, for its canvas keys and its context menu alike;
  * `DesignerCanvas`'s, for the arrows' nudge; and `DesignerPartsPanel`'s, for its rows' keys. Each
  * action reads the selection at the call, so three instances over one store are one behaviour.
  */
@@ -195,14 +219,16 @@ function whileItExists(selection: DesignerSelection, edit: ShapeEdit): (shape: A
 }
 
 /**
- * The five edits a selection key dispatches, over the leaf's store, its `editShape` and its active
- * tool. Arrow-function properties, so a component may destructure one without an unbound `this`.
+ * The five edits a selection key dispatches, over the leaf's store, its `editShape`, its active
+ * tool and what its canvas draws. Arrow-function properties, so a component may destructure one
+ * without an unbound `this`.
  *
  * Each action reads the selection at the CALL and answers for itself what it can act on — a detail or
  * the clearance to delete, a detail to duplicate — rather than trusting its caller to have asked:
  * `designerShortcut` asks at the press, while `nudgeSelection` is reached through `EditorSurface`'s arrow
- * door, which asks nothing about the part. The context menu (`designerMenu.ts`) calls the four that are
- * not the nudge, on the SAME instance `AssetDesignerRoot` builds for the keys. The inspector's buttons
+ * door, which asks nothing about the part. Whether the part is DRAWN (AD18-R22) is asked before the
+ * other four are called, by `selectionAbilities` in `designerShortcut` and in the menu, and by the nudge
+ * itself. The context menu (`designerMenu.ts`) calls the four that are not the nudge, on the SAME instance `AssetDesignerRoot` builds for the keys. The inspector's buttons
  * call none of them; they share `duplicateAndSelect`, `selectedGraphics` and `canGroup` above, and show
  * a refusal in their own alert rather than a notice. The selection clears itself after a delete: the
  * refresh re-reads a shape without the part, and the store prunes a selection that names nothing.
@@ -210,7 +236,7 @@ function whileItExists(selection: DesignerSelection, edit: ShapeEdit): (shape: A
 export function selectionKeyActions(
 	store: { readonly selection: DesignerSelection | null; readonly selected: readonly DesignerSelection[]; select(next: DesignerSelection | null): void },
 	editShape: EditShape,
-	activeToolId: { readonly value: ToolId | null },
+	leaf: Pick<SelectionKeyGate, 'activeToolId'> & DrawnView,
 ): {
 	readonly deleteSelection: () => Promise<void>;
 	readonly duplicateSelection: () => Promise<void>;
@@ -253,8 +279,9 @@ export function selectionKeyActions(
 		},
 		nudgeSelection: (by) => {
 			// The plan editor's `nudge.ts` rule: an arrow moves the selection only under Select, since every
-			// other tool owns the keyboard for its own gesture. Read at the press, before `editShape` chains.
-			const selection = activeToolId.value === 'select' ? store.selection : null;
+			// other tool owns the keyboard for its own gesture — and only a part the canvas draws (AD18-R22),
+			// since that door asks nothing about the part. Read at the press, before `editShape` chains.
+			const selection = leaf.activeToolId.value === 'select' ? drawnPart(leaf, store.selection) : null;
 			// A facing is a direction: a nudge has no meaning for it, and nothing is written.
 			if (selection === null || selection.kind === 'facing') return Promise.resolve();
 			return notifyIfRefused(

@@ -563,11 +563,11 @@ function onFailureAction(): void {
  *   is not a tool and is admitted (`selectionKeysRefused`, AD18-R20);
  * - a press still held on the selection (`hasDraft`), whose release is about to write that very part.
  */
-const keyActions = selectionKeyActions(designStore, runtime.editShape, runtime.activeToolId);
+const keyActions = selectionKeyActions(designStore, runtime.editShape, runtime);
 const contextMenu = useDesignerContextMenu(runtime, keyActions);
 function onCanvasKeyDown(event: KeyboardEvent): void {
 	if (event.target !== event.currentTarget || selectionKeysRefused(runtime)) return;
-	designerShortcut(event, designStore, keyActions);
+	designerShortcut(event, designStore, keyActions, runtime);
 }
 
 onMounted(() => {

@@ -111,7 +111,7 @@ const { toolManager, renderState, setTool, editShape, activeToolId, partView, ba
  * `arrowVector` — 10 mm a press, 100 mm with Shift — as one conditional shape write per press, under
  * Select only: an outline moves, the anchor moves, and a facing or no selection writes nothing.
  */
-const { nudgeSelection } = selectionKeyActions(designStore, editShape, activeToolId);
+const { nudgeSelection } = selectionKeyActions(designStore, editShape, { activeToolId, partView, showClearance });
 /** No area task exists in this surface, so Enter on its canvas finishes nothing. */
 const noArea = (): void => undefined;
 

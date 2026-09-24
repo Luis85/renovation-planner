@@ -64,7 +64,7 @@ function mountPanel(
 			// drives them in the real root, and `designerGroupFromRest.test.ts` the rows' Shift press that
 			// reaches `extend` — so these only satisfy the props.
 			selectionStore: { selected: options.selected ?? [], selection: null, select, focus: vi.fn<(next: DesignerSelection) => void>(), extend: vi.fn<(next: DesignerSelection) => void>() },
-			tools: { activeToolId: { value: 'select' }, toolManager: { activeToolHasDraft: () => false } },
+			tools: { activeToolId: { value: 'select' }, toolManager: { activeToolHasDraft: () => false }, partView: view, showClearance: { value: true } },
 			// A value down and a setter up, exactly as `DesignerInspector` took it before AD18-R16
 			// Task 7 moved the control here: `v-model` on a prop is a mutation of one, which
 			// `vue/no-mutating-props` refuses.

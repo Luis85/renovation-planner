@@ -65,7 +65,7 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToo
 	 * AD18-R17 Task 3): a group is only where the shared list draws a line, and this menu has one.
 	 */
 	const items = computed((): CanvasMenuAction[] => {
-		const can = selectionAbilities((store.design as AssetDesignDto).shape, store.selected), mod = modifierLabel();
+		const can = selectionAbilities((store.design as AssetDesignDto).shape, store.selected, runtime), mod = modifierLabel();
 		return [
 			{ id: 'group', label: 'designer.arrange.group', group: 'arrange', icon: 'group', shortcut: tr('designer.menu.shortcut.group', { mod }), disabled: !can.group, run: actions.groupSelection },
 			{ id: 'ungroup', label: 'designer.arrange.ungroup', group: 'arrange', icon: 'ungroup', shortcut: tr('designer.menu.shortcut.ungroup', { mod }), disabled: !can.ungroup, run: actions.ungroupSelection },
@@ -100,11 +100,11 @@ export function useDesignerContextMenu(runtime: Pick<DesignerRuntime, 'activeToo
 		// A pan still dragging refuses it too, as the Plan Editor's menu does (`CanvasContextMenu`).
 		if (dialogs.current !== null || editor.dragState !== null || selectionKeysRefused(runtime)) return;
 		const target = event.target as HTMLElement, part = partAt(event, target);
-		// A part none of the four can act on (the footprint, the anchor, the facing) opens nothing: a menu
+		// A part none of the four can act on (the footprint, the anchor, the facing, a part not drawn) opens nothing: a menu
 		// of greyed items is a dead control, and the browser keeps its own event. Asked of the part ALONE,
 		// which is exact — a graphic can always be duplicated, and a non-graphic is only ever selected alone.
 		// A part was only found on a drawn design, hence the cast.
-		if (part === null || !Object.values(selectionAbilities((store.design as AssetDesignDto).shape, [part])).includes(true)) return;
+		if (part === null || !Object.values(selectionAbilities((store.design as AssetDesignDto).shape, [part], runtime)).includes(true)) return;
 		event.preventDefault();
 		event.stopPropagation();
 		root = event.currentTarget as HTMLElement;

@@ -71,7 +71,7 @@ const props = defineProps<{
 	 * CALL — a prop re-renders a tick late — and `focus` retargets a member first, as the context menu does.
 	 */
 	selectionStore: Parameters<typeof selectionKeyActions>[0] & { focus(next: DesignerSelection): void; extend(next: DesignerSelection): void };
-	/** The leaf's runtime, asked only whether the keys are refused (`selectionKeysRefused`). */
+	/** The leaf's runtime: whether the keys are refused (`selectionKeysRefused`), and what its canvas draws (AD18-R22). */
 	tools: SelectionKeyGate;
 }>();
 
@@ -199,7 +199,7 @@ function onKeydown(event: KeyboardEvent): void {
  * CLAIMED, so a Tab or a letter pressed on a row moves nothing. An UNSELECTED row — one the arrows moved
  * focus to without pressing it — claims nothing, and the host keeps the key.
  */
-const keyActions = selectionKeyActions(props.selectionStore, (edit) => props.editShape(edit), props.tools.activeToolId);
+const keyActions = selectionKeyActions(props.selectionStore, (edit) => props.editShape(edit), props.tools);
 
 function shortcut(event: KeyboardEvent, row: PartRow): void {
 	// Only a part row binds this, so the row names a part.
@@ -215,7 +215,7 @@ function shortcut(event: KeyboardEvent, row: PartRow): void {
 		duplicateSelection: retarget(keyActions.duplicateSelection),
 		groupSelection: retarget(keyActions.groupSelection),
 		ungroupSelection: retarget(keyActions.ungroupSelection),
-	});
+	}, props.tools);
 }
 
 /**

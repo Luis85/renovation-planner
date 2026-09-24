@@ -66,7 +66,8 @@ describe('a clearance that returns through history while Show clearance is off',
 			const row = rig.wrapper.element.querySelector('.rp-designer-part-row[name="clearance"]') as HTMLElement;
 			row.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
 			await settle();
-			row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true }));
+			// The Inspector's own Delete: a Delete KEY on a clearance that is not drawn is refused (AD18-R22).
+			(rig.wrapper.element.querySelector('.rp-designer-selection-actions [name="delete"]') as HTMLButtonElement).click();
 			await settle();
 			expect((await rig.document()).shape?.clearance).toBeNull();
 

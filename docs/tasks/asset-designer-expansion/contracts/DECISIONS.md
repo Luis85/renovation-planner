@@ -1592,6 +1592,36 @@ hidden selected part; an overall label on a 280–360 px canvas may keep its anc
 a hidden part are consumed but do nothing (the Plan Editor's arrow door); the Plan Editor's
 `ZoneLockToggle` has the same name-plus-`aria-pressed` contradiction the designer's part controls had.
 
+### AD18-R23 — a follow-up round: the polish round's recorded items, triaged at source. (2026-09-24)
+
+Session eighteen verified each item the polish round recorded rather than fixed, at the code, and put
+the open ones to the user in one batched round. **Taken by the user**, every one as recommended:
+
+| Item | Shipped before | Ruled |
+|---|---|---|
+| A clearance SWAPPED for a different one by undo, redo or a peer's write while `Show clearance` is off | stays hidden: only an absent-to-present read-back re-shows it (`runtime.ts`, `clearanceReveals`) | **Re-shows when a read-back changes the clearance's geometry** (points and bulges compared by value). A read-back that leaves the clearance as it was, such as a detail move, does not re-show it |
+| On 280–360 px canvases an overall dimension label with no free slot along or outside its line keeps its anchor ON a handle (205 of 77,964 modelled frames), where the handle may be unreachable | the label covers the handle | **In that case only, the label may take an inward slot, onto the drawing, before it covers a handle** (`dimensionFigures.ts`, `overallSlot`). A reachable handle outranks a label kept off the drawing. Every other frame keeps AD18-R21's fix-round-2 rule |
+| A box-handle drag on a CURVED clearance (the round and oval table presets) | a plain scale: the fixed side moves and the drag misses the pointer, while a typed clearance Width or Depth already solves through `resizeToExtent` | **Solved like every other curved part** (`selectionDrag.ts`, `keptCurves`), so a drag and a typed size land the same numbers. The pending flag and AD14-R1's review flag behave exactly as the typed path already does. C07 does not separate the two paths, so the exclusion Task 13 of the polish round recorded under it is withdrawn |
+| The browser harness refuses every write, so no successful Group had ever been observed in a browser | `unavailableAssetDesignerCommands()` behind every harness mount (`tests/harness/assetDesigner.ts`) | **A `&writable` harness knob beside `?preset=`**: the designer mounted over the in-memory repository stack and the REAL command bundle, the composition `tests/helpers/designerRig.ts` already builds, moved to one vitest-free helper both call. Writes last until reload. Test tooling only: nothing in `src/` changes and nothing is bundled |
+
+**Defects, fixed without a ruling** because each breaks a rule that already stands:
+- the rulers' selection band (`DesignerRulers.vue`) and `Shift+2` framing (`DesignerCanvas.vue`) follow a
+  selected part that is not drawn. AD18-R20 made `drawnSelection` (`hitTest.ts`) the one rule for what a
+  selection draws, and the canvas marks, the dimension labels and the selection keys already ask it;
+- the Plan Editor's `ZoneLockToggle.vue` carries a swapping accessible name AND `aria-pressed`, the
+  contradiction 3405aab95 removed from the designer's part controls ("Unlock Kitchen, toggle button,
+  pressed"). The swapping name alone carries the state, as on the designer side.
+
+**Recorded as already fine, so nobody reopens them:**
+- **Arrow keys on a hidden selected part are claimed and do nothing.** `keyDoors.ts` takes an arrow's
+  default whenever the canvas has focus, on purpose (its Finding B), so the leaf never scrolls under the
+  canvas. Nothing selected, a tool other than Select and a selected facing are claimed-and-inert the same
+  way, in the Plan Editor too. A hidden part is one more of those cases.
+- **An Ungroup on a visible part whose group includes a hidden member is allowed.** Ungroup changes group
+  membership only: C06 keeps every coordinate and the array order. The part acted on is visible and
+  selected, the Parts panel shows the membership change, and it undoes in one step. AD18-R22 refused
+  the keys because they moved or removed something unseen, and an Ungroup does neither.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

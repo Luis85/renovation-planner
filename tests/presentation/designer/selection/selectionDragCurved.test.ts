@@ -142,15 +142,6 @@ describe('a box-handle drag this does not change', () => {
 		const shift = { ...FREE, shift: true };
 		expect(expectOk(dragHandle(BASIN_SHAPE, BASIN, 3, RIGHT, to, shift))).toEqual(scaledAsToday(BASIN_SHAPE, BASIN, 3, to, true));
 	});
-
-	it('scales a curved clearance exactly as before, since C07 governs it', () => {
-		// A stadium clearance about (0, 200), x -1100..1100, whose ends of radius 600 keep their reach under a plain
-		// width scale: its right handle (3) to x 1000 is a drag a solve would land differently, so one would show here.
-		const shape = editableShape({ clearance: stadium(2200, 1200, 0, 200) });
-		const clearance: OutlinePart = { kind: 'clearance' };
-		const to = { x: 1000, y: 200 };
-		expect(expectOk(dragHandle(shape, clearance, 3, { x: 1100, y: 200 }, to))).toEqual(scaledAsToday(shape, clearance, 3, to));
-	});
 });
 
 describe('the select tool dragging a curved graphic’s handle', () => {

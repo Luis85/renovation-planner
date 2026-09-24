@@ -72,7 +72,7 @@ function held(moves: boolean, fixed: number, min: number, centre: number, extent
  */
 function fittedResize(
 	shape: AssetShape,
-	part: Exclude<OutlinePart, { readonly kind: 'clearance' }>,
+	part: OutlinePart,
 	box: BoundingBox,
 	index: number,
 	{ factors, origin }: BoxResize,
@@ -98,7 +98,7 @@ function fittedResize(
 
 /**
  * What a box handle writes WITHOUT Shift where it differs from the plain scale: a rounded rectangle rebuilt
- * (`scaleRoundedRect`), or a curved outline other than the clearance solved (`fittedResize`) — or `null`,
+ * (`scaleRoundedRect`), or any other curved outline solved (`fittedResize`) — or `null`,
  * which `draggedShape` answers with the plain scale. A refused solve is `null` too.
  */
 function keptCurves(shape: AssetShape, part: OutlinePart, box: BoundingBox, index: number, resize: BoxResize): Result<AssetShape, ValidationError> | null {
@@ -106,7 +106,7 @@ function keptCurves(shape: AssetShape, part: OutlinePart, box: BoundingBox, inde
 	if (rounded !== null) return rounded;
 	// The outline is there: `boxOf` just measured it.
 	const arcs = (outlineOf(shape, part) as CurvedPolygon).bulges ?? [];
-	if (part.kind === 'clearance' || !arcs.some((bulge) => bulge !== 0)) return null;
+	if (!arcs.some((bulge) => bulge !== 0)) return null;
 	const fitted = fittedResize(shape, part, box, index, resize);
 	return fitted.ok ? fitted : null;
 }
@@ -125,13 +125,17 @@ function keptCurves(shape: AssetShape, part: OutlinePart, box: BoundingBox, inde
  * typed path does not keep that one's radius either. Shift is left out: a proportional scale keeps the
  * outline a rounded rectangle already, with the radius scaled by the same factor, as it always has.
  *
- * **A box handle on any other graphic with an arc, or on a curved footprint, solves its extent** (AD18-R20
- * Task 13, `fittedResize`) — which now includes a rounded rectangle `scaleRoundedRect` declines — so the side
- * opposite the handle stays put and the curve-aware box lands where the pointer asks, or as near as a typed size
- * would. The footprint's typed Width and Depth already solve through `resizeToExtent`, and a handle on it
- * touches neither the clearance nor its review flag (that is `scaleDesign`'s, the whole-design path).
- * **The CLEARANCE keeps the plain scale**, deliberately: C07 governs how a clearance is resized, and this task
- * changes none of it. Shift and straight outlines keep it too; a uniform scale keeps every arc.
+ * **A box handle on any other graphic with an arc, on a curved footprint or on a curved clearance, solves its
+ * extent** (AD18-R20 Task 13, `fittedResize`; the clearance since AD18-R23) — which includes a rounded rectangle
+ * `scaleRoundedRect` declines — so the side opposite the handle stays put and the curve-aware box lands where the
+ * pointer asks, or as near as a typed size would. The footprint's and the clearance's typed Width and Depth (the
+ * inspector's for the footprint, the canvas dimension labels' for both) already solve through `resizeToExtent`.
+ * Both paths write through `resizeBox` (the drag adds a `moveOutline`, and its fallback is `resizeBox` alone), so
+ * both carry `clearancePending` as it was and both clear the clearance's review flag (AD14-R1): a gesture aimed at
+ * the boundary is the review. A handle on the footprint touches neither. A pending clearance has no dimension
+ * label to type into (`dimensionFigures.measuredParts`) while its handles drag as any other's, which is true of a
+ * pending detail too and is not this rule's. Shift and straight outlines keep the plain scale; a uniform scale
+ * keeps every arc.
  * **A solve that is refused falls back to the plain scale**, so a release never turns into a notice where it
  * used to commit. A solve can be refused where the plain scale is not because its passes go through shapes the
  * plain scale never makes — a width pass leaves the depth unscaled — and one whose kept arcs meet is refused by

@@ -3,9 +3,10 @@
  *
  * The asset designer harness's `&writable` knob (AD18-R23): the page composed over the in-memory
  * stack through `../helpers/designerComposition`, so a Group, an undo and a redo really write.
- * Mounted through `mountAssetDesignerHarness`, the function `page.ts` calls, and every assertion
- * about a write reads the design BACK through the stack's own `GetAssetDesignQuery` rather than
- * trusting the leaf's store.
+ * Mounted through `mountAssetDesignerHarness`, the function `page.ts` calls. Every assertion that a
+ * GESTURE wrote reads the design back through the stack's own `GetAssetDesignQuery` rather than
+ * trusting the leaf's store; the peer case asserts on the store, because what it checks is that the
+ * leaf re-read.
  *
  * The set is built on the Parts rows and the menu opened by a right-click on one of them:
  * `../helpers/designerRightClick` takes a `DesignerRig` (it resolves a world point through
@@ -13,13 +14,12 @@
  */
 import { afterEach, expect, it, vi } from 'vitest';
 import type { App } from 'vue';
-import { mountAssetDesignerHarness } from './assetDesigner';
+import { mountAssetDesignerHarness, pressTool } from './assetDesigner';
+import type { AssetDesignerView } from '../../src/presentation/designer/AssetDesignerView';
 import { useAssetDesignStore } from '../../src/presentation/designer/stores/assetDesignStore';
-import { tr } from '../../src/presentation/i18n/strings';
 import type { StringKey } from '../../src/presentation/i18n/locales/en';
 import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver, placeAt, resizeTo } from '../helpers/layout';
-import { accessibleName } from '../helpers/accessibleName';
 import { expectOk } from '../helpers/domain';
 import { settle, settleUntil } from '../helpers/settle';
 
@@ -61,9 +61,9 @@ async function press(target: HTMLElement, init: MouseEventInit = {}): Promise<vo
 	await settle();
 }
 
-async function pressTool(view: { contentEl: HTMLElement }, label: StringKey): Promise<void> {
-	const button = [...view.contentEl.querySelectorAll<HTMLButtonElement>('.rp-designer-tools button')].find((candidate) => accessibleName(candidate) === tr(label));
-	(button as HTMLButtonElement).click();
+/** The harness's own `pressTool`, so the accessible-name lookup lives in one place. */
+async function pressAndSettle(view: AssetDesignerView, label: StringKey): Promise<void> {
+	pressTool(view, label);
 	await settle();
 }
 
@@ -78,9 +78,9 @@ it('groups two details from the right-click menu, and the stack reads the group 
 	await press(view.contentEl.querySelector('.rp-canvas-context-menu [data-rp-context-action="group"]') as HTMLElement);
 	expect(await groups()).toEqual(GROUP);
 
-	await pressTool(view, 'designer.toolbar.undo');
+	await pressAndSettle(view, 'designer.toolbar.undo');
 	expect(await groups()).toEqual([]);
-	await pressTool(view, 'designer.toolbar.redo');
+	await pressAndSettle(view, 'designer.toolbar.redo');
 	expect(await groups()).toEqual(GROUP);
 });
 

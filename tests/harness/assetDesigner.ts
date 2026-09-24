@@ -261,7 +261,7 @@ const TRACED_VERTICES = [[0.4, 0.4], [0.6, 0.4], [0.6, 0.6]] as const;
  * `toolbarButton` broke identically for the same reason, so the fix is the shared module rather
  * than a second copy of the rule here.
  */
-function pressTool(view: AssetDesignerView, label: StringKey): void {
+export function pressTool(view: AssetDesignerView, label: StringKey): void {
 	const found = Array.from(view.contentEl.querySelectorAll<HTMLButtonElement>('.rp-designer-tools button, .rp-designer-add button')).find(
 		(candidate) => accessibleName(candidate) === tr(label),
 	);

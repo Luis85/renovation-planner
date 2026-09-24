@@ -229,11 +229,9 @@ class FaultingSidecar extends ObsidianAssetGeometrySidecar {
 /**
  * The real designer over the real in-memory persistence stack.
  *
- * Everything below the view is genuine: `ObsidianAssetGeometrySidecar` over the fake vault's
- * bytes, `ObsidianAssetRepository` for the note, the six real design commands, the real
- * reversible adapters minted per leaf, and `GetAssetDesignQuery` joining the two back for the
- * read. What is faked is the vault and Obsidian's DOM, which is the line every other harness
- * here draws.
+ * Everything below the view is `composeDesigner`'s (`./designerComposition`, whose header says what
+ * it builds), shared with the browser harness's `&writable` knob. What is faked is the vault and
+ * Obsidian's DOM, which is the line every other harness here draws.
  */
 export async function designerRig(options: DesignerRigOptions = {}): Promise<DesignerRig> {
 	installObsidianDom();

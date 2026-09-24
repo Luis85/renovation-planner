@@ -181,10 +181,19 @@
  * than left to clip it (`tests/gates/buttonBoxNeutralised.test.ts` records what that costs):
  * `height: 100%` fills the stretched grid cell, which both undoes the fixed 30px and keeps every
  * tile in a row the same height, and `white-space: normal` undoes `nowrap`.
+ *
+ * `align-items: stretch` undoes the OTHER half of that base rule (`align-items: center`, AD18-R20):
+ * left unset, a one-line name shrinks to its own content width and that shrunk box centres in the
+ * column, while a two-line name is laid out at the tile's full width and only ITS OWN
+ * `text-align: start` was ever visible — so the same rule read as two different alignments
+ * depending on how long the name was. Stretching every child to the tile's width makes
+ * `text-align: start` decide both cases alike. The mark's own `align-self: center` below
+ * overrides this for that one child, so it alone stays centred.
  */
 .rp-al-tiles .rp-al-tile {
 	display: flex;
 	flex-direction: column;
+	align-items: stretch;
 	gap: var(--size-2-2);
 	width: 100%;
 	min-width: 0;

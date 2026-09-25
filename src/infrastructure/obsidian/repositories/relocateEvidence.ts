@@ -2,10 +2,12 @@ import type { PlanRepository } from '../../../application/ports/PlanRepository';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { AppError } from '../../../core/errors/AppError';
+import type { DiagnosticsLedger } from '../../../application/ports/diagnostics';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import { withPlanRenovation } from '../../../domain/plan/Plan';
 import { markUncompensated, type AffectedEntity } from '../../../application/commands/DispatchOutcome';
 import { err, ok } from '../../../core/result/Result';
+import { isSkippablePlanRefusal } from './ObsidianPlanRepository';
 
 /**
  * The host already moved the user file. Update only matching links with conditional Plan writes.
@@ -23,12 +25,19 @@ import { err, ok } from '../../../core/result/Result';
  * changed nothing would pause every guarded command in the vault for a coherent vault. A
  * failure on the first plan returns the refusal untouched.
  *
+ * **An UNREADABLE plan is skipped, not a refusal (owner ruling 14, census #23).** Every plan is
+ * read before its evidence is checked, so a plan refusing a note-local way — the listing's own
+ * `isSkippablePlanRefusal`, reused rather than copied — used to end every rename in the vault:
+ * a failure notice for a rename that succeeded, and, after a landed save, a vault-wide incident
+ * over a coherent vault. It is left as it is and recorded in the diagnostics ledger, the way
+ * `ObsidianPlanRepository.listByProject` records one; any other read refusal still aborts.
+ *
  * `deps.events.publish` is the one step a throw can escape from rather than a `Result` — it is
  * outside the stamp for that reason, and `evidenceRenamed`'s own try/catch is where it lands.
  * A throw there after a landed save is still an unrecorded half-write; closing it means giving
  * the publish a failure channel, which is not this change.
  */
-export async function relocateEvidence(deps: { plans: PlanRepository; index: ProjectIndex; events: EventBus }, oldPath: string, newPath: string) {
+export async function relocateEvidence(deps: { plans: PlanRepository; index: ProjectIndex; events: EventBus; ledger: DiagnosticsLedger }, oldPath: string, newPath: string) {
  const written: AffectedEntity[] = [];
  // `markUncompensated` only when something is actually half-written. `written` is the loop's
  // own record rather than a count, because ADR-0034 asks a raise site to NAME what it left.
@@ -39,7 +48,11 @@ export async function relocateEvidence(deps: { plans: PlanRepository; index: Pro
  const abort = <E extends AppError>(error: E) => err(written.length === 0 ? error : markUncompensated(error, written));
  for (const id of deps.index.getIdsByType('renovation-plan')) {
   const read = await deps.plans.getById(id as PlanId);
-  if (!read.ok) return abort(read.error);
+  if (!read.ok) {
+   if (!isSkippablePlanRefusal(read.error)) return abort(read.error);
+   deps.ledger.record('plan', id, read.error);
+   continue;
+  }
   const loaded = read.value, renovation = loaded?.entity.renovation;
   if (!loaded || !renovation?.depth) continue;
   const depth = renovation.depth;

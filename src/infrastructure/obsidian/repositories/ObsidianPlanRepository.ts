@@ -34,7 +34,9 @@ import type { PlanGeometryStore } from './PlanGeometryStore';
 import { markUncompensated } from '../../../application/commands/DispatchOutcome';
 
 /**
- * Which refusals a plan listing may swallow: the ones that are about ONE note.
+ * Which refusals a plan listing may swallow: the ones that are about ONE note. `relocateEvidence`
+ * skips the same set on a rename (owner ruling 14), so the two cannot disagree about which plans
+ * are unreadable.
  *
  * An allowlist, so an unenumerated code propagates — the fail-closed direction, and the same
  * shape `ObsidianZoneRepository` uses. Both were measured against `getById`'s arms rather than
@@ -76,7 +78,7 @@ const SKIPPABLE_PLAN_CODES = new Set([
 	'plan.sidecar-unreadable',
 ]);
 
-function isSkippablePlanRefusal(error: RepositoryError): boolean {
+export function isSkippablePlanRefusal(error: RepositoryError): boolean {
 	return error.category === 'Migration' || SKIPPABLE_PLAN_CODES.has(error.code);
 }
 

@@ -4,6 +4,7 @@ import { evidenceRenamed } from '../../src/plugin/evidenceRename';
 import type { CompositionRoot } from '../../src/plugin/composition-root';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
+import { InMemoryDiagnosticsLedger } from '../../src/infrastructure/logging/diagnosticsLedger';
 import { createEventBus } from '../../src/core/events/EventBus';
 import { withPlanRenovation } from '../../src/domain/plan/Plan';
 import { EMPTY_DEPTH, type Evidence } from '../../src/domain/renovation/PlanningDepth';
@@ -73,10 +74,11 @@ async function rootOf(...paths: readonly string[]) {
 		})),
 		[],
 	);
-	// The three members `evidenceRenamed` actually reaches, NAMED rather than left to a bare
+	// The members `evidenceRenamed` actually reaches, NAMED rather than left to a bare
 	// `{} as CompositionRoot`: `tests/plugin/diagnostics/diagnosticsReportDoors.test.ts` shipped
 	// a snapshot literal missing a required field precisely because its cast accepted anything.
-	const root = { logger: recorder, eventBus: createEventBus(() => undefined), persistence: { plans, index } } as unknown as CompositionRoot;
+	const vaultDeps = { ledger: new InMemoryDiagnosticsLedger() };
+	const root = { logger: recorder, eventBus: createEventBus(() => undefined), persistence: { plans, index, vaultDeps } } as unknown as CompositionRoot;
 	return { plans, index, ids, root };
 }
 

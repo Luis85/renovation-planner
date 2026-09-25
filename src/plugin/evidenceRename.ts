@@ -23,7 +23,7 @@ import type { AppError } from '../core/errors/AppError';
 export async function evidenceRenamed(root: CompositionRoot, oldPath: string, newPath: string): Promise<void> {
  if (!root.persistence) return;
  try {
-  const result = await relocateEvidence({ ...root.persistence, events: root.eventBus }, oldPath, newPath);
+  const result = await relocateEvidence({ ...root.persistence, ledger: root.persistence.vaultDeps.ledger, events: root.eventBus }, oldPath, newPath);
   if (!result.ok) {
    // `void`, not awaited: `record` resolves rather than rejects for every fault (its own
    // docblock), the in-memory list is appended to before the durable write is attempted, and

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { relocateEvidence } from '../../../../src/infrastructure/obsidian/repositories/relocateEvidence';
 import { InMemoryPlanRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
+import { InMemoryDiagnosticsLedger } from '../../../../src/infrastructure/logging/diagnosticsLedger';
 import { createEventBus } from '../../../../src/core/events/EventBus';
 import { withPlanRenovation } from '../../../../src/domain/plan/Plan';
 import type { PlanId } from '../../../../src/domain/plan/PlanId';
@@ -85,7 +86,7 @@ async function rigOf(...paths: readonly string[]) {
 		})),
 		[],
 	);
-	return { plans, index, events, ids, deps: { plans, index, events } };
+	return { plans, index, events, ids, deps: { plans, index, events, ledger: new InMemoryDiagnosticsLedger() } };
 }
 
 const evidencePathOf = async (plans: InMemoryPlanRepository, id: PlanId): Promise<string> =>

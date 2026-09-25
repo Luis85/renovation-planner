@@ -72,8 +72,14 @@ async function selectKitchen(browser: NativeBrowser): Promise<void> {
 	const pane = browser.$(EDITOR);
 	const rail = pane.$('[data-rp-rail="details"]');
 	if (await rail.isDisplayed()) await rail.click();
-	// The list is drawn twice and the first copy is hidden, so take the one on screen.
-	const rows = await pane.$$('.rp-room-list__row*=Kitchen').filter((row) => row.isDisplayed());
+	// The room list is drawn twice from the same records (useSpatialRecords.ts): once in the
+	// Layers panel's Rooms section (PropertyLayerPanel.vue) and once in the Floor inspector's
+	// own list (FloorInspector.vue via FloorSpatialLists.vue). At the full-width layout
+	// (ResponsiveEditorShell.vue) both panels are visible at once, so an unscoped query finds
+	// two "Kitchen" rows there. Scope to the inspector region (`data-rp-region="inspector"`,
+	// EntityInspector.vue): its row is the one whose click opens `.rp-room-inspector` below,
+	// and it carries exactly one Kitchen row at any width.
+	const rows = await pane.$('[data-rp-region="inspector"]').$$('.rp-room-list__row*=Kitchen');
 	expect(rows).toHaveLength(1);
 	await rows[0].click();
 	await expect.poll(() => pane.$('.rp-room-inspector').isExisting()).toBe(true);

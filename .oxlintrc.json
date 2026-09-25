@@ -188,6 +188,13 @@
 			"rules": { "no-console": "off" }
 		},
 		{
+			// The e2e cases call a `test` that `tests/e2e/fixture.ts` EXTENDS from vitest's, and the
+			// rule recognises a test block by its import source, so without this every `expect`
+			// in those files reads as standalone. Naming the block keeps the rule on there.
+			"files": ["tests/e2e/**"],
+			"rules": { "vitest/no-standalone-expect": ["error", { "additionalTestBlockFunctions": ["test", "desktop", "desktop.fails", "mobile"] }] }
+		},
+		{
 			"files": ["scripts/**", "*.config.ts", "*.config.mjs"],
 			"rules": {
 				"max-lines": ["error", { "max": 400, "skipBlankLines": true, "skipComments": true }],

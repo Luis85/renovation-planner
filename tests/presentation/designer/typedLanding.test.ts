@@ -133,6 +133,18 @@ describe('the inspector’s Width and Depth', () => {
 		}
 	});
 
+	/** The Depth field's check is on its depth, as the label's is below: 600 is reachable and the width stays 400. */
+	it('lands a reachable Depth and says nothing', async () => {
+		const rig = await designer();
+		try {
+			await typeIntoInspector(rig, 'depth', '600');
+			expect((await written(rig)).depth).toBeCloseTo(600, 6);
+			expect(raised()).toEqual([]);
+		} finally {
+			rig.unmount();
+		}
+	});
+
 	it('lands a reachable Width and says nothing', async () => {
 		const rig = await designer();
 		try {
@@ -172,6 +184,36 @@ describe('the canvas’s size labels', () => {
 		}
 	});
 
+	it('warns for a typed overall depth the arcs cannot reach', async () => {
+		const rig = await designer();
+		try {
+			await typeIntoLabel(rig, 'overall-depth', '100');
+			const box = await written(rig);
+			expect(box.depth).toBeGreaterThan(389.5);
+			expect(box.depth).toBeLessThan(390.5);
+			expect(raised()).toEqual([landedNotice(box)]);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	/**
+	 * The depth label's check is on its DEPTH: 600 is reachable, and the width it leaves (400) is not 600, so a label
+	 * that checked the wrong axis would warn here. The miss above cannot tell the two apart, since both axes miss.
+	 */
+	it('lands a reachable depth and says nothing', async () => {
+		const rig = await designer();
+		try {
+			await typeIntoLabel(rig, 'overall-depth', '600');
+			const box = await written(rig);
+			expect(box.depth).toBeCloseTo(600, 6);
+			expect(box.width).toBeCloseTo(400, 6);
+			expect(raised()).toEqual([]);
+		} finally {
+			rig.unmount();
+		}
+	});
+
 	it('lands a reachable width and says nothing', async () => {
 		const rig = await designer();
 		try {
@@ -203,6 +245,25 @@ describe('Set dimensions', () => {
 			await setDimensions(rig, 67, 690);
 			const box = await written(rig);
 			expect(box.width).toBeGreaterThan(202.4);
+			expect(raised()).toEqual([landedNotice(box)]);
+		} finally {
+			rig.unmount();
+		}
+	});
+
+	/**
+	 * A preset's miss: the round table's footprint is a circle whose four arcs keep their reach as the width scales,
+	 * so 1 x 1000 lands about 207.1 wide (`scaleDesignToDimensions`' own docblock; `scaleDesignReach.test.ts`
+	 * holds the floor). Measured 207.107 x 1000 on 2026-09-25.
+	 */
+	it('warns on a preset too: the round table typed below its width floor', async () => {
+		const table = expectDefined(ASSET_PRESETS.find((preset) => preset.id === 'round-table'), 'the round table preset');
+		const rig = await designerRig({ shape: expectOk(table.build(defaultValues(table))), camera: 'opened' });
+		try {
+			await setDimensions(rig, 1, 1000);
+			const box = await written(rig);
+			expect(box.width).toBeCloseTo(207.1, 0);
+			expect(box.depth).toBeCloseTo(1000, 6);
 			expect(raised()).toEqual([landedNotice(box)]);
 		} finally {
 			rig.unmount();

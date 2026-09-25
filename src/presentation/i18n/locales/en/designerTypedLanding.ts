@@ -7,5 +7,5 @@
  * landed is the pair. The numbers are whole millimetres, which is what every one of those fields shows.
  */
 export const designerTypedLandingEn = {
-	'designer.typed-size.landed': 'The size typed is out of reach for this shape. It now measures {width} × {depth} mm.',
+	'designer.typed-size.landed': 'The typed size is out of reach for this shape. It now measures {width} × {depth} mm.',
 } as const;

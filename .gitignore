@@ -85,3 +85,5 @@ __pycache__/
 /.worktrees/
 
 /.specorator
+# `npm run test:e2e` evidence: per-case screenshots, page HTML and JSON, plus junit.xml. CI uploads it.
+/e2e-results/

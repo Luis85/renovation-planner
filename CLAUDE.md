@@ -92,15 +92,16 @@ settings save, and a Pinia-held selection would throw the user out of the projec
 to `ProjectDetailState.vue`, which owns its store, its two subscriptions and its own dialog —
 and the view REMOUNTS per navigation (`sync`), which is what makes that value unable to go
 stale rather than a `Ref` somebody has to keep fresh. Navigation goes through
-`leaf.setViewState` and sets `ViewStateResult.history`, so **the pane's own back and forward
-arrows walk it** — the in-app ‹ back is a different mechanism from that arrow (it SETS a state
-where the arrow asks Obsidian to RESTORE one) and both carry the same `''`-means-the-list
-sentinel `getState` writes. Whether Obsidian honours the arrow is checkable nowhere here —
-`FakeLeaf` records asks rather than behaving — so it is left to
-`docs/tests/cases/Navigate into a project and back.md`, **which is written and has not been run
-in a vault**: that case's Runs table says so, and slice 21's own outcome row said "walked" over
-it until a review bot compared the two. An unrun manual case is a plan to find out, not a
-finding. The **Plan editor** is per-plan (several
+`leaf.setViewState` and sets `ViewStateResult.history`, INTENDING the pane's own back and
+forward arrows to walk it — the in-app ‹ back is a different mechanism from that arrow (it SETS
+a state where the arrow asks Obsidian to RESTORE one) and both carry the same
+`''`-means-the-list sentinel `getState` writes. **In real Obsidian 1.13.7 the arrows do NOT walk
+it**: `FakeLeaf` records asks rather than behaving, so this was checkable nowhere until
+`npm run test:e2e` drove the real host, which measured the leaf's `history.backHistory` staying
+empty after a row click — the arrow stays disabled and `app:go-back` does nothing.
+`tests/e2e/renovationPlanner.e2e.ts` PINS that (the arrow's `aria-disabled` after a row click),
+positively rather than as a `.fails` case, which a broken selector would also satisfy — so it
+turns red the day the arrows work; rewrite it to walk them then. The **Plan editor** is per-plan (several
 leaves coexist, keyed by a plan id in Obsidian's own view state): §60's five shell regions
 around a Konva stage of §17's seven layers, the Zones of one Plan, an image or PDF
 background, and a pan/zoom camera — slice 5. **That canvas is editable now**, which is the
@@ -434,8 +435,12 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   `Notice` renders on `document.body` under `.notice-container` and slice 13's two live
   regions are appended to `document.body` itself, so that pair of `role`/`aria-live` values
   and the dismiss control's accessible name — the most new ARIA any one slice has added — sit
-  outside every scan this file performs. A live vault
-  (`npm run test-build`) remains the only place appearance is verified.
+  outside every scan this file performs. **`npm run test:e2e` closes the contrast gap and only
+  that one**: its axe scan runs in Obsidian's real renderer over the project view in BOTH
+  themes, and its first CI run found `.rp-view-notice` at 2.73:1 in the light theme — the
+  first defect in this repository found by a gate that measures colour. It still scans one
+  view's subtree, so notices, focus rings and hit sizes remain where they were: a live vault
+  (`npm run test-build`) is the only place THOSE are verified.
 - **analyze** — fallow: dead files and exports, duplication, complexity against coverage,
   and dependency hygiene.
 
@@ -474,7 +479,18 @@ of the four CI legs.
 `npm audit` is deliberately NOT in `check`: an advisory with no patched version is a red
 nobody can clear, and a gate people learn to ignore protects nothing. It is its own CI job.
 
-Obsidian itself cannot run here. Three commands stand in, and none replaces another
+**`npm run test:e2e` runs real Obsidian**, and is outside `npm run check` on purpose: it
+downloads the app on first use (into `node_modules/.cache/obsidian`) and needs a display. It
+builds, stages `dist/` plus `manifest.json` as an installed plugin, and drives the host through
+standalone WebdriverIO and `wdio-obsidian-service` from a Node-only Vitest config
+(`tests/e2e/vitest.config.mts`), with a fresh copy of `tests/e2e/vault/` and a fresh profile per
+case. Evidence (screenshot, page HTML, JSON) lands in `e2e-results/`. The `E2E` workflow runs it on
+Linux under xvfb at 1.13.7 (the earliest PUBLIC build at `minAppVersion`; 1.13.0 was
+Insiders-only and cannot be downloaded without an account), at `latest`, and under
+`OBSIDIAN_UI=mobile-emulation`, which is desktop Obsidian emulating a phone and NOT a device
+test. The host is forced to `--lang=en`, so the suite reads the same on a German machine.
+
+Everything else below still stands in for a vault. Three commands, and none replaces another
 (`asset-library-shots` and `concept-shots` beside them are captures of the second one's kind,
 aimed at one surface and at the concept gallery, and neither replaces it either):
 

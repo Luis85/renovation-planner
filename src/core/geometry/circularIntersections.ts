@@ -79,11 +79,23 @@ function lineLine(a: CircularEdge, b: CircularEdge, epsilon: number): EdgeInters
 	return { points: [a.start, a.end, b.start, b.end].filter(point => point[axis] >= low && point[axis] <= high), overlap: high - low > epsilon };
 }
 /**
- * Two arcs that share a corner are solved about it (AD18-R24). Both circles then pass through the origin, so every
- * circle term scales with the arcs rather than with the frame, and the radical line runs through the origin: its
- * other root is `-B / A`, with nothing to divide the corner's own root out of. Solved in the frame instead, a
- * short arc beside a long one failed its own `onArc` on round-off, and the line placed by `offset` subtracted two
- * near-equal circles; each reported a contact about 1e-7 mm beside the corner or missed a real one.
+ * Two arcs that share a corner are solved about it (AD18-R24), in a frame whose origin is `a`'s corner point. `a`'s
+ * circle passes through that origin, so every circle term scales with the arcs rather than with the frame. The
+ * cornered solve drops the radical line's constant term, which puts the line through the origin, and takes its other
+ * root, `-B / A`, with nothing to divide the corner's own root out of. Solved in the frame instead, a short arc beside
+ * a long one failed its own `onArc` on round-off, and the line placed by `offset` subtracted two near-equal circles;
+ * each reported a contact about 1e-7 mm beside the corner or missed a real one.
+ *
+ * The line through the origin is exact when both arcs hold the corner as the same point, as polygon neighbours do.
+ * When `near` matched two points that differ within tolerance (two walls, or edges that are not neighbours), `b`'s
+ * circle passes only within tolerance of the origin, and the dropped term is that gap: the line, and any second
+ * crossing on it, is then placed approximately, more so the closer the two circles are to one circle.
+ *
+ * Known limit: two arcs that meet in a zero-angle cusp, `b` doubling back along `a`, on nearly identical circles.
+ * There the radical line's direction carries rounding comparable to its own signal, so a real crossing very near the
+ * corner can be missed and a cusp that touches only at the corner can be refused. Both happen less often than they
+ * did before this frame, and neither is reached by a preset, a translation, rotation or uniform scale, or a
+ * designer edit; a hand-edited sidecar can reach it. Recorded here as a limit, not solved.
  */
 function arcArc(a: CircularEdge, b: CircularEdge, epsilon: number): EdgeIntersections {
 	const corner = [a.start, a.end].find(point => near(point, b.start, epsilon) || near(point, b.end, epsilon));

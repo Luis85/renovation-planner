@@ -78,7 +78,21 @@ function lineLine(a: CircularEdge, b: CircularEdge, epsilon: number): EdgeInters
 	const high = Math.min(Math.max(a.start[axis], a.end[axis]), Math.max(b.start[axis], b.end[axis]));
 	return { points: [a.start, a.end, b.start, b.end].filter(point => point[axis] >= low && point[axis] <= high), overlap: high - low > epsilon };
 }
+/**
+ * Two arcs that share a corner are solved about it (AD18-R24). Both circles then pass through the origin, so every
+ * circle term scales with the arcs rather than with the frame, and the radical line runs through the origin: its
+ * other root is `-B / A`, with nothing to divide the corner's own root out of. Solved in the frame instead, a
+ * short arc beside a long one failed its own `onArc` on round-off, and the line placed by `offset` subtracted two
+ * near-equal circles; each reported a contact about 1e-7 mm beside the corner or missed a real one.
+ */
 function arcArc(a: CircularEdge, b: CircularEdge, epsilon: number): EdgeIntersections {
+	const corner = [a.start, a.end].find(point => near(point, b.start, epsilon) || near(point, b.end, epsilon));
+	if (corner === undefined) return arcCrossings(a, b, epsilon, false);
+	const moved = (edge: CircularEdge): CircularEdge => ({ start: minus(edge.start, corner), end: minus(edge.end, corner), bulge: edge.bulge });
+	const result = arcCrossings(moved(a), moved(b), epsilon, true);
+	return { points: result.points.map(point => ({ x: point.x + corner.x, y: point.y + corner.y })), overlap: result.overlap };
+}
+function arcCrossings(a: CircularEdge, b: CircularEdge, epsilon: number, cornered: boolean): EdgeIntersections {
 	const qa = equation(a), qb = equation(b);
 	const x = qb.a * qa.x - qa.a * qb.x, y = qb.a * qa.y - qa.a * qb.y, c = qb.a * qa.c - qa.a * qb.c;
 	const magnitude = Math.hypot(x, y);
@@ -92,11 +106,12 @@ function arcArc(a: CircularEdge, b: CircularEdge, epsilon: number): EdgeIntersec
 		return { points: endpoints, overlap: interior(b, arcPoint(a, 0.5)) || interior(a, arcPoint(b, 0.5)) || endpoints.some(point => interior(a, point) || interior(b, point)) };
 	}
 	if (magnitude === 0) return { points: [], overlap: false };
-	const nx = x / magnitude, ny = y / magnitude, offset = -c / magnitude;
+	const nx = x / magnitude, ny = y / magnitude, offset = -c / magnitude, direction = { x: -ny, y: nx };
 	const reach = Math.max(...[...arcExtrema(a), ...arcExtrema(b)].map(point => Math.hypot(point.x, point.y))) + epsilon;
-	if (Math.abs(offset) > reach) return { points: endpoints, overlap: false };
-	const origin = { x: nx * offset, y: ny * offset }, direction = { x: -ny, y: nx };
-	const points = arcLineParameters(a, origin, direction).map(t => ({ x: origin.x + direction.x * t, y: origin.y + direction.y * t }))
+	if (!cornered && Math.abs(offset) > reach) return { points: endpoints, overlap: false };
+	const origin = cornered ? { x: 0, y: 0 } : { x: nx * offset, y: ny * offset };
+	const parameters = cornered ? [-(qa.x * direction.x + qa.y * direction.y) / qa.a] : arcLineParameters(a, origin, direction);
+	const points = parameters.map(t => ({ x: origin.x + direction.x * t, y: origin.y + direction.y * t }))
 		.filter(point => onArc(a, point, epsilon) && onArc(b, point, epsilon));
 	return { points: [...endpoints, ...points], overlap: false };
 }

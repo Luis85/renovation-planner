@@ -144,9 +144,10 @@ function nearest<T>(landed: readonly Landed<T>[], last: Result<T, ValidationErro
  *
  * A factor refused on the way UP — growing, or inside a bracket — is the mirror: an upper bound the solve
  * bisects down from, to within the floor of the largest factor it accepts BELOW THAT REFUSAL, and the nearest
- * landing is the answer. That need not be the largest factor accepted anywhere, since validity is not always
- * one interval: the review found the tree's footprint accepting 1.50192 above a refused 1.4999944. The
- * shrub's detail-1 reaches this: flattened to its floor and then widened, its arcs meet.
+ * landing is the answer. That need not be the largest factor accepted anywhere: nothing here assumes validity is
+ * one interval. The two parts once cited for this no longer refuse. The tree's footprint (1.4999944 refused below
+ * an accepted 1.50192) and the shrub's detail-1, flattened to its floor and widened, were both round-off in
+ * `arcArc`, fixed in AD18-R24.
  *
  * A refusal comes back only when nothing landed at all: `apply`'s own answer to a first factor at or below
  * zero or not finite, or a bisection that never landed. A factor that is not finite — a secant off a flat extent — ends the

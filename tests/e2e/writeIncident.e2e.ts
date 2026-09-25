@@ -1,4 +1,5 @@
 import { describe, expect } from 'vitest';
+import type { ChainablePromiseElement } from 'webdriverio';
 import { test } from './fixture';
 import { closePluginSettings, openPluginSettings, settingControl } from './helpers';
 import {
@@ -15,7 +16,6 @@ import {
 	removeIncidents,
 	seedProjectWithPlan,
 	tryNewPlan,
-	type Pane,
 	type Ui,
 } from './planner';
 import { PLUGIN_ID, mobileEmulation, type NativeBrowser } from './session';
@@ -47,7 +47,7 @@ async function openPausedPlan(browser: NativeBrowser, page: Page, ui: Ui): Promi
 }
 
 /** Open the diagnostics report, and read the one incident code it names. */
-async function openReport(ui: Ui, report: Pane, code: string): Promise<void> {
+async function openReport(ui: Ui, report: ChainablePromiseElement, code: string): Promise<void> {
 	await ui.command('show-diagnostics-report');
 	await expect.poll(() => report.isDisplayed()).toBe(true);
 	expect(await report.$('.rp-diagnostics__incident .rp-diagnostics__code').getText()).toBe(code);

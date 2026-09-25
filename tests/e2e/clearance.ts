@@ -3,7 +3,7 @@ import type { DesignerPage } from './designer';
 import type { NativeBrowser } from './session';
 
 /** What the n-th designer's Konva stage is drawing right now, read through Konva's own registry. */
-export interface StageProbe {
+interface StageProbe {
 	/** The clearance layer's `visible` — what `Show clearance` binds. */
 	clearanceVisible: boolean;
 	/** The clearance outline's box on screen, measured whether or not its layer is visible. */

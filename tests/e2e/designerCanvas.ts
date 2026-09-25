@@ -20,14 +20,14 @@ export interface Box {
 	height: number;
 }
 /** One dimension button as drawn: its figure name, its text, and where it paints. */
-export interface Label {
+interface Label {
 	name: string;
 	text: string;
 	box: Box;
 }
 
 /** What the page showed part-way through a held drag: the dimension labels, and the top ruler's band. */
-export interface Snapshot {
+interface Snapshot {
 	labels: { name: string; text: string }[];
 	band: number | null;
 }

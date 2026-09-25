@@ -51,7 +51,7 @@ const exact = (text: string) => `[normalize-space(.)="${text}"]`;
  * is laid out at a real container width, where a text node's first glyph sits, and which element
  * holds the caret.
  */
-export function createLibraryPage(browser: NativeBrowser, ui: PlannerPage) {
+function createLibraryPage(browser: NativeBrowser, ui: PlannerPage) {
 	const library = () => ui.leaf(LIBRARY);
 
 	const seed = (assets: readonly SeedAsset[]) =>

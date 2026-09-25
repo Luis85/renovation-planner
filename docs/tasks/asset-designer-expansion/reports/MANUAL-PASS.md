@@ -462,12 +462,27 @@ counted seven, move nothing above.**
 and rotations) and Task 2 by the suite; Task 3's CSS merge was verified by `fallow dupes` and the
 existing stylesheet gates. None of the three has been looked at in a vault.
 
+## What a driven Obsidian already walks — read this before walking anything
+
+**W23-A and W24-A (2026-09-25) automated every step above that a driven Obsidian can settle**
+(`npm run test:e2e`; `W23-A-e2e-real-host.md` and `W24-A-e2e-manual-pass.md`). Each of the seven
+cases now carries an **Automated in Obsidian** table, one row per CLAUSE of each step: a row citing
+a case is walked on every run of that suite, and a row reading `none —` says why no instrument here
+reaches it. **The human pass is those `none —` rows**, not the 241 above — the judgements, the
+screen-reader clauses, the native menus and drag-and-drop WebDriver cannot express, and the handful
+of steps the tables name as unreachable. The count above is deliberately NOT recomputed from the
+tables: it counts steps, and a step half-automated is still a step somebody opens.
+
+**Walk the Runs rows' findings first.** The e2e pinned what the host DOES where it disagreed with a
+row, so several rows here now describe behaviour a passing build does not have — Ctrl+G is taken by
+Obsidian's graph view in a default vault, a traced asset's Edit dimensions retypes its outline, the
+library forgets its view on close. Each needs a ruling, not a walk; W24-A lists them.
+
 ## The gate inside the pass
 
-**[[Two designers on one asset]] step 1 decides how much of that case exists.** No control this
-plugin owns opens a second designer leaf on one asset, so whether Obsidian will give a walker a pair
-at all is unverified by anything. That step names exactly which rows survive if it fails. **Walk it
-first**; it costs two minutes and it decides eight steps.
+**[[Two designers on one asset]] step 1 decided how much of that case exists, and it is ANSWERED.**
+The e2e drove the tab menu's Split right and Split down, each giving a second designer leaf on the
+same asset (Move to new window moves it instead), so every row of that case stands.
 
 ## Rows this pass cannot reach, and who can
 

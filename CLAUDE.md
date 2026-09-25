@@ -500,15 +500,21 @@ Linux under xvfb at 1.13.7 (the earliest PUBLIC build at `minAppVersion`; 1.13.0
 Insiders-only and cannot be downloaded without an account), at `latest`, and under
 `OBSIDIAN_UI=mobile-emulation`, which is desktop Obsidian emulating a phone and NOT a device
 test. The host is forced to `--lang=en`, so the suite reads the same on a German machine.
-**The asset designer has five files there** (`assetDesigner`, `assetDesignerRecovery`, `twoDesigners`,
-`assetHandoff`, `assetReference`), one per manual case, driven through `tests/e2e/designer.ts`, which
-reads the `.rpgeo` on disk as its instrument and drags a part through Konva's own stage registry.
-Three things they measured that the manual cases had assumed otherwise, recorded in
-`docs/tasks/asset-designer-expansion/reports/W23-A-e2e-real-host.md`: a driven Obsidian raises
-`raw` for a file written outside it and never `modify` (the suite calls `adapter.reconcileFile`,
-the watcher's own call, to drive the rest of that chain); a drag held across a PEER LEAF's write
-is dropped with no badge and no toast, where the case expects `Save error`; and disabling the
-plugin detaches every designer leaf, with enabling restoring none.
+**The asset designer's manual cases are driven there** — no file count is kept here; each case
+under `docs/tests/cases/` names its files in its own **Automated in Obsidian** table, one row per
+clause. They go through `tests/e2e/designer.ts`, which reads the `.rpgeo` on disk as its
+instrument, and a helper module per area beside it (`designerCanvas.ts` reads Konva's stage
+registry for every other one). **Every case W24-A added was watched red against a one-clause
+`src/` mutation**, and the few that cannot go red say so in their table; W23-A's first five files
+predate that gate. What the host did that the
+manual cases had assumed otherwise is recorded in
+`docs/tasks/asset-designer-expansion/reports/W23-A-e2e-real-host.md` and `W24-A-e2e-manual-pass.md`
+— the sharpest: a driven Obsidian raises `raw` for a file written outside it and never `modify`
+(the suite calls `adapter.reconcileFile`, the watcher's own call), and Obsidian's `graph:open`
+hotkey takes Ctrl+G before the designer sees it. **Obsidian's chromedriver refuses
+`setWindowSize`**: size a leaf through `@electron/remote`'s `getCurrentWindow().setSize` or
+`app.workspace.leftSplit.setSize`. **A press and its release share ONE action chain** — a second
+chain's pointer starts at (0, 0).
 
 Everything else below still stands in for a vault. Three commands, and none replaces another
 (`asset-library-shots` and `concept-shots` beside them are captures of the second one's kind,

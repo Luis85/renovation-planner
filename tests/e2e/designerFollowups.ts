@@ -4,10 +4,10 @@ import type { DesignerPage, Sidecar } from './designer';
 import { createCanvasPage } from './designerCanvas';
 
 export interface ScreenBox { x: number; y: number; width: number; height: number }
-export interface Extent { minX: number; maxX: number; minY: number; maxY: number; width: number; depth: number }
+interface Extent { minX: number; maxX: number; minY: number; maxY: number; width: number; depth: number }
 
 /** The world extent of an outline's VERTICES — a curve bowing past them is not in it. */
-export function extentOf(points: readonly number[][]): Extent {
+function extentOf(points: readonly number[][]): Extent {
 	const xs = points.map((point) => point[0]);
 	const ys = points.map((point) => point[1]);
 	const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];

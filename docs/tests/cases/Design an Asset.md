@@ -407,7 +407,7 @@ by selection" for step 127.
 
 `tests/e2e/assetDesignerBasics.e2e.ts`, `assetDesignerBasicsPlan.e2e.ts` (the steps that need a Plan
 Editor), `assetDesignerDimensions.e2e.ts` and `assetDesignerDimensionsRulers.e2e.ts`, over
-`tests/e2e/designerCanvas.ts`. MUTATION-STATUS-BASICS
+`tests/e2e/designerCanvas.ts`. **Every case but step 71b's was watched red** against a one-clause mutation (W24-A's report lists them). Step 71b's stays green with the resting label's `z-index: 1` removed, so at this geometry it does not guard that fix.
 
 | Step | Clause | Discharged by |
 | --- | --- | --- |
@@ -453,7 +453,7 @@ Editor), `assetDesignerDimensions.e2e.ts` and `assetDesignerDimensionsRulers.e2e
 | 70 | whether every number is readable and clickable | none — `judgement` |
 | 71 | no numbers on an unscaled footprint, and no field can open | *draws no number over a footprint traced before any scale existed* |
 | 71a | no two resting labels overlap at four leaf widths | *keeps every resting label clear of every other at four leaf widths, a detail selected* — leaves 900/760/580/460, at fit and four zoom steps |
-| 71b | a label over the canvas key paints above it and is clickable | *paints a resting label that lands on the canvas key above it, where a click still reaches it* |
+| 71b | a label over the canvas key paints above it and is clickable | *paints a resting label that lands on the canvas key above it, where a click still reaches it* — holds, but stays green with the `z-index: 1` fix removed, so the fix itself is unguarded here |
 
 ### Steps 72 to 104, added later on 2026-09-25 (W24-A)
 
@@ -517,9 +517,50 @@ a row names a width.
 | 102b | with Shift the radius scales with the box | same case — width, depth and radius all by one factor |
 | 103, 104 | reads like board 01; icons read on sight | none — `judgement` |
 
+### Steps 105 to 129, added later on 2026-09-25 (W24-A)
+
+`tests/e2e/assetDesignerFollowups.e2e.ts` (105–109a), `assetDesignerFollowupsHistory.e2e.ts`
+(115–120) and `assetDesignerFollowupsLanding.e2e.ts` (110–113, 122–129), over
+`tests/e2e/designerFollowups.ts`. **Every case was watched red** against a one-clause mutation (W24-A's report lists them), except two: step 105's click case pins the HOST's `:focus-visible`, which no `src/` change reaches, and step 107's cannot tell a solved drag from a plain stretch, because the typed path solves to the same final extent — its "not a plain stretch" clause is carried for the clearance by 110 and 111 instead.
+
+| Step | Clause | Discharged by |
+| --- | --- | --- |
+| 105 | a Tab onto the canvas draws a ring inside all four edges, clear of both rulers | *draws the keyboard focus ring inside all four canvas edges, clear of both rulers* |
+| 105 | a click on the canvas background draws the ring | *shows no focus ring after a pointer click on the canvas background* — **pins the OPPOSITE**: `:focus-visible` is false after a pointer click, so only Tab draws it |
+| 106 | every tile in both rows the same height, following the content in any language | *keeps every Add tile the height of the tallest content, in both rows and in German* |
+| 107 | a dragged Width/Depth matches typing those numbers, to the mm | *lands a curved detail's handle drag where its typed Width and Depth would* — vertices within 1 mm and every bulge within 0.01 |
+| 107 | not a plain stretch | none — a plain stretch lands the same final extent, so the comparison cannot fail (watched green under that mutation); 110 and 111 carry it for the clearance |
+| 107 | past the floor it lands 270, not 276 | *lands the Vanity basin at its 270 floor on a far handle drag and warns about nothing* |
+| 108 | under 240px only the overall pair rests; zooming in brings the rest back; All dimensions shows every label at any size | *rests only the overall pair while the footprint draws under 240 px, and every label under All dimensions* |
+| 109 | where the overall labels sit | none — `judgement` |
+| 109a | on a 280 × 300 canvas the label sits on the drawing, off both handles, which stay grabbable | *keeps the overall width label off the top-middle and rotate handles on a 280 px canvas* |
+| 110 | the left side stays put; the right side lands under the pointer (oval table) | *keeps the opposite side of a oval-table clearance still while the dragged side follows the pointer (step 110)* |
+| 111 | the same on the round table | *keeps the opposite side of a round-table clearance still while the dragged side follows the pointer (step 111)* |
+| 112 | the dragged side stops at about 700 mm and does not jump back out | *holds a far-dragged oval clearance at its nearest reachable size and reads that size back* — 700.00 |
+| 113 | the figure reads the size the drag stopped at | same case |
+| 115 | Ctrl+Shift+Z redoes; Ctrl+Y does nothing once the redo history is spent | *redoes with Ctrl+Shift+Z, and Ctrl+Y does nothing once the redo history is spent* |
+| 116 | Ctrl+Z from a Parts row and from an Inspector tab undoes | *undoes with Ctrl+Z from a Parts row and from an Inspector tab, as from the canvas* |
+| 117 | only the Height field's own typed text is undone; the design and the rest of the stack untouched | *leaves Ctrl+Z to the Height field's own native undo while its text is uncommitted* |
+| 117 | the same, when the field is left by a click rather than Escape | *spends the first canvas Ctrl+Z on nothing visible after the Height field is left by a focus move* — **finding**, see Runs |
+| 118 | Ctrl+Z on the Line dropdown and on the Corner radius slider does nothing | *does nothing on Ctrl+Z while the Line dropdown holds focus*, *does nothing on Ctrl+Z while the Corner radius slider holds focus* |
+| 118 | whether Obsidian's own binding fires | none — only "no design change" is asserted |
+| 120 | nothing undoes while a held draw is open; after finishing, Ctrl+Z undoes | *declines Ctrl+Z while a rectangle is being drawn, and undoes it once the draw is finished* |
+| 120 | nothing undoes with one trace point placed | *undoes the last edit on Ctrl+Z with one trace point placed and the pointer released* — **pins the OPPOSITE**: the refusal covers a press still held, not a draft with the pointer up |
+| 120 | after cancelling, Ctrl+Z undoes normally | none — not driven |
+| 121 | whether a swallowed Ctrl+Z with nothing to undo matters | none — `judgement` |
+| 122 | the tree lands exactly 2987 × 2987 with no refusal | *sets a Tree preset to 2987 × 2987 with no refusal* |
+| 123 | every rotate drag of a 4500 × 4500 tree rotates with no refusal | *rotates a 4500 × 4500 Tree canopy at several angles with no refusal* — six angles each write; the angle itself is not read |
+| 124 | a typed 191 lands the basin at 270 × 270 and warns | *lands a typed 191 on the Vanity basin at 270 × 270 and says so, from the Inspector and from the canvas* |
+| 125 | Undo returns 360 × 270; the canvas figure gives the same landing and warning | same case — the figure is opened by keyboard: with All dimensions on, a `clearance-offset-top` label covers it, so a click cannot reach it |
+| 126 | the round table set to 1 × 1000 lands about 207 × 1000 and names that size | *lands a Round table set to 1 × 1000 at about 207 × 1000 and names that size* |
+| 127 | the toilet's Width lands exactly 50 with no warning though Depth moves to about 535 | *lands the toilet's typed overall Width at exactly 50 and warns about nothing though its Depth moves* |
+| 128 | a basin handle drag to the floor lands 270 and warns about nothing | *lands the Vanity basin at its 270 floor on a far handle drag and warns about nothing* |
+| 129 | the round table typed to 1500 × 1500 lands within 0.5 mm and warns about nothing | *lands a Round table set to 1500 × 1500 at that size and warns about nothing* |
+
 ## Runs
 
 | Date | Build | Outcome |
 | --- | --- | --- |
+| 2026-09-25 | W24-A — `npm run test:e2e` over the eleven `assetDesigner*` files this round added, Obsidian 1.13.7, Windows 11, `--lang=en` | **64 cases across steps 1–129, each (bar the three named in the tables) watched red against its own mutation.** Findings, pinned as measured: (1) **Obsidian's default `graph:open` hotkey takes Ctrl+G** at window capture, before the designer, from the canvas, a Parts row and the Label field — the chord arrives `defaultPrevented`, a graph leaf opens and nothing groups; only after `hotkeyManager.setHotkeys('graph:open', [])` does Ctrl+G group (steps 90a, 90b, 95, 95a, 96, 96a; `designerKeys.ts`'s claim that the host's hotkey "does not fire as well" does not hold). (2) Step 102 — the ASSET's Edit dimensions scales the whole design, so a non-uniform stretch leaves non-circular corners and the Corner radius row disappears; `resizeRoundedRect` is wired only to the part's own Size fields. (3) Step 117 — leaving the Height field by a click after a native undo makes the next canvas Ctrl+Z do nothing visible; removing `@blur="height.onCommit()"` removes it, so the blur commits the unchanged height as an invisible history step. (4) Step 120 — with one trace point placed and the pointer up, Ctrl+Z undoes the previous edit; the refusal covers a press still held only. (5) Step 105 — a pointer click focuses the canvas without a ring (`:focus-visible` is false); only Tab draws it. (6) Step 32b — a held drag behind a pending write is dropped without a word when the window loses focus meanwhile (3 of 6 runs, each with `document.hasFocus()` false). (7) Step 125 — with All dimensions on, the basin's Width figure sits under `clearance-offset-top` and only the keyboard reaches it; at a 1280 window the View menu opens partly under the file explorer. (8) Obsidian's default 1024 × 800 window gives the designer a 679px leaf: the fitted toilet is under the 240px floor, so step 60's part figures need four zoom steps, and the Add rail is one column (step 74's two need about 1100px). (9) Step 81 — the toilet reads a bare "Clearance": `uniformSetback` refuses a non-rectangular footprint. (10) Step 44 — at a narrow leaf the Plan Editor's banner Finish sits under the Inspector drawer, and an item's typed position and size fields take metres. (11) Step 123 — after Edit dimensions to 4500 the camera does not re-frame. |
 | 2026-09-25 | `npm run test:e2e` on this branch — Obsidian 1.13.7 driven by WebdriverIO, Windows 11, `--lang=en` | **Steps 1, 3, 7, 8, 21, 24, 25, 34, 35, 114, 115 and 119 are discharged by `tests/e2e/assetDesigner.e2e.ts`** — the clause table under *Automated in Obsidian* says which clause of each, and cites the case by name. Two findings: **step 25's disable-and-enable leaves ZERO designer leaves** — Obsidian detaches a disabled plugin's leaves and re-enabling restores none, so step 24's "reopen both asset designers" is a reopen through the command, not a return; and the console carries Konva's `The stage has 7 layers` warning at every designer mount (not the `Several Konva instances` line, which is absent). The `.rpgeo` is written on the FIRST geometry write, so a freshly created asset has none (step 8's "setting a background already wrote it" holds; creation alone does not). Every other `obsidian` row is unwalked by this run. |
 | — | — | Not yet run in a vault. Every row above is an expectation derived from the design, the plans and task reports and the code, rather than from a walk: step 5's tool list and steps 29 to 46 from the asset designer symbols PR 2 (`docs/superpowers/plans/2026-09-13-asset-designer-symbols-pr2.md` and `.superpowers/sdd/2026-09-13-asset-designer-symbols-pr2/task-1…12-report.md`), steps 25 to 28 from PR 1 (`docs/superpowers/plans/2026-09-13-asset-designer-symbols-pr1.md`), and the rest from the first increment's task reports (`.superpowers/sdd/2026-08-30-asset-designer-first-increment/task-B6…B10-report.md`) and the commits that have corrected those rows since. Steps 47 to 51 from the snapping spec (`docs/superpowers/specs/2026-09-15-asset-designer-snapping-and-guides-design.md`) and its plan, and step 52 from the consolidation spec (`docs/superpowers/specs/2026-09-16-asset-designer-consolidate-design.md` §3) and its plan. |

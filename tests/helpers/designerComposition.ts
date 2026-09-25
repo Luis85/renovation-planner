@@ -21,6 +21,7 @@ import { CalibrateAssetCommand } from '../../src/application/commands/asset/Cali
 import { SetAssetBackgroundCommand } from '../../src/application/commands/asset/SetAssetBackground';
 import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
 import type { VaultFileProbe } from '../../src/application/ports/VaultFileProbe';
+import type { AssetShapeDeps } from '../../src/application/commands/asset/updateAssetShape';
 import type { AssetDesignCommandBundle } from '../../src/application/editor/asset/ReversibleAssetDesignCommands';
 import type { ObsidianAssetGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import type { AssetGeometryStore } from '../../src/infrastructure/obsidian/repositories/AssetGeometryStore';
@@ -48,17 +49,64 @@ import { expectOk } from './domain';
  * minting the real reversible adapters per leaf, and `GetAssetDesignQuery` joining the two back for
  * the read. `onDesignChanged` is the SAME source the composition root binds, over a bus that really
  * dispatches, so a committed write publishes `AssetDesignChanged` and a leaf re-reads because of it.
+ *
+ * **The nine-command `AssetDesignCommandBundle` — and `SPEC_SHEETS`/`specSheetProbe` beside it —
+ * is `createAssetDesignCommandBundle` below, and that IS the one definition now**: this file's own
+ * `composeDesigner` calls it, and so does `tests/helpers/assetDesignHarness.ts`'s `seeded`, over
+ * ITS OWN `commandDeps` (which may wrap `sidecar`/`assets` in a fault-injecting knob `seeded`'s
+ * options take — this function never sees that wrapping, only the port interfaces). `seeded` keeps
+ * only what this shared shape does not carry: the two concrete `SetAssetFacingCommand` /
+ * `SetAssetHeightCommand` instances its own cases dispatch the plain `execute()` a peer leaf's
+ * gesture would, beside the bundle's `executeWithVersion` door onto the same instances.
  */
 
 /**
- * `SetAssetBackground`'s file probe, over the paths the cases driving `designerRig` pick as spec
- * sheets. A LIST rather than the real probe over the fake vault, because the probe answers a
- * question those entries cannot: a spec sheet is a PNG or a PDF, and this fake vault holds note
- * text. A case that invents a fourth path is refused at the file check, loudly, which is the
- * failure this list is allowed to have.
+ * `SetAssetBackground`'s file probe, over the paths the cases driving `designerRig` AND
+ * `tests/helpers/assetDesignHarness.ts`'s `seeded` pick as spec sheets. A LIST rather than the
+ * real probe over the fake vault, because the probe answers a question those entries cannot: a
+ * spec sheet is a PNG or a PDF, and this fake vault holds note text. A case that invents a fourth
+ * path is refused at the file check, loudly, which is the failure this list is allowed to have.
  */
 const SPEC_SHEETS: readonly string[] = ['Specs/oven.pdf', 'Specs/other.png', 'Specs/a.png'];
 const specSheetProbe: VaultFileProbe = { fileExists: (path) => SPEC_SHEETS.includes(path) };
+
+/** What `createAssetDesignCommandBundle` hands back — declared rather than inferred, for the
+ * same reason `AssetDesignHarness`'s own return type is: the consuming expression for
+ * `setFacing`/`setHeight`'s `execute()` sits in a different file again, over a property read
+ * of whatever this function returns, never a destructure of it (a destructuring pattern is the
+ * one shape fallow's `unused-class-members` scan does not resolve through, per
+ * `ReversibleAssetDesignCommands.ts`'s own measured account of the same trap).
+ */
+export interface AssetDesignCommandSet {
+	readonly bundle: AssetDesignCommandBundle;
+	/** The concrete door beside the bundle's `executeWithVersion` one — see this module's header. */
+	readonly setFacing: SetAssetFacingCommand;
+	readonly setHeight: SetAssetHeightCommand;
+}
+
+/**
+ * Every asset design command, built once from whatever port instances the caller hands in —
+ * `composeDesigner`'s own stack, or `seeded`'s, wrapped or not. `deps` is `AssetShapeDeps`, the
+ * shape seven of the nine commands already share; `setHeight` and `setBackground` take a narrower
+ * or wider slice of the same fields, exactly as they did before this was one function instead of
+ * two copies.
+ */
+export function createAssetDesignCommandBundle(deps: AssetShapeDeps): AssetDesignCommandSet {
+	const setFacing = new SetAssetFacingCommand(deps);
+	const setHeight = new SetAssetHeightCommand(deps.assets, deps.events);
+	const bundle: AssetDesignCommandBundle = {
+		setFootprintFromDimensions: new SetAssetFootprintFromDimensionsCommand(deps),
+		setFootprint: new SetAssetFootprintCommand(deps),
+		setShape: new SetAssetShapeCommand(deps),
+		setClearance: new SetAssetClearanceCommand(deps),
+		setAnchor: new SetAssetAnchorCommand(deps),
+		setFacing,
+		setHeight,
+		calibrate: new CalibrateAssetCommand(deps),
+		setBackground: new SetAssetBackgroundCommand(deps, specSheetProbe),
+	};
+	return { bundle, setFacing, setHeight };
+}
 
 export interface DesignerComposition<S extends ObsidianAssetGeometrySidecar> {
 	readonly assetId: AssetId;
@@ -105,28 +153,17 @@ export async function composeDesigner<S extends ObsidianAssetGeometrySidecar>(
 	expectOk(await sidecar.write(assetId, { calibration: null, shape: options.shape }));
 
 	const commandDeps = { sidecar, assets: stack.assets, events, locks: new ReferenceLocks() };
-	const setFacing = new SetAssetFacingCommand(commandDeps);
-	// The REAL bundle, every door of it. Annotated as the bundle rather than inferred, so a new
-	// design command is a build error here rather than a door this composition silently lacks.
-	const bundle: AssetDesignCommandBundle = {
-		setFootprintFromDimensions: new SetAssetFootprintFromDimensionsCommand(commandDeps),
-		setFootprint: new SetAssetFootprintCommand(commandDeps),
-		setShape: new SetAssetShapeCommand(commandDeps),
-		setClearance: new SetAssetClearanceCommand(commandDeps),
-		setAnchor: new SetAssetAnchorCommand(commandDeps),
-		setFacing,
-		setHeight: new SetAssetHeightCommand(stack.assets, events),
-		calibrate: new CalibrateAssetCommand(commandDeps),
-		setBackground: new SetAssetBackgroundCommand(commandDeps, specSheetProbe),
-	};
+	// The REAL bundle, every door of it — `createAssetDesignCommandBundle`'s one definition,
+	// shared with `tests/helpers/assetDesignHarness.ts`'s `seeded` (this module's own header).
+	const commandSet: AssetDesignCommandSet = createAssetDesignCommandBundle(commandDeps);
 
 	return {
 		assetId,
 		sidecar,
 		vault: stack.vault,
 		queries: createAssetDesignerQueries({ get: new GetAssetDesignQuery(stack.assets, sidecar) }, { execute: options.usage }),
-		commands: createAssetDesignerCommands(commandDeps, bundle),
+		commands: createAssetDesignerCommands(commandDeps, commandSet.bundle),
 		onDesignChanged: createAssetDesignChangeSource(events),
-		setFacing,
+		setFacing: commandSet.setFacing,
 	};
 }

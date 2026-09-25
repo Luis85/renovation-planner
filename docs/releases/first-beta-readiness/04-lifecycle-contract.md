@@ -16,7 +16,7 @@ static trace. A chain traced statically tells you what reads what, and nothing a
 | **Perspective switch** | Three modes in the `renovation-session` Pinia store (`renovationSession.ts:5-7`), switched at `renovationActions.ts:95` | Perspective-gated `v-if` subtrees; an in-progress curve edit | Camera, history, selection. It **refuses while a dialog is open or a save is in flight**, and confirms before discarding a tool draft. Persisted nowhere — a rebind or reopen returns to the first mode |
 | **Width change** | `ResizeObserver` to `layoutModeFor` (900/400, `layoutMode.ts:10-17`) to Pinia to template gating | **Exactly one thing unmounts: the canvas slot**, gated `v-if` on the layout mode not being `unsupported` (`shell/ResponsiveEditorShell.vue:168`), releasing its pointer gesture | Both side panels and their slot content are `v-show` (`shell/EditorSidePanel.vue:12`), so an Inspector form keeps its text and its input node. Regions gated `v-if="full"` (`:85`, `:112`) do unmount in constrained mode |
 | **Close / reopen** | `onClose` to `unmount()` plus `contentEl.empty()`; Obsidian reuses the view object | Everything in progress | `getState()` only (`planId`, `origin`, `unrecoveredWrite`; `projectId` plus route; `assetId`), view-owned fields, panel widths in device storage |
-| **Plugin unload** | `onunload` (`RenovationPlannerPlugin.ts:1007`) sets `unloaded` and drains exactly **five** disposers: Konva global, notice queue, editor icons, `SessionStores`, cascade | Those five | It unmounts **no Vue app and detaches no leaf**, leaving `registerView`, `addCommand` and `registerEvent` to Obsidian's own teardown |
+| **Plugin unload** | `onunload` (`RenovationPlannerPlugin.ts:1007`) sets `unloaded` and drains exactly **five** disposers: Konva global, notice queue, editor icons, `SessionStores`, cascade | Those five | It unmounts **no Vue app and detaches no leaf**, leaving `registerView`, `addCommand` and `registerEvent` to Obsidian's own teardown. **Measured on 1.13.7/Windows (L-21):** Obsidian's teardown closes the Plan Editor view and puts an empty tab in its place before `onunload` is called. A field edit pending at that moment is still written, and the vault write starts after `onunload` has returned (see the timing paragraph below) |
 
 ## The one fact that decides most of the table
 
@@ -103,7 +103,24 @@ leaf mounts before the incident registry's `seed()` resolves; **which arm of F1 
 500 ms debounce, which decides whether the rebound list is current or is stale until a plugin
 reload.
 
-**One of those is now answered, and only that one:** which arm of F1 production takes was
+*Superseded 2026-09-25: this paragraph read "One of those is now answered, and only that one".
+Three are answered now, as the two paragraphs below say.* Which arm of F1 production takes was
 measured warm on 1.13.7/Windows on 2026-09-25, 3 of 3; by the owner's ruling this ships as is
-(`tests/e2e/settingsDuringCreate.e2e.ts`, evidence `l19-arms.json`, tracker L-19). **Apart from
-that e2e case, nothing in this document has been run in an Obsidian vault.**
+(`tests/e2e/settingsDuringCreate.e2e.ts`, evidence `l19-arms.json`, tracker L-19).
+
+**Whether Obsidian calls `onClose` before `onunload`: yes, for the Plan Editor.** This was measured
+on Obsidian 1.13.7 on Windows, on one machine, on 2026-09-25, by `tests/e2e/unloadWindow.e2e.ts`
+(tracker L-21). The plugin was disabled with one Plan Editor pane open. Obsidian called that one
+view's `onClose` **twice**, and both calls came before it called the plugin's `onunload`. A probe
+run also showed that `onunload` returned before either `onClose` promise settled. That probe
+observation is not pinned by the case. So the pane is already torn down when `onunload` runs.
+The **Plugin unload** row's "It unmounts no Vue app and detaches no leaf" is still true of
+`onunload` itself.
+
+**Whether Obsidian returns `getState()` to a detached leaf: the leaf is not detached, and the
+state does not come back.** In the same run the leaf stays open as an `empty` "New tab". Its view
+state is `{ type: 'empty', state: {} }`, which carries no plan id. After the plugin is enabled
+again, no Plan Editor leaf exists. A probe run saw Obsidian call the view's `getState()` twice
+during teardown, but nothing it returned was kept on the leaf. That probe observation is not
+pinned. A leaf detached some other way, and a restart, were not measured. **Apart from those two
+e2e cases, nothing in this document has been run in an Obsidian vault.**

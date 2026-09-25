@@ -297,7 +297,9 @@ field committing after a pause, a queued sequence of writes — lands there with
 
 **Unverified:** whether Obsidian leaves a still-usable pane alive after `onunload`, and in what
 order it tears things down relative to the cleanup steps. The test fakes here record requests
-rather than behaving, so they cannot answer it.
+rather than behaving, so they cannot answer it. *Superseded 2026-09-25: both are now measured in a
+real Obsidian. See "The run has happened" under "The deciding experiment" below. No Plan Editor
+pane is left alive, but a pending field edit is still written after `onunload` returns.*
 
 ### What the user experiences
 
@@ -308,7 +310,11 @@ plugin left to warn, the diagnostics report will not name it on the next load, a
 did it is about to disappear. The user has no way to know.
 
 Whether that window is a fraction of a second or long enough for a click is exactly the unverified
-part.
+part. *Superseded 2026-09-25: the run below measured it. It is not long enough for a click, because
+no pane is left to click. It does not need one either: a value typed and not yet committed is
+written by the teardown itself, and the write lands after `onunload` has returned. That changes
+the paragraph above in one way. No delayed save is involved, because no field here is debounced.
+The field commits when it loses focus, and Obsidian's teardown takes the focus away.*
 
 ### Options
 
@@ -326,6 +332,35 @@ and a field edit pending, disable the plugin and observe whether the pane is sti
 whether the pending write reaches the note. That answers both halves — whether the window exists in
 Obsidian at all, and roughly how wide it is. Nothing in this repository can answer it: the fakes
 record requests rather than behaving, and the mock plugin base unregisters nothing.
+
+**The run has happened, automated. No pane survives, but the pending write still reaches the note,
+after `onunload`.** This was measured on Obsidian 1.13.7 on Windows, on one machine, on
+2026-09-25, by `tests/e2e/unloadWindow.e2e.ts` through `npm run test:e2e`. The case opens the
+sample project's Plan Editor and assigns an asset to the Kitchen. Then it types `7.5` into the
+Room Inspector's quantity override and does not blur it, and disables the plugin. The cases
+passed on three full runs after the probe runs. The first two cases write their recorded order to
+`unload-order.json` in the case's `e2e-results/cases/` folder. They pin these facts:
+
+- **The pane.** Obsidian calls the Plan Editor view's `onClose` twice, both before `onunload`. It
+  replaces the view with an empty "New tab" whose view state carries no plan id. No Plan Editor
+  leaf is left, and enabling the plugin again does not bring one back. So the premise of the
+  question, a pane still on screen after `onunload`, does not hold on this build.
+- **The write.** No key is pressed after the disable. The field gets a `focusout` while it is
+  still in the page, before the first `onClose`, and that blur starts the commit. The requirement
+  note's `vault.process` starts only after `onunload` has returned. The note's `quantity-override`
+  goes from empty to `7.5`, and its revision goes up by one. In a probe run the write ended about
+  80 ms after the `focusout` and about 60 ms after `onunload` returned.
+- **Under an open write incident** (`f5a7f219e`'s claim). The paused field is `readonly`, so no
+  edit can be pending, and no pane survives the disable to offer another write. The note is
+  unchanged over a 2000 ms window. This half of the experiment is **moot**, so the mutation the
+  plan named for it (dropping the `anyOpen()` guard in `SessionStores.dispose()`) was not run.
+
+**What this means for the options**, stated as a measurement and not a recommendation. The fourth
+option, making `onunload` own view teardown, would not close this window on its own: Obsidian
+already closes the view before `onunload` runs, and the write still landed. The window is a write
+that the teardown STARTS and that finishes after `onunload`. **Not measured:** whether the write's
+incident guard is consulted before or after `onunload` releases a clean registry, a write that
+half-fails in this window, other panes and fields, other Obsidian versions, and mobile.
 
 ### What is already fixed, and not in question
 

@@ -132,7 +132,7 @@ it('saves a hatched area and a boundary line on Finish, and refuses a hatch outl
 
 function click(rig: Rig, x: number, y: number): void { rig.runtime.toolManager.pointerDown(pointerAt(x, y)); rig.runtime.toolManager.pointerUp(pointerAt(x, y)); }
 const type = (rig: Rig, field: string, value: string) => rig.wrapper.get(`.rp-element-task input[name="${field}"]`).setValue(value);
-/** The most each kind drafts without saving: a view's second point and a grid point typed but not added, a text's words before Finish, a hatch's dragged rectangle and a boundary's two points before Finish. */
+/** What each kind drafts here without saving: a view's second point and a grid point typed but not added, a text's words before Finish, a hatch's dragged rectangle and a boundary's two points before Finish. */
 const DRAFTS: [string, ElementToolId, (rig: Rig) => void | Promise<void>][] = [
 	['view', 'place-view', async rig => { click(rig, -1500, 1000); await type(rig, 'element-x', '-0,8'); await type(rig, 'element-y', '1'); }],
 	['hatch', 'draw-hatch', rig => { const tools = rig.runtime.toolManager; tools.pointerDown(pointerAt(500, 5000)); tools.pointerMove(pointerAt(3000, 7000)); tools.pointerUp(pointerAt(3000, 7000)); }],

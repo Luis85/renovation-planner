@@ -1026,9 +1026,9 @@ describe('axe against the mounted view', () => {
 	 * above renders. Opened the same way `ViewRoot.onCreateProject` opens it (a `form`
 	 * descriptor naming the real component and a `dispatch` fixture, plus the `logger`
 	 * that same call site passes — `NewProjectForm` declares it required, and omitting it
-	 * warned `[Vue warn]: Missing required prop: "logger"` on every run, visible only
-	 * under `--reporter=verbose` since the agent reporter hides a passing case's console
-	 * output), never through a click on the empty state's button — this file already scans
+	 * warned `[Vue warn]: Missing required prop: "logger"` on every run, hidden for a
+	 * passing case by the `agent` reporter vitest picks under an AI agent, and shown by
+	 * `default` or `--reporter=verbose`), never through a click on the empty state's button — this file already scans
 	 * that button in the case above; dispatching through it here would test Vue's click
 	 * wiring, not axe. The spy below is what makes that warning a check rather than
 	 * something only a verbose run happens to show: Vue's `warn` falls through to

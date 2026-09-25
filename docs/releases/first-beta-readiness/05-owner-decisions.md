@@ -166,6 +166,13 @@ A vault run is needed only to verify a chosen fix in situ, never to choose.
 - `tests/plugin/guardCategory.test.ts` — the pin, at `e7c24d91b..9d08aeed4`
 - Tracker rows L-06 and L-11 in `03-execution-tracker.md`
 
+### The owner's choice, 2026-09-25
+
+The release owner chose **"Measure first"** in session 21's chat: agents list every place that can
+raise this "partly failed" mark without it being recorded, and check whether any can fire on a
+healthy vault, and the owner decides the fix from that result. The deciding experiment above is
+authorised as the next step. **Q1 remains open.**
+
 ## 4. Q2 — a settings change landing inside a live project create (tracker L-19)
 
 ### The situation
@@ -241,6 +248,14 @@ Obsidian's own note parser.
 - The measurement rig and its four numbered claims are recorded in the session 7 F1 discovery
   report (in the working notes, not tracked in git)
 - Fix commits for F1's documentation half: `c5b2817e2`, `1979aa7f6`
+
+### The owner's choice, 2026-09-25
+
+The release owner chose **"Block only if run shows it"** in session 21's chat: if the vault run
+shows the project appearing anyway, ship as is; if it shows the project missing, that blocks the
+beta until the plugin's indexing is fixed. The owner cannot do that run soon, so the release call
+is conditional and unresolved, and G1 cannot be evaluated until the run happens. **Q2 remains
+open.**
 
 ## 5. Q3 — may a still-mounted view write to the vault after `onunload`? (tracker L-21)
 
@@ -330,6 +345,13 @@ record requests rather than behaving, and the mock plugin base unregisters nothi
 - Fix commit `f5a7f219e`; helper promotion `45c88a73e`
 - Tracker row L-21 and the session 8 log in `03-execution-tracker.md`
 
+### The owner's choice, 2026-09-25
+
+The release owner chose **"Cost view teardown"** in session 21's chat: agents estimate the cost of
+making unload close the plugin's own panes, so nothing is left alive to write, and the owner
+decides after the estimate and the vault run, which the owner cannot do soon. Costing the fourth
+option in the table above is authorised. **Q3 remains open.**
+
 ## 6. What answering Q1 to Q3 unblocks
 
 - **The G1 data-trust gate evaluation.** The tracker's gate table records G1 as "not evaluated",
@@ -363,7 +385,9 @@ record requests rather than behaving, and the mock plugin base unregisters nothi
   it can be trusted in situ.
 - **It adds no user-facing copy.** Any option here that would need a new user-visible message is
   blocked behind limitation L-15 until a human writes the second language, and the option's row
-  says so.
+  says so. Since 2026-09-25 the owner's ruling on L-15 (section 8) lets an agent draft the German,
+  marked as a draft, for the owner to approve or rewrite before merge; it was given for four items
+  section 8 names, none of them an option in sections 3 to 5.
 
 ## 8. Other owner questions recorded in the tracker, open and decided since
 
@@ -371,46 +395,46 @@ Added 2026-09-23 (session 17). These are owner questions the tracker records out
 This is a reading of the tracker on that date, not a census, and nothing here decides any of them.
 Each names the tracker row that carries its evidence.
 
-- **L-23: a vertex drag can write a zero-area straight Zone to the vault**, which BP-04's typed
+- *Decided 2026-09-25 (below).* **L-23: a vertex drag can write a zero-area straight Zone to the vault**, which BP-04's typed
   dialog then refuses to save. The recorded remedy (`enclosesArea` in `Zone.withGeometry`) changes
   behaviour at a trust boundary: a vault already holding such a Zone keeps loading but refuses
   further edits. It waits on a recorded trade (R-S12-7). Tracker row L-23.
-- **L-33's residue: whether to mint a sentence naming the cause of a whole-outline refusal.** The
+- *Decided 2026-09-25 (below).* **L-33's residue: whether to mint a sentence naming the cause of a whole-outline refusal.** The
   outline dialog now shows the fallback-tier `error.category.geometry` sentence, which the locale
   file's own convention treats as a defect worth a key to avoid. Minting one needs German, which
   L-15 keeps out of an agent's hands. Tracker row L-33.
-- **L-36: one form's two axis labels are written in two English registers**
+- *Decided 2026-09-25 (below).* **L-36: one form's two axis labels are written in two English registers**
   (`Starting horizontal coordinate (m)` beside `Start Y (m)`). Both remedies are copy judgements,
   and the symmetric one needs German that L-15 blocks. Tracker row L-36, to be revisited with
   L-33's residue.
-- **L-37: two strings that tell the user to open the diagnostics report arrive as toasts, which
+- *Decided 2026-09-25 (below).* **L-37: two strings that tell the user to open the diagnostics report arrive as toasts, which
   cannot carry an action.** The question is whether a notice in this plugin should be able to
   carry an action at all. The row records it as not blocking a first beta. Tracker row L-37.
-- **BP-05: the plan's clause "rejected/no-op operations do not add history".** Its no-op half
+- *Decided 2026-09-25 (below).* **BP-05: the plan's clause "rejected/no-op operations do not add history".** Its no-op half
   contradicts `CommandHistory.runNow`, which puts a no-write gesture on the undo stack by design,
   and the Done PBI `docs/requirements/Undo and redo.md` records that half as NARROWED at its
   criterion 6. Narrow the clause, or change the code. Tracker row BP-05.
-- **BP-08: which performance targets a run is judged against.** The plan's targets and the PBI
+- *Decided 2026-09-25 (below).* **BP-08: which performance targets a run is judged against.** The plan's targets and the PBI
   `docs/requirements/Meet editor performance and cleanup budgets.md` disagree, and the plan requires
   a recorded decision for a changed target. Tracker row BP-08.
-- **BP-10: copy for a help entry and for a fictional sample label.** A help entry needs a new
+- *Decided 2026-09-25 (below).* **BP-10: copy for a help entry and for a fictional sample label.** A help entry needs a new
   command name and new copy, and labelling the sample fictional changes `sample.project.name` in
   both locales. Tracker row BP-10.
 
 Added 2026-09-23 (session 19):
 
-- **L-46: whether each Rooms-and-areas row should stay two sequential Tab stops.** Each row of
+- *Decided 2026-09-25 (below).* **L-46: whether each Rooms-and-areas row should stay two sequential Tab stops.** Each row of
   `RoomSummaryList.vue` is a select button and a lock toggle, so an 80-room floor puts 160 Tab
   stops after the section's summary while it is open. No binding spec, ADR, PBI or test says
   whether that is intended. Keep it, or make the list one composite stop with the lock reachable
   inside it. Tracker row L-46, for BP-07.
-- **L-47: the colours of two editor-shell texts that axe reports in the harness.** The context
+- *Decided 2026-09-25 (below).* **L-47: the colours of two editor-shell texts that axe reports in the harness.** The context
   bar's "Renovate" label (2.6:1) and the Layers panel's "Set scale" link (4.25:1), in the
   harness's light scenario over Obsidian's reduced default CSS. This is an axe finding in a
   browser render, not a contrast verification. A colour change is a design decision, and the
   recovery driver's default path cannot pass its axe assertion until it is made. Tracker row
   L-47, for BP-07.
-- **BP-06: copy for a PDF page that does not exist.** Refusing page 3 of a two-page PDF by name
+- *Decided 2026-09-25 (below).* **BP-06: copy for a PDF page that does not exist.** Refusing page 3 of a two-page PDF by name
   needs a new sentence, and perhaps a "page X of N" label, in both locales. L-15 keeps the German
   from an agent. Tracker row BP-06, whose session 19 log scopes the change.
 
@@ -422,3 +446,66 @@ Added 2026-09-23 (session 19):
   `20ff37f29` refuses the library's writes on mobile with the `view.mobile.read-only` sentence,
   tested in jsdom. Nothing has been run on a device, so a published mobile claim still waits on
   BP-09's device run. Tracker row L-43 and package BP-09.
+
+**Decided 2026-09-25 (session 21), by the release owner in the session's chat.** Each answered a
+multiple-choice question. The quoted words are the chosen option's label and its description as the
+owner saw it; what each decides, and what it does not, follows.
+
+- **Q1 (L-06 with L-11): "Measure first".** "Agents list every place that can raise this 'partly
+  failed' mark without it being recorded, and check whether any can fire on a healthy vault. No
+  vault needed, about an afternoon. You decide the fix from that result." It authorises section
+  3's deciding experiment as the next step. It does not choose a fix: Q1 stays open. Tracker rows
+  L-06 and L-11.
+- **The vault run for Q2 and Q3: "Not soon".** The owner cannot do the one vault run soon. It does
+  not decide when the run happens, or the answer to either question. Tracker rows L-19 and L-21.
+- **Q2 (L-19): "Block only if run shows it".** "If the vault run shows the project appearing
+  anyway, ship as is. If it shows the project missing, that blocks the beta until the plugin's
+  indexing is fixed." It makes the release call conditional on the vault run. It does not resolve
+  the call: with the run not soon, G1 cannot be evaluated until the run happens. Tracker row L-19
+  and the tracker's G1 row.
+- **Q3 (L-21): "Cost view teardown".** "Have agents estimate the cost of making unload close the
+  plugin's own panes, so nothing is left alive to write. Decide after the estimate and the vault
+  run." It authorises costing section 5's fourth option. It does not choose an option: Q3 stays
+  open. Tracker row L-21.
+- **L-47: "Normal text colour".** "Draw both labels in the theme's normal or muted text colour and
+  keep the green or purple only on a small marker (a dot or icon). Passes the check under any theme
+  and keeps the colour cue." It decides the colour change for the context bar's "Renovate" label
+  and the Layers panel's "Set scale" link. It does not choose between normal and muted, or between
+  a dot and an icon, and nothing has been built or checked. Tracker row L-47, for BP-07.
+- **L-46: "One Tab stop".** "Tab once into the list, move between rooms with the arrow keys, and
+  reach the lock with a key or the room's context menu. The standard pattern for long lists.
+  Moderate work (BP-07)." It decides that the Rooms-and-areas list becomes one Tab stop. It does
+  not name the key that reaches the lock, and nothing has been built. Tracker row L-46.
+- **BP-05's no-op clause: "Narrow the plan".** "The plan's rule keeps only its 'rejected' half.
+  That matches the code's deliberate design and the already-narrowed Undo backlog item. No code
+  change." It decides that the clause "rejected/no-op operations do not add history" keeps only
+  its rejected half, and that `CommandHistory.runNow` stays as it is. It does not decide any other
+  clause of BP-05. Tracker row BP-05.
+- **BP-08's targets: "Plan's for beta".** "Open within 3 s, visible feedback within 100 ms, frames
+  around 33 ms at the 95th percentile. The backlog item's tighter budgets stay as later goals.
+  Recorded as a decision, as the plan requires for a changed target." This bullet is that recorded
+  decision. It does not say whether the driver's `targets` object, which encodes the PBI's set,
+  changes, and no recorded run has been judged against either set. Tracker row BP-08.
+- **L-15's German copy: "Agent drafts, I approve".** "An agent writes the English and a German
+  draft side by side, marked as drafts. You approve or rewrite the German before anything merges.
+  Unblocks all four items and keeps you as the final word." The four items: BP-06's page-count
+  copy, BP-10's help entry and fictional-sample label, L-33's residue, and L-36. It changes L-15's
+  rule for them: the German may be drafted by an agent, marked as a draft, and approved or
+  rewritten by the owner before merge. It approves no copy, none has been drafted, and it names no
+  item beyond those four. Tracker rows L-15, BP-06, BP-10, L-33 and L-36.
+- **L-37: "Add actionable notices".** "Notices gain an 'Open report' button. A new notice type,
+  with its own accessibility and testing work." It decides that a notice in this plugin may carry
+  that action. It does not settle how: L-37's row records `minAppVersion` compatibility and the
+  fold-and-`update` behaviour as unanswered, and nothing has been built. Tracker row L-37.
+- **L-23: "Add the guard".** "A zero-area room can no longer be saved. A vault that already holds
+  one still loads, but that room refuses further edits until it is fixed, which is the trade-off
+  already recorded for this change." It accepts the trade the row records under R-S12-7. It does
+  not build the guard. Tracker row L-23.
+- **Text Escape, session 21's new question: "Keep as is".** "Escape steps back one level at a
+  time, and typed words cost more to retype than a click. It matches every other drafting kind,
+  which also keeps its name. Just record it as intended." It decides that Escape's first press on
+  a Text draft, which keeps the typed words, is intended. It adds no test: the session 21 log
+  records no committed test driving Escape for this kind, from a text search that is not a
+  census. The session 21 log and tracker row BP-05.
+
+Not asked, and not decided: L-50, and anything needing a vault.

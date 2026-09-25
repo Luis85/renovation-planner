@@ -94,12 +94,29 @@ describe('a box-handle drag on a curved clearance', () => {
 		expect(minY(resized)).toBeCloseTo(top, MM);
 	});
 
+	/**
+	 * AD18-R24 T5-M1: a CORNER handle under Shift forces a uniform, aspect-preserving target (`boxResize`), and
+	 * both presets' clearances are shapes whose bulge-preserving arcs reconstruct exactly under any uniform
+	 * scale — so `fittedResize`'s width/depth/width solve and the plain scale land the SAME box for a corner,
+	 * to within `scaleSolve.ts`'s own `TOLERANCE_MM`. Measured directly (the Shift gate below temporarily
+	 * removed, every corner index, a scale factor swept 0.0001x to 1000x on both presets): the largest gap
+	 * found was 8.3e-7 mm, on the round table — no corner input discriminates this gate at any useful scale, so
+	 * a corner case is not used here. A SIDE handle does: `fittedResize`'s pass list for a side handle
+	 * (`!moves.y ? [width] : …`) never resizes the axis the handle doesn't move, so a side handle whose Shift
+	 * check is bypassed comes back with that axis unscaled, against the plain scale's uniform resize of both —
+	 * measured (same removed gate): 68.2 mm on the round table, 72.6 mm on the oval.
+	 */
 	it.each([
-		['a side', 3, { x: 1050, y: 0 }, { x: 1186.4, y: 0 }],
-		['a corner', 4, { x: 1050, y: 1050 }, { x: 1186.4, y: 1100 }],
-	])('keeps the uniform scale under Shift from %s handle', (_, index, from, to) => {
+		['round table', ROUND, 3, { x: 1050, y: 0 }, { x: 1186.4, y: 0 }, 2236.4, -1050],
+		['oval table', OVAL, 3, { x: 1500, y: 0 }, { x: 1640, y: 0 }, 3140, -1500],
+	])('keeps the uniform scale under Shift from a side handle on the %s', (_, shape, index, from, to, width, left) => {
 		const shift = { ...FREE, shift: true };
-		expect(expectOk(drag(ROUND, index, from, to, shift))).toEqual(plainScale(ROUND, index, to, true));
+		const dragged = expectOk(drag(shape, index, from, to, shift));
+		const resized = box(dragged);
+		// Independent of `plainScale`: the pointer lands the width and the side it holds stays at the origin.
+		expect(resized.width).toBeCloseTo(width, MM);
+		expect(minX(resized)).toBeCloseTo(left, MM);
+		expect(dragged).toEqual(plainScale(shape, index, to, true));
 	});
 
 	// The flags are not this module's to decide: both paths write through `resizeBox`, whose `mapPartOutline` carries

@@ -99,18 +99,26 @@ describe('Renovation Planner in the real Obsidian host', () => {
 		});
 	});
 
-	test('has no automated WCAG A/AA violations in the project view', async ({ native: { browser, ui, directory } }) => {
-		await ui.openProjectView();
-		// Electron lacks window/new, so axe's legacy mode; there are no cross-origin frames here
-		// and no rule is disabled. Unlike jsdom, a real renderer lets axe grade colour contrast.
-		const result = await new AxeBuilder({ client: browser })
-			.include('.workspace-leaf-content[data-type="renovation-project"] .view-content')
-			.setLegacyMode()
-			.withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
-			.analyze();
-		await writeEvidence(directory, 'accessibility', result);
-		// An include that matched nothing would report no violations too.
-		expect(result.passes.map((rule) => rule.id)).toContain('color-contrast');
-		expect(result.violations.map((violation) => ({ id: violation.id, nodes: violation.nodes.map((node) => node.target) }))).toEqual([]);
-	});
+	// BOTH themes, because contrast is a fact about one: the mobile notice failed only in light,
+	// and a machine rendering dark passed it. `changeTheme` is Obsidian's own, untyped.
+	test.for(['moonstone', 'obsidian'])(
+		'has no automated WCAG A/AA violations in the project view (%s theme)',
+		async (theme, { native: { browser, ui, directory } }) => {
+			await browser.executeObsidian(({ app }, name) => {
+				(app as unknown as { changeTheme(theme: string): void }).changeTheme(name);
+			}, theme);
+			await ui.openProjectView();
+			// Electron lacks window/new, so axe's legacy mode; there are no cross-origin frames here
+			// and no rule is disabled. Unlike jsdom, a real renderer lets axe grade colour contrast.
+			const result = await new AxeBuilder({ client: browser })
+				.include('.workspace-leaf-content[data-type="renovation-project"] .view-content')
+				.setLegacyMode()
+				.withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+				.analyze();
+			await writeEvidence(directory, 'accessibility', result);
+			// An include that matched nothing would report no violations too.
+			expect(result.passes.map((rule) => rule.id)).toContain('color-contrast');
+			expect(result.violations.map((violation) => ({ id: violation.id, nodes: violation.nodes.map((node) => node.target) }))).toEqual([]);
+		},
+	);
 });

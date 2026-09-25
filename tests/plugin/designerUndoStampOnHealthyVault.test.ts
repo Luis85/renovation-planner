@@ -72,7 +72,7 @@ async function designerRig(calibrated: boolean) {
 	async function state() {
 		const note = expectOk(await harness.stack.assets.getById(harness.assetId));
 		const sidecar = await harness.sidecar.read(harness.assetId);
-		return { note: note === null ? 'absent' : note.entity, sidecar: sidecar.ok ? sidecar.value.document : sidecar.error.code };
+		return { note: note === null ? ('absent' as const) : note.entity, sidecar: sidecar.ok ? sidecar.value.document : sidecar.error.code };
 	}
 	/** Runs `peer` the moment the note save that follows it has landed — the undo's note restore, inside its read-to-write window. */
 	function afterNextNoteSave(peer: () => Promise<void>): void {
@@ -88,7 +88,20 @@ async function designerRig(calibrated: boolean) {
 			return saved;
 		});
 	}
-	return { registry, saveState, harness, guarded, leaf, raw, history, seen, outcomes, dispatch, setBackground, state, afterNextNoteSave };
+	/** Runs `peer` the moment the next sidecar write is REFUSED — the undo's restore, before its note put-back. */
+	function afterSidecarRefusal(peer: () => Promise<void>): void {
+		const write = harness.sidecar.write.bind(harness.sidecar);
+		let fired = false;
+		vi.spyOn(harness.sidecar, 'write').mockImplementation(async (assetId, document, expected) => {
+			const written = await write(assetId, document, expected);
+			if (!fired && !written.ok) {
+				fired = true;
+				await peer();
+			}
+			return written;
+		});
+	}
+	return { registry, saveState, harness, guarded, leaf, raw, history, seen, outcomes, dispatch, setBackground, state, afterNextNoteSave, afterSidecarRefusal };
 }
 
 type Rig = Awaited<ReturnType<typeof designerRig>>;
@@ -199,6 +212,32 @@ describe('#17 — a peer write inside the undo\'s read-to-write window leaves no
 				note: 'absent',
 			});
 			expect(r.saveState.unrecoveredWrite).toBe(false);
+		});
+	}
+});
+
+/**
+ * The put-back's LOST-UPDATE guard (S21 #17 review, I2). `putNoteBack` conditions its save on the
+ * version the note restore produced, so a peer's note write landing between the refused sidecar
+ * restore and the put-back refuses the put-back instead of being overwritten by it. Two peers of a
+ * second designer leaf drive it: `setFacing` inside the undo's window (the sidecar refusal), then
+ * `setHeight` (a note field the undo never touched) before the put-back.
+ */
+describe('#17 — a note peer between the refused sidecar restore and the put-back', () => {
+	for (const calibrated of [false, true]) {
+		it(`keeps the peer's note edit rather than putting the gesture's note back over it (calibrated: ${String(calibrated)})`, async () => {
+			const r = await designerRig(calibrated);
+			await r.dispatch('run', r.history.run(r.setBackground()));
+			const peer = r.leaf();
+			r.afterNextNoteSave(async () => {
+				expect(expectOk(await peer.history.run(peer.edits.setFacing({ assetId: r.harness.assetId, facing: 1.2 })))).toBe('wrote');
+			});
+			r.afterSidecarRefusal(async () => {
+				expect(expectOk(await peer.history.run(peer.edits.setHeight({ assetId: r.harness.assetId, height: 900 })))).toBe('wrote');
+			});
+			await r.dispatch('undo', r.history.undo());
+			const { note } = await r.state();
+			expect(note === 'absent' ? note : { background: note.background, height: note.height }).toEqual({ background: null, height: 900 });
 		});
 	}
 });

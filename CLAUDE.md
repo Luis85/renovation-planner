@@ -509,9 +509,13 @@ registry for every other one). **Every case W24-A added was watched red against 
 predate that gate. What the host did that the
 manual cases had assumed otherwise is recorded in
 `docs/tasks/asset-designer-expansion/reports/W23-A-e2e-real-host.md` and `W24-A-e2e-manual-pass.md`
-— the sharpest: a driven Obsidian raises `raw` for a file written outside it and never `modify`
-(the suite calls `adapter.reconcileFile`, the watcher's own call), and Obsidian's `graph:open`
-hotkey takes Ctrl+G before the designer sees it. **Obsidian's chromedriver refuses
+— the sharpest: whether a driven Obsidian reconciles a file written outside it depends on the
+machine (none for 15 s under load, within 5 s on a quiet one with the window focused), so the
+suite takes the host's reconcile when it comes and calls `adapter.reconcileFile`, the watcher's
+own call, when it does not; and Obsidian's `graph:open` hotkey takes Ctrl+G before the designer
+sees it. **Window focus is shared between every Obsidian on the desktop**, and a held drag is
+dropped when its window loses focus mid-write, so e2e runs in parallel on one machine produce
+wrong reds. **Obsidian's chromedriver refuses
 `setWindowSize`**: size a leaf through `@electron/remote`'s `getCurrentWindow().setSize` or
 `app.workspace.leftSplit.setSize`. **A press and its release share ONE action chain** — a second
 chain's pointer starts at (0, 0).

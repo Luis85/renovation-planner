@@ -78,16 +78,17 @@ describe('Recover an asset design rather than lose it, in the real Obsidian host
 		const notice = () => designer.designer().$('.rp-designer-notice');
 		const retry = () => designer.designer().$('.rp-designer-retry');
 
-		// Step 8's first link, MEASURED: a driven Obsidian 1.13 raises `raw` for a file written
-		// outside it and reconciles nothing, so the leaf that made no command hears nothing.
+		// Step 8's first link, MEASURED BOTH WAYS and pinned neither way: under load (W23-A) a driven
+		// 1.13.7 raised `raw` for this write and reconciled nothing for 15 s; on a quiet machine with its
+		// window focused (W24-A) it reconciled within 5 s, four runs of four. The host's own reconcile is
+		// taken when it comes, and the watcher's call is made by hand when it does not, so every link
+		// after it — the plugin's — is driven either way.
 		designer.editSidecar(assetId, setSchema(99));
-		await browser.pause(5000);
-		expect(await notice().isExisting()).toBe(false);
-		expect(await designer.header()).toBe('Saved just now');
-
-		// The same reconcile Obsidian's watcher performs when it does act — every link after it
-		// is the plugin's, and this is what drives them.
-		await designer.reconcile(vaultPath);
+		const unprompted = await notice().waitForExist({ timeout: 5000 }).then(() => true, () => false);
+		if (!unprompted) {
+			expect(await designer.header()).toBe('Saved just now');
+			await designer.reconcile(vaultPath);
+		}
 		await expect.poll(() => notice().getText()).toBe(STALE);
 		expect(await designer.header()).toBe('Saved · refresh needed');
 		// The design is still drawn — no failure panel, nothing dimmed, and a sibling Try again.

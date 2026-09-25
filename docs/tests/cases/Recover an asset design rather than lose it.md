@@ -312,7 +312,7 @@ system, with the `.rpgeo` on disk as the instrument step 12c asks for.
 | 5 | `schemaVersion: 99` on disk: a toast "This data is not in the expected form.", header UNCHANGED at Save error, nothing written | same case — the refusal comes from the read that opens the write, so no host watcher is needed |
 | 6 | the next landed write clears the error | same case — revision 2, "Saved just now", X 10 |
 | 7 | the notice sentence, with the canvas unchanged and no failure panel | *shows the stale notice once the host reconciles an edited sidecar, retries it, and heals it unprompted* — after `reconcileFile` |
-| 8 | the notice arrives without a press | **finding** — it does not: nothing reaches the leaf until Obsidian reconciles, which a driven 1.13.7 never does on its own; measured for 15 s on the `.rpgeo` and the `.md` control |
+| 8 | the notice arrives without a press | **measured both ways, pinned neither**: W23-A saw no reconcile for 15 s under load (the `.rpgeo` and a `.md` control); W24-A, on a quiet machine with the window focused, saw the host reconcile within 5 s in four runs of four. *shows the stale notice once the host reconciles an edited sidecar…* takes the host's reconcile when it comes and makes the watcher's call by hand when it does not, so whether it arrives unprompted is a condition of the machine, not settled by this suite |
 | 9 | the header reads "Saved · refresh needed" | same case |
 | 10 | exactly one control, Try again, a sibling of the notice, nothing dimmed | same case — the retry is outside the notice element, and no tool button carries `disabled` |
 | 12 | the repair clears the notice with no press | same case — once reconciled, the notice and the retry go together |

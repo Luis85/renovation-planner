@@ -119,7 +119,22 @@ Editor (Design 27); Take 6's pre-scan window (unreachable through a plugin load)
 - **Obsidian's default window is 1024 × 800**, a 679px designer leaf. Several rows assume a wider
   one; the cases size the leaf where a row names a width.
 - **Focus is a shared resource.** Seven Obsidians on one desktop steal window focus from each other,
-  and a held drag behind a pending write is dropped when its window loses focus (Design 32b).
-- **Under load a draw-tool drag can draw nothing**, and a worker has crashed (`3221226505`) twice;
-  a lone re-run passed both times. `designerParity`'s `drawBox` retries, and `compose.ts` waits for
-  the tool to read pressed before dragging.
+  and a held drag behind a pending write is dropped when its window loses focus (Design 32b). The
+  sharded full run on a quiet machine saw it once more, in Design 85a's held drag (red once, green
+  twice alone) — a condition of the machine, which is why that case is not re-written around it.
+- **W23-A's first finding does not hold as a fixed fact.** On a quiet machine with the window
+  focused, the host reconciled an external `.rpgeo` write within 5 s in four runs of four, which
+  turned W23-A's "no notice for 5 s" pin red every time. The case now takes the host's reconcile
+  when it comes and makes the watcher's call by hand when it does not (Recover step 8's row).
+- **Under load a draw-tool drag can draw nothing**, and a vitest worker has exited at start with
+  `3221226505` (a Windows fast-fail) four times, on four different files; a lone re-run passed
+  every time. `designerParity`'s `drawBox` retries, and `compose.ts` waits for the tool to read
+  pressed before dragging.
+
+## The final run
+
+The whole of `tests/e2e/` on this branch, Windows 11, Obsidian 1.13.7, in four shards on a quiet
+machine (a full run does not fit one ten-minute command): **144 cases — 140 passed and 4 skipped
+(mobile-only) on the desktop leg**, after one re-run each for Design 85a (the focus drop above) and
+for the two files whose worker exited at start; W23-A's Recover case was re-written as described
+above and then passed. The mobile-emulation leg: 8 passed, 136 skipped.

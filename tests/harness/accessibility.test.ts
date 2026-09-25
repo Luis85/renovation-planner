@@ -168,6 +168,7 @@ beforeEach(() => {
  */
 afterEach(() => {
 	Platform.isMobile = false;
+	vi.restoreAllMocks();
 });
 
 describe('axe against the mounted view', () => {
@@ -1040,7 +1041,7 @@ describe('axe against the mounted view', () => {
 		// the synchronous mount, and this dialog is opened from that same view.
 		await flushPromises();
 
-		const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+		const warnSpy = vi.spyOn(console, 'warn');
 
 		void useDialogStore().openDialog({
 			kind: 'form',
@@ -1062,8 +1063,7 @@ describe('axe against the mounted view', () => {
 		const results = await axe.run(view.contentEl, runOptions);
 
 		expect(results.violations).toEqual([]);
-		expect(warnSpy.mock.calls.some(([message]) => typeof message === 'string' && message.includes('Missing required prop'))).toBe(false);
-		warnSpy.mockRestore();
+		expect(warnSpy.mock.calls.map((call) => String(call[0])).filter((text) => text.includes('Missing required prop'))).toEqual([]);
 	});
 });
 

@@ -281,7 +281,9 @@ warm arm, 3 of 3 (see "The deciding experiment" above). By this ruling Q2 ships 
 When Obsidian disables or reloads the plugin, it calls `onunload`. This plugin's `onunload` sets an
 "unloaded" flag and runs five cleanup steps, and does nothing else — it **closes no view and takes
 no pane off the screen**. So when `onunload` returns, every open editor pane is still on screen,
-still wired up, and still able to write to the vault.
+still wired up, and still able to write to the vault. *Superseded 2026-09-25 (1.13.7, Windows, one
+machine): Obsidian closes the Plan Editor pane before `onunload`, so none is left on screen. See
+"The run has happened".*
 
 Session 8 found and fixed the sharp end of that: one of the cleanup steps used to switch off the
 plugin's record of half-written writes, which simultaneously disarmed all three things that read it
@@ -294,6 +296,8 @@ What the fix deliberately does **not** settle is the general case. With nothing 
 guarded write dispatched after `onunload` still runs, and if it half-fails it is recorded nowhere.
 Reaching that window does not need a user: a queued or debounced write already in flight — a text
 field committing after a pause, a queued sequence of writes — lands there with no gesture at all.
+*Superseded 2026-09-25 (1.13.7, Windows, one machine): no field is debounced. The write measured
+in this window is a field commit started by the teardown's own blur. See "The run has happened".*
 
 **Unverified:** whether Obsidian leaves a still-usable pane alive after `onunload`, and in what
 order it tears things down relative to the cleanup steps. The test fakes here record requests
@@ -320,10 +324,10 @@ The field commits when it loses focus, and Obsidian's teardown takes the focus a
 
 | Option | What it changes | What it costs | What it costs if this is the wrong choice |
 |---|---|---|---|
-| **Leave it** (today) | Nothing. Open records survive unload; clean sessions release, and a post-unload write with nothing open still lands. | Nothing to build. | A half-failed write in the unload window is unrecorded and unrecoverable, and the user is not told. Blast radius is unknown because the window's width in Obsidian is unverified. |
+| **Leave it** (today) | Nothing. Open records survive unload; clean sessions release, and a post-unload write with nothing open still lands. | Nothing to build. | A half-failed write in the unload window is unrecorded and unrecoverable, and the user is not told. Blast radius is unknown because the window's width in Obsidian is unverified. *Superseded in part 2026-09-25 (1.13.7, Windows, one machine): a teardown-started write lands after `onunload`, about 60 ms after it in one probe; see "The run has happened".* |
 | **Never release the record at all** (drop the `anyOpen()` guard in `SessionStores.dispose()`) | Every post-unload write stays gated and recordable. | Named as the remedy in `src/plugin/sessionStores.ts`'s own docblock. The price stated there: a disposed session's record answers for the vault from module scope until the next load constructs a new one — the window is exactly "after unload, before the next load". Existing cases asserting that a clean dispose releases would need re-aiming. | The plugin's own rule that a global it installs is a global it removes is given up for one case; a stale record could answer for a vault the next load has not looked at yet. |
 | **A permanently-refusing sentinel after unload** | Every post-unload write refused outright. | **Refuted by measurement in session 8.** It would refuse a write in a never-half-written vault using the only refusal message that exists, which says an earlier write left the vault half-written. Minting a message variant is blocked by limitation L-15 (no agent-minted copy in the second language). | A user in a perfectly healthy vault is told their vault is half-written. |
-| **Make `onunload` own view teardown** — unmount the Vue apps, detach the leaves, or order the cleanup steps against view teardown | The premise of the whole question disappears: no pane is alive to write. | **Not costed anywhere.** Session 8 named it as a scope decision and stopped at its stop rather than build it. The plugin's own `onunload` docblock records a deliberate policy of not repeating teardown Obsidian's base class already does, which this would sit against. | Unknown, because it is uncosted. Taking it means costing it first. |
+| **Make `onunload` own view teardown** — unmount the Vue apps, detach the leaves, or order the cleanup steps against view teardown | The premise of the whole question disappears: no pane is alive to write. *Superseded 2026-09-25: Obsidian already closes the pane before `onunload` (measured, 1.13.7, Windows, one machine), and the pending write still landed. So, following from that order rather than measured, this option alone would not close the window; see "The run has happened".* | **Not costed anywhere.** Session 8 named it as a scope decision and stopped at its stop rather than build it. The plugin's own `onunload` docblock records a deliberate policy of not repeating teardown Obsidian's base class already does, which this would sit against. | Unknown, because it is uncosted. Taking it means costing it first. |
 
 ### The deciding experiment
 
@@ -374,7 +378,8 @@ half-fails in this window, other panes and fields, other Obsidian versions, and 
   (idle, an unsaved form, a part-drawn shape) the lifecycle rules measure as **not violated** at
   this boundary, so a test asserting the current behaviour would assert that nothing happens —
   and what actually happens at this boundary is that a still-mounted pane **can** write after
-  unload. Such a test would therefore certify that write as correct, and it would stay green on
+  unload. *(Superseded 2026-09-25, 1.13.7, Windows, one machine: no pane stays mounted, but a
+  write the teardown starts lands after unload. See "The run has happened".)* Such a test would therefore certify that write as correct, and it would stay green on
   exactly the day somebody changes it by accident. A fourth (a write already dispatched) is
   satisfied by the **absence** of cancellation code, so there is no mechanism to break and no
   failing state to watch. **The fifth is named here rather than left to be counted: a stale

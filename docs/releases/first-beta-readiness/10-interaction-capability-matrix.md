@@ -5,7 +5,7 @@ This is BP-05 Action 1's deliverable (`01-improvement-plan.md` §BP-05). It reco
 exist at that revision. **It runs nothing.** A Tested cell says a test exists and what it asserts.
 It does not say the test passed on any candidate.
 
-**Amended 2026-09-24 (session 20), from tests added at `54f85d2a1`:** §3's and §4.9's Undo/redo cells for Asset placement, Stair, Arrow, Post, Beam, Dimension and Section, §5's "Modifier change mid-gesture" row and §6's gaps list. Then, from tests added at `215992fe7`, the Undo/redo cells in §3, §4.9 and §6 for View, Hatch, Text, Boundary and Grid. Then, from the review round's m2 finding, seven cells narrowed to name structure.elements (BP05B fix m2): Asset placement, Post, View, Hatch, Text, Boundary and Grid. Then, from tests added at `b09aa7a85`, the Delete cells in §3, §4.7 and §6 for View, Hatch, Text, Boundary and Grid. Every other cell is still as assembled at `71d5bca43`.
+**Amended 2026-09-24 (session 20), from tests added at `54f85d2a1`:** §3's and §4.9's Undo/redo cells for Asset placement, Stair, Arrow, Post, Beam, Dimension and Section, §5's "Modifier change mid-gesture" row and §6's gaps list. Then, from tests added at `215992fe7`, the Undo/redo cells in §3, §4.9 and §6 for View, Hatch, Text, Boundary and Grid. Then, from the review round's m2 finding, seven cells narrowed to name structure.elements (BP05B fix m2): Asset placement, Post, View, Hatch, Text, Boundary and Grid. Then, from tests added at `b09aa7a85`, the Delete cells in §3, §4.7 and §6 for View, Hatch, Text, Boundary and Grid. Then, from tests added at `6ded211d3`, the Cancel cells in §3, §4.8 and §6 for View, Hatch, Text, Boundary and Grid. Every other cell is still as assembled at `71d5bca43`.
 
 ## 1. Method
 
@@ -84,15 +84,15 @@ State per cell: **T** Tested, **I** Implemented, untested, **U** Unsupported, **
 | Beam | T | T | I | T | I | I | T | I | T | I |
 | Dimension | T | T | I | T | I | I | I | I | T | I |
 | Section | T | T | I | I | I | I | I | I | T | I |
-| View | T | T | I | I | I | I | T | I | T | I |
-| Hatch | T | T | I | I | I | I | T | I | T | I |
-| Text | T | T | I | I | U | I | T | I | T | I |
-| Boundary | T | T | I | I | I | I | T | I | T | I |
-| Grid | T | T | I | I | U | I | T | I | T | I |
+| View | T | T | I | I | I | I | T | T | T | I |
+| Hatch | T | T | I | I | I | I | T | T | T | I |
+| Text | T | T | I | I | U | I | T | T | T | I |
+| Boundary | T | T | I | I | I | I | T | T | T | I |
+| Grid | T | T | I | I | U | I | T | T | T | I |
 | Group | T | T | T | T | T | T | T | T | T | I |
-| **Tested** | 21 | 19 | 3 | 15 | 10 | 5 | 17 | 8 | 21 | 3 |
+| **Tested** | 21 | 19 | 3 | 15 | 10 | 5 | 17 | 13 | 21 | 3 |
 
-Totals over 210 cells: **122 Tested, 83 Implemented-untested, 5 Unsupported, 0 Unknown.**
+Totals over 210 cells: **127 Tested, 78 Implemented-untested, 5 Unsupported, 0 Unknown.**
 
 ## 4. Evidence, one table per column
 
@@ -297,11 +297,11 @@ Totals over 210 cells: **122 Tested, 83 Implemented-untested, 5 Unsupported, 0 U
 | Beam | Implemented, untested | `ElementTool.cancel` (`src/presentation/editor/elements/ElementTool.ts`) and `createCancelActiveTask` (`src/presentation/editor/runtime.ts`), reached from `TemporaryToolBanner.vue`. Missing: start the tool, draft input, Escape or Cancel, vault bytes unchanged. |
 | Dimension | Implemented, untested | `ElementTool.cancel` (`src/presentation/editor/elements/ElementTool.ts`) and `createCancelActiveTask` (`src/presentation/editor/runtime.ts`), reached from `TemporaryToolBanner.vue`. Missing: start the tool, draft input, Escape or Cancel, vault bytes unchanged. |
 | Section | Implemented, untested | `ElementTool.cancel` (`src/presentation/editor/elements/ElementTool.ts`) and `createCancelActiveTask` (`src/presentation/editor/runtime.ts`), reached from `TemporaryToolBanner.vue`. Missing: start the tool, draft input, Escape or Cancel, vault bytes unchanged. |
-| View | Implemented, untested | `ElementTool.cancel` (`src/presentation/editor/elements/ElementTool.ts`) and `createCancelActiveTask` (`src/presentation/editor/runtime.ts`), reached from `TemporaryToolBanner.vue`. Missing: start the tool, draft input, Escape or Cancel, vault bytes unchanged. |
-| Hatch | Implemented, untested | `ElementTool.cancel` (`src/presentation/editor/elements/ElementTool.ts`) and `createCancelActiveTask` (`src/presentation/editor/runtime.ts`), reached from `TemporaryToolBanner.vue`. Missing: start the tool, draft input, Escape or Cancel, vault bytes unchanged. |
-| Text | Implemented, untested | `ElementTool.cancel` (`src/presentation/editor/elements/ElementTool.ts`) and `createCancelActiveTask` (`src/presentation/editor/runtime.ts`), reached from `TemporaryToolBanner.vue`. Missing: start the tool, draft input, Escape or Cancel, vault bytes unchanged. |
-| Boundary | Implemented, untested | `ElementTool.cancel` (`src/presentation/editor/elements/ElementTool.ts`) and `createCancelActiveTask` (`src/presentation/editor/runtime.ts`), reached from `TemporaryToolBanner.vue`. Missing: start the tool, draft input, Escape or Cancel, vault bytes unchanged. |
-| Grid | Implemented, untested | `ElementTool.cancel` (`src/presentation/editor/elements/ElementTool.ts`) and `createCancelActiveTask` (`src/presentation/editor/runtime.ts`), reached from `TemporaryToolBanner.vue`. Missing: start the tool, draft input, Escape or Cancel, vault bytes unchanged. |
+| View | Tested | `tests/presentation/editor/draftingCreation.test.ts` › "cancels a drafted %s from the task bar without writing, and returns to Select with nothing drafted" (param 'view') — creation cancel: the tool started through `setTool`, one point placed through the tool manager's pointer events and the second point's X and Y typed in the task form but not added, and the tool reporting a draft (`activeToolHasDraft`); the task bar's Cancel (`.rp-task-banner__cancel`) leaves the fake vault's entries (`rig.stack.vault.entries`) equal to a snapshot taken before the tool started and the store's `structure.elements` and `plan.spatialElements` equal to what they were then (both read as empty); the active tool is then Select, and the task's draft holds no points, no typed coordinates and no name |
+| Hatch | Tested | `tests/presentation/editor/draftingCreation.test.ts` › "cancels a drafted %s from the task bar without writing, and returns to Select with nothing drafted" (param 'hatch') — creation cancel: the tool started through `setTool`, a rectangle dragged through the tool manager's pointer events and not finished, and the tool reporting a draft (`activeToolHasDraft`); the task bar's Cancel (`.rp-task-banner__cancel`) leaves the fake vault's entries (`rig.stack.vault.entries`) equal to a snapshot taken before the tool started and the store's `structure.elements` and `plan.spatialElements` equal to what they were then (both read as empty); the active tool is then Select, and the task's draft holds no points, no typed coordinates and no name |
+| Text | Tested | `tests/presentation/editor/draftingCreation.test.ts` › "cancels a drafted %s from the task bar without writing, and returns to Select with nothing drafted" (param 'text') — creation cancel: the tool started through `setTool`, a point placed through the tool manager's pointer events and its words typed in the task form's name field, not finished, and the tool reporting a draft (`activeToolHasDraft`); the task bar's Cancel (`.rp-task-banner__cancel`) leaves the fake vault's entries (`rig.stack.vault.entries`) equal to a snapshot taken before the tool started and the store's `structure.elements` and `plan.spatialElements` equal to what they were then (both read as empty); the active tool is then Select, and the task's draft holds no points, no typed coordinates and no name |
+| Boundary | Tested | `tests/presentation/editor/draftingCreation.test.ts` › "cancels a drafted %s from the task bar without writing, and returns to Select with nothing drafted" (param 'boundary') — creation cancel: the tool started through `setTool`, two points placed through the tool manager's pointer events and not finished, and the tool reporting a draft (`activeToolHasDraft`); the task bar's Cancel (`.rp-task-banner__cancel`) leaves the fake vault's entries (`rig.stack.vault.entries`) equal to a snapshot taken before the tool started and the store's `structure.elements` and `plan.spatialElements` equal to what they were then (both read as empty); the active tool is then Select, and the task's draft holds no points, no typed coordinates and no name |
+| Grid | Tested | `tests/presentation/editor/draftingCreation.test.ts` › "cancels a drafted %s from the task bar without writing, and returns to Select with nothing drafted" (param 'grid') — creation cancel: the tool started through `setTool`, a point's X and Y typed in the task form but not added, and the tool reporting a draft (`activeToolHasDraft`); the task bar's Cancel (`.rp-task-banner__cancel`) leaves the fake vault's entries (`rig.stack.vault.entries`) equal to a snapshot taken before the tool started and the store's `structure.elements` and `plan.spatialElements` equal to what they were then (both read as empty); the active tool is then Select, and the task's draft holds no points, no typed coordinates and no name |
 | Group | Tested | `tests/presentation/editor/groupEditing.test.ts` › "keeps cancel, click jitter, zero movement and Review free of writes" — EDIT cancel: a cancelled group move writes nothing |
 
 ### 4.9 Undo/redo
@@ -438,31 +438,26 @@ One line per cell. A list of what is empty, not a plan to fill it.
 | View | Precise edit | Implemented, untested |
 | View | Rotate | Implemented, untested |
 | View | Duplicate/copy | Implemented, untested |
-| View | Cancel | Implemented, untested |
 | View | Non-drag route | Implemented, untested |
 | Hatch | Move | Implemented, untested |
 | Hatch | Precise edit | Implemented, untested |
 | Hatch | Rotate | Implemented, untested |
 | Hatch | Duplicate/copy | Implemented, untested |
-| Hatch | Cancel | Implemented, untested |
 | Hatch | Non-drag route | Implemented, untested |
 | Text | Move | Implemented, untested |
 | Text | Precise edit | Implemented, untested |
 | Text | Rotate | Unsupported |
 | Text | Duplicate/copy | Implemented, untested |
-| Text | Cancel | Implemented, untested |
 | Text | Non-drag route | Implemented, untested |
 | Boundary | Move | Implemented, untested |
 | Boundary | Precise edit | Implemented, untested |
 | Boundary | Rotate | Implemented, untested |
 | Boundary | Duplicate/copy | Implemented, untested |
-| Boundary | Cancel | Implemented, untested |
 | Boundary | Non-drag route | Implemented, untested |
 | Grid | Move | Implemented, untested |
 | Grid | Precise edit | Implemented, untested |
 | Grid | Rotate | Unsupported |
 | Grid | Duplicate/copy | Implemented, untested |
-| Grid | Cancel | Implemented, untested |
 | Grid | Non-drag route | Implemented, untested |
 | Group | Non-drag route | Implemented, untested |
 

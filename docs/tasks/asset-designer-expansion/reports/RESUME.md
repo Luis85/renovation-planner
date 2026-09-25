@@ -12,7 +12,7 @@ ready, tags it or publishes it without asking the user.**
 |---|---|
 | HEAD | **A hand-off cannot name its own sha.** Confirm it yourself: `gh run list --branch renovation-planner-asset-designer-bc5539 --limit 1 --json databaseId,headSha,status`, then `gh run view <id> --json status,conclusion,jobs`. The tree was clean and pushed when this was written |
 | Last code sha confirmed green | Named in the delivery note at the end of AD18-R25 in [`DECISIONS.md`](../contracts/DECISIONS.md), with its run id. `git diff --name-only <that sha>..HEAD` should show only `docs/` files |
-| `origin/main` | Last merged at `0d9cdb142`. `git merge-base HEAD origin/main` was still `126f79589` on 2026-09-25, with no new commits on main. Fetch and check again before assuming nothing has moved |
+| `origin/main` | Last merged at `61fbf1588` (PR #238, e2e tests on a real Obsidian) as `305d70ce2` on 2026-09-25: no conflicts, CI run `36160547356` and E2E run `36160547358` green. That merge brought `npm run test:e2e` and three devDependencies (`webdriverio`, `wdio-obsidian-service`, `@axe-core/webdriverio`) that the shared local `node_modules` does not have yet: run `npm install` before a local gate. Fetch and check again before assuming nothing has moved |
 
 ## The next session's job: the manual vault walk
 

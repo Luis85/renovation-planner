@@ -11,11 +11,14 @@ import {
 	openPlan,
 	planNames,
 	plantIncidents,
+	reloadPlugin,
 	removeIncidents,
 	seedProjectWithPlan,
 	tryNewPlan,
+	type Pane,
+	type Ui,
 } from './planner';
-import { PLUGIN_ID, mobileEmulation } from './session';
+import { PLUGIN_ID, mobileEmulation, type NativeBrowser } from './session';
 
 /**
  * `docs/tests/cases/Two panes on one plan under an open write incident.md`, driven in the real
@@ -27,19 +30,35 @@ import { PLUGIN_ID, mobileEmulation } from './session';
  * Every write here runs on the desktop legs; mobile is view-only by design.
  */
 const desktop = mobileEmulation ? test.skip : test;
+type Page = Parameters<typeof reloadPlugin>[0];
+
+/** Every case's fault setup: the project and plan made first, then the file planted, then a reload that reads it. */
+async function plantAndReload(browser: NativeBrowser, page: Page, ui: Ui, content: string): Promise<void> {
+	await seedProjectWithPlan(ui);
+	await plantIncidents(browser, content);
+	await reloadPlugin(page);
+}
+
+/** Step 1's state: the primary incident planted and read, then the seeded plan opened and its editor paused. */
+async function openPausedPlan(browser: NativeBrowser, page: Page, ui: Ui): Promise<void> {
+	await plantAndReload(browser, page, ui, JSON.stringify(PLANTED_INCIDENT));
+	await openPlan(browser, ui, 'Ground floor');
+	await expectPaused(browser.$(EDITOR));
+}
+
+/** Open the diagnostics report, and read the one incident code it names. */
+async function openReport(ui: Ui, report: Pane, code: string): Promise<void> {
+	await ui.command('show-diagnostics-report');
+	await expect.poll(() => report.isDisplayed()).toBe(true);
+	expect(await report.$('.rp-diagnostics__incident .rp-diagnostics__code').getText()).toBe(code);
+}
 
 describe('a planted write incident in the real host', () => {
 	desktop('pauses the editor from its first frame, a split pane with it, and both again after a settings rebind', async ({
 		native: { browser, page, ui },
 	}) => {
-		await seedProjectWithPlan(ui);
-		await plantIncidents(browser, JSON.stringify(PLANTED_INCIDENT));
-		await page.disablePlugin(PLUGIN_ID);
-		await page.enablePlugin(PLUGIN_ID);
-
 		// Step 1: paused before any write is attempted — the seed, not the gate catching up.
-		await openPlan(browser, ui, 'Ground floor');
-		await expectPaused(browser.$(EDITOR));
+		await openPausedPlan(browser, page, ui);
 		// A JS click: the FloorStart panel floats over the Add button on a plan with no rooms.
 		await browser.execute((button: HTMLElement) => button.click(), await browser.$(EDITOR).$('[data-rp-action="add"]'));
 		const items = await browser.$(EDITOR).$$('.rp-add-menu__item');
@@ -69,20 +88,15 @@ describe('a planted write incident in the real host', () => {
 	desktop('refuses the write with its reason, names the file in the diagnostics report, and resumes only on reload', async ({
 		native: { browser, page, ui },
 	}) => {
-		await seedProjectWithPlan(ui);
-		await plantIncidents(browser, JSON.stringify(PLANTED_INCIDENT));
-		await page.disablePlugin(PLUGIN_ID);
-		await page.enablePlugin(PLUGIN_ID);
+		await plantAndReload(browser, page, ui, JSON.stringify(PLANTED_INCIDENT));
 
 		// Step 4: the guarded door underneath, and the refusal said rather than swallowed.
 		expect(await tryNewPlan(browser, ui, 'Attic')).toContain(WRITES_PAUSED);
 		expect(await planNames(ui)).toEqual(['Ground floor']);
 
 		// Step 8: the retirement gesture is discoverable, and it is a path rather than a button.
-		await ui.command('show-diagnostics-report');
 		const report = browser.$('.rp-diagnostics');
-		await expect.poll(() => report.isDisplayed()).toBe(true);
-		expect(await report.$('.rp-diagnostics__incident .rp-diagnostics__code').getText()).toBe('zone.sidecar-write-uncompensated');
+		await openReport(ui, report, 'zone.sidecar-write-uncompensated');
 		const note = await report.$$('.rp-diagnostics__note').map((element) => element.getText());
 		expect(note).toContain('Affected files could not be named.');
 		const path = await incidentsPath(browser);
@@ -108,15 +122,10 @@ describe('a planted write incident in the real host', () => {
 	// The fault setup's alternative arm, "worth one run of its own": a file this build cannot
 	// read is an OPEN incident, never absence (SDD §87 rule 8).
 	desktop('fails closed on an unreadable incidents file and says so in the report', async ({ native: { browser, page, ui } }) => {
-		await seedProjectWithPlan(ui);
-		await plantIncidents(browser, '{}');
-		await page.disablePlugin(PLUGIN_ID);
-		await page.enablePlugin(PLUGIN_ID);
+		await plantAndReload(browser, page, ui, '{}');
 		expect(await tryNewPlan(browser, ui, 'Attic')).toContain(WRITES_PAUSED);
-		await ui.command('show-diagnostics-report');
 		const report = browser.$('.rp-diagnostics');
-		await expect.poll(() => report.isDisplayed()).toBe(true);
-		expect(await report.$('.rp-diagnostics__incident .rp-diagnostics__code').getText()).toBe('write-incident.unreadable');
+		await openReport(ui, report, 'write-incident.unreadable');
 		expect(await report.$$('.rp-diagnostics__note').map((element) => element.getText())).toContain(
 			'This build cannot read this record, so only its presence is known.',
 		);
@@ -131,12 +140,7 @@ describe('a planted write incident across a real Obsidian restart', () => {
 	desktop('restores the pane over the saved layout, keeps refusing the write, and leaves the file alone', async ({
 		native: { browser, page, ui },
 	}) => {
-		await seedProjectWithPlan(ui);
-		await plantIncidents(browser, JSON.stringify(PLANTED_INCIDENT));
-		await page.disablePlugin(PLUGIN_ID);
-		await page.enablePlugin(PLUGIN_ID);
-		await openPlan(browser, ui, 'Ground floor');
-		await expectPaused(browser.$(EDITOR));
+		await openPausedPlan(browser, page, ui);
 
 		await browser.reloadObsidian();
 		await expect.poll(() => ui.leafCount('renovation-plan-editor')).toBe(1);

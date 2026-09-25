@@ -19,13 +19,14 @@ overlooked.**
 
 ## What the pass consists of
 
-**232 human steps across seven cases**, measured rather than remembered — re-derived on
-2026-09-24 against the finished AD18-R23 tree (a follow-up round triaging the AD18-R21 polish
-round's own recorded items at source: Tasks 2-6, 10 and 11), with the command run verbatim as it
-is printed. **Do not trust this number; run the command.** It has been 84, then 90, then 109, then
-145, then 179, then 182, then 205, then 206, then 215, then this, and each time the session that
-moved it was the session that had just shipped — or, three times now, corrected — the thing it was
-counting:
+**241 human steps across seven cases**, measured rather than remembered — re-derived on
+2026-09-25 against the finished AD18-R24 tree (a second follow-up round triaging the AD18-R23
+follow-up round's own recorded items at source: a false-refusal fix in core geometry, a warning
+for a typed size that lands away from what was typed, and one shared disclosure-chevron rule),
+with the command run verbatim as it is printed. **Do not trust this number; run the command.** It
+has been 84, then 90, then 109, then 145, then 179, then 182, then 205, then 206, then 215, then
+232, then this, and each time the session that moved it was the session that had just shipped —
+or, three times now, corrected — the thing it was counting:
 
 ```bash
 for f in "Design an Asset" "Take an asset from the library into a plan" \
@@ -44,10 +45,10 @@ same mistake naming a case here guards against for the other six.
 
 | Case | Human steps | Of total | Discharges |
 |---|---|---|---|
-| [[Design an Asset]] | **103** | 149 | U01 (with the next row) |
+| [[Design an Asset]] | **111** | 157 | U01 (with the next row) |
 | [[Take an asset from the library into a plan]] | 19 | 28 | U01, T34 |
-| [[Compose an asset from parts]] | **23** | 63 | U02, U03 (its Repeat section) |
-| [[Calibrate a sheet and reserve space]] | **26** | 57 | U04 — **7 already confirmed**, see below |
+| [[Compose an asset from parts]] | **23** | 64 | U02, U03 (its Repeat section) |
+| [[Calibrate a sheet and reserve space]] | **27** | 58 | U04 — **7 already confirmed**, see below |
 | [[Recover an asset design rather than lose it]] | 33 | 42 | U05 |
 | [[Two designers on one asset]] | 8 | 16 | T12 |
 | [[Browse the asset library]] | 20 | 37 | AD18-R18 (Grid view), AD18-R20/R21 Task 8 |
@@ -416,9 +417,50 @@ REWRITTEN, their step numbers unchanged.**
   (the screen reader hearing only the swapping accessible name — "Lock Kitchen" / "Unlock
   Terrace" — never "pressed" or "not pressed").
 
-**Nothing added by this round has been seen in Obsidian**, per Tasks 2, 3, 4, 5, 6, 10 and 11's
-own reports: every one measured in the suite, in jsdom, or — for the curved-clearance drag and the
-label's screen position — predicted from the code and named as such.
+**Nothing added by the AD18-R23 round has been seen in Obsidian**, per Tasks 2, 3, 4, 5, 6, 10 and
+11's own reports: every one measured in the suite, in jsdom, or — for the curved-clearance drag and
+the label's screen position — predicted from the code and named as such.
+
+**AD18-R24 landed next — a second follow-up round triaging the AD18-R23 follow-up round's own
+recorded items at source — the reason the total moved once more, from 232 to 241.** Two rulings (a
+typed size that lands away from what was typed now warns, naming the size that landed, rather than
+landing silently; the designer's and the project list's byte-identical chevron rules become one
+shared rule) plus one defect fixed without a ruling because it broke a rule that already stood
+(`arcArc`'s phantom self-intersection about 1.1e-7 mm past `curveTolerance`, which refused a valid
+circle whose two adjacent arcs lie a few parts per million off one circle — the tree preset, the
+round table, the shrub and every other `circle()`/`lobed()` outline). **Nine new HUMAN steps land
+inside the counted total, across two cases; two more, one `browser` and one `obsidian` outside the
+counted seven, move nothing above.**
+
+- **[[Design an Asset]] gained eight**, in a new "the second follow-up round (AD18-R24)" section
+  (steps 122–129): the tree preset's own 2987 × 2987 (one of 109 whole-millimetre W = D sizes it
+  used to refuse) now landing exactly, and a stored 4500 × 4500 tree now rotating without the same
+  phantom refusing it 769 times in 2,000 rotations before the fix (122–123, Task 1); the vanity
+  basin's Inspector Width and its own canvas size label both warning when a typed 191 lands at its
+  270 mm floor, the round table's Set dimensions warning at its own floor, the toilet's overall
+  width landing exactly with no warning even though its coupled depth moves underneath it, a basin
+  handle DRAG to the same floor raising no warning, and a round table typed to a size it CAN reach
+  raising none either (124–129, Task 2). **No Plan Editor Zone step was added**: a Room zone's own
+  Bend edges reaches the identical `CurvedPolygon` validation (`curveTask.ts`'s `current()`), so the
+  fix does apply there too, but no draw-circle Zone tool exists and Task 1's own sweep characterised
+  the asset presets rather than an arbitrary bent Zone, so no concrete repro is in hand for one —
+  recorded here rather than guessed at in a step's pass condition.
+- **[[Calibrate a sheet and reserve space]] gained one**: 36b, the read-back rule's other named gap
+  — a hidden PENDING clearance a CALIBRATION rescales re-shows too, and so does its own Undo —
+  beside step 36a's whole-design-resize case, both corollaries AD18-R23 Task 3's own report named
+  but did not drive through a live gesture.
+- **[[Compose an asset from parts]] gained one `browser` row, outside the counted total**: 26a, a
+  regression guard that the designer's own disclosure chevron looks and turns exactly as before, in
+  both colour schemes, now that its rule is shared with the project list's.
+- **[[Find and resume a project]] gained one `obsidian` row, outside the counted command's seven
+  cases** (this file's own command never named it, so it moves nothing above): 2a, the same
+  regression guard for the project list's `Completed` group chevron, the other half of the shared
+  rule this round deduplicated.
+
+**Nothing added by this round has been seen in Obsidian** — Task 1 was verified by a geometry sweep
+(hundreds of thousands of synthetic arc pairs, plus every preset with an arc swept over whole sizes
+and rotations) and Task 2 by the suite; Task 3's CSS merge was verified by `fallow dupes` and the
+existing stylesheet gates. None of the three has been looked at in a vault.
 
 ## The gate inside the pass
 

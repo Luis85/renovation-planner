@@ -299,10 +299,43 @@ still drawn.
 - **Colour contrast, hit-target size and any theme other than the default.** The standing exception
   every case in this suite carries.
 
+## Automated in Obsidian
+
+**Added 2026-09-25.** `tests/e2e/assetDesignerRecovery.e2e.ts`, against a real vault copy on a real file
+system, with the `.rpgeo` on disk as the instrument step 12c asks for.
+
+| Step | Clause | Discharged by |
+| --- | --- | --- |
+| 2 | setting the read-only attribute changes nothing on screen | *refuses a write the OS forbids without a toast, and clears the error only on a write that lands* — header and notice read after a second's wait |
+| 3 | the bowl springs back and the header reads Save error | same case — Position X still 0, revision still 1 |
+| 4 | no toast during step 3 | same case |
+| 5 | `schemaVersion: 99` on disk: a toast "This data is not in the expected form.", header UNCHANGED at Save error, nothing written | same case — the refusal comes from the read that opens the write, so no host watcher is needed |
+| 6 | the next landed write clears the error | same case — revision 2, "Saved just now", X 10 |
+| 7 | the notice sentence, with the canvas unchanged and no failure panel | *shows the stale notice once the host reconciles an edited sidecar, retries it, and heals it unprompted* — after `reconcileFile` |
+| 8 | the notice arrives without a press | **finding** — it does not: nothing reaches the leaf until Obsidian reconciles, which a driven 1.13.7 never does on its own; measured for 15 s on the `.rpgeo` and the `.md` control |
+| 9 | the header reads "Saved · refresh needed" | same case |
+| 10 | exactly one control, Try again, a sibling of the notice, nothing dimmed | same case — the retry is outside the notice element, and no tool button carries `disabled` |
+| 12 | the repair clears the notice with no press | same case — once reconciled, the notice and the retry go together |
+| 17 | the second Undo refuses with the exact sentence, the foreign coordinate survives | *refuses to undo past a foreign edit, with the one refusal here that explains itself* — revision unchanged by the refusal, `-195` still on disk |
+| 21 | close and reopen: the same asset, both gestures, history gone | *restores the same asset across a close, a restart and a settings save, keeping the work and losing the history* |
+| 22 | Undo on the reopened leaf is dimmed and undoes nothing | same case |
+| 23 | a restart brings the tab back on the asset with no failure panel | same case — `reloadObsidian`, the leaf's view state, and `.rp-view-failure` absent once drawn; a one-frame flash is not observed by this instrument |
+| 24 | a settings save keeps the asset and drops the history | same case — Verbose logging toggled in the real settings window |
+| 26 | a moved note changes nothing visible | *ignores its note moving, and offers only Close this tab once the note is gone, leaving the sidecar orphaned* |
+| 27 | a deleted note: the panel's headline, body and single Close this tab; no Retry, no stale notice | same case |
+| 29 | Close this tab detaches the leaf | same case |
+| 30 | the `.rpgeo` is still there, naming the asset | same case |
+| 31 | `assetId` is unchanged and matches the filename | same case, and every other case reads the file by that name |
+| 33 | Try again below the notice, a sibling, nothing dimmed | *shows the stale notice…* |
+| 35 | a retry over the fault keeps the canvas and changes the sentence to "again" | same case |
+| 37 | repair plus retry clears the notice, the button and the qualifier together | same case — the repair is reconciled, and the three go at once |
+| 38 | a fresh failure reads the first sentence | same case |
+
 ## Runs
 
 | Date | Build | Outcome |
 | --- | --- | --- |
+| 2026-09-25 | `npm run test:e2e` on this branch — Obsidian 1.13.7 driven by WebdriverIO, Windows 11, `--lang=en` | **Steps 2, 3, 4, 5, 6, 7, 9, 10, 12, 17, 21, 22, 23, 24, 26, 27, 29, 30, 31, 33, 35, 37 and 38 are discharged by `tests/e2e/assetDesignerRecovery.e2e.ts`**, clause by clause in *Automated in Obsidian*. **Fault 1 is answered: on Windows the read-only attribute IS a rejected `Vault.modify`** — `Save error`, revision unchanged, no toast, the bowl back where it was. **Step 8's first link is answered NO**: for a `.rpgeo` (and for a `.md` note — measured as the control) written outside Obsidian, the host raises `raw` within 10 ms and then neither raises `modify` nor updates the `TFile`'s `stat` for 15 s, so the stale notice never arrives by that route. Every link after it is real: the suite calls `app.vault.adapter.reconcileFile(path, path)` — the call Obsidian's own watcher makes when it does act — and from there the notice, the qualified header, `Try again`, the "again" sentence, the unprompted heal and the first-sentence reset all behave as the rows say. Step 25's disable-and-enable detaches every designer leaf (recorded in Design an Asset's run). Not walked: 12a–12d, 13–16, 18–20, 25 beyond that, 32, 34, 36. |
 | — | — | **Not yet run in a vault. No step above has been walked.** Every row is an expectation derived from the module source, its English copy and the tests named in the rows — never from memory of any of them. The `suite` rows' tests were run (`npx vitest run` over `designerRefresh`, `designerWriteChain`, `assetDesignerRoot`, `assetDesignerView`, `designerCrossLeaf`, `assetGeometrySidecar`, `reversibleAssetDesignWindows`, `saveStateAgreement` and `getAssetDesign`) and all passed at the time of writing; that establishes the assertions exist and hold, not that the vault behaves as the `obsidian` rows say. **Steps 12a to 12d are the least-supported rows in the file** — four separately verified links, never executed as a sequence — so walk them with step 12c's disk check in hand and record what the `revision` actually did. Record the fault setups used, the Obsidian version and the platform — steps 2, 3 and 19 all rest on an OS read-only attribute, whose behaviour is not the same on Windows and macOS. |
 
 ## Outcome

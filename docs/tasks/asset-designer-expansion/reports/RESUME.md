@@ -20,6 +20,16 @@ Nothing agent-closable is open in this package. What is left is the deferred ter
 person does in a real Obsidian vault (`npm run test-build` builds into this repository, which IS a
 vault).
 
+**Since this packet was written, the `obsidian`-tier steps of five of the seven cases run in a DRIVEN
+Obsidian** ([`W23-A-e2e-real-host.md`](W23-A-e2e-real-host.md), 2026-09-25): each of those case files
+carries an *Automated in Obsidian* clause table naming the test that discharges each clause, and a Runs
+row written from the run. Walk the rows those tables leave as `none` and the two cases they do not touch
+(`Compose an asset from parts`, `Browse the asset library`); the 241 below counts every step and is now
+an over-count for the walk. Seven findings in that report are host behaviour the walk must not file as
+new — the two that matter most: an external write to a `.rpgeo` raises no `modify` in a driven 1.13.7
+(the stale notice needs the host's reconcile), and a drag held across a PEER LEAF's write is dropped
+with no badge and no toast where `Two designers` step 8 expects `Save error`.
+
 - **The index is [`MANUAL-PASS.md`](MANUAL-PASS.md): 241 human steps across seven cases**
   (111/19/23/27/33/8/20). It was 232. Do not trust the number: run the command the index prints.
   Rows outside the seven counted cases: the Plan Editor zone lock's two rows in `Open a floor and select

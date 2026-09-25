@@ -112,9 +112,33 @@ what they do not claim.
 - **Colour contrast and hit-target size.** The standing exception every case in this suite
   carries.
 
+## Automated in Obsidian
+
+**Added 2026-09-25.** `tests/e2e/assetHandoff.e2e.ts` — the desktop leg for the doors, the
+mobile-emulation leg for the gate.
+
+| Step | Clause | Discharged by |
+| --- | --- | --- |
+| 9 | a note `Oven (copy)` appears in the library folder; the panel closes; the selection stays on Oven | *duplicates an asset into a new note without touching the original or its placements* |
+| 10 | Oven's own geometry is exactly what it was | same case — the original's `.rpgeo` compared whole; the copy's shape equals it under the copy's id |
+| 10 | both placements still name Oven, at the same size and position | none — this vault places nothing before duplicating |
+| 14 | no picker; the one Plan Editor comes forward with the banner; a click places THIS asset | *arms the one open plan without asking, asks between two, and records where it went* — the plan's own `.rpgeo` names the asset after the click |
+| 15 | two open plans: a picker naming both | same case |
+| 16 | Escape arms nothing; the next press asks again | same case |
+| 17 | two presses in one tick open exactly one picker | same case |
+| 18 | no plans: "This vault has no renovation plans yet." and no empty picker | *says so rather than opening an empty picker, in a vault with assets and no plans* |
+| 19 | the Continue group offers that project and that plan | *arms the one open plan…* |
+| 20 | a selected placement's Inspector offers Open in designer | *opens the designer from a placed asset, and gives two fast presses one leaf* |
+| 21 | it opens a designer leaf on Oven | same case |
+| 22 | two presses in one tick give one leaf | same case, through the Inspector button; the canvas menu is not driven |
+| 24 | neither command is listed on mobile | *keeps both commands out of the palette on mobile* — each command's `checkCallback(true)` answers false |
+| 25 | the project view's library button opens a leaf that refuses | *opens a library leaf that refuses, from the project view button, rather than nothing* |
+| 27 | both commands listed on the desktop, by name | *lists both commands in the palette on the desktop* |
+
 ## Runs
 
 | Date | Build | Outcome |
 | --- | --- | --- |
+| 2026-09-25 | `npm run test:e2e` on this branch — Obsidian 1.13.7 driven by WebdriverIO, Windows 11, `--lang=en` | **Steps 9, 10 (in part), 14, 15, 16, 17, 18, 19, 20, 21, 22 (the Inspector door), 24, 25 and 27 are in `tests/e2e/assetHandoff.e2e.ts`**, clause by clause below; 24 and 25 run on the mobile-emulation leg. Step 10 is walked against an original with NO placements — the duplicate's own sidecar is a copy under its own id and the original's is byte-identical, but "both placements still name Oven" is not read. Step 22's context-menu door and step 26's synced restore are not walked. |
 | — | — | SUPERSEDED as a whole-case statement by the row below, which records a human vault walk on 2026-09-19; it stands for the per-step rows, none of which that walk individually confirmed. Originally: every row above is an expectation derived from the code, from `docs/tasks/asset-designer-expansion/contracts/DECISIONS.md` (ruling AD13-R1) and from the AD13 task reports under `docs/tasks/asset-designer-expansion/reports/`, rather than from a walk. Nothing in this case has been opened in Obsidian, and no step here has ever been run on a mobile device. |
 | 2026-09-19 | live Obsidian vault, `npm run test-build` of `ecae21ab2` | **Walked in a live Obsidian vault by the repository owner (a human, not an agent), on the `npm run test-build` build of `ecae21ab2`.** Their overall verdict, recorded verbatim because it is the whole of what was given at that level: *"looks good to me"*. **No per-step outcome was recorded and none is claimed here.** The walk was not driven step-by-step against this table, so no individual `obsidian` step in this case is marked passed by it; what the run discharges is runbook §10's *"an actual Obsidian session"* condition, not this case's rows. One defect was reported from the walk and it is not in any case here: *"the preview images for presets look strange as they are inside buttons and overlapping them"* — reproduced, measured and fixed (`.rp-preset-choice` never overrode Obsidian's own `button` rule, so a 48px thumbnail hung 9px out of a 30px button top and bottom and shrank to as little as 0px wide against a `nowrap` label). **Step 23's judgement was not put to them and is NOT answered** — how **Edit shape** in the library and **Open in designer** on the plan read side by side, two names for one destination, remains unrecorded. No step here was run on a mobile device, so steps 24 through 26 are untouched by this run. Asked separately whether the Asset designer was usable at a sidebar leaf's width, they answered **usable**. |

@@ -377,8 +377,35 @@ by selection" for step 127.
   suite carries: `tests/harness/accessibility.test.ts` grades roles, names, labels and ARIA
   validity, and explicitly not these two.
 
+## Automated in Obsidian
+
+**Added 2026-09-25.** `tests/e2e/assetDesigner.e2e.ts` drives a real Obsidian 1.13.7 through WebdriverIO
+(`npm run test:e2e`). One row per CLAUSE, cited by the case's name; a clause no case reaches says so.
+
+| Step | Clause | Discharged by |
+| --- | --- | --- |
+| 1 | a notice reads "This vault has no assets yet." | *refuses to open the designer picker over an empty catalogue, with a real notice* |
+| 1 | prefixed "Information", clears after about six seconds | none — the prefix is Obsidian's own chrome and the timing a feel judgement; the notice's EXISTENCE and text are what is read |
+| 3 | the dialog closes and the designer opens on the asset just created | *opens the designer on the asset the New asset form just created* — the leaf's view state carries the id the note's frontmatter carries |
+| 7 | the picker lists every PNG/JPEG/PDF in the vault by full path | *lists every image and PDF in a real picker, draws the chosen sheet and writes the sidecar* — the list is read before a choice is typed |
+| 7 | choosing it closes the picker and the sheet appears | same case — the picker is gone and the empty state advances from "No spec sheet yet" to "No footprint yet" |
+| 7 | right way up, with its scale bar readable | none — a picture, which this instrument does not judge |
+| 8 | a `<asset id>.rpgeo` is listed in the library's `Geometry/` folder | same case — read from the vault copy on disk, `schemaVersion: 4`, `revision: 1` |
+| 21 | the PDF's page renders as the background | *renders a PDF page through Obsidian's own pdf.js and names the page in the Sheet row* — a Konva `Image` with a non-zero area on the stage, and no failure notice |
+| 21 | a typed Width and Depth draw a rectangle with no trace | none — this run creates its assets without dimensions |
+| 24 | every shape survives the plugin toggled off and on | *keeps every shape across a plugin reload, which detaches the leaf and leaves the console clean* — the bowl's outline on disk and its Position X after reopening |
+| 24 | no `Several Konva instances detected` in the console | same case — read through Chromedriver's console log |
+| 25 | (via Recover step 25) what the leaf shows after disable and enable | same case — **finding**: no designer leaf exists after enable |
+| 34 | Duplicate inserts a copy and selects it; focus lands in the Inspector | *keeps keyboard focus in the Inspector after its Duplicate and Delete buttons* — three details on disk, the selection named Tank, `document.activeElement` inside the Inspector |
+| 34 | the copy sits 100 mm right and down, drawn above the original | none — position and order are not read |
+| 35 | Delete removes it, no Detail section, focus stays in the Inspector | same case |
+| 114 | Ctrl+Z undoes as the toolbar's Undo would | *undoes with Ctrl+Z, redoes with Ctrl+Y, and declines both while a dialog is open* — revision and Position X on disk and in the Inspector |
+| 115 | Ctrl+Y redoes | same case; Ctrl+Shift+Z is not pressed |
+| 119 | Ctrl+Z inside an open dialog undoes nothing and the dialog stays | same case — Edit dimensions open, revision unchanged |
+
 ## Runs
 
 | Date | Build | Outcome |
 | --- | --- | --- |
+| 2026-09-25 | `npm run test:e2e` on this branch — Obsidian 1.13.7 driven by WebdriverIO, Windows 11, `--lang=en` | **Steps 1, 3, 7, 8, 21, 24, 25, 34, 35, 114, 115 and 119 are discharged by `tests/e2e/assetDesigner.e2e.ts`** — the clause table under *Automated in Obsidian* says which clause of each, and cites the case by name. Two findings: **step 25's disable-and-enable leaves ZERO designer leaves** — Obsidian detaches a disabled plugin's leaves and re-enabling restores none, so step 24's "reopen both asset designers" is a reopen through the command, not a return; and the console carries Konva's `The stage has 7 layers` warning at every designer mount (not the `Several Konva instances` line, which is absent). The `.rpgeo` is written on the FIRST geometry write, so a freshly created asset has none (step 8's "setting a background already wrote it" holds; creation alone does not). Every other `obsidian` row is unwalked by this run. |
 | — | — | Not yet run in a vault. Every row above is an expectation derived from the design, the plans and task reports and the code, rather than from a walk: step 5's tool list and steps 29 to 46 from the asset designer symbols PR 2 (`docs/superpowers/plans/2026-09-13-asset-designer-symbols-pr2.md` and `.superpowers/sdd/2026-09-13-asset-designer-symbols-pr2/task-1…12-report.md`), steps 25 to 28 from PR 1 (`docs/superpowers/plans/2026-09-13-asset-designer-symbols-pr1.md`), and the rest from the first increment's task reports (`.superpowers/sdd/2026-08-30-asset-designer-first-increment/task-B6…B10-report.md`) and the commits that have corrected those rows since. Steps 47 to 51 from the snapping spec (`docs/superpowers/specs/2026-09-15-asset-designer-snapping-and-guides-design.md`) and its plan, and step 52 from the consolidation spec (`docs/superpowers/specs/2026-09-16-asset-designer-consolidate-design.md` §3) and its plan. |

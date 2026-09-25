@@ -500,6 +500,15 @@ Linux under xvfb at 1.13.7 (the earliest PUBLIC build at `minAppVersion`; 1.13.0
 Insiders-only and cannot be downloaded without an account), at `latest`, and under
 `OBSIDIAN_UI=mobile-emulation`, which is desktop Obsidian emulating a phone and NOT a device
 test. The host is forced to `--lang=en`, so the suite reads the same on a German machine.
+**The asset designer has five files there** (`assetDesigner`, `assetDesignerRecovery`, `twoDesigners`,
+`assetHandoff`, `assetReference`), one per manual case, driven through `tests/e2e/designer.ts`, which
+reads the `.rpgeo` on disk as its instrument and drags a part through Konva's own stage registry.
+Three things they measured that the manual cases had assumed otherwise, recorded in
+`docs/tasks/asset-designer-expansion/reports/W23-A-e2e-real-host.md`: a driven Obsidian raises
+`raw` for a file written outside it and never `modify` (the suite calls `adapter.reconcileFile`,
+the watcher's own call, to drive the rest of that chain); a drag held across a PEER LEAF's write
+is dropped with no badge and no toast, where the case expects `Save error`; and disabling the
+plugin detaches every designer leaf, with enabling restoring none.
 
 Everything else below still stands in for a vault. Three commands, and none replaces another
 (`asset-library-shots` and `concept-shots` beside them are captures of the second one's kind,
@@ -622,7 +631,9 @@ aimed at one surface and at the concept gallery, and neither replaces it either)
   **The suite reads those fixtures from `tests/fixtures/`, never from `docs/`.** `docs/` is
   the vault — user land — and a test that depended on a path someone reorganises while
   writing notes would make a documentation tidy-up a build failure. The generator writes the
-  PNG to both, so the copies cannot drift; the PDF has no generator and is tracked twice.
+  PNG to both — and to a third copy under `tests/e2e/vault/`, the vault `npm run test:e2e`
+  copies per case — so the copies cannot drift; the PDF has no generator and is tracked three
+  times, for the same three readers.
 
 ## Architecture
 

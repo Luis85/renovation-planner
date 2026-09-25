@@ -32,6 +32,11 @@ import { isSkippablePlanRefusal } from './ObsidianPlanRepository';
  * over a coherent vault. It is left as it is and recorded in the diagnostics ledger, the way
  * `ObsidianPlanRepository.listByProject` records one; any other read refusal still aborts.
  *
+ * A skipped plan that cites the moved path keeps the old one: the skip also covers a
+ * transient or not-yet-synced sidecar on a plan whose note is readable, nothing retries the
+ * relocation when that plan becomes readable again, and the only trace is its diagnostics
+ * entry, which lasts one session.
+ *
  * `deps.events.publish` is the one step a throw can escape from rather than a `Result` — it is
  * outside the stamp for that reason, and `evidenceRenamed`'s own try/catch is where it lands.
  * A throw there after a landed save is still an unrecorded half-write; closing it means giving

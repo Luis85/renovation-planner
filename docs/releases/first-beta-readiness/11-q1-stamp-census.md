@@ -193,6 +193,8 @@ So the trigger is not only a hand edit: ordinary sync lag and ordinary version s
 incident, through the same door (`RenovationPlannerPlugin.ts:990-993`, which calls
 `evidenceRenamed` on EVERY rename in the vault).
 
+**Since `9ba3432a2` (owner ruling 14),** a rename skips a plan any of these three codes refuses and records it in the diagnostics ledger, so none of them opens an incident or raises a failure notice. `plan.migration-failed` is the one read refusal the skip does not cover: a plan answering it still stops every rename at that plan with a failure notice, as before. It fails closed on purpose, and the ruling does not reach it.
+
 ## 6. What this does not decide
 
 - The owner chooses among `05-owner-decisions.md` §3's options. This document ranks none of them.

@@ -262,11 +262,18 @@ describe('the positive controls: the named faults DO raise the stamp', () => {
 		const command = new DeleteSelectionCommand({ deleteRoom: id => r.deleteRoom({ zoneId: id }), renovation: r.renovation, ledger: r.ledger },
 			{ baseline, roomIds: [zoneId], structureIds: ['wall-a', 'wall-b'] });
 		await r.dispatch('run', r.history.run(command));
-		// Undo walks [walls, room]: the walls come back, the Room restore refuses, so the walls are deleted again — and that refuses too.
-		vi.spyOn(r.stack.zones, 'save').mockResolvedValueOnce(err(injectedPersistenceError()));
+		// Undo walks [walls, room]: the walls come back, the Room restore refuses (the CAUSE `restoreSteps`
+		// is called with), so the walls are deleted again as the compensation — and that refuses too.
+		// Distinct codes on the cause and the compensation: `restoreSteps` (composedSteps.ts) returns
+		// `err(markUncompensated(error, []))` where `error` is the CAUSE it was called with, never the
+		// compensation's own `back.error` — a shared code on both injected failures could not tell which
+		// one travelled, and stays green even if that were flipped.
+		const cause = { category: 'Persistence' as const, code: 'test.cause-failure', message: 'Injected cause failure: the Room restore refused.' };
+		const compensation = { category: 'Persistence' as const, code: 'test.compensation-failure', message: 'Injected compensation failure: the walls re-delete refused.' };
+		vi.spyOn(r.stack.zones, 'save').mockResolvedValueOnce(err(cause));
 		const save = r.stack.plans.save.bind(r.stack.plans);
-		vi.spyOn(r.stack.plans, 'save').mockImplementationOnce(save).mockResolvedValueOnce(err(injectedPersistenceError()));
+		vi.spyOn(r.stack.plans, 'save').mockImplementationOnce(save).mockResolvedValueOnce(err(compensation));
 		await r.dispatch('undo', r.history.undo());
-		expect(r.seen).toEqual([{ step: 'undo', code: 'test.injected-failure', stamped: true, named: [] }]);
+		expect(r.seen).toEqual([{ step: 'undo', code: 'test.cause-failure', stamped: true, named: [] }]);
 	});
 });

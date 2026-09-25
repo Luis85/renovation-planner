@@ -15,8 +15,8 @@ two writes are refused: the write the site guards, and the write that should hav
 **The sixth raises it on a healthy vault.** That site is the Asset designer's background undo,
 `ReversibleAssetBackgroundEdit.undo`. It raises the stamp after one refused write, and a peer
 write that lands during the undo is enough. On an asset with no calibration, the vault after that
-stamp holds its pre-gesture note and calibration. The ordinary single-user door (run, undo, redo,
-on a healthy vault) raised no stamp at any of the 6 sites.
+stamp holds its pre-gesture note and calibration. The ordinary cycle within one leaf's history
+(run, undo, redo, on a healthy vault) raised no stamp at any of the 6 sites.
 
 ## 2. Instruments, and what each cannot see
 
@@ -87,13 +87,25 @@ which also assert what stays unrecorded and drive the concurrent case, are in
 The rig is composed the way `planEditorDeps.ts` and `assetDesignerDeps.ts` compose it: the real
 repositories over the fake vault, guarded inner doors (`guardCommand`, `guardedStructure`,
 `guardedRenovation`, `guardedGroups`, `guardAssetDesign`), raw zone and asset ports, one
-`CommandHistory`, and a real `WriteIncidentRegistry` installed. **The healthy door** runs each
-gesture five times through the history (run, undo, redo, undo, redo) and asserts three things:
-all five dispatches answered `wrote`, none was refused, and the registry has nothing open. **The
-positive recorder control** sends the same repository stamp (#22) through the GUARDED forward
+`CommandHistory`, and a real `WriteIncidentRegistry` installed. The fake vault resolves
+synchronously, faster than Obsidian's, so every "clean on the healthy door" result below covers
+one serialised leaf and cannot produce a natural interleaving on its own. **The healthy door**
+runs each gesture five times through the history (run, undo, redo, undo, redo) and asserts three
+things: all five dispatches answered `wrote`, none was refused, and the registry has nothing
+open. **The positive recorder control** sends the same repository stamp (#22) through the GUARDED forward
 delete and asserts that the registry records it, which shows the registry check can see a
 recording. Each fault case also asserts which entities the stamp names, so each stamp is tied to
 the site that raised it. For example, #15 names no entities, and #16 names the zone and the plan.
+
+**The axis the Classification column states.** "Only on a genuinely half-written vault" names an
+axis — **a stamp over a coherent vault** versus **a truthful stamp** — not a claim that these five
+sites were driven under a peer write landing mid-gesture. They were not: each of #11, #15, #16,
+#21 and #22 was driven only with an injected PORT failure, never with a second leaf or an external
+writer in the mix. The one peer-interleaving drive on this axis is for #11, fault-free, from the
+S21 review round (`e5f649398`): one peer plan-geometry write inside a multi-element delete's undo
+compensates cleanly with no stamp, and two peer writes produce a stamp over a genuinely
+half-written vault (the walls are back and the Room is absent) — so for #11, that drive found the
+stamp truthful when it fires.
 
 | Site | Healthy door (a) | Fault injected (b) | Recorded? (driven) | Classification |
 |---|---|---|---|---|
@@ -118,14 +130,33 @@ before the gesture:
 | No calibration | Note background `null` = before. Calibration `null` = before. The only change is the peer's own facing write | **No.** The stamp is raised over a vault that holds its pre-gesture state |
 | Calibrated | Note background restored. **Calibration lost** | Yes. The stamp is true |
 
+The calibrated row's stamp is truthful, but the vault it leaves is still a LEGAL one — an
+uncalibrated asset over its old background, not a corrupt one — so under option 2 a lost
+calibration would pause every write in the vault until a reload, the same as the false stamp does,
+for a loss that is real but narrow.
+
 Why it can happen: #17 is the only unrecorded site whose condition is ONE refused write. The
 other five each need a second refused write. The site stamps whenever the sidecar restore is
 refused after the note landed, and it does not ask whether that restore would have changed
-anything the note depends on. What reaches it: a concurrent write to that asset's `.rpgeo`
-sidecar, from a second designer leaf or an external edit or sync, inside one undo's read-to-write
-window. That window spans the note save. **Not reached through the single-user door**, where all
-the healthy cycles were clean. Whether Obsidian can produce that interleaving in practice is not
-checkable here.
+anything the note depends on. What reaches it, by a single user, inside one undo's read-to-write
+window (that window spans the note save):
+
+- **Driven**, in the S21 review round (`e5f649398`): a **second designer leaf of the same asset**
+  — a split pane — running its own guarded gesture (`setFacing`) on that leaf's own history; the
+  **asset deleted** while the window is open, which stamps naming the deleted asset; and a
+  **byte-only rewrite of the `.rpgeo` sidecar** (a reformatting sync, semantically identical JSON),
+  which stamps as `asset-geometry.external-modification`.
+- **Established by reading only**, not driven: the **Asset library's own**
+  `setAssetFootprintFromDimensions` (`assetLibraryDeps.ts`), which writes the same sidecar through
+  the same guarded command family as the peer writes above.
+
+So this is not a second-device or sync-only case: one user, with a split designer pane or the
+Asset library open beside the designer, can reach it. **Not reached within one leaf's history**
+— `CommandHistory` serialises run, undo and redo through one queue, and the designer's tools and
+`editShape` go through that history — where all the healthy cycles were clean (again, only for
+that one serialised leaf: the fake vault is synchronous, so it forces every interleaving rather
+than letting one arise). Whether Obsidian can produce any of these interleavings in practice is
+not checkable here.
 
 Under option 2 (record inside `markUncompensated`), this stamp would become a vault-wide write
 block, and the only way to clear one is a reload (D-06).
@@ -146,6 +177,22 @@ option 2 carries, and it needs only a hand-edited plan that comes later in index
 plan citing the renamed path. If the unreadable plan comes first, the loop stops before writing,
 no stamp is raised, and the plans after it are never updated.
 
+**It is broader than one hand-edited plan.** Three codes open the same vault-wide incident on any
+rename, all treated as ordinary and skippable by `listByProject`
+(`ObsidianPlanRepository.ts:72-81`), and all driven in the S21 review round (`e5f649398`):
+
+- `plan.schema-version-malformed` — plan B's hand-edited, non-numeric `schema-version`, the case
+  reproduced above.
+- `plan.sidecar-unreadable` — plan B's geometry sidecar missing. That is a **sync-lag** route: a
+  sync that delivered the note before its sidecar, or a sidecar the user deleted.
+- `plan.schema-version-unsupported`, in the `Migration` category — a plan note written by a
+  **newer** version of the plugin. That is a **version-skew** route: a second device ahead on
+  version.
+
+So the trigger is not only a hand edit: ordinary sync lag and ordinary version skew reach the same
+incident, through the same door (`RenovationPlannerPlugin.ts:990-993`, which calls
+`evidenceRenamed` on EVERY rename in the vault).
+
 ## 6. What this does not decide
 
 - The owner chooses among `05-owner-decisions.md` §3's options. This document ranks none of them.
@@ -157,6 +204,11 @@ no stamp is raised, and the plans after it are never updated.
   the places a benign second refusal would come from. None of those was observed on the driven
   gestures.
 - The committed probes pin what a fix has to keep: a healthy undo raises no stamp and records
-  nothing, and each named fault still raises its stamp. They deliberately do NOT pin that these
-  stamps stay unrecorded, or #17's concurrent stamp. Both are true today, and both are what the
-  owner's choice may change.
+  nothing. Beyond that, the two probe files pin two different shapes. The five two-failure sites'
+  positive controls (`undoStampOnHealthyVault.test.ts`) still raise their stamp when both refusals
+  named in §4's table are injected. The designer's positive control
+  (`designerUndoStampOnHealthyVault.test.ts`) is a ONE-refusal control, because #17's own condition
+  is one refused write — it pins the CURRENT mechanism, not a requirement, and a correct #17 fix
+  (restoring the sidecar first, say) may legitimately remove that stamp arm. They deliberately do
+  NOT pin that these stamps stay unrecorded, or #17's concurrent stamp. Both are true today, and
+  both are what the owner's choice may change.

@@ -69,6 +69,10 @@ describe('ReversibleAssetBackgroundEdit.undo — the Asset designer undo', () =>
 		});
 	}
 
+	// POSITIVE CONTROL pins the CURRENT mechanism, not a requirement: #17's condition is one
+	// refused write, so this is a one-refusal control. A correct #17 fix — restoring the sidecar
+	// first, say — may legitimately remove this stamp arm; a red here then means re-deciding what
+	// this control should pin, not that the fix regressed.
 	it('POSITIVE CONTROL: the sidecar restore refused after the note restore landed DOES raise the stamp', async () => {
 		const r = await designerRig(true);
 		await r.dispatch('run', r.history.run(r.setBackground()));

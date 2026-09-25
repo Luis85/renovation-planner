@@ -1,20 +1,19 @@
 import { expect } from 'vitest';
-import type { NativeBrowser } from './session';
-
-const PLUGIN = 'renovation-planner';
+import { PLUGIN_ID, type NativeBrowser } from './session';
 
 /** The plugin's surfaces as a user reaches them: commands, the ribbon, the view's own controls. */
 export function createPlannerPage(browser: NativeBrowser) {
 	const projectView = () => browser.$('.workspace-leaf.mod-active .workspace-leaf-content[data-type="renovation-project"]');
 	const dialog = () => browser.$('.rp-dialog-form');
+	const command = (id: string) => browser.executeObsidianCommand(`${PLUGIN_ID}:${id}`);
 	return {
 		projectView,
 		dialog,
-		command: (id: string) => browser.executeObsidianCommand(`${PLUGIN}:${id}`),
+		command,
 		leafCount: (type: string) =>
 			browser.executeObsidian(({ app }, viewType) => app.workspace.getLeavesOfType(viewType).length, type),
 		async openProjectView(): Promise<void> {
-			await browser.executeObsidianCommand(`${PLUGIN}:open-project`);
+			await command('open-project');
 			await expect.poll(() => projectView().isDisplayed()).toBe(true);
 		},
 		/** Fill and submit whichever create form is open, and wait for its dialog to close. */

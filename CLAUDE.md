@@ -98,9 +98,10 @@ a state where the arrow asks Obsidian to RESTORE one) and both carry the same
 `''`-means-the-list sentinel `getState` writes. **In real Obsidian 1.13.7 the arrows do NOT walk
 it**: `FakeLeaf` records asks rather than behaving, so this was checkable nowhere until
 `npm run test:e2e` drove the real host, which measured the leaf's `history.backHistory` staying
-empty after a row click — the arrow stays disabled and `app:go-back` does nothing. That case is
-`desktop.fails` in `tests/e2e/renovationPlanner.e2e.ts`, so it turns red the day the arrows
-work; flip it then. The **Plan editor** is per-plan (several
+empty after a row click — the arrow stays disabled and `app:go-back` does nothing.
+`tests/e2e/renovationPlanner.e2e.ts` PINS that (the arrow's `aria-disabled` after a row click),
+positively rather than as a `.fails` case, which a broken selector would also satisfy — so it
+turns red the day the arrows work; rewrite it to walk them then. The **Plan editor** is per-plan (several
 leaves coexist, keyed by a plan id in Obsidian's own view state): §60's five shell regions
 around a Konva stage of §17's seven layers, the Zones of one Plan, an image or PDF
 background, and a pan/zoom camera — slice 5. **That canvas is editable now**, which is the
@@ -434,8 +435,12 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   `Notice` renders on `document.body` under `.notice-container` and slice 13's two live
   regions are appended to `document.body` itself, so that pair of `role`/`aria-live` values
   and the dismiss control's accessible name — the most new ARIA any one slice has added — sit
-  outside every scan this file performs. A live vault
-  (`npm run test-build`) remains the only place appearance is verified.
+  outside every scan this file performs. **`npm run test:e2e` closes the contrast gap and only
+  that one**: its axe scan runs in Obsidian's real renderer over the project view in BOTH
+  themes, and its first CI run found `.rp-view-notice` at 2.73:1 in the light theme — the
+  first defect in this repository found by a gate that measures colour. It still scans one
+  view's subtree, so notices, focus rings and hit sizes remain where they were: a live vault
+  (`npm run test-build`) is the only place THOSE are verified.
 - **analyze** — fallow: dead files and exports, duplication, complexity against coverage,
   and dependency hygiene.
 

@@ -104,7 +104,7 @@ the five values and what they do not claim.
 
 | Date | Build | Outcome |
 | --- | --- | --- |
-| 2026-09-25 | Obsidian 1.13.7, Windows, driven by `npm run test:e2e` | **The pane arrows FAIL.** Row click and the in-app ‹ back both navigate, but the leaf's `history.backHistory` stays empty, so the pane's back arrow stays disabled and `app:go-back` does nothing. Held as `desktop.fails` in `tests/e2e/renovationPlanner.e2e.ts`. Only the arrow steps were automated; the rest is still unwalked. |
+| 2026-09-25 | Obsidian 1.13.7, Windows, driven by `npm run test:e2e` | **The pane arrows FAIL.** Row click and the in-app ‹ back both navigate, but the leaf's `history.backHistory` stays empty, so the pane's back arrow stays disabled and `app:go-back` does nothing. Pinned by `tests/e2e/renovationPlanner.e2e.ts` (the arrow's `aria-disabled` after a row click), so the fix is a red case rather than a silent change. Only the arrow steps were automated; the rest is still unwalked. |
 | — | — | Not yet run in a vault. Every row above is an expectation derived from the design document, the task document and the code — except steps 14 and 15's layout, which was measured in a headless Chromium (a substitute build, not the pinned one) at 1280 and 460. |
 
 ## Outcome

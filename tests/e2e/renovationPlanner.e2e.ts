@@ -37,12 +37,14 @@ describe('Renovation Planner in the real Obsidian host', () => {
 		expect(notes['Renovation/Kitchen/Kitchen.md']).toMatchObject({ name: 'Kitchen', status: 'idea', revision: 1 });
 	});
 
-	// `docs/tests/cases/Navigate into a project and back.md` — the pane's own arrows, which no fake
-	// leaf can answer for. EXPECTED TO FAIL, and that is this suite's first finding: in Obsidian
-	// 1.13.7 the leaf's `history.backHistory` stays empty after a row click, so the pane's back
-	// arrow stays disabled and `app:go-back` does nothing. `.fails` turns red the day the
-	// arrows walk it — flip it then.
-	desktop.fails("walks into a project and back with the pane's own history arrows", async ({ native: { browser, ui } }) => {
+	// `docs/tests/cases/Navigate into a project and back.md`'s arrow steps, which no fake leaf can
+	// answer for — and what the real host answered is a DEFECT, this suite's first finding.
+	// Pinned POSITIVELY rather than held as `.fails`: a `.fails` case is also green when the row
+	// selector breaks, so it could never say which of the two it was seeing. Row click and the
+	// in-app back both navigate, `setState` sets `ViewStateResult.history`, and the pane's back
+	// arrow stays disabled regardless — Obsidian 1.13.7 records nothing in the leaf's history.
+	// This case turns red the day the arrows walk it; rewrite it to walk them then.
+	desktop('pins that the pane arrows do NOT yet walk project navigation', async ({ native: { ui } }) => {
 		await ui.openProjectView();
 		await ui.projectView().$('.rp-empty-state__action').click();
 		await ui.submitForm('Bathroom');
@@ -51,11 +53,10 @@ describe('Renovation Planner in the real Obsidian host', () => {
 		await expect.poll(() => row().isDisplayed()).toBe(true);
 		await row().click();
 		await expect.poll(() => ui.projectView().$('.rp-project-detail__name').getText()).toBe('Bathroom');
-		await browser.executeObsidianCommand('app:go-back');
-		await expect.poll(() => row().isDisplayed()).toBe(true);
-		await browser.executeObsidianCommand('app:go-forward');
-		await expect.poll(() => ui.projectView().$('.rp-project-detail__name').getText()).toBe('Bathroom');
 		expect(await ui.leafCount('renovation-project')).toBe(1);
+		const backArrow = ui.projectView().$('.view-header-nav-buttons button');
+		expect(await backArrow.getAttribute('aria-label')).toBe('Navigate back');
+		expect(await backArrow.getAttribute('aria-disabled')).toBe('true');
 	});
 
 	desktop('keeps a created project across a real plugin reload', async ({ native: { page, ui } }) => {

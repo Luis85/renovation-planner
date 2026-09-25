@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { remote } from 'webdriverio';
 import ObsidianWorkerService, { launcher, type startWdioSession } from 'wdio-obsidian-service';
@@ -8,16 +9,21 @@ type SessionConfig = Parameters<typeof startWdioSession>[0];
 
 /**
  * The earliest PUBLIC 1.13 build: `minAppVersion` is 1.13.0, which shipped to Insiders only and
- * cannot be downloaded without an account. CI also runs `latest`.
+ * cannot be downloaded without an account. Its own constant so `tests/gates/e2e-wiring.test.ts`
+ * can hold it against the workflow's matrix; CI also runs `latest`.
  */
-export const requestedVersion = process.env.OBSIDIAN_VERSION ?? '1.13.7';
+const BASELINE_VERSION = '1.13.7';
+export const requestedVersion = process.env.OBSIDIAN_VERSION ?? BASELINE_VERSION;
 export const mobileEmulation = process.env.OBSIDIAN_UI === 'mobile-emulation';
+
+/** Read from the manifest rather than spelled here: it prefixes every command id and names the plugin folder. */
+export const PLUGIN_ID = (JSON.parse(readFileSync('manifest.json', 'utf8')) as { id: string }).id;
 
 /**
  * The installed plugin folder `scripts/e2e.mjs` stages from `dist/` and `manifest.json` —
  * `dist/` alone carries no manifest, and Obsidian loads the three files by name.
  */
-const PLUGIN_DIR = path.resolve('node_modules/.cache/e2e/renovation-planner');
+const PLUGIN_DIR = path.resolve('node_modules/.cache/e2e', PLUGIN_ID);
 
 export function createNativeSession(
 	afterReady: (browser: NativeBrowser) => Promise<void> = () => Promise.resolve(),

@@ -192,7 +192,7 @@
 			// rule recognises a test block by its import source, so without this every `expect`
 			// in those files reads as standalone. Naming the block keeps the rule on there.
 			"files": ["tests/e2e/**"],
-			"rules": { "vitest/no-standalone-expect": ["error", { "additionalTestBlockFunctions": ["test", "test.for", "desktop", "desktop.fails", "mobile"] }] }
+			"rules": { "vitest/no-standalone-expect": ["error", { "additionalTestBlockFunctions": ["test", "test.for", "desktop", "mobile"] }] }
 		},
 		{
 			"files": ["scripts/**", "*.config.ts", "*.config.mjs"],

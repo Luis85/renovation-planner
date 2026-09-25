@@ -75,9 +75,10 @@ interface Pass {
  *
  * A refusal comes back as it is, the move that holds the side included; `keptCurves` turns it into the plain scale.
  * That move is a translation of an outline validation has just accepted, and since AD18-R24 Task 1's `arcArc` fix
- * no preset refuses it: 0 of the 38,456 curved-part moves below, against 38 before that fix, all on the shrub's detail-1.
- * The ceiling (AD18-R25): an outline nobody has found whose held move is still refused takes the plain scale, and
- * its held side can move, undoably — those 38 moved theirs by up to 186 mm.
+ * no preset move on the grid below refuses it: 0 of the 38,456 curved-part moves below, against 38 before that fix,
+ * all on the shrub's detail-1. The ceiling (AD18-R25): an outline nobody has found whose held move is still refused
+ * takes the plain scale, and its held side can move, undoably — with that fix reverted, those 38 would move theirs
+ * by up to 186 mm in x.
  *
  * ponytail: up to three `solveScale` runs of at most 24 attempts each, so 72 attempts per pointer move at most (24
  * for a side handle). Measured over all 55 closed preset parts (19 of them curved), all eight handles and a 22 x 22

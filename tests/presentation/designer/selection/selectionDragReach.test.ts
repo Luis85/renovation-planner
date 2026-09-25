@@ -113,8 +113,9 @@ describe('a right-side drag past a curved part\'s reach', () => {
 		[1.7, 1e-4],
 	])('holds the corner of the shrub\'s detail-1 stretched %d wide and flattened to %d deep', (u, v) => {
 		// Every pass lands in two attempts and the hold is accepted. Before AD18-R24 Task 1's `arcArc` fix, holding the
-		// first and third of these was refused, and the plain scale threw the corner 82 and 126 mm: with that fix
-		// reverted, those two go red here, since AD18-R25 deleted the retry that once covered the refusal.
+		// first and third of these was refused, and the plain scale threw the corner about 103 and 167 mm (82 and 126
+		// mm of that in x): with that fix reverted, those two go red here, since AD18-R25 deleted the retry that once
+		// covered the refusal.
 		const shrub = preset('shrub');
 		const part: OutlinePart = { kind: 'detail', id: 'detail-1' };
 		const start = box(shrub, part);

@@ -232,6 +232,22 @@ project's row appears in the list without a plugin reload. Warm arm and cold arm
 distinguishable by that one observation. A rig cannot answer it, because the thing being raced is
 Obsidian's own note parser.
 
+**The run has happened, automated, and the answer is WARM:** measured warm on 1.13.7/Windows on
+2026-09-25, 3 of 3; by the owner's ruling this ships as is. The case is
+`tests/e2e/settingsDuringCreate.e2e.ts`, driving a real Obsidian 1.13.7 through
+`npm run test:e2e`. Each of three iterations holds the plugin's real `vault.create` open, changes
+the default projects folder in the host's own settings window, confirms the rebind cancelled the
+busy dialog while the write was still held, releases the write, finds the note under the
+PREVIOUS folder, and watches the rebound list for 3000 ms. Every iteration's row appeared
+unprompted, first seen 177 to 498 ms into the window over four recorded runs (12 of 12). The
+evidence file is `l19-arms.json` in the case's `e2e-results/cases/` folder. Two checks stand
+behind that answer. A plugin reload afterwards lists all three through the same selector. And
+forcing the cold arm, by making the index pipeline ignore creates, turns the case red, so the
+case can see a miss. **What it does not cover:** the vault was the small e2e test vault on one
+machine, so a large vault or a slow disk, where Obsidian's parse could outlast the plugin's
+500 ms debounce, is not measured. The project also still lands in the old folder, as the warm
+arm says.
+
 ### What is already fixed, and not in question
 
 - The behaviour itself is **accepted by ruling R-S7-11** and is not being re-litigated.
@@ -255,7 +271,8 @@ The release owner chose **"Block only if run shows it"** in session 21's chat: i
 shows the project appearing anyway, ship as is; if it shows the project missing, that blocks the
 beta until the plugin's indexing is fixed. The owner cannot do that run soon, so the release call
 is conditional and unresolved, and G1 cannot be evaluated until the run happens. **Q2 remains
-open.**
+open.** *Superseded 2026-09-25:* the run happened, automated rather than by hand, and measured the
+warm arm, 3 of 3 (see "The deciding experiment" above). By this ruling Q2 ships as is.
 
 ## 5. Q3 — may a still-mounted view write to the vault after `onunload`? (tracker L-21)
 

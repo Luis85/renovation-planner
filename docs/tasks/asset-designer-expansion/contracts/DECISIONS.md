@@ -1702,6 +1702,16 @@ the user** in one batched round, every one as recommended:
 - **The tree's 1.5 × 1.5 corner improvement has no preset assertion of its own** (T11-M11). The mechanism is pinned
   by the fixture cases and the shrub hold.
 
+### AD18-R25 — three questions the second follow-up round's reviews raised. (2026-09-25)
+
+Taken by the user in one batched round, every one as recommended:
+
+| Item | Shipped before | Ruled |
+|---|---|---|
+| `selectionDrag.ts`'s held-drag retry (`heldExtent` and its retry arm), added in the follow-up round to recover a shrub corner drag whose held result validation refused | reached by 70 preset-grid drags; since Task 1's `arcArc` fix (9bfea33cd) by none of 212,960, nor by 240,004 drags built to aim at it, so its lines stay uncovered and its docblocks and two test files' comments are false | **Deleted**, with its prose corrected. The refusal it recovered from was the false one `arcArc` no longer makes, and an unreachable guard is not free (CLAUDE.md). The known ceiling: an outline nobody has found that still refuses a held result falls back to the plain scale, and its held side can move (undoable) |
+| Two arcs meeting at a zero-angle cusp on nearly identical circles, after the `arcArc` fix | before the fix, more of both errors | **Accepted and recorded.** Measured against exact arithmetic, a few true crossings in this class are accepted and a few valid cusps refused, both fewer than before. No preset, C04 transform or edit produces the class, only a hand-edited sidecar; `arcArc`'s docblock states it as a known limit |
+| A typed size on a curved part that lands exactly on the typed axis while its OTHER axis moves (the toilet typed to Width 50: Depth 700 to 535) | no warning; the other axis's label shows its new size | **Kept.** AD18-R24's warning is about the typed value missing, and here it landed |
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

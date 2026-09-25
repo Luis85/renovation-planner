@@ -216,6 +216,33 @@ Requirements:
   the report. Every expectation is checked against SOURCE, never against a report.
 - Model: Sonnet.
 
+## Task 9: Delete the unreached held-drag retry (AD18-R25, found by Task 1's review)
+
+**Why:** `selectionDrag.ts`'s `heldExtent` and the retry arm that calls it were added in the follow-up round to recover a
+shrub corner drag whose HELD result validation refused. That refusal was the false one Task 1's `arcArc` fix removed
+(9bfea33cd). Task 1's review found the retry reached by 0 of 212,960 preset-grid drags (70 at HEAD before the fix) and
+by none of 240,004 drags built to aim at it, so its lines are uncovered, and several docblocks and test comments are
+now false. The user ruled: delete it and correct the prose. Ceiling, to be stated where the code now falls back: an
+outline nobody has found whose held result is still refused takes the plain-scale fallback, and its held side can move.
+
+**Owns:** `src/presentation/designer/selection/selectionDrag.ts`,
+`tests/presentation/designer/selection/selectionDragReach.test.ts`,
+`tests/presentation/designer/selection/selectionDragReachCost.test.ts`, and any other test whose only purpose was the
+retry (grep for `heldExtent`, `retry`, `held` in `tests/presentation/designer/selection/`; list what you find and
+report NEEDS_CONTEXT before editing a file outside this list).
+
+Requirements:
+- Remove `heldExtent` and the retry arm. Keep every other behaviour byte-identical: Task 11's (round 4) held-side sweep
+  over the presets must still report zero held-side violations. Re-run that sweep (find it in the tests or in
+  `.superpowers/sdd/round4/task-11-report.md`) and report the count before and after.
+- Correct every docblock and comment the deletion or Task 1's fix made false, in the owned files: the `heldExtent`
+  docblock, the "up to three `solveScale` runs and one retry … 96 … per move" ponytail note, the "34 in one move" note,
+  `selectionDrag.ts:150-151`, and the comments in the two `selectionDragReach*` tests. Numbers in docblocks are claims:
+  re-measure any you keep.
+- `npx fallow health --complexity` on `selectionDrag.ts`; coverage of `selectionDrag.ts` from the designer selection
+  tests, before and after (`--coverage.include=src/presentation/designer/selection/selectionDrag.ts`).
+- Model: Opus.
+
 ## Task 7: Rewrite `reports/RESUME.md` for the manual-walk session (integrator)
 
 ## Task 8: Delivery note in `DECISIONS.md` and `state.json` evidence (integrator)

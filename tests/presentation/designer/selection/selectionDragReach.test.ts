@@ -104,14 +104,17 @@ describe('a right-side drag past a curved part\'s reach', () => {
 	});
 
 	it.each([
-		// The reviewer's move: the corner's depth pass lands its floor, and holding that outline was refused.
+		// The reviewer's move: the corner's depth pass lands its floor, a factor of 1.1e-5.
 		[1.3, 0.2],
-		// Stretched twice as wide at that floor, the third (width) pass's own first factor is refused as well.
+		// Stretched twice as wide at that floor. On the geometry before AD18-R24 Task 1 its third (width) pass's first
+		// factor was refused and bisected down (AD18-R23 Task 11's M7); nothing is refused here now.
 		[2, 0.3],
-		// Its held retry meets a factor `resizeBox` itself refuses, before any hold is tried.
+		// Asked for 0.09 mm of depth, far below what the part's arcs reach: that pass lands its floor too.
 		[1.7, 1e-4],
 	])('holds the corner of the shrub\'s detail-1 stretched %d wide and flattened to %d deep', (u, v) => {
-		// Before fix round 2 both fell back to the plain scale, which threw the held corner 82 to 126 mm.
+		// Every pass lands in two attempts and the hold is accepted. Before AD18-R24 Task 1's `arcArc` fix, holding the
+		// first and third of these was refused, and the plain scale threw the corner 82 and 126 mm: with that fix
+		// reverted, those two go red here, since AD18-R25 deleted the retry that once covered the refusal.
 		const shrub = preset('shrub');
 		const part: OutlinePart = { kind: 'detail', id: 'detail-1' };
 		const start = box(shrub, part);

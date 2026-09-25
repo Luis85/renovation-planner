@@ -87,8 +87,7 @@ async function leaveRefusedOverCommitted(leave: (r: Awaited<ReturnType<typeof ri
 	// and the Continue press is refused while it loads.
 	await settleUntil(() => r.harness.wrapper.find('.rp-reference-preview').exists(), 'the page-2 preview');
 	// Both instruments see a write when there is one — the commit's own. `compose` is the
-	// synchronous one: a write the form starts on its way out lands after any await could
-	// look for it, but it has to COMPOSE its command while the leaving press is still running.
+	// synchronous one: a write deferred past `settleUntil`'s last round (a timer, a later event) lands after any await here could look for it, but it has to COMPOSE its command while the leaving press is still running.
 	const compose = vi.spyOn(r.services, 'command'), committing = r.stack.vault.operations.length;
 	await commitMeasured(r.harness);
 	expect(compose).toHaveBeenCalled(); expect(writesSince(r, committing)).not.toEqual([]);

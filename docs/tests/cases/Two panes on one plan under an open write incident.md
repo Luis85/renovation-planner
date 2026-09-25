@@ -112,10 +112,38 @@ the five values and what they do not claim.
 
 | Date | Build | Outcome |
 | --- | --- | --- |
-| — | — | **Not yet run in a vault.** Every row above is an expectation derived from ADR-0034, the store and registry source, the English copy and the composition root — never from memory of any of them, and never from a run. No part of this case has been executed in Obsidian. Record the fault setup used, the Obsidian version and the platform. |
+| 2026-09-25 | this branch, merged with `main` at `61fbf1588` | **Driven in a real Obsidian 1.13.7 on Windows by `tests/e2e/writeIncident.e2e.ts`** (`npm run test:e2e`), four cases, all green — steps 1, 2, 3, 4, 6, 7, 8, 9 and 10, with BOTH fault setups (the recognised record and `{}`). See *Outcome*. Steps 1a and 5 were not walked: 1a is a judgement, and 5 is the Asset Designer, which the driver does not open. |
+| — | — | Before that: **not run in a vault.** Every row above was an expectation derived from ADR-0034, the store and registry source, the English copy and the composition root. |
 
 ## Outcome
 
-Written after the first walk: which steps passed, which fault setup was used, whether Obsidian
-duplicated and restored the leaves as step 2 and step 7 assume, and anything only a live vault
-showed.
+**First walk, 2026-09-25, by the e2e driver rather than by hand.** Obsidian 1.13.7 (installer
+1.13.7), Windows, `--lang=en`, a fresh copied vault per case; the incident planted through
+`app.vault.adapter.write` and the plugin reloaded through the host's own disable/enable.
+
+- **Steps 1, 2, 3 — PASS.** The editor is paused from its first frame (strip, Undo dimmed, every
+  Add entry `aria-disabled`), before any write is attempted. `app.workspace.duplicateLeaf(leaf,
+  'split', 'vertical')` DOES duplicate the view state — the second leaf draws the same plan — and it
+  is paused identically. This is L-01's acceptance line, met in the real host.
+- **Step 4 — PASS, and the refusal is a form banner.** The write tried is the project view's
+  **New plan** (the one write reachable without a canvas gesture): the dialog stays open with
+  `write-incident.writes-paused` in its banner, and the vault's plan notes are unchanged.
+- **Step 6 — PASS.** Changing Units in the real settings window rebinds both panes and both come
+  back paused.
+- **Step 7 — measured, and it is the arm the row predicted.** After `reloadObsidian()` the leaf is
+  restored over the saved layout and its first frame is NOT paused (no strip); the guarded door
+  still refuses the next write, and `write-incidents.json` is byte-identical afterwards. L-14 holds.
+- **Steps 8, 9, 10 — PASS.** The report names the incident's code, the "could not be named"
+  sentence and the full path of `write-incidents.json`, and offers **Copy report** and nothing
+  else. Deleting the file without a reload leaves the write refused; a reload with the file gone
+  lands the write — that plan and nothing else — and a freshly opened editor draws no strip.
+- **The unreadable arm (`{}`) — PASS.** Refused the same way; the report lists one incident under
+  `write-incident.unreadable` with the "only its presence is known" sentence.
+- **Seen and not asserted:** a paused pane ALSO draws the `stale` strip ("The plan may be out of
+  date … could not be re-read after the last change") beside the incident strip, with the status
+  bar reading *Saved · refresh needed*, on a plan nothing has ever written to in that session. It
+  is drawn with the incident seed mutated out as well, so it comes from something the editor
+  dispatches on open being refused by the gate and read as a failed read-back. Recorded here for
+  triage, not diagnosed.
+
+The four cases are the instrument now; this table is where a walk by hand still gets recorded.

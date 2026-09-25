@@ -11,7 +11,8 @@ import { ReversibleAssetDesignCommands } from '../../../src/application/editor/a
 import type { WriteLedger } from '../../../src/application/editor/WriteLedger';
 import { leftWritesBehind } from '../../../src/application/commands/DispatchOutcome';
 import type { AssetRepository } from '../../../src/application/ports/AssetRepository';
-import { expectErr, expectOk } from '../../helpers/domain';
+import { err, ok } from '../../../src/core/result/Result';
+import { expectErr, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import {
 	SQUARE,
 	TRIANGLE,
@@ -47,6 +48,21 @@ function assetsWritingAfterRead(
 			if (++seen === after) await peer();
 			return found;
 		},
+		listAll: () => real.listAll(),
+		delete: (id, expected) => real.delete(id, expected),
+		save: (asset, expected) => real.save(asset, expected),
+	};
+}
+
+/** Answers `answer` instead of reading, for every note read after the first `after`. */
+function assetsAnsweringReadsAfter(
+	real: AssetRepository,
+	after: number,
+	answer: Awaited<ReturnType<AssetRepository['getById']>>,
+): AssetRepository {
+	let seen = 0;
+	return {
+		getById: (id) => (++seen > after ? Promise.resolve(answer) : real.getById(id)),
 		listAll: () => real.listAll(),
 		delete: (id, expected) => real.delete(id, expected),
 		save: (asset, expected) => real.save(asset, expected),
@@ -387,6 +403,29 @@ describe('a background undo after a peer has written the sidecar', () => {
 		const noteAfterUndo = present(expectOk(await w.stack.assets.getById(w.assetId)));
 		expect(noteAfterUndo.version).toEqual(noteAfterGesture.version);
 	});
+
+	/**
+	 * The undo's pre-flight NOTE read — the note it is about to replace, which is what it puts
+	 * back if the sidecar restore is then refused (census #17). Its two refusals are asked BEFORE
+	 * either resource is written, like the sidecar read's above. `after: 2` names the two reads a
+	 * background gesture's own `execute` makes — this adapter's pre-read and the command's own.
+	 */
+	for (const [answer, code] of [
+		[err(injectedPersistenceError()), 'test.injected-failure'],
+		[ok(null), 'asset.not-found'],
+	] as const) {
+		it(`refuses on a pre-flight note read answering ${code}, touching neither resource`, async () => {
+			const w = await seeded({ assets: (real) => assetsAnsweringReadsAfter(real, 2, answer) });
+			await w.seed(drawn());
+			await w.seedCalibration();
+			const gesture = w.reversible.setBackground({ assetId: w.assetId, path: 'Specs/a.png', kind: 'image', page: null });
+			expect(expectOk(await gesture.execute())).toBe('wrote');
+			const before = { note: expectOk(await w.stack.assets.getById(w.assetId)), sidecar: await w.geometryVersion() };
+
+			expect(expectErr(await gesture.undo()).code).toBe(code);
+			expect({ note: expectOk(await w.stack.assets.getById(w.assetId)), sidecar: await w.geometryVersion() }).toEqual(before);
+		});
+	}
 });
 
 describe('a background gesture whose note save refuses after the sidecar was cleared', () => {

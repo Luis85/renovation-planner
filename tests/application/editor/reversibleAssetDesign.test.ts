@@ -12,9 +12,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import { leftWritesBehind, type VersionedDispatchResult } from '../../../src/application/commands/DispatchOutcome';
-import { isErr, ok } from '../../../src/core/result/Result';
+import { err, isErr, ok } from '../../../src/core/result/Result';
 import { CommandHistory } from '../../../src/presentation/editor/tools/command-history';
-import { expectErr, expectOk } from '../../helpers/domain';
+import { expectErr, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { makeAsset } from '../../helpers/entities';
 import {
 	CALIBRATION,
@@ -408,19 +408,17 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 	});
 
 	/**
-	 * **The background adapter's own compensate-on-undo failure.** Task 3 gave the undo a
+	 * **The background adapter's peer-in-the-window case (census #17).** Task 3 gave the undo a
 	 * pre-flight sidecar read, so a peer write landing BEFORE the undo is even called is caught
-	 * cleanly now — a pre-write `undo.superseded`, asserted in
-	 * `reversibleAssetDesignWindows.test.ts`'s "a background undo after a peer has written the
-	 * sidecar". A read-then-write is not atomic, though, so a peer landing IN that gap — after
-	 * the pre-flight read has matched, before the restoring write reaches the store — still
-	 * reaches the store's own refusal. The note restore is free to succeed first, so this is a
-	 * genuinely HALF-undone state: the note points at the old reference again, but the
-	 * calibration it implies is still gone. Reported via `markUncompensated` rather than
-	 * swallowed, mirroring the forward command's own compensate failure for the identical
-	 * reason.
+	 * cleanly — a pre-write `undo.superseded`, asserted in `reversibleAssetDesignWindows.test.ts`'s
+	 * "a background undo after a peer has written the sidecar". A read-then-write is not atomic,
+	 * though, so a peer landing IN that gap still reaches the store's own refusal after the note
+	 * restore has landed. That used to be stamped as a half-undone vault — falsely, on an
+	 * uncalibrated asset. Since owner ruling 13's first step the undo puts the note back the way
+	 * it found it, so the refusal is CLEAN: no stamp, the note as the gesture left it, the sidecar
+	 * as the peer left it, and nothing announced, because nothing of the undo is left to redraw.
 	 */
-	it('reports an uncompensated background undo when a peer writes the sidecar between the undo\'s pre-flight read and its restore, and announces the half it did land', async () => {
+	it('refuses cleanly, with the note put back, when a peer writes the sidecar between the undo\'s pre-flight read and its restore', async () => {
 		const peer: { run: () => Promise<unknown> } = { run: () => Promise.resolve() };
 		// Three reads reach the wrapped sidecar before the peer must run: the adapter's own
 		// pre-state read and the command's own snapshot read, both during `execute`, then the
@@ -438,16 +436,47 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 		};
 
 		const result = await command.undo();
-		expect(isErr(result) && leftWritesBehind(result.error)).toBe(true);
-		// The note WAS restored — the background reference is back to what it was before this
-		// gesture, which is no reference at all.
-		expect(expectOk(await stack.assets.getById(assetId))?.entity.background).toBeNull();
+		expect(expectErr(result).code).toBe('asset-geometry.revision-conflict');
+		expect(isErr(result) && leftWritesBehind(result.error)).toBe(false);
+		// The note restore was compensated — the reference is the one this gesture set.
+		expect(expectOk(await stack.assets.getById(assetId))?.entity.background?.path).toBe('Specs/other.png');
 		// ...and the sidecar is exactly what the peer left it, untouched by the refused restore.
 		expect((await document()).shape?.facing).toBe(1.2);
-		// The forward gesture published one and the peer's own `setFacing` a second; the third
-		// is this undo's, for its restored NOTE, and it is what stops every leaf going on
-		// drawing a background the undo really did remove.
-		expect(designChanges).toHaveLength(3);
+		// The forward gesture published one and the peer's own `setFacing` the other.
+		expect(designChanges).toHaveLength(2);
+	});
+
+	/**
+	 * The put-back is a write this history dispatched, so it RECORDS — and a retry after a
+	 * transient sidecar fault is how that is seen: the note restore is conditioned on the
+	 * ledger, and a put-back the ledger never heard of would refuse it as somebody else's write.
+	 */
+	it('puts the note back when the sidecar restore faults once, and the retry completes the undo', async () => {
+		const fault = { next: false };
+		const { reversible, assetId, seed, seedCalibration, document, stack } = await seeded({
+			sidecar: (real) => ({
+				read: (id) => real.read(id),
+				write: (id, written, expected) => {
+					if (!fault.next) return real.write(id, written, expected);
+					fault.next = false;
+					return Promise.resolve(err(injectedPersistenceError()));
+				},
+			}),
+		});
+		await seed(drawn());
+		await seedCalibration();
+		const before = await document();
+		const command = reversible.setBackground({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
+		expect(expectOk(await command.execute())).toBe('wrote');
+
+		fault.next = true;
+		const refused = expectErr(await command.undo());
+		expect({ code: refused.code, stamped: leftWritesBehind(refused) }).toEqual({ code: 'test.injected-failure', stamped: false });
+		expect(expectOk(await stack.assets.getById(assetId))?.entity.background?.path).toBe('Specs/other.png');
+
+		expect(expectOk(await command.undo())).toBe('wrote');
+		expect(expectOk(await stack.assets.getById(assetId))?.entity.background).toBeNull();
+		expect(await document()).toEqual(before);
 	});
 });
 

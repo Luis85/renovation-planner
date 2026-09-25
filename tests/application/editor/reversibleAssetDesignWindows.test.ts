@@ -428,6 +428,47 @@ describe('a background undo after a peer has written the sidecar', () => {
 	}
 });
 
+/**
+ * `putNoteBack`'s stamp asks the vault before it is raised (S21 #17 review, I1): only a note still
+ * naming the background the undo restored, over a calibration that is not the one it restores, is
+ * the undo's half left behind. A read that FAULTS can show neither, so it stamps — both writes
+ * were refused, and a half-undo nobody reports is the worse of the two wrong answers. The restore
+ * and the put-back refuse with DISTINCT codes, so the stamp is seen to carry the restore's.
+ */
+describe('a background undo whose restore and put-back are both refused, then a read faults', () => {
+	for (const port of ['note', 'sidecar'] as const) {
+		it(`stamps on a ${port} read fault, carrying the sidecar restore's cause`, async () => {
+			const undoing = { on: false, reads: 0, saves: 0 };
+			/** The second read of `which` inside the undo — the one after the put-back is refused. */
+			const faulting = (which: typeof port) => undoing.on && port === which && ++undoing.reads > 1;
+			const readFault = err({ ...injectedPersistenceError(), code: 'test.injected-read' });
+			const w = await seeded({
+				sidecar: (real) => ({
+					read: (id) => (faulting('sidecar') ? Promise.resolve(readFault) : real.read(id)),
+					write: (id, written, expected) => (undoing.on ? Promise.resolve(err(injectedPersistenceError())) : real.write(id, written, expected)),
+				}),
+				assets: (real) => ({
+					getById: (id) => (faulting('note') ? Promise.resolve(readFault) : real.getById(id)),
+					listAll: () => real.listAll(),
+					delete: (id, expected) => real.delete(id, expected),
+					save: (asset, expected) =>
+						undoing.on && ++undoing.saves > 1
+							? Promise.resolve(err({ ...injectedPersistenceError(), code: 'test.injected-put-back' }))
+							: real.save(asset, expected),
+				}),
+			});
+			await w.seed(drawn());
+			await w.seedCalibration();
+			const gesture = w.reversible.setBackground({ assetId: w.assetId, path: 'Specs/a.png', kind: 'image', page: null });
+			expect(expectOk(await gesture.execute())).toBe('wrote');
+
+			undoing.on = true;
+			const refused = expectErr(await gesture.undo());
+			expect({ code: refused.code, stamped: leftWritesBehind(refused) }).toEqual({ code: 'test.injected-failure', stamped: true });
+		});
+	}
+});
+
 describe('a background gesture whose note save refuses after the sidecar was cleared', () => {
 	it('leaves the history able to undo the geometry gesture before it', async () => {
 		// Wrapped in an object, matching the sibling `hook`/`peer` fixtures above: a bare

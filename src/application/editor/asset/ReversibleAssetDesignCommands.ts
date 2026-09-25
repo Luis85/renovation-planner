@@ -20,7 +20,7 @@ import type { SetAssetAnchorInput } from '../../commands/asset/SetAssetAnchor';
 import type { SetAssetFacingInput } from '../../commands/asset/SetAssetFacing';
 import type { SetAssetHeightInput } from '../../commands/asset/SetAssetHeight';
 import type { CalibrateAssetInput } from '../../commands/asset/CalibrateAsset';
-import type { SetAssetBackgroundInput } from '../../commands/asset/SetAssetBackground';
+import { sameBackground, type SetAssetBackgroundInput } from '../../commands/asset/SetAssetBackground';
 import type {
 	AssetGeometryDocument,
 	AssetGeometryError,
@@ -431,10 +431,12 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
  * can be refused AFTER the note has been put back — a second designer leaf, the Asset library's
  * footprint door, a delete or a sync rewriting the `.rpgeo` inside that window (census #17).
  * `putNoteBack` then undoes the note restore, so the answer is a clean refusal over the state
- * the undo found; only when that put-back is refused too, on an asset still there, is the vault
- * genuinely half-undone and reported the way the forward command's own compensation failure is:
- * `markUncompensated`, not swallowed. The inverse is kept on every refusal, so a retry
- * re-attempts the whole restore rather than losing the gesture's inverse outright.
+ * the undo found. When that put-back is refused too, the vault is asked before anything is
+ * stamped: only a note still naming the background the undo restored, over a sidecar whose
+ * calibration is not the one the undo restores, is the undo's half left behind, and that alone is
+ * reported the way the forward command's own compensation failure is — `markUncompensated`, not
+ * swallowed. The inverse is kept on every refusal, so a retry re-attempts the whole restore rather
+ * than losing the gesture's inverse outright.
  */
 class ReversibleAssetBackgroundEdit
 	extends ReversibleAssetEdit<SetAssetBackgroundInput>
@@ -510,12 +512,11 @@ class ReversibleAssetBackgroundEdit
 		if (this.supersededSince(noteLedger, inverse.noteGeneration)) return err(undoSuperseded(assetId));
 		if (this.supersededSince(geometryLedger, inverse.geometryGeneration)) return err(undoSuperseded(assetId));
 
-		// The sidecar is asked FIRST, before either resource is written. A restore of the note
-		// that is then followed by a refused sidecar restore is a genuinely half-undone state —
-		// and the generation check above cannot see a peer no later gesture sampled, so without
-		// this read the note was restored, the sidecar refused, the inverse was kept, and every
-		// further press re-saved the note and refused again. A read-then-write is not atomic,
-		// so `putNoteBack` answers for the peer that lands between them.
+		// The sidecar is asked FIRST, before either resource is written. A note restore followed by
+		// a refused sidecar restore costs a put-back and, if that is refused too, a stamp — and the
+		// generation check above cannot see a peer no later gesture sampled, so without this read a
+		// peer that landed earlier would reach that path on every press rather than refusing here.
+		// A read-then-write is not atomic, so `putNoteBack` answers for the peer that lands between.
 		const geometryExpected = geometryLedger.lastWritten(assetId) ?? inverse.geometryPreVersion;
 		const current = await sidecar.read(assetId);
 		if (isErr(current)) return current;
@@ -534,7 +535,7 @@ class ReversibleAssetBackgroundEdit
 		noteLedger.record(assetId, savedNote.value.version);
 
 		const savedGeometry = await sidecar.write(assetId, inverse.document, geometryExpected);
-		if (isErr(savedGeometry)) return this.putNoteBack(replaced.value.entity, savedNote.value.version, savedGeometry.error);
+		if (isErr(savedGeometry)) return this.putNoteBack(inverse, replaced.value.entity, savedNote.value.version, savedGeometry.error);
 		geometryLedger.record(assetId, savedGeometry.value);
 
 		this.inverse = null;
@@ -550,15 +551,19 @@ class ReversibleAssetBackgroundEdit
 	 * the peer wrote, which is the state a peer landing before the pre-flight read leaves too.
 	 * That refusal carries the sidecar's own error, UNSTAMPED, and keeps the inverse.
 	 *
-	 * The stamp is kept for the two-refusal case alone, where it is true: the put-back was
-	 * refused as well and the asset is still there, so its note names the old background while
-	 * the calibration that background implies is gone. An asset that is gone is not that —
-	 * a delete took the note this undo wrote, so nothing of it is left to report. Announced for
-	 * the reason `SetAssetBackground`'s own uncompensated arm is: `withStateRefresh` re-hydrates
-	 * on `ok` alone and `EchoWindow` suppresses this plugin's own write, so without it every leaf
-	 * goes on drawing the background this undo really did remove.
+	 * A refused put-back is NOT evidence of a half-undo by itself — a peer writing the note, or
+	 * one gesture writing both files, refuses it over a vault that holds nothing of this undo.
+	 * So `undoLeftBehind` asks the vault, and the stamp is raised only where it is true.
+	 * Announced for the reason `SetAssetBackground`'s own uncompensated arm is: `withStateRefresh`
+	 * re-hydrates on `ok` alone and `EchoWindow` suppresses this plugin's own write, so without
+	 * it every leaf goes on drawing the background this undo really did remove.
 	 */
-	private async putNoteBack(entity: Asset, restored: EntityVersion, cause: AssetGeometryError): Promise<DispatchResult> {
+	private async putNoteBack(
+		inverse: { readonly entity: Asset; readonly document: AssetGeometryDocument },
+		entity: Asset,
+		restored: EntityVersion,
+		cause: AssetGeometryError,
+	): Promise<DispatchResult> {
 		const { assets, events, noteLedger } = this.deps;
 		const assetId = this.input.assetId;
 		const putBack = await assets.save(entity, restored);
@@ -568,10 +573,28 @@ class ReversibleAssetBackgroundEdit
 			noteLedger.record(assetId, putBack.value.version);
 			return err(cause);
 		}
-		const still = await assets.getById(assetId);
-		if (isOk(still) && still.value === null) return err(cause);
+		if (!(await this.undoLeftBehind(inverse))) return err(cause);
 		await events.publish(assetDesignChanged({ assetId }));
 		return err(markUncompensated(cause, [{ entityKind: 'asset', entityId: assetId }]));
+	}
+
+	/**
+	 * Whether the vault still holds this undo's half and not its other: the note names
+	 * `inverse.entity.background` (the note restore stands) while the sidecar's calibration is
+	 * not `inverse.document.calibration` (the sidecar restore did not happen). An absent asset, a
+	 * note naming another background, or the calibration the undo would have written is a
+	 * coherent vault. A read that FAULTS answers `true`: both writes were refused and nothing can
+	 * show the vault coherent, and a half-undo left unreported is the worse wrong answer.
+	 */
+	private async undoLeftBehind(inverse: { readonly entity: Asset; readonly document: AssetGeometryDocument }): Promise<boolean> {
+		const { assets, sidecar } = this.deps;
+		const note = await assets.getById(this.input.assetId);
+		if (isErr(note)) return true;
+		if (note.value === null || !sameBackground(note.value.entity.background, inverse.entity.background)) return false;
+		const geometry = await sidecar.read(this.input.assetId);
+		// Serialised rather than compared field by field: both sides are this same port's read of
+		// one sidecar (`inverse.document` is `execute`'s), so they are built in one key order.
+		return isErr(geometry) || JSON.stringify(geometry.value.document.calibration) !== JSON.stringify(inverse.document.calibration);
 	}
 }
 

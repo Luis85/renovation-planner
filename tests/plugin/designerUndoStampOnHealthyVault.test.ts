@@ -28,7 +28,9 @@ import { installQuietWriteIncidents } from '../helpers/writeIncidents';
  * right after the note restore, where the census found the stamp — now raises none either: the
  * undo puts the note back, refuses cleanly and leaves the vault as the undo found it plus the
  * peer's write. The positive control shows the same rig still sees the stamp when the sidecar
- * restore AND the note compensation are both refused. Deliberately NOT asserted: that the stamp
+ * restore AND the note compensation are both refused and the undo's half is really left behind —
+ * the restored background over a calibration the undo did not restore; two refusals over a vault
+ * holding nothing of the undo raise none (the last two describes). Deliberately NOT asserted: that the stamp
  * stays unrecorded — true today, and exactly what ruling 13's second step changes.
  */
 
@@ -121,8 +123,10 @@ describe('ReversibleAssetBackgroundEdit.undo — the Asset designer undo', () =>
 
 	// POSITIVE CONTROL. #17 used to stamp on ONE refused write (the sidecar restore after the note
 	// restore landed); since ruling 13's first step the undo compensates the note restore, so the
-	// stamp needs TWO refusals — the sidecar restore and that compensation — like the other five
-	// sites. Its cause is the sidecar restore's own error, and it is what pauses this leaf's Undo.
+	// stamp needs TWO refusals — the sidecar restore and that compensation — AND a vault that still
+	// holds the undo's half: the note naming the restored background over a calibration the undo
+	// did not restore. Its cause is the sidecar restore's own error (`putNoteBack`'s `cause`), which
+	// is why the compensation is refused with a DISTINCT code here; it is what pauses this leaf's Undo.
 	it('POSITIVE CONTROL: the sidecar restore AND the note compensation refused DOES raise the stamp, carrying the cause', async () => {
 		const r = await designerRig(true);
 		await r.dispatch('run', r.history.run(r.setBackground()));
@@ -131,7 +135,7 @@ describe('ReversibleAssetBackgroundEdit.undo — the Asset designer undo', () =>
 		const save = assets.save.bind(assets);
 		vi.spyOn(assets, 'save')
 			.mockImplementationOnce((asset, expected) => save(asset, expected))
-			.mockResolvedValueOnce(err(injectedPersistenceError()));
+			.mockResolvedValueOnce(err({ ...injectedPersistenceError(), code: 'test.injected-put-back' }));
 		await r.dispatch('undo', r.history.undo());
 		expect(r.seen).toEqual([{ step: 'undo', code: 'test.injected-failure', stamped: true, named: [{ entityKind: 'asset', entityId: r.harness.assetId }] }]);
 		expect(r.saveState.unrecoveredWrite).toBe(true);
@@ -222,10 +226,14 @@ describe('#17 — a peer write inside the undo\'s read-to-write window leaves no
  * restore and the put-back refuses the put-back instead of being overwritten by it. Two peers of a
  * second designer leaf drive it: `setFacing` inside the undo's window (the sidecar refusal), then
  * `setHeight` (a note field the undo never touched) before the put-back.
+ *
+ * Both refusals are real, and the stamp follows the VAULT rather than the count (review I1, Q2a):
+ * the note names the restored background either way, so the uncalibrated asset is coherent and
+ * unstamped, and the calibrated one has lost the calibration the undo was restoring — stamped.
  */
 describe('#17 — a note peer between the refused sidecar restore and the put-back', () => {
 	for (const calibrated of [false, true]) {
-		it(`keeps the peer's note edit rather than putting the gesture's note back over it (calibrated: ${String(calibrated)})`, async () => {
+		it(`keeps the peer's note edit, and stamps only when the calibration is lost (calibrated: ${String(calibrated)})`, async () => {
 			const r = await designerRig(calibrated);
 			await r.dispatch('run', r.history.run(r.setBackground()));
 			const peer = r.leaf();
@@ -236,8 +244,42 @@ describe('#17 — a note peer between the refused sidecar restore and the put-ba
 				expect(expectOk(await peer.history.run(peer.edits.setHeight({ assetId: r.harness.assetId, height: 900 })))).toBe('wrote');
 			});
 			await r.dispatch('undo', r.history.undo());
-			const { note } = await r.state();
+			const { note, sidecar } = await r.state();
 			expect(note === 'absent' ? note : { background: note.background, height: note.height }).toEqual({ background: null, height: 900 });
+			expect(typeof sidecar === 'string' ? sidecar : sidecar.calibration).toBeNull();
+			const named = [{ entityKind: 'asset', entityId: r.harness.assetId }];
+			expect(r.seen).toEqual([{ step: 'undo', code: 'asset-geometry.revision-conflict', stamped: calibrated, ...(calibrated ? { named } : {}) }]);
+			expect(r.saveState.unrecoveredWrite).toBe(calibrated);
+		});
+	}
+});
+
+/**
+ * ONE peer gesture that writes BOTH files inside the undo's window (review I1, Q2b): a second
+ * leaf's `setBackground` clears the sidecar and saves the note after the undo's note restore. The
+ * sidecar restore and the put-back are both refused, and the vault is exactly the peer's completed
+ * gesture — nothing of the undo is left in either file, so nothing is stamped.
+ */
+describe("#17 — a peer background gesture inside the undo's window", () => {
+	for (const calibrated of [false, true]) {
+		it(`leaves the peer's gesture standing and raises no stamp (calibrated: ${String(calibrated)})`, async () => {
+			const r = await designerRig(calibrated);
+			await r.dispatch('run', r.history.run(r.setBackground()));
+			const peer = r.leaf();
+			r.afterNextNoteSave(async () => {
+				const path = 'Specs/a.png';
+				expect(expectOk(await peer.history.run(peer.edits.setBackground({ assetId: r.harness.assetId, path, kind: 'image', page: null })))).toBe('wrote');
+			});
+			await r.dispatch('undo', r.history.undo());
+			const { note, sidecar } = await r.state();
+			expect({
+				background: note === 'absent' ? note : note.background,
+				calibration: typeof sidecar === 'string' ? sidecar : sidecar.calibration,
+			}).toEqual({ background: { path: 'Specs/a.png', kind: 'image', page: null }, calibration: null });
+			expect({ seen: r.seen, unrecovered: r.saveState.unrecoveredWrite }).toEqual({
+				seen: [{ step: 'undo', code: 'asset-geometry.revision-conflict', stamped: false }],
+				unrecovered: false,
+			});
 		});
 	}
 });

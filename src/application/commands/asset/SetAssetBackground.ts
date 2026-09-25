@@ -36,7 +36,8 @@ function backgroundKindOf(path: string): 'image' | 'pdf' | null {
 	return null;
 }
 
-function sameBackground(a: AssetBackgroundRef | null, b: AssetBackgroundRef | null): boolean {
+/** Whether two references name the same background — also how `ReversibleAssetBackgroundEdit` asks whether its note restore still stands. */
+export function sameBackground(a: AssetBackgroundRef | null, b: AssetBackgroundRef | null): boolean {
 	if (a === null || b === null) return a === b;
 	return a.path === b.path && a.kind === b.kind && a.page === b.page;
 }

@@ -178,10 +178,50 @@ what they do not claim.
 | 33 | the button writes the flag down, moves no coordinate, and Undo brings the block back | same case |
 | 34 | the notice survives a close and reopen | same case |
 
+**Added later on 2026-09-25 (W24-A).** `tests/e2e/calibrateClearance.e2e.ts` and
+`tests/e2e/calibrateClearanceSwitch.e2e.ts`, over `tests/e2e/clearance.ts`. **Not yet watched
+red:** the one-clause `src/` mutations were refused by the agent session's permission classifier,
+so these rows are passing assertions that have not been through the mutation gate (the planned
+mutations are in `docs/tasks/asset-designer-expansion/reports/W24-A-e2e-manual-pass.md`). They
+build Asset B's clearance on a plain typed rectangle: the toilet preset's footprint is curved, so
+the four-sided helper is withheld there (step 23's rule) and Generate is absent.
+
+| Step | Clause | Discharged by |
+| --- | --- | --- |
+| 3 | the Sheet row reads `editor-background-pdf-test.pdf, page 1` | *names a PDF sheet by its file and its page, rendered by Obsidian's own pdf.js* |
+| 3 | the page is drawn by Obsidian's own pdf.js | same case — a Konva `Image` of non-zero width, and no background notice |
+| 9 | the pending lines and the hint are gone, the Sheet row unchanged | *shows a hidden pending clearance again when a calibration lands, and again when it is undone* |
+| 12 | Sheet reads "None chosen", Scale "Not calibrated", the sheet leaves the canvas | *removes the sheet and leaves every pending line exactly where it was* |
+| 12 | every pending line is still there, the flags still set on disk | same case — on an UNCALIBRATED sheet |
+| 12 | the precondition "a calibration AND something pending" | none — **unreachable**: a calibration converts every pending group, and nothing drawn after it is pending |
+| 15a | Custom arms Set anchor; one click places the anchor; Custom reads pressed | *arms Set anchor from Custom by keyboard with no way to place the point, and places it with a click* |
+| 15b | Tab reaches Custom and Space arms the tool; Enter, Space and ArrowRight on the canvas place nothing; the position field moves the anchor | same case |
+| 15c | "Custom" sits whole on one line | same case — `Range.getClientRects` at the default window, not pinned to a 1280px leaf |
+| 21a | the switch is present and on; the boundary and its legend row are drawn | *hides the boundary from the canvas, the menu and the legend, and every new boundary shows it again* |
+| 21b | off: the layer is invisible, a right-click on the band opens no menu, the legend row is gone | same case — with a control right-click while shown that does open one |
+| 21c | Generate, arming Trace clearance and a preset each turn it back on | same case |
+| 21d | Undo of a removal re-shows the boundary | *keeps a hidden selected boundary undrawn and out of reach of keys and menus, but not of the Inspector* |
+| 21e | switched off mid-trace, the finished boundary re-shows | *takes no ruler band and no frame while hidden, stays hidden over an unrelated write, and re-shows a swapped boundary* |
+| 21f | hidden: the selection kept, no selection marks; shown again: the marks return | *keeps a hidden selected boundary undrawn…* |
+| 21f | a drag at a hidden handle's place writes nothing | same case |
+| 21f | "starts a marquee instead" | none — only "no write" is asserted |
+| 21g | an Undo or Redo that swaps the boundary re-shows it | *takes no ruler band…* |
+| 21i | hidden: arrow, Delete, the row's right-click and Shift+F10 do nothing; shown: each acts | *keeps a hidden selected boundary undrawn…* |
+| 21j | the Inspector's Delete removes a hidden clearance | same case |
+| 21k | hidden: no ruler band and Shift+2 leaves the camera; shown: two bands and Shift+2 moves it | *takes no ruler band…* |
+| 21l | nudging the footprint leaves the switch off | same case |
+| 29 | reads as belonging to Clearance | none — `judgement` |
+| 36a | the resize scales the pending clearance and re-shows it | *reads a traced outline as awaiting a scale, and RETYPES it on Edit dimensions, leaving a hidden pending clearance unscaled and hidden* — pins the OPPOSITE, **finding** below |
+| 36b | a calibration re-shows the hidden pending clearance, and so does its Undo | *shows a hidden pending clearance again when a calibration lands…* |
+| 37 | Source reads "Authored in millimetres", Dimensions set "Yes", no control, last in the Object tab | *reads a typed object as authored in millimetres, with no control, last in the Object tab* |
+| 38 | an uncalibrated trace reads "Traced on the canvas" / "Not yet, awaiting a scale" | *reads a traced outline as awaiting a scale…* |
+| 38 | after calibrating: still traced, and now "Yes" | *shows a hidden pending clearance again when a calibration lands…* |
+
 ## Runs
 
 | Date | Build | Outcome |
 | --- | --- | --- |
+| 2026-09-25 | W24-A — `npm run test:e2e` over `calibrateClearance*.e2e.ts`, Obsidian 1.13.7, Windows 11 | **9 passed** (6 alone, 3 alongside another file under load, where this file's worker crashed once and was re-run alone); mutation gate NOT run. **Finding, step 36a:** Edit dimensions on a traced, uncalibrated asset REPLACES the footprint with a typed rectangle (`editDimensions`' `unscaled` arm → `setFootprintFromDimensions`: origin `typed`, `footprintPending: false`) and leaves the clearance byte-identical — pixel coordinates, still `clearancePending: true`, around a millimetre footprint — with no review flag, and since its geometry did not change, Show clearance stays off. Also: step 12's precondition is unreachable as written; no trace tool finishes on Enter, so traces close on the first corner. |
 | 2026-09-25 | `npm run test:e2e` on this branch — Obsidian 1.13.7 driven by WebdriverIO, Windows 11, `--lang=en` | **Steps 7, 9, 12, 13, 14, 25, 26, 32 (its automatable half), 33 and 34 are in `tests/e2e/assetReference.e2e.ts`**, clause by clause below. One correction to the rows: on an asset with NOTHING traced, Remove reference withdraws the whole Reference block (step 2's own rule) rather than reading "None chosen" — that value needs a pending line to keep the section. **Step 32's live region and button name are graded by axe-core in a real renderer for the first time**, with the flag genuinely set by a real resize; the screen-reader announcement itself stays a person's. |
 | 2026-09-19 | harness at `7edff8c4c`, Chromium 1223 (NOT the pinned 1234) | **Nothing in this case was discharged, and the reason is structural rather than a shortage of effort.** Every `browser` step here needs the asset to HAVE a reference sheet, and the designer harness deliberately has none: `tests/harness/assetDesigner.ts` sets `background: null` and its own comments say so — *"Never resolves to a real reference — see the header for why `null` is the honest answer"* and *"this page has no vault and refuses a background document"*. Measured, not inferred: `?reference` was tried and changed nothing, because that knob belongs to the PLAN EDITOR branch of `tests/harness/page.ts` — `mountAssetDesignerHarness` accepts `select`, `mode`, `draw`, `camera`, `pending`, `grid` and `viewMenu`, and no background at all. With the View menu forced open the rows are `Show grid` and `Snap to objects`; the opacity row is `v-if="hasReference"` in `DesignerViewMenu.vue` and `hasReference` reads `design.background !== null`. So step 4 and step 6 are outside this instrument BY DESIGN, and steps 18, 25, 28, 30 and 31 follow it for the same reason or for the one below. **Steps 28, 30 and 31 have a second, independent blocker**: they look at the clearance-review block, which draws only when `clearanceNeedsReview` is set, and `grep -rn clearanceNeedsReview tests/harness/` printed NOTHING when run on this date. No harness fixture sets the flag, so no capture and no accessibility scan reaches that block — which is what the session-five hand-off called the sharpest unverified thing in the package, confirmed here rather than inherited. A vault is the only instrument left for this case. |
 | — | — | SUPERSEDED as a whole-case statement by the row below, which records a human vault walk on 2026-09-19; it stands for the per-step rows, none of which that walk individually confirmed. Originally: every row above is an expectation derived from the code, from `docs/tasks/asset-designer-expansion/contracts/DECISIONS.md` (rulings AD12-R1, AD12-R2 and AD14-R1), from ADR-0034 and from the AD12 and AD14 task reports under `docs/tasks/asset-designer-expansion/reports/`, rather than from a walk. Nothing in this case has been opened in Obsidian, and the clearance review block has never been photographed at any width. |

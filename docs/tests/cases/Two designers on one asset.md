@@ -202,10 +202,21 @@ inside the page or from the file system — the two things that can reach the va
 | 15 | the revision equals the writes that landed; refusals leave no trace | every case above asserts the revision after each refusal; no separate count is taken over steps 5–14 in one vault |
 | 16 | a reopened leaf draws the current shape; A behaved normally; a drag in A refreshes the new B | *draws the current shape in a leaf reopened after edits made while it was closed* |
 
+**Added later on 2026-09-25 (W24-A).** `tests/e2e/twoDesignersMore.e2e.ts`. **Not yet watched red** —
+the agent session's permission classifier refused the `src/` mutations (see W24-A's report).
+
+| Step | Clause | Discharged by |
+| --- | --- | --- |
+| 1 | which of Obsidian's own gestures yield a second leaf | *duplicates a designer through the tab menu's Split right and Split down, and only moves it with Move to new window* — driven through the real tab context menu |
+| 1 | dragging the tab into a new split | none — WebDriver cannot express Obsidian's tab drag-and-drop |
+| 10 | "would you have noticed" | none — `judgement` |
+| 15 | the revision equals the writes that landed across steps 5, 8, 11, 12, 13 and 14 in ONE vault; refusals leave no trace; both leaves draw the stored bowl | *counts on disk exactly the writes that landed across the whole walk, and both leaves draw what is stored* — revision 8 = the preset plus seven landed writes |
+
 ## Runs
 
 | Date | Build | Outcome |
 | --- | --- | --- |
+| 2026-09-25 | W24-A — `npm run test:e2e` over `twoDesignersMore.e2e.ts`, Obsidian 1.13.7, Windows 11 | **2 passed**; mutation gate NOT run. Step 1: the tab menu's Split right and Split down each give a second leaf drawing the asset; Move to new window MOVES it (one leaf, in a popout). Step 15 counted in one vault: revision 8 equals the landed writes, the step-12 retype is a no-write. Instrument note: after a vertical split leaf A keeps its pre-split camera, so a computed bowl point falls outside it — the held drag is driven in leaf B. |
 | 2026-09-25 | `npm run test:e2e` on this branch — Obsidian 1.13.7 driven by WebdriverIO, Windows 11, `--lang=en` | **Step 1 is answered: Obsidian's own `duplicateLeaf(leaf, 'split')` — the tab menu's Split right — produces a second Asset designer drawing the same asset**, and step 2's restart brings both back. Steps 5, 8, 9, 11, 13, 14, 15 and 16 are in `tests/e2e/twoDesigners.e2e.ts`, clause by clause below. **Step 8 is a FINDING, not a pass**: with a drag held in leaf B and leaf A's keystroke landing 900 ms into the hold (fired by a timer inside the page — the driver cannot interleave anything of its own with an action chain, measured), A's write lands, B redraws it, and B's held drag is **abandoned with no account at all** — nothing written, header still the plain `Saved` of a leaf that never wrote, no history entry, no toast. Not `Save error`. That is one step quieter than the silent badge step 9 records as the hole, and the case's own expectation is pinned the other way; the e2e pins what the host does, so whichever way the ruling goes the change is a red case. Step 14's external rewrite under a held drag DOES refuse with the badge alone, as written. Not walked: 3, 4, 6, 7, 10, 12. |
 | — | — | **Not yet run in a vault.** Every row above is an expectation derived from the code, its English copy and the tests named inside each row — never from memory of any of them. Every `suite` citation was executed with `npx vitest run <path> -t "<case name>"` against the commit this case was written on and passed. Nothing here has been seen in Obsidian. Record: whether step 1 produced a second leaf and by which gesture; which of the three setups in *The conflict window* produced step 8's held press and whether the press survived at all; the Obsidian version and the platform. |
 

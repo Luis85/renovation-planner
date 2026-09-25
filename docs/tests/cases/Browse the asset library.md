@@ -142,10 +142,60 @@ placement) stand over both views.
   both schemes is what `npm run harness-shot`'s seven library captures hold; this case exists
   for what a picture cannot do.
 
+## Automated in Obsidian
+
+**Added 2026-09-25.** `tests/e2e/assetLibrary.e2e.ts`, `assetLibraryNarrow.e2e.ts` and
+`assetLibraryState.e2e.ts`, over `tests/e2e/library.ts` (catalogue notes seeded through
+`app.vault.create`, the window sized through Electron because chromedriver refuses
+`setWindowSize`). Every case was watched red against a one-clause mutation of `src/` or
+`styles/`, except step 31's (see its row). One row per clause, cited by the case's name.
+
+| Step | Clause | Discharged by |
+| --- | --- | --- |
+| 1 | each shelf heading names a category and carries its count | none — `judgement` |
+| 1 | an empty declared shelf reads as room rather than as clutter | none — `judgement` |
+| 3 | five distinguishable pictures at 20px | none — `judgement` |
+| 11 | the rail appears at 35rem and widens 240→280px at 45rem | none — `judgement` as tagged; measurable with `library.ts`'s `resize()` if the row is retagged |
+| 11 | no intermediate width at which the panel is unusable | none — `judgement` |
+| 16 | the selection comes back after a restart | *brings the selection and the expanded shelves back after Obsidian restarts* — **finding**: only once something else saves the layout, see Runs |
+| 16 | the expanded set comes back after a restart | same case |
+| 17 | the whole note is readable, or it is obvious how to read it | none — `judgement` |
+| 20 | the shelves are replaced by a tile grid, one tile per asset | *replaces the shelves with one tile per asset, drawing the list row's own mark and size words* |
+| 20 | the tile draws the SAME mark the list row draws | same case — the path `d` equals the row's |
+| 20 | the tile shows the asset's name | same case |
+| 20 | the measured size uses the list row's wording | same case — `380 × 700 mm` is the row's text minus its prefix |
+| 22 | lists All plus the categories, each with its own icon | *lists All and every DECLARED category with its icon, and refuses a category the build does not declare* |
+| 22 | an OPEN vocabulary: every category the vault's assets use | same case — **finding**: the vocabulary is CLOSED, see Runs |
+| 22 | a generic tag for anything else | none — unreachable in the host: an undeclared category is refused by the parser |
+| 23 | the grid narrows to the category | *narrows the grid AND the shelves to the chosen category, and counts only what it draws* |
+| 23 | the shelves (in List) narrow to the category | same case |
+| 23 | the search count follows the same filter | same case — `2 matching assets` |
+| 23 | the empty state follows the same filter | *words each empty state for the narrowed set, and Show all categories clears only the filter, landing on All* |
+| 24 | a plain no-matches message with no category active | same case — the host's text is `No matching assets` |
+| 24 | "No matches in {category}" | same case — **finding**: reached only when the term matches an asset in ANOTHER category |
+| 24 | "No assets in {category}" with no search running | same case — `No assets in Plant` |
+| 24 | Show all categories clears the filter and leaves the search term | same case — the value is still `plank` |
+| 24a | focus lands on All with `aria-pressed="true"` | same case |
+| 24b | with the sidebar not showing, focus lands on the search field | *puts the caret on the search field when Show all categories is pressed with the sidebar closed* |
+| 26 | the funnel opens the sidebar at narrow width | *opens and closes the withdrawn sidebar from the funnel, aria-expanded following it* |
+| 26 | `aria-expanded` follows it, both ways | same case |
+| 27 | the sidebar stays hidden with a tile selected | *withdraws the sidebar and the funnel together once a tile is selected, however the sidebar was showing* |
+| 27 | the funnel is "already hidden" and selecting changes neither control | same case — **finding**: the premise is wrong, see Runs |
+| 28 | the Create your own card ends the grid, with pencil icon, title, hint and New asset | *ends the grid with a Create your own card whose New asset opens the toolbar's own dialog* |
+| 29 | the card's New asset opens the toolbar's own dialog | same case — the dialog markup is identical once per-mount ids are normalised |
+| 30 | reopens in Grid with the same category | *keeps Grid and the category across a restart, and forgets both when the leaf is closed and reopened* — the restart half; **finding** on close-and-reopen, see Runs |
+| 31 | no step is added to the leaf's back/forward history | *adds nothing to the leaf's back history for a layout or a category change* — **vacuous in 1.13.7**: a mutation setting `history: true` stays green, because the host records no leaf history here at all |
+| 32 | a one-line name, a two-line name and the size line start on one left edge | *starts every tile's name and size on the same left edge, one line or two* |
+| 32 | "the same edge the mark sits above" | none — the mark is centred by design (`align-self: center`), so there is no single edge to measure |
+| 33 | a design-less tile draws its category's icon, fainter (`--text-faint`), at half the mark's box, stroke 1.5px | *draws a design-less tile's category icon, faint and at half the mark's box, identical to the sidebar's* |
+| 33 | "noticeably" fainter and thinner | none — `judgement` |
+| 34 | the tile's icon matches the sidebar's exactly | same case as 33 — the Lucide class and the svg's markup are equal |
+
 ## Runs
 
 | Date | Build | Outcome |
 | --- | --- | --- |
+| 2026-09-25 | `npm run test:e2e -- tests/e2e/assetLibrary` on this branch — Obsidian 1.13.7 driven by WebdriverIO, Windows 11, `--lang=en` | **13 passed**, desktop leg (the library does not mount on mobile). Steps 16, 20, 22–24b, 26–34 discharged per the table above. **Findings, pinned as measured:** (1) step 16 — publishing view state never makes Obsidian SAVE the layout: `.obsidian/workspace.json` held the first shelf toggle's state 3 s after two more, and `reloadObsidian()` does not flush a save, so without an unrelated save first a restart restores `{assetId:'', expanded:[]}`; whether a user's graceful quit saves it is unsettled. (2) step 22 — the vocabulary is CLOSED: the sidebar lists all seven declared categories whether used or not, and a note with `category: lighting` goes to the repair strip. (3) step 24 — the route as written reaches only `No matching assets`; "No matches in {category}" needs a term that matches something in another category. (4) step 27 — below 35rem with nothing selected the funnel IS shown, and selecting a tile HIDES it; Back to library brings it back. (5) step 30 — closing every library leaf and reopening through the command loses Grid and the category; only a restart of a surviving leaf keeps them. (6) step 31 — 1.13.7 records no leaf history for this view, so the row cannot fail today. |
 | — | — | **Not yet run in a vault.** Every row above is an expectation derived from the design spec, from the code, and — for the rows marked *Known to FAIL* — from a browser measurement taken with a Chromium that is not the pinned one. An unrun manual case is a plan to find out, not a finding. |
 
 ## Outcome

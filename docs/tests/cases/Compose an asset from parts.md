@@ -160,10 +160,72 @@ rectangles throughout; Undo between rows so each starts from "selected, ungroupe
 - **Colour contrast and hit-target size.** The standing exception every case in this suite
   carries.
 
+## Automated in Obsidian
+
+**Added 2026-09-25.** `tests/e2e/composeParts.e2e.ts` (P1–P5 below) and
+`tests/e2e/composeGroupDoors.e2e.ts` (G1–G5), over `tests/e2e/compose.ts`, which builds asset A
+by hand exactly as the preconditions say (Set dimensions 800 × 400, three rectangles drawn with
+Draw rectangle). **Not yet watched red:** the one-clause `src/` mutation each case needs was
+refused by the agent session's permission classifier, so every row below is a passing
+assertion that has not been through the mutation gate. The planned mutations are recorded in
+`docs/tasks/asset-designer-expansion/reports/W24-A-e2e-manual-pass.md`.
+
+- P1 *lets no key and no menu act on a hidden selected rectangle, and leaves the chords to the host*
+- P2 *lets the Inspector's own Duplicate and Delete act on a hidden selected rectangle, which an Undo brings back shown*
+- P3 *restores every door once the rectangle is shown, and bands and frames only a drawn one*
+- P4 *forgets every hide and lock once the tab is closed, having written nothing*
+- P5 *keeps the group, the label and every repeated copy across a plugin reload*
+- G1 *extends the selection from a row under Shift or the Select multiple parts toggle, and takes a member back out*
+- G2 *hands Ctrl+G to Obsidian's graph view from the canvas and from a row, at rest and under Pan*
+- G3 *groups under Pan from the Arrange button, the canvas menu and the row menu, and leaves focus on the row*
+- G4 *opens no menu for a right-click while a pan is still dragging*
+- G5 *refuses Group over a hidden member, deletes only a drawn focused one, and nothing once the focused one is hidden*
+
+| Step | Clause | Discharged by |
+| --- | --- | --- |
+| 7a | hidden and selected, nothing of the selection drawn | none — `suite` tier; P1 only builds this state |
+| 7b | the arrow, Delete, the row's right-click, Shift+F10, Ctrl+D and Ctrl+Shift+G move and delete nothing | P1 — the `.rpgeo` is unchanged |
+| 7b | no menu opens | P1 |
+| 7c | the Inspector's Duplicate acts on the hidden part; Undo removes the copy | P2 |
+| 7c | the copy is "itself hidden" | P2 pins the OPPOSITE — **finding**: the copy is drawn, selected and unmarked |
+| 7c | Delete removes it; Undo restores it | P2 |
+| 7c | restored "still hidden" | P2 pins the OPPOSITE — it comes back shown, which agrees with step 39 |
+| 7d | whether Obsidian's own bindings fire | P1 — recorded: Ctrl+D runs `editor:delete-paragraph`; Ctrl+Shift+G runs nothing |
+| 7e | once shown, the arrow moves it with one write, undone | P3 |
+| 7e | the row's menu opens with Delete live | P3 |
+| 7f | while hidden, neither ruler bands it and Shift+2 leaves the camera still | P3 |
+| 7f | once shown, both rulers band it and Shift+2 moves the camera | P3 |
+| 8 | after closing and reopening, nothing is hidden, locked or marked | P4 |
+| 8 | all three drawn, geometry unchanged, nothing written | P4 — reopened through the palette picker |
+| 38 | the group, membership, label, repeated copies and every coordinate survive a plugin reload | P5 — the sidecar deep-equal, the group rows, the row reading "Left leg" |
+| 38 | no `Several Konva instances` in the console | P5 |
+| 39 | an undone Inspector delete of a hidden part comes back visible | P2 |
+| 40 | Shift-clicking a second row selects both | G1 |
+| 41 | Shift-clicking it again drops it back out | G1 |
+| 42 | with the toggle on, a plain row click adds | G1 |
+| 43 | a freshly opened designer rests in Select | G2 |
+| 43 | Ctrl+G groups | G2 pins the OPPOSITE — **finding**: Obsidian's `graph:open` takes the key, no group is written |
+| 44 | the Arrange panel's Group button groups under Pan | G3 |
+| 45 | under Pan, right-clicking a selected graphic offers Group, Ungroup, Duplicate, Delete | G3 |
+| 46 | Group from that menu groups | G3 |
+| 47 | right-clicking the row opens the identical menu | G3 |
+| 48 | Group from the row's menu groups | G3 |
+| 48 | focus lands on the canvas | G3 pins the OPPOSITE — **finding**: the row survives being re-nested and keeps focus |
+| 49 | Ctrl+G groups from the canvas and from a row under Pan | G2 pins the OPPOSITE — same finding as 43 |
+| 49a | where focus lands | G2 — recorded: it leaves the designer for the graph leaf |
+| 50 | no menu opens while a pan is held | G4 — its control right-click after the release may miss the part once the camera has moved, so this case is weak until re-aimed |
+| 51 | Ctrl+G does nothing | G5 — no group written; the host opens the graph |
+| 51 | "claims no key" | none — the host claims the key before the designer sees it |
+| 51 | the menu greys Group (`aria-disabled`) | G5 |
+| 52 | Delete removes only the drawn focused member; the hidden one stays hidden; Undo restores | G5 |
+| 53 | with the focused member hidden, Delete does nothing | G5 |
+| 10a, 10b, 12a | layout and focus ring | none — `browser` tier |
+
 ## Runs
 
 | Date | Build | Outcome |
 | --- | --- | --- |
 | 2026-09-19 | harness at `7edff8c4c`, Chromium 1223 (NOT the pinned 1234) | **Partial — the `browser` steps only, and four of the eight.** No vault; no `obsidian` or `suite` step was walked. **Step 1 PASS** — `read_page` reports the five regions by role and name: toolbar `Asset tools`, region `Parts`, application `Asset canvas`, complementary `Inspector`, and the `Saved` status line. **Step 9 PASS in full, and it is the one this case says nothing in the repository can do** — real `Tab` and arrow keys in a real browser. Tab walked Calibrate → View → the `Bowl` row → the canvas, so the list is ONE tab stop entered once and left once. Within it: `ArrowDown` moved row to row, `ArrowDown` on the last row did NOT wrap, `End` jumped to the last, `Home` to the first, `ArrowUp` on the first did NOT wrap, and `tabindex="0"` followed the focused row every time (the other five stayed `-1`). **Step 31 PASS** — twelve tool buttons in exactly the documented order, then Undo, Redo, View, read off the accessibility tree rather than a picture; the full spelling and the two-row wrap are visible in `harness-shots/asset-designer-dark.png`. **Step 37 PASS for three of its four clauses, measured with `getBoundingClientRect` at a 460px viewport**: Parts at top 75, canvas at 230, Inspector at 380 — stacked in DOM order; the canvas keeps 318px rather than collapsing; `scrollWidth === clientWidth` on all six Parts rows and no horizontal scroll on the document. Its fourth clause, *every Arrange button stays readable*, is NOT discharged — Arrange needs a multi-selection the fixture does not produce. **Step 2 NOT discharged** — it expects asset A's three unlabelled rectangles and the fixture is the toilet preset (Bowl, Tank, Footprint, Clearance, Anchor, Facing), so the "three rows reading Rectangle" half has nothing to read. **Steps 15, 17 and 33 NOT attempted** — pointer gestures on a Konva canvas; screenshots timed out repeatedly in this pane, which makes coordinate work unreliable, and an unreliable gesture is worse evidence than none. An instrument note worth carrying: the first traversal attempt used the key name `Down` and moved nothing, which read exactly like a broken roving index. `ArrowDown` is the spelling the browser delivers. The defect was in the instrument, and it was found only by asking the page which `event.key` values it had actually received. |
 | — | — | SUPERSEDED as a whole-case statement by the row below, which records a human vault walk on 2026-09-19; it stands for the per-step rows, none of which that walk individually confirmed. Originally: every row above is an expectation derived from the code, from `docs/tasks/asset-designer-expansion/contracts/DECISIONS.md` (rulings AD08-R1 and AD10-R1) and from the AD08, AD09, AD10 and AD11 task reports under `docs/tasks/asset-designer-expansion/reports/`, rather than from a walk. Nothing in this case has been opened in Obsidian or photographed. |
+| 2026-09-25 | `npm run test:e2e` on this branch — Obsidian 1.13.7 driven by WebdriverIO, Windows 11, `--lang=en` | **10 passed**, desktop leg, 110 s; mutation gate NOT run (see *Automated in Obsidian*). Steps 7b–7f, 8, 38–53 driven per that table. **Findings, pinned as measured:** (1) **Ctrl+G never reaches the designer** — a real Ctrl+G, and even a synthetic keydown dispatched at the canvas, runs Obsidian's `graph:open`; no group is written, on the canvas or a Parts row, under Select or Pan (steps 43, 49, 49a, 51). (2) Ctrl+D is Obsidian's `editor:delete-paragraph` and never reaches the canvas either, so the designer's Ctrl+D duplicate is probably unreachable; measured only with a hidden part selected. (3) step 7c's two "still hidden" clauses are false — the Inspector's copy and an undone Inspector delete both come back shown. (4) step 48 — after Group from a row's menu, the row survives re-nesting and keeps focus. (5) an arrow key on a hidden, selected part writes nothing but is still `defaultPrevented`, so the host never sees it. |
 | 2026-09-19 | live Obsidian vault, `npm run test-build` of `ecae21ab2` | **Walked in a live Obsidian vault by the repository owner (a human, not an agent), on the `npm run test-build` build of `ecae21ab2`.** Their overall verdict, recorded verbatim because it is the whole of what was given at that level: *"looks good to me"*. **No per-step outcome was recorded and none is claimed here.** The walk was not driven step-by-step against this table, so no individual `obsidian` step in this case is marked passed by it; what the run discharges is runbook §10's *"an actual Obsidian session"* condition, not this case's rows. One defect was reported from the walk and it is not in any case here: *"the preview images for presets look strange as they are inside buttons and overlapping them"* — reproduced, measured and fixed (`.rp-preset-choice` never overrode Obsidian's own `button` rule, so a 48px thumbnail hung 9px out of a 30px button top and bottom and shrank to as little as 0px wide against a `nowrap` label). **Step 17's judgement was not put to them and is NOT answered** — whether a set that visibly moves only the part pressed reads as broken remains unrecorded. Asked separately whether the Asset designer was usable at a sidebar leaf's width, they answered **usable**. |

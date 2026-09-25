@@ -331,10 +331,40 @@ system, with the `.rpgeo` on disk as the instrument step 12c asks for.
 | 37 | repair plus retry clears the notice, the button and the qualifier together | same case — the repair is reconciled, and the three go at once |
 | 38 | a fresh failure reads the first sentence | same case |
 
+**Added later on 2026-09-25 (W24-A).** `tests/e2e/assetDesignerRecoveryMore.e2e.ts`, over
+`tests/e2e/recovery.ts` (the needle, the fault edits). Every case was watched red against a
+one-clause mutation of `src/`, recorded in W24-A's report.
+
+| Step | Clause | Discharged by |
+| --- | --- | --- |
+| 11 | the drag into the fault springs back | *counts one revision per landed write and undo and none per refusal, and draws one fault three ways* |
+| 11 | a toast "This data is not in the expected form." | same case |
+| 11 | the notice is still there, unchanged, with no second copy | same case — every `.rp-designer-notice` reads the one sentence |
+| 11 | the header reads Saved · refresh needed | same case |
+| 11 | one fault produces all three | same case — one schema-99 file, read in one look after one nudge |
+| 12a | the stale notice appears; canvas unchanged; header qualified | *lands a Remove reference and its undo over a clearance the read-back cannot measure, and stays stale until repaired* |
+| 12b | canvas, notice and header unchanged, the background still drawn | same case — the Konva image still on the stage, no toast |
+| 12c | revision +1, the needle still in the file, the note's background key gone | same case — disk and metadata cache |
+| 12d | the undo restores background and calibration on disk | same case |
+| 12d | the canvas still does not redraw | same case — the notice still reads the first sentence after the undo |
+| 12d | only the hand repair clears the notice, and the canvas then agrees | same case |
+| 19 | the background comes back, the header reads Save error | *restores the sheet but not its scale when the undo cannot write the sidecar, and names neither* |
+| 19 | the calibration does not come back: Scale reads "Not calibrated" | same case — the sidecar on disk still has `calibration: null` at an unchanged revision |
+| 19 | nothing names the half-restored state | same case — no toast, no `.rp-designer-notice`, no `[role="alert"]` |
+| 20 | would a user know the undo half-succeeded | none — `judgement` |
+| 25 | no `Several Konva instances` line, and the unload logs no error | Design an Asset's *keeps every shape across a plugin reload, which detaches the leaf and leaves the console clean* |
+| 32 | the revision advances once per landed write and once per landed undo | *counts one revision per landed write and undo…* — preset, nudge, undo, redo, nudge, nudge = 1..6 |
+| 32 | it does not move for steps 3, 5 and 11, nor for step 19's sidecar half | same case, and *restores the sheet but not its scale…* |
+| 34 | the button reads as an action, not chrome | none — `judgement` |
+| 36 | a burst of presses is answered with one read; nothing stacks up | *answers a burst of Try again with one read, keeping the button focused and live* — five presses in one tick, one `vault.read` |
+| 36 | nothing flickers | same case — a MutationObserver saw no notice, retry or failure node come or go |
+| 36 | the button never becomes permanently dead | same case — `aria-disabled` clears, focus stays, the next press reads, and a press after the repair heals |
+
 ## Runs
 
 | Date | Build | Outcome |
 | --- | --- | --- |
+| 2026-09-25 | W24-A — `npm run test:e2e` over `assetDesignerRecoveryMore.e2e.ts`, Obsidian 1.13.7, Windows 11 | **4 passed**, each watched red first. **Steps 12a–12d executed as a sequence for the first time, and walk exactly as reasoned**: Remove reference lands (revision +1, needle kept, calibration null, the note's `background-path` gone), the read-back overflows so the notice, the qualified header and the drawn sheet all stay; the undo lands too (revision +2, calibration and background restored) and the canvas still does not redraw until the hand repair is reconciled. **Step 19 matches the row**: on Windows the read-only bit refuses the sidecar restore, the note restore lands, the sheet comes back, the header reads Save error, Scale reads "Not calibrated", and nothing names it — `unrecoveredWrite` is drawn nowhere, as predicted. Instrument notes: the designer offers no background door once a shape exists, so Asset B is built sheet → calibration → preset; the Reference rows are not drawn for a measured shape even over a calibrated sheet. |
 | 2026-09-25 | `npm run test:e2e` on this branch — Obsidian 1.13.7 driven by WebdriverIO, Windows 11, `--lang=en` | **Steps 2, 3, 4, 5, 6, 7, 9, 10, 12, 17, 21, 22, 23, 24, 26, 27, 29, 30, 31, 33, 35, 37 and 38 are discharged by `tests/e2e/assetDesignerRecovery.e2e.ts`**, clause by clause in *Automated in Obsidian*. **Fault 1 is answered: on Windows the read-only attribute IS a rejected `Vault.modify`** — `Save error`, revision unchanged, no toast, the bowl back where it was. **Step 8's first link is answered NO**: for a `.rpgeo` (and for a `.md` note — measured as the control) written outside Obsidian, the host raises `raw` within 10 ms and then neither raises `modify` nor updates the `TFile`'s `stat` for 15 s, so the stale notice never arrives by that route. Every link after it is real: the suite calls `app.vault.adapter.reconcileFile(path, path)` — the call Obsidian's own watcher makes when it does act — and from there the notice, the qualified header, `Try again`, the "again" sentence, the unprompted heal and the first-sentence reset all behave as the rows say. Step 25's disable-and-enable detaches every designer leaf (recorded in Design an Asset's run). Not walked: 12a–12d, 13–16, 18–20, 25 beyond that, 32, 34, 36. |
 | — | — | **Not yet run in a vault. No step above has been walked.** Every row is an expectation derived from the module source, its English copy and the tests named in the rows — never from memory of any of them. The `suite` rows' tests were run (`npx vitest run` over `designerRefresh`, `designerWriteChain`, `assetDesignerRoot`, `assetDesignerView`, `designerCrossLeaf`, `assetGeometrySidecar`, `reversibleAssetDesignWindows`, `saveStateAgreement` and `getAssetDesign`) and all passed at the time of writing; that establishes the assertions exist and hold, not that the vault behaves as the `obsidian` rows say. **Steps 12a to 12d are the least-supported rows in the file** — four separately verified links, never executed as a sequence — so walk them with step 12c's disk check in hand and record what the `revision` actually did. Record the fault setups used, the Obsidian version and the platform — steps 2, 3 and 19 all rest on an OS read-only attribute, whose behaviour is not the same on Windows and macOS. |
 

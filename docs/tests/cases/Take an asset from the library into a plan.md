@@ -135,10 +135,28 @@ mobile-emulation leg for the gate.
 | 25 | the project view's library button opens a leaf that refuses | *opens a library leaf that refuses, from the project view button, rather than nothing* |
 | 27 | both commands listed on the desktop, by name | *lists both commands in the palette on the desktop* |
 
+**Added later on 2026-09-25 (W24-A).** `tests/e2e/assetHandoffMore.e2e.ts`. Each case was watched red
+against a one-clause mutation of `src/` except step 10's, which holds by construction
+(`DuplicateAssetCommand` has no plan port) and whose one planned perturbation was refused.
+
+| Step | Clause | Discharged by |
+| --- | --- | --- |
+| 1 | the inspector draws name, Used in, fields, shape and actions, and no "Used in plans" before Duplicate | *shows no plan scope until Duplicate, moves no placement by duplicating, and counts a plan it cannot read* |
+| 5 | the list still names the readable plan and says "1 note(s) could not be read, so this list may be incomplete" | same case — a plan note given `layers: 'broken'` through `processFrontMatter` |
+| 6 | pre-scan, Duplicate reads "…scope below is unknown." | none — **unreachable** through a plugin load: Duplicate exists only once the catalogue lists the asset, which is after the scan (first drawn ~103 ms in, polled every frame) |
+| 6 | never "No plan places this asset" over a vault that places it | *offers Duplicate only once the scan has landed after a load, so the scope is never a confident empty* |
+| 10 | both placements still name Oven, at the same size and position; no third placement | *shows no plan scope until Duplicate…* — every plan `.rpgeo` byte-identical after Create copy; not watched red (see above) |
+| 22 | the canvas menu offers Open in designer and opens the one leaf the Inspector opened | *opens the designer from the canvas menu into the one leaf the Inspector opened, and one leaf for two presses* |
+| 22 | "under the plans group" | none — the menu's DOM carries no group name |
+| 22 | two presses in one tick give one leaf | same case |
+| 23 | Edit shape vs Open in designer, read side by side | none — `judgement` |
+| 26 | restored designer and library leaves both draw the desktop-only refusal and mount nothing | *refuses both restored leaves on mobile rather than mounting either* — mobile-emulation leg, the leaves restored by `reloadObsidian` from this device's own layout; the desktop-to-phone sync itself is not reproduced |
+
 ## Runs
 
 | Date | Build | Outcome |
 | --- | --- | --- |
+| 2026-09-25 | W24-A — `npm run test:e2e` over `assetHandoffMore.e2e.ts`, Obsidian 1.13.7, Windows 11 | **3 passed on the desktop leg, 1 on mobile emulation.** Steps 1, 5, 6 (its second clause), 10, 22 and 26 per the table above. Step 6's pre-scan window cannot be reached through a plugin load. Step 22's canvas-menu door reveals the existing designer tab but leaves the Plan Editor as the active leaf — the row does not speak to focus, so this is an observation. |
 | 2026-09-25 | `npm run test:e2e` on this branch — Obsidian 1.13.7 driven by WebdriverIO, Windows 11, `--lang=en` | **Steps 9, 10 (in part), 14, 15, 16, 17, 18, 19, 20, 21, 22 (the Inspector door), 24, 25 and 27 are in `tests/e2e/assetHandoff.e2e.ts`**, clause by clause below; 24 and 25 run on the mobile-emulation leg. Step 10 is walked against an original with NO placements — the duplicate's own sidecar is a copy under its own id and the original's is byte-identical, but "both placements still name Oven" is not read. Step 22's context-menu door and step 26's synced restore are not walked. |
 | — | — | SUPERSEDED as a whole-case statement by the row below, which records a human vault walk on 2026-09-19; it stands for the per-step rows, none of which that walk individually confirmed. Originally: every row above is an expectation derived from the code, from `docs/tasks/asset-designer-expansion/contracts/DECISIONS.md` (ruling AD13-R1) and from the AD13 task reports under `docs/tasks/asset-designer-expansion/reports/`, rather than from a walk. Nothing in this case has been opened in Obsidian, and no step here has ever been run on a mobile device. |
 | 2026-09-19 | live Obsidian vault, `npm run test-build` of `ecae21ab2` | **Walked in a live Obsidian vault by the repository owner (a human, not an agent), on the `npm run test-build` build of `ecae21ab2`.** Their overall verdict, recorded verbatim because it is the whole of what was given at that level: *"looks good to me"*. **No per-step outcome was recorded and none is claimed here.** The walk was not driven step-by-step against this table, so no individual `obsidian` step in this case is marked passed by it; what the run discharges is runbook §10's *"an actual Obsidian session"* condition, not this case's rows. One defect was reported from the walk and it is not in any case here: *"the preview images for presets look strange as they are inside buttons and overlapping them"* — reproduced, measured and fixed (`.rp-preset-choice` never overrode Obsidian's own `button` rule, so a 48px thumbnail hung 9px out of a 30px button top and bottom and shrank to as little as 0px wide against a `nowrap` label). **Step 23's judgement was not put to them and is NOT answered** — how **Edit shape** in the library and **Open in designer** on the plan read side by side, two names for one destination, remains unrecorded. No step here was run on a mobile device, so steps 24 through 26 are untouched by this run. Asked separately whether the Asset designer was usable at a sidebar leaf's width, they answered **usable**. |

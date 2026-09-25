@@ -1734,7 +1734,7 @@ committed sha, because a parallel task's temporary instrumentation had blanked t
 - **Task 5:** the Shift corner case cannot discriminate, because a Shift corner drag is a uniform scale.
 - **Task 9:** the "70 moves" figure came from a different grid.
 
-**Four tasks needed a fix round.**
+**Two tasks needed a fix round; the other five passed review first time.**
 - **Task 1's review** found the held retry unreached (now deleted) and a residual cusp class (accepted).
 - **Task 2's review** found its depth arm untested.
 

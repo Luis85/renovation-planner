@@ -77,6 +77,38 @@ const writesSince = (r: Awaited<ReturnType<typeof rig>>, from: number) => r.stac
 
 const PAGE_2 = { width: 600, height: 300, rgba: [255, 0, 0, 255] };
 
+/**
+ * A04's error half, by whichever door `leave` takes: page 2 committed, page 3 refused, the form
+ * left — and nothing written, the committed reference whole.
+ */
+async function leaveRefusedOverCommitted(leave: (r: Awaited<ReturnType<typeof rig>>) => Promise<void>) {
+	const r = await rig(); await choosePage(r.harness, '2');
+	// Waited for, not assumed: run alone, the first pdf.js decode outlasts `choosePage`'s settle
+	// and the Continue press is refused while it loads.
+	await settleUntil(() => r.harness.wrapper.find('.rp-reference-preview').exists(), 'the page-2 preview');
+	// Both instruments see a write when there is one — the commit's own. `compose` is the
+	// synchronous one: a write the form starts on its way out lands after any await could
+	// look for it, but it has to COMPOSE its command while the leaving press is still running.
+	const compose = vi.spyOn(r.services, 'command'), committing = r.stack.vault.operations.length;
+	await commitMeasured(r.harness);
+	expect(compose).toHaveBeenCalled(); expect(writesSince(r, committing)).not.toEqual([]);
+	const committed = expectFound(await r.stack.plans.getById(r.plan.id));
+	expect(committed.entity.background).toMatchObject({ path: 'scan.pdf', kind: 'pdf', page: 2 });
+	const geometry = await r.geometry.read(r.plan.id), from = r.stack.vault.operations.length; compose.mockClear();
+
+	await choosePage(r.harness, '3');
+	expect(await lastDecoded(r.load)).toEqual({ kind: 'unavailable', reason: 'unreadable' });
+	expect(r.harness.wrapper.text()).toContain('Cannot read this image or PDF page');
+	const decodes = r.load.mock.calls.length;
+	await leave(r);
+	await settleUntil(() => !r.harness.wrapper.find(FORM).exists(), 'left');
+
+	expect(compose).not.toHaveBeenCalled(); expect(writesSince(r, from)).toEqual([]);
+	expect(await r.stack.plans.getById(r.plan.id)).toEqual({ ok: true, value: committed });
+	expect(await r.geometry.read(r.plan.id)).toEqual(geometry);
+	expect(r.load.mock.calls.slice(decodes)).toEqual([]);
+}
+
 describe('a PDF reference whose chosen page is not page 1', () => {
 	it('decodes page 2 through the real form, commits page 2, and decodes page 2 again on reopening', async () => {
 		const r = await rig(); await choosePage(r.harness, '2');
@@ -100,33 +132,21 @@ describe('a PDF reference whose chosen page is not page 1', () => {
 	});
 
 	// A04's error half: a refused page over a COMMITTED reference, left by the Cancel a user presses.
-	it('leaves a committed page-2 reference unchanged when page 3 is refused and the form is cancelled', async () => {
-		const r = await rig(); await choosePage(r.harness, '2');
-		// Waited for, not assumed: run alone, the first pdf.js decode outlasts `choosePage`'s settle
-		// and the Continue press is refused while it loads.
-		await settleUntil(() => r.harness.wrapper.find('.rp-reference-preview').exists(), 'the page-2 preview');
-		// Both instruments see a write when there is one — the commit's own. `compose` is the
-		// synchronous one: a write the form starts on its way out lands after any await could
-		// look for it, but it has to COMPOSE its command while the Cancel click is still running.
-		const compose = vi.spyOn(r.services, 'command'), committing = r.stack.vault.operations.length;
-		await commitMeasured(r.harness);
-		expect(compose).toHaveBeenCalled(); expect(writesSince(r, committing)).not.toEqual([]);
-		const committed = expectFound(await r.stack.plans.getById(r.plan.id));
-		expect(committed.entity.background).toMatchObject({ path: 'scan.pdf', kind: 'pdf', page: 2 });
-		const geometry = await r.geometry.read(r.plan.id), from = r.stack.vault.operations.length; compose.mockClear();
+	it('leaves a committed page-2 reference unchanged when page 3 is refused and the form is cancelled', () =>
+		leaveRefusedOverCommitted(r => {
+			const cancel = r.harness.wrapper.get('[data-rp-action="cancel"]');
+			expect(cancel.attributes('aria-disabled')).toBe('false');
+			return cancel.trigger('click');
+		}));
 
-		await choosePage(r.harness, '3');
-		expect(await lastDecoded(r.load)).toEqual({ kind: 'unavailable', reason: 'unreadable' });
-		expect(r.harness.wrapper.text()).toContain('Cannot read this image or PDF page');
-		const decodes = r.load.mock.calls.length;
-		await r.harness.wrapper.get('[data-rp-action="cancel"]').trigger('click');
-		await settleUntil(() => !r.harness.wrapper.find(FORM).exists(), 'cancelled');
-
-		expect(compose).not.toHaveBeenCalled(); expect(writesSince(r, from)).toEqual([]);
-		expect(await r.stack.plans.getById(r.plan.id)).toEqual({ ok: true, value: committed });
-		expect(await r.geometry.read(r.plan.id)).toEqual(geometry);
-		expect(r.load.mock.calls.slice(decodes)).toEqual([]);
-	});
+	// BP-06: the same, left by Escape. `DialogHost` focused the form's first control on opening and
+	// nothing since moved it, so the press lands on the source field and bubbles to `.rp-dialog`.
+	it('leaves a committed page-2 reference unchanged when page 3 is refused and the form is left by Escape', () =>
+		leaveRefusedOverCommitted(async r => {
+			const focused = r.harness.wrapper.get(`${FORM} input[name="source"]`).element;
+			expect(document.activeElement).toBe(focused);
+			focused.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await settle();
+		}));
 
 	// R-S18-12: the SAME source and page reloaded after a success, the reload failing. No
 	// watcher fires for that, so only the failed-load branch's own `raster.value = null` clears it.

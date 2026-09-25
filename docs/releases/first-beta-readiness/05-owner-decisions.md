@@ -232,6 +232,22 @@ project's row appears in the list without a plugin reload. Warm arm and cold arm
 distinguishable by that one observation. A rig cannot answer it, because the thing being raced is
 Obsidian's own note parser.
 
+**The run has happened, automated, and the answer is WARM:** measured warm on 1.13.7/Windows on
+2026-09-25, 3 of 3; by the owner's ruling this ships as is. The case is
+`tests/e2e/settingsDuringCreate.e2e.ts`, driving a real Obsidian 1.13.7 through
+`npm run test:e2e`. Each of three iterations holds the plugin's real `vault.create` open, changes
+the default projects folder in the host's own settings window, confirms the rebind cancelled the
+busy dialog while the write was still held, releases the write, finds the note under the
+PREVIOUS folder, and watches the rebound list for 3000 ms. Every iteration's row appeared
+unprompted, first seen 177 to 498 ms into the window over four recorded runs (12 of 12). The
+evidence file is `l19-arms.json` in the case's `e2e-results/cases/` folder. Two checks stand
+behind that answer. A plugin reload afterwards lists all three through the same selector. And
+forcing the cold arm, by making the index pipeline ignore creates, turns the case red, so the
+case can see a miss. **What it does not cover:** the vault was the small e2e test vault on one
+machine, so a large vault or a slow disk, where Obsidian's parse could outlast the plugin's
+500 ms debounce, is not measured. The project also still lands in the old folder, as the warm
+arm says.
+
 ### What is already fixed, and not in question
 
 - The behaviour itself is **accepted by ruling R-S7-11** and is not being re-litigated.
@@ -255,7 +271,8 @@ The release owner chose **"Block only if run shows it"** in session 21's chat: i
 shows the project appearing anyway, ship as is; if it shows the project missing, that blocks the
 beta until the plugin's indexing is fixed. The owner cannot do that run soon, so the release call
 is conditional and unresolved, and G1 cannot be evaluated until the run happens. **Q2 remains
-open.**
+open.** *Superseded 2026-09-25:* the run happened, automated rather than by hand, and measured the
+warm arm, 3 of 3 (see "The deciding experiment" above). By this ruling Q2 ships as is.
 
 ## 5. Q3 — may a still-mounted view write to the vault after `onunload`? (tracker L-21)
 
@@ -264,7 +281,9 @@ open.**
 When Obsidian disables or reloads the plugin, it calls `onunload`. This plugin's `onunload` sets an
 "unloaded" flag and runs five cleanup steps, and does nothing else — it **closes no view and takes
 no pane off the screen**. So when `onunload` returns, every open editor pane is still on screen,
-still wired up, and still able to write to the vault.
+still wired up, and still able to write to the vault. *Superseded 2026-09-25 (1.13.7, Windows, one
+machine): Obsidian closes the Plan Editor pane before `onunload`, so none is left on screen. See
+"The run has happened".*
 
 Session 8 found and fixed the sharp end of that: one of the cleanup steps used to switch off the
 plugin's record of half-written writes, which simultaneously disarmed all three things that read it
@@ -277,10 +296,14 @@ What the fix deliberately does **not** settle is the general case. With nothing 
 guarded write dispatched after `onunload` still runs, and if it half-fails it is recorded nowhere.
 Reaching that window does not need a user: a queued or debounced write already in flight — a text
 field committing after a pause, a queued sequence of writes — lands there with no gesture at all.
+*Superseded 2026-09-25 (1.13.7, Windows, one machine): no field is debounced. The write measured
+in this window is a field commit started by the teardown's own blur. See "The run has happened".*
 
 **Unverified:** whether Obsidian leaves a still-usable pane alive after `onunload`, and in what
 order it tears things down relative to the cleanup steps. The test fakes here record requests
-rather than behaving, so they cannot answer it.
+rather than behaving, so they cannot answer it. *Superseded 2026-09-25: both are now measured in a
+real Obsidian. See "The run has happened" under "The deciding experiment" below. No Plan Editor
+pane is left alive, but a pending field edit is still written after `onunload` returns.*
 
 ### What the user experiences
 
@@ -291,16 +314,20 @@ plugin left to warn, the diagnostics report will not name it on the next load, a
 did it is about to disappear. The user has no way to know.
 
 Whether that window is a fraction of a second or long enough for a click is exactly the unverified
-part.
+part. *Superseded 2026-09-25: the run below measured it. It is not long enough for a click, because
+no pane is left to click. It does not need one either: a value typed and not yet committed is
+written by the teardown itself, and the write lands after `onunload` has returned. That changes
+the paragraph above in one way. No delayed save is involved, because no field here is debounced.
+The field commits when it loses focus, and Obsidian's teardown takes the focus away.*
 
 ### Options
 
 | Option | What it changes | What it costs | What it costs if this is the wrong choice |
 |---|---|---|---|
-| **Leave it** (today) | Nothing. Open records survive unload; clean sessions release, and a post-unload write with nothing open still lands. | Nothing to build. | A half-failed write in the unload window is unrecorded and unrecoverable, and the user is not told. Blast radius is unknown because the window's width in Obsidian is unverified. |
+| **Leave it** (today) | Nothing. Open records survive unload; clean sessions release, and a post-unload write with nothing open still lands. | Nothing to build. | A half-failed write in the unload window is unrecorded and unrecoverable, and the user is not told. Blast radius is unknown because the window's width in Obsidian is unverified. *Superseded in part 2026-09-25 (1.13.7, Windows, one machine): a teardown-started write lands after `onunload`, about 60 ms after it in one probe; see "The run has happened".* |
 | **Never release the record at all** (drop the `anyOpen()` guard in `SessionStores.dispose()`) | Every post-unload write stays gated and recordable. | Named as the remedy in `src/plugin/sessionStores.ts`'s own docblock. The price stated there: a disposed session's record answers for the vault from module scope until the next load constructs a new one — the window is exactly "after unload, before the next load". Existing cases asserting that a clean dispose releases would need re-aiming. | The plugin's own rule that a global it installs is a global it removes is given up for one case; a stale record could answer for a vault the next load has not looked at yet. |
 | **A permanently-refusing sentinel after unload** | Every post-unload write refused outright. | **Refuted by measurement in session 8.** It would refuse a write in a never-half-written vault using the only refusal message that exists, which says an earlier write left the vault half-written. Minting a message variant is blocked by limitation L-15 (no agent-minted copy in the second language). | A user in a perfectly healthy vault is told their vault is half-written. |
-| **Make `onunload` own view teardown** — unmount the Vue apps, detach the leaves, or order the cleanup steps against view teardown | The premise of the whole question disappears: no pane is alive to write. | **Not costed anywhere.** Session 8 named it as a scope decision and stopped at its stop rather than build it. The plugin's own `onunload` docblock records a deliberate policy of not repeating teardown Obsidian's base class already does, which this would sit against. | Unknown, because it is uncosted. Taking it means costing it first. |
+| **Make `onunload` own view teardown** — unmount the Vue apps, detach the leaves, or order the cleanup steps against view teardown | The premise of the whole question disappears: no pane is alive to write. *Superseded 2026-09-25: Obsidian already closes the pane before `onunload` (measured, 1.13.7, Windows, one machine), and the pending write still landed. So, following from that order rather than measured, this option alone would not close the window; see "The run has happened".* | **Not costed anywhere.** Session 8 named it as a scope decision and stopped at its stop rather than build it. The plugin's own `onunload` docblock records a deliberate policy of not repeating teardown Obsidian's base class already does, which this would sit against. | Unknown, because it is uncosted. Taking it means costing it first. |
 
 ### The deciding experiment
 
@@ -309,6 +336,35 @@ and a field edit pending, disable the plugin and observe whether the pane is sti
 whether the pending write reaches the note. That answers both halves — whether the window exists in
 Obsidian at all, and roughly how wide it is. Nothing in this repository can answer it: the fakes
 record requests rather than behaving, and the mock plugin base unregisters nothing.
+
+**The run has happened, automated. No pane survives, but the pending write still reaches the note,
+after `onunload`.** This was measured on Obsidian 1.13.7 on Windows, on one machine, on
+2026-09-25, by `tests/e2e/unloadWindow.e2e.ts` through `npm run test:e2e`. The case opens the
+sample project's Plan Editor and assigns an asset to the Kitchen. Then it types `7.5` into the
+Room Inspector's quantity override and does not blur it, and disables the plugin. The cases
+passed on three full runs after the probe runs. The first two cases write their recorded order to
+`unload-order.json` in the case's `e2e-results/cases/` folder. They pin these facts:
+
+- **The pane.** Obsidian calls the Plan Editor view's `onClose` twice, both before `onunload`. It
+  replaces the view with an empty "New tab" whose view state carries no plan id. No Plan Editor
+  leaf is left, and enabling the plugin again does not bring one back. So the premise of the
+  question, a pane still on screen after `onunload`, does not hold on this build.
+- **The write.** No key is pressed after the disable. The field gets a `focusout` while it is
+  still in the page, before the first `onClose`, and that blur starts the commit. The requirement
+  note's `vault.process` starts only after `onunload` has returned. The note's `quantity-override`
+  goes from empty to `7.5`, and its revision goes up by one. In a probe run the write ended about
+  80 ms after the `focusout` and about 60 ms after `onunload` returned.
+- **Under an open write incident** (`f5a7f219e`'s claim). The paused field is `readonly`, so no
+  edit can be pending, and no pane survives the disable to offer another write. The note is
+  unchanged over a 2000 ms window. This half of the experiment is **moot**, so the mutation the
+  plan named for it (dropping the `anyOpen()` guard in `SessionStores.dispose()`) was not run.
+
+**What this means for the options**, stated as a measurement and not a recommendation. The fourth
+option, making `onunload` own view teardown, would not close this window on its own: Obsidian
+already closes the view before `onunload` runs, and the write still landed. The window is a write
+that the teardown STARTS and that finishes after `onunload`. **Not measured:** whether the write's
+incident guard is consulted before or after `onunload` releases a clean registry, a write that
+half-fails in this window, other panes and fields, other Obsidian versions, and mobile.
 
 ### What is already fixed, and not in question
 
@@ -322,7 +378,8 @@ record requests rather than behaving, and the mock plugin base unregisters nothi
   (idle, an unsaved form, a part-drawn shape) the lifecycle rules measure as **not violated** at
   this boundary, so a test asserting the current behaviour would assert that nothing happens —
   and what actually happens at this boundary is that a still-mounted pane **can** write after
-  unload. Such a test would therefore certify that write as correct, and it would stay green on
+  unload. *(Superseded 2026-09-25, 1.13.7, Windows, one machine: no pane stays mounted, but a
+  write the teardown starts lands after unload. See "The run has happened".)* Such a test would therefore certify that write as correct, and it would stay green on
   exactly the day somebody changes it by accident. A fourth (a write already dispatched) is
   satisfied by the **absence** of cancellation code, so there is no mechanism to break and no
   failing state to watch. **The fifth is named here rather than left to be counted: a stale

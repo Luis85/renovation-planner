@@ -1,8 +1,21 @@
 import { describe, expect } from 'vitest';
 import { test } from './fixture';
-import type { ChainablePromiseElement } from 'webdriverio';
-import { closePluginSettings, type createPlannerPage, openPluginSettings, settingControl } from './helpers';
-import { PLUGIN_ID, mobileEmulation, type NativeBrowser } from './session';
+import { closePluginSettings, openPluginSettings, settingControl } from './helpers';
+import {
+	EDITOR,
+	PLANTED_INCIDENT,
+	UNRECOVERED,
+	WRITES_PAUSED,
+	expectPaused,
+	incidentsPath,
+	openPlan,
+	planNames,
+	plantIncidents,
+	removeIncidents,
+	seedProjectWithPlan,
+	tryNewPlan,
+} from './planner';
+import { PLUGIN_ID, mobileEmulation } from './session';
 
 /**
  * `docs/tests/cases/Two panes on one plan under an open write incident.md`, driven in the real
@@ -14,98 +27,6 @@ import { PLUGIN_ID, mobileEmulation, type NativeBrowser } from './session';
  * Every write here runs on the desktop legs; mobile is view-only by design.
  */
 const desktop = mobileEmulation ? test.skip : test;
-
-const EDITOR = '.workspace-leaf-content[data-type="renovation-plan-editor"]';
-const UNRECOVERED = 'A change was written but could not be completed or undone.';
-const WRITES_PAUSED = 'Writing is paused.';
-
-/** The case's primary fault setup, verbatim: a recognised, fully open stamp with nothing it can name. */
-const PLANTED_INCIDENT = {
-	schemaVersion: 1,
-	incidents: [
-		{
-			schemaVersion: 1,
-			incidentId: 'incident-manual-1',
-			raisedAt: '2026-09-17T00:00:00.000Z',
-			code: 'zone.sidecar-write-uncompensated',
-			category: 'Persistence',
-			affected: [],
-		},
-	],
-};
-
-const incidentsPath = (browser: NativeBrowser) =>
-	browser.executeObsidian(({ app }, id) => `${app.vault.configDir}/plugins/${id}/write-incidents.json`, PLUGIN_ID);
-
-async function plantIncidents(browser: NativeBrowser, content: string): Promise<void> {
-	await browser.executeObsidian(({ app }, path, text) => app.vault.adapter.write(path, text), await incidentsPath(browser), content);
-}
-
-async function removeIncidents(browser: NativeBrowser): Promise<void> {
-	await browser.executeObsidian(({ app }, path) => app.vault.adapter.remove(path), await incidentsPath(browser));
-}
-
-type Ui = ReturnType<typeof createPlannerPage>;
-type Pane = ChainablePromiseElement | WebdriverIO.Element;
-
-/** A project with one plan, made through the real forms, BEFORE any incident pauses writing. */
-async function seedProjectWithPlan(ui: Ui): Promise<void> {
-	await ui.openProjectView();
-	await ui.projectView().$('.rp-empty-state__action').click();
-	await ui.submitForm('Flat');
-	await ui.projectView().$('.rp-project-detail__entry-action--secondary').click();
-	await ui.submitForm('Ground floor');
-	await expect.poll(async () => Object.values(await ui.notesOfType('renovation-plan')).map((plan) => plan.name)).toEqual(['Ground floor']);
-}
-
-/** From the project list: into the one project, then the plan named so, until the editor draws. */
-async function openPlan(browser: NativeBrowser, ui: Ui, name: string): Promise<void> {
-	await ui.openProjectView();
-	const row = () => ui.projectView().$(`.rp-plan-list__row*=${name}`);
-	// The view keeps its detail state across reveals, so the list is only sometimes what draws.
-	if (!(await row().isExisting())) {
-		await expect.poll(() => ui.projectView().$('.rp-project-row').isDisplayed()).toBe(true);
-		await ui.projectView().$('.rp-project-row').click();
-	}
-	await expect.poll(() => row().isDisplayed()).toBe(true);
-	await row().click();
-	await expect.poll(() => browser.$(EDITOR).$('.rp-plan-canvas canvas').isExisting()).toBe(true);
-}
-
-/** What the case's step 1 lists for a paused pane: the strip, and Undo dimmed. */
-async function expectPaused(pane: Pane): Promise<void> {
-	await expect.poll(() => pane.$('.rp-warning-strip').getText()).toContain(UNRECOVERED);
-	expect(await pane.$('[data-rp-action="undo"]').getAttribute('disabled')).toBe('true');
-}
-
-/** Try the one write the project view offers, and read what the real form says about it. */
-async function tryNewPlan(browser: NativeBrowser, ui: Ui, name: string): Promise<string> {
-	await ui.openProjectView();
-	const secondary = () => ui.projectView().$('.rp-plan-list__create');
-	if (!(await secondary().isExisting())) {
-		await ui.projectView().$('.rp-project-row').click();
-		await expect.poll(() => secondary().isExisting()).toBe(true);
-	}
-	await secondary().click();
-	await expect.poll(() => ui.dialog().isDisplayed()).toBe(true);
-	await ui.dialog().$('[data-field="name"]').setValue(name);
-	await ui.dialog().$('button[type="submit"]').click();
-	// Two ways out, and neither is a timeout: the dialog closes on success, or draws its banner.
-	let outcome = 'pending';
-	await expect
-		.poll(async () => {
-			if (!(await ui.dialog().isExisting())) outcome = 'closed';
-			else if (await ui.dialog().$('.rp-form-banner').isExisting()) outcome = 'refused';
-			return outcome;
-		})
-		.not.toBe('pending');
-	if (outcome === 'closed') return '';
-	const text = await ui.dialog().$('.rp-form-banner').getText();
-	await ui.dialog().$('[data-field="name"]').click();
-	await browser.keys('Escape');
-	await expect.poll(() => ui.dialog().isExisting()).toBe(false);
-	return text;
-}
 
 describe('a planted write incident in the real host', () => {
 	desktop('pauses the editor from its first frame, a split pane with it, and both again after a settings rebind', async ({
@@ -155,8 +76,7 @@ describe('a planted write incident in the real host', () => {
 
 		// Step 4: the guarded door underneath, and the refusal said rather than swallowed.
 		expect(await tryNewPlan(browser, ui, 'Attic')).toContain(WRITES_PAUSED);
-		const plans = async () => Object.values(await ui.notesOfType('renovation-plan')).map((plan) => plan.name).toSorted();
-		expect(await plans()).toEqual(['Ground floor']);
+		expect(await planNames(ui)).toEqual(['Ground floor']);
 
 		// Step 8: the retirement gesture is discoverable, and it is a path rather than a button.
 		await ui.command('show-diagnostics-report');
@@ -173,13 +93,13 @@ describe('a planted write incident in the real host', () => {
 		// Step 9: the file is read once at load; removing it resumes nothing until the plugin loads again.
 		await removeIncidents(browser);
 		expect(await tryNewPlan(browser, ui, 'Attic')).toContain(WRITES_PAUSED);
-		expect(await plans()).toEqual(['Ground floor']);
+		expect(await planNames(ui)).toEqual(['Ground floor']);
 
 		// Step 10: with the file gone, a reload is live again and the write lands — that one and nothing else.
 		await page.disablePlugin(PLUGIN_ID);
 		await page.enablePlugin(PLUGIN_ID);
 		expect(await tryNewPlan(browser, ui, 'Attic')).toBe('');
-		await expect.poll(plans).toEqual(['Attic', 'Ground floor']);
+		await expect.poll(() => planNames(ui)).toEqual(['Attic', 'Ground floor']);
 		await openPlan(browser, ui, 'Ground floor');
 		expect(await browser.$(EDITOR).$$('.rp-warning-strip__item').map((item) => item.getText())).toEqual([]);
 		expect(await browser.$(EDITOR).$('[data-rp-action="undo"]').getAttribute('disabled')).toBe('true');

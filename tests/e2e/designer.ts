@@ -23,7 +23,7 @@ export interface Sidecar {
 		footprint: { points: number[][] };
 		clearance?: { points: number[][] };
 		clearanceNeedsReview: boolean;
-		details: { id: string; name: string; outline: { points: number[][] } }[];
+		details: { id: string; name: string; outline: { points: number[][]; bulges?: number[] } }[];
 	} | null;
 }
 

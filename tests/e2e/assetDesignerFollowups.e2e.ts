@@ -137,8 +137,12 @@ describe('Design an Asset, the polish round, in the real Obsidian host', () => {
 		await designer.applyPreset('toilet');
 		await f.tool('Select');
 		await designer.selectPart(BOWL);
+		const original = normalised(outlineOn(designer.readSidecar(assetId), BOWL));
 		await f.dragHandle(assetId, 4, 24, 18);
 		const dragged = normalised(outlineOn(designer.readSidecar(assetId), BOWL));
+		expect(dragged).not.toEqual(original);
+		const bulges = () => designer.readSidecar(assetId).shape?.details.find((detail) => `detail:${detail.id}` === BOWL)?.outline.bulges ?? [];
+		const draggedBulges = bulges();
 		const width = Math.round(await f.fieldNumber('width'));
 		const depth = Math.round(await f.fieldNumber('depth'));
 
@@ -150,13 +154,15 @@ describe('Design an Asset, the polish round, in the real Obsidian host', () => {
 		await expect.poll(async () => Math.round(await f.fieldNumber('depth'))).toBe(depth);
 		expect(Math.round(await f.fieldNumber('width'))).toBe(width);
 		// The same OUTLINE, not only the same box: a plain stretch of the curve reaches the same box
-		// with a different bowl.
+		// and the same corners with a different bowl, so the edges' bulges are compared as well.
 		const typed = normalised(outlineOn(designer.readSidecar(assetId), BOWL));
 		expect(typed.length).toBe(dragged.length);
 		typed.forEach(([x, y], index) => {
 			expect(Math.abs(x - dragged[index][0])).toBeLessThan(1);
 			expect(Math.abs(y - dragged[index][1])).toBeLessThan(1);
 		});
+		expect(draggedBulges.some((bulge) => bulge !== 0)).toBe(true);
+		bulges().forEach((bulge, index) => expect(Math.abs(bulge - (draggedBulges[index] ?? 0))).toBeLessThan(0.01));
 	});
 	// Step 108.
 	desktop('rests only the overall pair while the footprint draws under 240 px, and every label under All dimensions', async ({

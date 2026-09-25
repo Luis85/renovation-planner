@@ -1712,6 +1712,39 @@ Taken by the user in one batched round, every one as recommended:
 | Two arcs meeting at a zero-angle cusp on nearly identical circles, after the `arcArc` fix | before the fix, more of both errors | **Accepted and recorded.** Measured against exact arithmetic, a few true crossings in this class are accepted and a few valid cusps refused, both fewer than before. No preset, C04 transform or edit produces the class, only a hand-edited sidecar; `arcArc`'s docblock states it as a known limit |
 | A typed size on a curved part that lands exactly on the typed axis while its OTHER axis moves (the toilet typed to Width 50: Depth 700 to 535) | no warning; the other axis's label shows its new size | **Kept.** AD18-R24's warning is about the typed value missing, and here it landed |
 
+**AD18-R24 and AD18-R25 delivered 2026-09-25.** Session nineteen checked every item the follow-up round had
+recorded instead of fixing, at source, before asking anything. **Two of the hand-off's premises were false**:
+the CSS clone was introduced by this branch, and the tree's "validity island" was `arcArc` refusing valid circles
+everywhere in the product. The user took three rulings in one batched round (AD18-R24), then three more after the
+reviews (AD18-R25), all as recommended. Seven tasks ran subagent-driven (Tasks 1–6 and 9, Task 9 added mid-round
+under AD18-R25), the integrator wrote this note and the hand-off, and at most two implementers ran on disjoint
+files at once except for one short overlap, each staging by explicit path. Every task was independently reviewed.
+Every UI task was measured by the integrator in pinned Chromium with real input, from a detached worktree at the
+committed sha, because a parallel task's temporary instrumentation had blanked the shared tree's harness page.
+
+**What the measurements showed:**
+- Set dimensions 2987 × 2987 on the tree was refused before Task 1 and lands exactly after it.
+- The typed-size warning fires from the inspector, the canvas label and Set dimensions, in English and German.
+- Reachable sizes and drags stay silent.
+- The chevron's computed styles were byte-identical before and after.
+- The `&writable` Group, Undo, Redo and Ctrl+Z all still work.
+
+**Three task briefs carried false premises, and each implementer proved it.**
+- **Task 1:** the candidate `arcArc` patch left the shrub refused.
+- **Task 5:** the Shift corner case cannot discriminate, because a Shift corner drag is a uniform scale.
+- **Task 9:** the "70 moves" figure came from a different grid.
+
+**Four tasks needed a fix round.**
+- **Task 1's review** found the held retry unreached (now deleted) and a residual cusp class (accepted).
+- **Task 2's review** found its depth arm untested.
+
+A whole-round review (Opus) found one Important issue, a walk step that could not fail as written, plus five
+Minors worth fixing before the walk. All six were fixed in one wave (12f36cf40).
+
+**CI GREEN on `12f36cf40`, run `36131335760`**, `verify` ×4 plus `audit`, read by run id. Every run this session
+was green on its first attempt. The manual pass grew from 232 to **241 steps**. The integrator and an independent
+reviewer each re-derived that count, and the reviewer checked every new expectation against source.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

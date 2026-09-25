@@ -1,6 +1,7 @@
 import { expect } from 'vitest';
 import type { NativeBrowser } from './session';
 import type { DesignerPage, Sidecar } from './designer';
+import { createCanvasPage } from './designerCanvas';
 
 export interface ScreenBox { x: number; y: number; width: number; height: number }
 export interface Extent { minX: number; maxX: number; minY: number; maxY: number; width: number; depth: number }
@@ -40,19 +41,9 @@ export function normalised(points: readonly number[][]): number[][] {
  */
 export function createFollowupsPage(browser: NativeBrowser, designer: DesignerPage) {
 	/** Every Konva node named `name` on the ACTIVE designer's stage, as a viewport box around its centre. */
-	const nodes = (name: string): Promise<ScreenBox[]> =>
-		browser.execute((wanted) => {
-			type Node = { getClientRect(): { x: number; y: number; width: number; height: number } };
-			const konva = (window as unknown as { Konva: { stages: { find(sel: string): Node[]; container(): HTMLElement }[] } }).Konva;
-			const host = document.querySelector('.workspace-leaf.mod-active .workspace-leaf-content[data-type="renovation-asset-designer"]');
-			const stage = konva.stages.find((candidate) => host?.contains(candidate.container()));
-			if (!stage) return [];
-			const c = stage.container().getBoundingClientRect();
-			return stage.find(`.${wanted}`).map((node) => {
-				const r = node.getClientRect();
-				return { x: c.left + r.x + r.width / 2, y: c.top + r.y + r.height / 2, width: r.width, height: r.height };
-			});
-		}, name);
+	const konvaPage = createCanvasPage(browser, designer);
+	const nodes = async (name: string): Promise<ScreenBox[]> =>
+		(await konvaPage.shapeBoxes(name)).map((box) => ({ x: box.left + box.width / 2, y: box.top + box.height / 2, width: box.width, height: box.height }));
 
 	/** Box handle `index`, clockwise from the top-left (`boxHandlePoint`'s order): 1 top-middle, 3 right-middle, 4 bottom-right. */
 	const handle = async (index: number): Promise<ScreenBox> => {

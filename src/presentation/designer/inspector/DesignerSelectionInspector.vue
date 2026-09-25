@@ -54,6 +54,7 @@ import { duplicateAndSelect } from '../designerKeys';
 import type { EditShape } from '../selection/editShape';
 import { selectionExists, type DesignerSelection } from '../selection/designerSelection';
 import { partMeasure, resizeToExtent, withPartBox, type PartBox } from '../selection/partExtent';
+import { landTyped, type TypedSize } from '../selection/typedLanding';
 import DesignerFieldLine from './DesignerFieldLine.vue';
 import DesignerDetailFields from './DesignerDetailFields.vue';
 import DesignerSelectionFolds from './DesignerSelectionFolds.vue';
@@ -79,6 +80,8 @@ interface NumberField {
 	readonly unit?: 'mm' | '°';
 	readonly value: number;
 	readonly edit: (value: number) => Edit;
+	/** A Width or Depth: what `landTyped` checks the landed size against, so a size that misses says so (AD18-R24). */
+	readonly typed?: (value: number) => TypedSize;
 	readonly resets?: true;
 	/** A one-line description drawn under the field and linked by `aria-describedby`; only the facing's angle has one. */
 	readonly hint?: StringKey;
@@ -168,8 +171,8 @@ function sizeLine(part: OutlinePart): FieldLine {
 		name: 'size',
 		pair: 'designer.selection.fields.size',
 		fields: [
-			{ name: 'width', label: 'designer.preset.field.width', short: 'designer.preset.field.width.short', unit: 'mm', value: width, edit: (value) => (current) => resizeToExtent(current, part, 'width', value) },
-			{ name: 'depth', label: 'designer.preset.field.depth', short: 'designer.preset.field.depth.short', unit: 'mm', value: depth, edit: (value) => (current) => resizeToExtent(current, part, 'depth', value) },
+			{ name: 'width', label: 'designer.preset.field.width', short: 'designer.preset.field.width.short', unit: 'mm', value: width, edit: (value) => (current) => resizeToExtent(current, part, 'width', value), typed: (value) => ({ part, width: value }) },
+			{ name: 'depth', label: 'designer.preset.field.depth', short: 'designer.preset.field.depth.short', unit: 'mm', value: depth, edit: (value) => (current) => resizeToExtent(current, part, 'depth', value), typed: (value) => ({ part, depth: value }) },
 		],
 	};
 }
@@ -336,7 +339,9 @@ async function onNumber(field: NumberField, event: Event): Promise<void> {
 	const input = event.target as HTMLInputElement;
 	const value = input.valueAsNumber;
 	if (!Number.isFinite(value)) return;
-	if ((await commit(field.edit(value))) && field.resets === true) input.value = '0';
+	const edit = field.edit(value);
+	const written = field.typed === undefined ? props.editShape(edit) : landTyped(props.editShape, field.typed(value), edit);
+	if ((await show(written)) && field.resets === true) input.value = '0';
 }
 </script>
 

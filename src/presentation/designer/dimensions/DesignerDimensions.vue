@@ -84,6 +84,7 @@ import { useDesignerRuntime } from '../runtime';
 import { dimensionFigures, outsideAnchor, restingFigures, separateLabels, spreadLabels, type DimensionFigure, type LabelAnchor } from './dimensionFigures';
 import { selectionHandles } from '../selection/handles';
 import { drawnSelection } from '../selection/hitTest';
+import { landTyped } from '../selection/typedLanding';
 import { dimensionLine, type DimensionLine } from './dimensionLines';
 
 const editor = useEditorStore();
@@ -291,7 +292,8 @@ async function submit(figure: PlacedFigure, text: string): Promise<void> {
 		refusal.value = tr('designer.dimension.unavailable');
 		return;
 	}
-	const result = await editShape(figure.edit(typed));
+	const edit = figure.edit(typed);
+	const result = await (figure.typed === undefined ? editShape(edit) : landTyped(editShape, figure.typed(typed), edit));
 	if (!result.ok) {
 		refusal.value = trError(result.error);
 		return;

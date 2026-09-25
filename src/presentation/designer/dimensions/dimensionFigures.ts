@@ -42,6 +42,7 @@ import { screenPoint, type ScreenPoint, type StageSize } from '../../editor/view
 import type { StringKey } from '../../i18n/locales/en';
 import type { DesignerSelection } from '../selection/designerSelection';
 import { partMeasure, resizeToExtent, type PartBox } from '../selection/partExtent';
+import type { TypedSize } from '../selection/typedLanding';
 
 const FOOTPRINT: OutlinePart = { kind: 'footprint' };
 const CLEARANCE: OutlinePart = { kind: 'clearance' };
@@ -71,6 +72,8 @@ export interface DimensionFigure {
 	 * `no-write` and therefore dispatches nothing and pushes no undo entry. See `unchanged`.
 	 */
 	readonly edit: (typed: number) => (shape: AssetShape) => Result<AssetShape, ValidationError> | null;
+	/** A size figure's typed extent, which `landTyped` checks the landed size against (AD18-R24); a gap has none. */
+	readonly typed?: (typed: number) => TypedSize;
 }
 
 /**
@@ -155,6 +158,7 @@ function sizeFigures(part: OutlinePart, box: Corners, key: string, labels: reado
 			to: { x: box.max.x, y: box.min.y },
 			value: box.max.x - box.min.x,
 			edit: (typed) => (shape) => resized(shape, part, 'width', typed),
+			typed: (typed) => ({ part, width: typed }),
 		},
 		{
 			name: `${key}-depth`,
@@ -166,6 +170,7 @@ function sizeFigures(part: OutlinePart, box: Corners, key: string, labels: reado
 			to: { x: box.min.x, y: box.max.y },
 			value: box.max.y - box.min.y,
 			edit: (typed) => (shape) => resized(shape, part, 'depth', typed),
+			typed: (typed) => ({ part, depth: typed }),
 		},
 	];
 }

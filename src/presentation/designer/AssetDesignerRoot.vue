@@ -37,7 +37,7 @@ import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import DialogHost from '../dialogs/DialogHost.vue';
 import { useDialogStore } from '../dialogs/dialog-store';
 import type { AssetShape } from '../../domain/asset/AssetShape';
-import { scaleDesignToDimensions } from '../../domain/asset/shapeEdits';
+import { landDimensions } from './selection/typedLanding';
 import { notifyIfRefused } from '../editor/report-failure';
 import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
@@ -406,7 +406,7 @@ async function editDimensions(): Promise<void> {
 		await runtime.setFootprintFromDimensions(result.width, result.depth);
 		return;
 	}
-	await notifyIfRefused(runtime.editShape((shape) => scaleDesignToDimensions(shape, result.width, result.depth)));
+	await notifyIfRefused(landDimensions(runtime.editShape, result.width, result.depth));
 }
 
 /**

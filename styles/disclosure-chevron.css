@@ -1,0 +1,47 @@
+/*
+ * The disclosure chevron, shared by `.rp-designer-collapsible` (`designer-selection.css`'s
+ * set-transform and Repeat folds, AD18-R16 Task 6) and `.rp-project-list__completed`
+ * (`project-list.css`'s completed-projects group, home surface design spec P00). The designer
+ * copy arrived by copying this rule (84aad8e38) and `npx fallow dupes` flagged the two as
+ * `dup:893211b2` — this is the one shared rule both callers now wear, with both copies removed
+ * (AD18 second follow-up round, Task 3).
+ *
+ * The NATIVE `<details>`/`<summary>` semantics are untouched in either caller — the open/closed
+ * state is still announced by the host rather than reimplemented with ARIA. What changes is only
+ * the marker: the UA triangle is removed and a `::before` chevron drawn in its place, rotated a
+ * quarter turn when the element is open. `list-style: none`, on each caller's own `> summary`
+ * rule (unchanged by this file), is what removes the triangle in Firefox, and
+ * `::-webkit-details-marker` below is what removes it in Chromium, the browser this plugin
+ * actually ships into; both are needed because a marker left behind beside the drawn one is two
+ * disclosure indicators disagreeing.
+ *
+ * The chevron is CSS rather than a `HostIcon`, because a `<summary>` may not contain the heading
+ * AND an icon without the icon becoming part of the summary's own announced content — and
+ * `aria-hidden` on a child of the element whose name is being computed is not reliable across
+ * screen readers. A border-drawn glyph is announced by nothing at all.
+ *
+ * This file's IMPORT POSITION in `index.css` is not load-bearing: neither selector below is
+ * named by any other rule in the sheet (grepped across `styles/`), so nothing else in the
+ * cascade competes with either at equal or higher specificity regardless of where it sits.
+ */
+.rp-designer-collapsible > summary::-webkit-details-marker,
+.rp-project-list__completed > summary::-webkit-details-marker {
+	display: none;
+}
+
+.rp-designer-collapsible > summary::before,
+.rp-project-list__completed > summary::before {
+	flex: 0 0 auto;
+	width: 6px;
+	height: 6px;
+	border-top: var(--border-width) solid var(--text-muted);
+	border-right: var(--border-width) solid var(--text-muted);
+	transform: rotate(45deg);
+	transition: transform 120ms ease;
+	content: "";
+}
+
+.rp-designer-collapsible[open] > summary::before,
+.rp-project-list__completed[open] > summary::before {
+	transform: rotate(135deg);
+}

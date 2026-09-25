@@ -72,6 +72,12 @@
 @import "./project-entry.css";
 @import "./resume-recovery.css";
 @import "./visually-hidden.css";
+/*
+ * A second shared utility, beside `visually-hidden.css`: neither selector below is named by
+ * any other rule in the sheet, so this position is not load-bearing (`disclosure-chevron.css`'s
+ * own header states the grep).
+ */
+@import "./disclosure-chevron.css";
 @import "./asset-prices.css";
 @import "./project-prices.css";
 @import "./designer.css";

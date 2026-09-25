@@ -341,10 +341,8 @@
  * The set-transform fold and the Repeat form's own fold (AD18-R16 Task 6): both are bare
  * `<details>`/`<summary>` — `GroupControls.vue`'s shape for a disclosure inline in a panel, not
  * `DesignerViewMenu`'s `.rp-view-menu`, which is a floating popover with Escape dismissal that
- * nothing here needs. The chevron is `.rp-project-list__completed`'s own border-drawn, rotating
- * glyph rather than a `HostIcon`, for that file's stated reason: a `<summary>` may not carry the
- * heading AND an icon without the icon joining the summary's own accessible name, and a
- * border-drawn glyph is announced by nothing at all.
+ * nothing here needs. The chevron itself is `disclosure-chevron.css`'s shared rule (AD18 second
+ * follow-up round, Task 3), not restated here.
  *
  * **`min-height`/`padding-inline` are the SAME precedent's, not a fresh measurement** (review
  * round: the first version of this rule shipped without them and measured 17px tall, under WCAG
@@ -372,25 +370,6 @@
  */
 .rp-designer-collapsible > summary .rp-designer-panel-title {
 	margin: 0;
-}
-
-.rp-designer-collapsible > summary::-webkit-details-marker {
-	display: none;
-}
-
-.rp-designer-collapsible > summary::before {
-	flex: 0 0 auto;
-	width: 6px;
-	height: 6px;
-	border-top: var(--border-width) solid var(--text-muted);
-	border-right: var(--border-width) solid var(--text-muted);
-	transform: rotate(45deg);
-	transition: transform 120ms ease;
-	content: "";
-}
-
-.rp-designer-collapsible[open] > summary::before {
-	transform: rotate(135deg);
 }
 
 .rp-designer-collapsible > summary:focus-visible {

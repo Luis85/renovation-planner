@@ -1,5 +1,6 @@
 import { expect } from 'vitest';
 import type { DesignerPage } from './designer';
+import { createCanvasPage } from './designerCanvas';
 import type { NativeBrowser } from './session';
 
 interface Rect { x: number; y: number; width: number; height: number }
@@ -39,23 +40,9 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 	};
 
 	/** Client rects of every Konva shape of this `name` on the active designer's stage. */
-	const marks = (name: string): Promise<Rect[]> =>
-		browser.execute(
-			(root, wanted) => {
-				const konva = (window as unknown as { Konva: { stages: { find(sel: string): { name(): string; getClientRect(): Rect }[]; container(): HTMLElement }[] } }).Konva;
-				const host = document.querySelector(root);
-				const stage = konva.stages.find((candidate) => host?.contains(candidate.container()));
-				if (!stage) return [];
-				const c = stage.container().getBoundingClientRect();
-				return stage
-					.find('Shape')
-					.filter((shape) => shape.name() === wanted)
-					.map((shape) => shape.getClientRect())
-					.map((r) => ({ x: c.left + r.x, y: c.top + r.y, width: r.width, height: r.height }));
-			},
-			ACTIVE,
-			name,
-		);
+	const canvas = createCanvasPage(browser, designer);
+	const marks = async (name: string): Promise<Rect[]> =>
+		(await canvas.shapeBoxes(name)).map((box) => ({ x: box.left, y: box.top, width: box.width, height: box.height }));
 
 	/**
 	 * The centre of one of the selection's box handles, found by where it is DRAWN: the
@@ -81,13 +68,7 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 			return { x: layer.x(), y: layer.y(), scale: layer.scaleX(), centre: { x: stage.width() / 2, y: stage.height() / 2 } };
 		}, ACTIVE);
 
-	/** A point of the active canvas, as fractions of its box, in viewport pixels. */
-	const canvasPoint = async (fx: number, fy: number): Promise<{ x: number; y: number }> => {
-		const canvas = designer.designer().$('.rp-plan-canvas');
-		const size = await canvas.getSize();
-		const at = await canvas.getLocation();
-		return { x: Math.round(at.x + size.width * fx), y: Math.round(at.y + size.height * fy) };
-	};
+	const { canvasPoint } = designer;
 
 	/** A drag from one point to another in ONE action chain, optionally with Shift held. */
 	const dragBetween = async (from: { x: number; y: number }, to: { x: number; y: number }, shift = false): Promise<void> => {

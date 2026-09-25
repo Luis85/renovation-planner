@@ -75,13 +75,7 @@ export function createClearancePage(browser: NativeBrowser, designer: DesignerPa
 	const tool = (label: string) => leafEl().$(`.rp-designer-tools [aria-label="${label}"]`);
 	const toolActive = async (label: string): Promise<boolean> => (await tool(label).getAttribute('aria-pressed')) === 'true';
 
-	/** A viewport point at a fraction of the active designer's canvas. */
-	const canvasPoint = async (fx: number, fy: number): Promise<{ x: number; y: number }> => {
-		const canvas = leafEl().$('.rp-plan-canvas');
-		const size = await canvas.getSize();
-		const at = await canvas.getLocation();
-		return { x: Math.round(at.x + size.width * fx), y: Math.round(at.y + size.height * fy) };
-	};
+	const { canvasPoint } = designer;
 	const clickAt = async (point: { x: number; y: number }, button: 0 | 2 = 0): Promise<void> => {
 		await browser.action('pointer').move({ ...point, origin: 'viewport' }).down({ button }).up({ button }).perform();
 	};

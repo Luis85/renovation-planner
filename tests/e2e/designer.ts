@@ -136,17 +136,13 @@ export function createDesignerPage(browser: NativeBrowser, page: ObsidianPage, u
 	 * before `release` is the conflict window the two-leaf case exists for. `perform(true)` keeps
 	 * the button down across action batches.
 	 */
-	const press = async (id: string, dx: number, dy = 0, leafIndex = 0): Promise<void> => {
-		const from = await partCentre(id, leafIndex);
-		if (!from) throw new Error(`No drawn part ${id}.`);
-		await browser
-			.action('pointer')
-			.move({ x: Math.round(from.x), y: Math.round(from.y), origin: 'viewport' })
-			.down()
-			.move({ x: Math.round(from.x) + dx, y: Math.round(from.y) + dy, duration: 150, origin: 'viewport' })
-			.perform(true);
+	/** A viewport point at a fraction of the active designer's canvas. */
+	const canvasPoint = async (fx: number, fy: number): Promise<{ x: number; y: number }> => {
+		const canvas = designer().$('.rp-plan-canvas');
+		const size = await canvas.getSize();
+		const at = await canvas.getLocation();
+		return { x: Math.round(at.x + size.width * fx), y: Math.round(at.y + size.height * fy) };
 	};
-	const release = () => browser.action('pointer').up().perform();
 
 	/**
 	 * One key press that leaves every other input source where it is. `browser.keys` ends with
@@ -228,13 +224,6 @@ export function createDesignerPage(browser: NativeBrowser, page: ObsidianPage, u
 		await nudge();
 		await expect.poll(() => readSidecar(assetId).revision).toBe(revision);
 	};
-
-	/** A pointer drag of a part by a screen offset — the one gesture that captures its version at the PRESS. */
-	const drag = async (id: string, dx: number, dy = 0, leafIndex = 0): Promise<void> => {
-		await press(id, dx, dy, leafIndex);
-		await release();
-	};
-
 
 	/** One click on the middle of the active Plan Editor's canvas — where a placement lands. */
 	const clickPlanCentre = async (): Promise<{ x: number; y: number }> => {
@@ -373,9 +362,7 @@ export function createDesignerPage(browser: NativeBrowser, page: ObsidianPage, u
 		nudgeTo,
 		undoUntilSuperseded,
 		partCentre,
-		drag,
-		press,
-		release,
+		canvasPoint,
 		focusCanvas,
 		keyPress,
 		armPeerNudge,

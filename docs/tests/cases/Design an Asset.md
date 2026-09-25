@@ -403,6 +403,120 @@ by selection" for step 127.
 | 115 | Ctrl+Y redoes | same case; Ctrl+Shift+Z is not pressed |
 | 119 | Ctrl+Z inside an open dialog undoes nothing and the dialog stays | same case — Edit dimensions open, revision unchanged |
 
+### Steps 1 to 71b, added later on 2026-09-25 (W24-A)
+
+`tests/e2e/assetDesignerBasics.e2e.ts`, `assetDesignerBasicsPlan.e2e.ts` (the steps that need a Plan
+Editor), `assetDesignerDimensions.e2e.ts` and `assetDesignerDimensionsRulers.e2e.ts`, over
+`tests/e2e/designerCanvas.ts`. MUTATION-STATUS-BASICS
+
+| Step | Clause | Discharged by |
+| --- | --- | --- |
+| 1 | prefixed "Information" | *prefixes the empty-catalogue notice with Information and clears it after about six seconds* |
+| 1 | clears on its own after about six seconds | same case — gone between 4.5 s and 9 s |
+| 7 | right way up, with its scale bar readable | none — `judgement` (a picture) |
+| 15 | a confirmation about rescaling appears first | *asks before rescaling a pending trace, with a destructive-styled rightmost button* |
+| 15 | the rightmost button is destructive-styled | same case — the rightmost is Confirm, resolving `--background-modifier-error`; Cancel's colour differs |
+| 21 | a typed Width and Depth draw a rectangle with no trace | *draws a typed width and depth as a measured rectangle before anything is traced* — outline at 3:2, sidecar 600 × 400, labels "600 mm"/"400 mm" |
+| 23 | the toolbar wraps onto more rows at about 460px, every tool icon-only | *wraps the icon-only toolbar at a 460 px leaf and keeps Calibrate reachable by name* |
+| 23 | Calibrate reachable by icon and accessible name | same case — no button overflows the leaf; Calibrate clicks and presses |
+| 24a | reopened, the camera frames the whole symbol, as Fit would | *reopens a closed designer framed on the whole symbol rather than at the last camera* |
+| 27 | tank against the wall, bowl into the room, details drawn on the plan | none — needs a wall or a room drawn in the Plan Editor, which no page object here draws yet |
+| 29d | the Line select has the text inputs' themed chrome | *draws the Line dropdown in the same host chrome as the Inspector's text field* — height, border, radius, background and colour equal the `detail-name` input's |
+| 32a | a second gesture during a slow write builds on the first; no Save error | *lands a second drag and an arrow key begun during a resize write on top of it, with no save error* — vault writes slowed to 1.5 s, three writes land |
+| 32b | nothing changes on screen until the first write lands, then the part jumps to the held drag | *shows no preview of a drag held behind a slow write, then jumps to it once the write lands* — **finding**: see Runs on window focus |
+| 34 | the copy sits 100 mm right and down, drawn above the original | *duplicates the tank 100 mm right and down, one place above it in the drawing order* |
+| 44 | the item redraws as a placement with exactly its outline, and offers Open in designer | *promotes a Cabinet item into a placement with its exact outline and opens it measured in the designer* |
+| 45 | a designer opens on Cabinet with its footprint, no details, no unscaled warning | same case |
+| 49 | the second designer opens with the grid shown and Snap unticked; the Plan Editor's View menu unchanged | *remembers the designer's grid and snap choice for the next asset and leaves the Plan Editor's alone* |
+| 51 | grid lines visible over the drawing, not behind it | *paints the shown grid above the calibrated spec sheet* — the hit test at the stage centre returns the grid |
+| 52 | an L keeps its six corners and its notch at the new size | *keeps an L-shaped footprint's six corners and its notch through Edit dimensions* |
+| 53 | a ticked, numbered ruler along the top and left edges, inside the canvas | *draws a ticked, numbered ruler along the top and left edges, inside the canvas* |
+| 54 | numbers follow the camera, spacing steps through 1/5/10/50/100/500, ticks the same size on screen | *reads the millimetres under the marks through a pan and both zoom directions, in the step series* |
+| 55 | the band follows the drag live and arrives where the part lands | *moves the selection's extent band on the ruler live with the drag, before it lands* |
+| 56 | drawing room at a sidebar width | none — `judgement` |
+| 57 | the card draws a cabinet outline, a basin and a tap hole, under Bathroom | *offers the vanity under Bathroom with a wireframe card and lands it at 800 × 450, taking 1000 × 500 too* |
+| 57 | legible at thumbnail size, recognisably not the Washbasin | none — `judgement` |
+| 58 | 800 × 450 by default; 1000 × 500 accepted | same case as 57 |
+| 58 | the canvas matches the thumbnail | none — `judgement` |
+| 59 | two buttons reading "380 mm"/"700 mm" over double-arrowed lines with extension lines | *draws the overall pair as buttons over double-arrowed lines with extension lines, nothing selected* |
+| 59a | outside the footprint where there is room, on its edge where there is not | *stands the overall pair outside the footprint where there is room, and on its edge where there is not* |
+| 60 | six more numbers with the same decoration; the overall pair stays | *adds the selected part's size and four signed offsets beside the overall pair* — after four zoom steps: at the default window the fitted toilet is under the 240px floor, so only the overall pair draws |
+| 61 | an overhanging part reads a negative offset | same case — "-2 mm" |
+| 62 | the field opens focused, the number selected | *opens a number as a focused, selected field and closes it on Escape with focus on its button* |
+| 63 | the same number writes nothing and Undo steps over it | *writes nothing and records no undo for the number already shown, and resizes for a new one* |
+| 64 | a rounded display applied untouched writes nothing | *writes nothing when a field showing a rounded number is applied untouched* |
+| 65 | a different number resizes the part and the canvas redraws | same case as 63 |
+| 66 | Escape closes, writes nothing, returns focus to the button | same case as 62 |
+| 67 | every number disappears under a draw tool and returns on Select | *withdraws every number while a draw tool is active and brings them back on Select* |
+| 68 | numbers change live with the drag and agree with the landing | *changes the numbers while a part is dragged, before it lands* |
+| 69 | All dimensions measures every part; unticked, back to the selection's, the selection kept | *measures every part under All dimensions and goes back to the selection's, keeping the selection* |
+| 70 | whether every number is readable and clickable | none — `judgement` |
+| 71 | no numbers on an unscaled footprint, and no field can open | *draws no number over a footprint traced before any scale existed* |
+| 71a | no two resting labels overlap at four leaf widths | *keeps every resting label clear of every other at four leaf widths, a detail selected* — leaves 900/760/580/460, at fit and four zoom steps |
+| 71b | a label over the canvas key paints above it and is clickable | *paints a resting label that lands on the canvas key above it, where a click still reaches it* |
+
+### Steps 72 to 104, added later on 2026-09-25 (W24-A)
+
+`tests/e2e/assetDesignerParity.e2e.ts`, `assetDesignerParityMenu.e2e.ts` and
+`assetDesignerParityRadius.e2e.ts`, over `tests/e2e/designerParity.ts`. **Every case was watched
+red** against a one-clause mutation per clause (W24-A's report lists all 42). Obsidian's default
+window gives the designer a 679px leaf, so the cases size the leaf through `@electron/remote` where
+a row names a width.
+
+| Step | Clause | Discharged by |
+| --- | --- | --- |
+| 72 | reads "Back to library" with an arrow-left icon before the words | *labels the library door and zooms in 25% steps about the centre, with Fit returning the opening camera* |
+| 73 | below a sidebar width only the icon shows; the label is clipped, not removed; the name stays | *draws the Add rail as labelled tiles and clips the library label at a sidebar width* |
+| 74 | preset door, "Basic shapes", four tiles with icon above label, a two-column grid | same case — two columns at an 1100px leaf; the default 679px leaf is already one column |
+| 75 | each tile's accessible name differs from its label | same case |
+| 76 | the grid drops to one column when the rail narrows | same case — below 35rem the rail stacks full width and is two columns again, so "very narrow" is a band between breakpoints |
+| 77 | a named Zoom group after Undo/Redo, before View: magnifiers, readout, Fit | *labels the library door…* |
+| 78 | 25% steps about the canvas centre | same case — the world point under the centre is unchanged |
+| 79 | Fit returns exactly the opening camera; the readout follows | same case |
+| 80 | the status bar states no percentage | same case |
+| 81 | five rows in order with swatches; "Clearance (300 mm)"; the placement parenthetical; the scale bar | *lists the legend rows the design has, keeps the scale bar outside the toggle, and forgets the toggle on reopen* — on an 800 × 600 box: the toilet preset reads a bare "Clearance", because `uniformSetback` refuses a non-rectangular footprint |
+| 82 | Asset Z: Footprint, Placement point, Front direction only; scale bar drawn | same case |
+| 83 | unticking Legend hides it; the scale bar stays | same case |
+| 84 | reopened: Legend ticked and showing | same case |
+| 85 | below a sidebar width the legend hides, the scale bar stays, no wider than the canvas | same case |
+| 85a | the Clearance row follows the drag's preview before the release | *reads the Clearance row from the drag's preview, before the release writes anything* |
+| 86 | Height directly after Dimensions, before Edit dimensions | *orders Height beside Dimensions and draws the asset card with a visible thumbnail, or none for a shapeless asset* |
+| 87 | thumbnail above "Asset", outline visible, the real category chip, no asset name | same case |
+| 87 | "reads as clearly visible" | none — `judgement` |
+| 88 | Asset W: no thumbnail; the chip shown | same case |
+| 88a | "Saved just now" after an edit | *reads Saved just now after an edit, in no live region, and names the day once the clock passes midnight* |
+| 88b | the header is not a live region | same case |
+| 88b | the screen reader announces nothing | none — screen reader |
+| 88c | after midnight: "Saved {date} at {time}" | same case — the renderer's clock moved 25 h forward |
+| 89 | Group, Ungroup, one separator, Duplicate, Delete, each with its shortcut | *opens one menu from the canvas, a Parts row and Shift+F10, and withholds it over every non-graphic* |
+| 89 | Cmd+G on macOS | none — a Windows run |
+| 90 | the Parts row's right-click opens the identical menu | same case |
+| 90a | Ctrl+G, then Ctrl+Shift+G, on a focused Parts row: group, then ungroup | *binds the chords on a Parts row, never inside its Label field, and refocuses the canvas after a row Delete* — **only once Obsidian's `graph:open` binding is removed**, see Runs |
+| 90b | inside the Label field nothing groups and the field keeps accepting text | same case — the second half holds only with the binding removed; with it, the graph view opens and takes focus |
+| 91 | only the right-clicked, unselected graphic is deleted | *loses a canvas Ctrl+G to Obsidian's graph hotkey, groups once that is unbound, and deletes the right-clicked part alone* |
+| 92 | footprint, anchor and facing never open the designer's menu | *opens one menu…* |
+| 92 | Obsidian's own native menu opens, or nothing | none — Electron's native menu is not in the DOM |
+| 93 | a dimension number and its open field: no designer menu | *opens one menu…* |
+| 94 | the row menu's Delete removes the part; focus lands on the canvas | *binds the chords…* |
+| 95 | canvas Ctrl+G groups; Ctrl+Shift+G ungroups | *loses a canvas Ctrl+G…* — **Ctrl+G fails with the default binding** (pinned) and groups once it is removed; Ctrl+Shift+G works |
+| 95a | whether Obsidian's graph hotkey also fires | same case — pinned: it fires INSTEAD, the chord arrives `defaultPrevented` at window capture and never bubbles |
+| 96 | a single part and Ctrl+G: nothing in the designer, the key reaches Obsidian | same case — the graph view opens |
+| 96 | the "cleared selection" variant | none — not driven |
+| 96a | Escape closes the row menu with focus on the row; the next Ctrl+G reaches Obsidian | *binds the chords…* |
+| 97 | Shift+F10 opens the same menu | *opens one menu…* |
+| 97 | the ContextMenu key | none — WebDriver has no key code for it |
+| 98 | a Corner radius row with its label, "mm" and a slider | *draws a Corner radius row with a slider that commits once, types and undoes a radius, and refuses the half* |
+| 98a | a real thumb drag lands a whole-mm radius as ONE write and ONE undo entry | same case |
+| 99 | a typed radius rebuilds; Undo restores it in one step | same case |
+| 100 | retyping the same value writes nothing and leaves the redo stack | same case |
+| 101 | exactly half the shorter side is refused with its own message | same case |
+| 102 | through the asset's Edit dimensions the row is kept | *keeps the Corner radius row through a typed resize, a handle drag and a Shift handle drag* — **pins the OPPOSITE**, see Runs |
+| 102 | through the part's typed Width: rebuilt, radius clamped, one Undo restores W, D and radius | same case |
+| 102a | a canvas handle drag keeps the row and the radius | same case |
+| 102a | the corners round "through the whole drag" | none — the field shows the committed shape |
+| 102b | with Shift the radius scales with the box | same case — width, depth and radius all by one factor |
+| 103, 104 | reads like board 01; icons read on sight | none — `judgement` |
+
 ## Runs
 
 | Date | Build | Outcome |

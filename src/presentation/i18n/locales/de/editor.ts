@@ -45,6 +45,7 @@ import { designerSelectionLayoutDe } from './designerSelectionLayout';
 import { designerPlacementSourceDe } from './designerPlacementSource';
 import { designerClearanceHelperDe } from './designerClearanceHelper';
 import { saveStateRelativeDe } from './saveStateRelative';
+import { designerTypedLandingDe } from './designerTypedLanding';
 export const editorDe: Record<keyof typeof editorEn, string> = {
 	...curvesDe,
 	...assetSymbolsDe,
@@ -59,6 +60,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	...designerLegendDe,
 	...saveStateRelativeDe,
 	...designerClearanceHelperDe,
+	...designerTypedLandingDe,
 	...designerPlacementSourceDe,
 	...designerSelectionLayoutDe,
 	...designerAddDe,

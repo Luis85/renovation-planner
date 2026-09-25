@@ -1654,6 +1654,54 @@ except the harness bundle copy, which is recorded. **CI GREEN on `79239ba33`, ru
 `audit`, read by run id. The manual pass grew from 215 to **232 steps**, re-derived by the integrator and by an
 independent reviewer, who checked every new expectation against source and had two fixed.
 
+### AD18-R24 — a second follow-up round: the follow-up round's recorded items, triaged at source. (2026-09-25)
+
+Session nineteen checked every item the follow-up round (AD18-R23) recorded instead of fixing, at the code,
+before asking anything. **Two premises in the hand-off were false.** The CSS clone did not predate the branch:
+84aad8e38 (AD18-R16 Task 6) copied `project-list.css`'s 2026-09-09 chevron. And the tree's "validity island" is
+not specific to the tree and not about scale near 1.5: it is a false refusal in core geometry (below). **Taken by
+the user** in one batched round, every one as recommended:
+
+| Item | Shipped before | Ruled |
+|---|---|---|
+| Ctrl+Z while a `<select>` or a range slider has focus, in both editors | does nothing: `editorHistoryShortcut`'s `EDITING` (`historyShortcut.ts`) leaves both to the browser, and neither has native undo | **Kept as is**, recorded as known behaviour. Narrowing the shared rule would hand Ctrl+Z to the canvas from every select and slider in the 23 components under `src/presentation/editor/` that draw one, draft forms among them, and from the designer's opacity slider, which is not an undoable edit, so it would undo an unrelated earlier edit |
+| A TYPED size a part cannot reach (the inspector's Width or Depth, a dimension label, `Set dimensions`) | lands on the nearest reachable size with no message; a hand-drawn quad typed to Width 67 lands at 202.5, where before AD18-R23 it was refused with a reason | **Lands as it does now, and a warning notice names the size that landed when it misses the typed value by more than 0.5 mm.** Drags stay silent, because the pointer is their feedback, so a drag and a typed size still land the same numbers (AD18-R23 row 3). New copy goes in a new locale module pair |
+| fallow's 12-line clone between `designer-selection.css` and `project-list.css` (the disclosure chevron) | two copies; does not gate CI | **Deduplicated**: one shared rule for both summaries, and both copies removed. Not added to `duplicates.ignoredClones`, which the config reserves for deliberate pairs |
+
+**Defects, fixed without a ruling** because each breaks a rule that already stands:
+- **Core geometry refuses valid circles.** `arcArc` (`src/core/geometry/circularIntersections.ts`) finds a phantom
+  intersection about 1.1e-7 mm from the shared corner of two adjacent arcs that lie on nearly the same circle,
+  just past the 1e-7 mm `curveTolerance`, because the radical line's offset carries that much rounding. So
+  `invalidEdgeContact` (`CurvedPolygon.ts`) refuses a four-arc circle whose axes differ by a few parts per million.
+  The session's investigator measured: `Set dimensions` W = D on the default tree refused with "not a shape this
+  plugin can store" for 109 whole-millimetre sizes (for example 2987 × 2987), and rotating a stored 4500 × 4500
+  tree refused 769 times in 2,000. Every `circle()` outline reaches it (tree footprint and trunk, shrub,
+  round-table footprint and clearance), and so do zones and rooms. The recorded "1.4999944 refused, 1.50192
+  accepted" was one sample of this. C04 says translation, rotation and positive uniform scaling preserve an
+  arc, and validation refusing the result breaks that.
+- **`tests/helpers/designerComposition.ts` says it is "one definition rather than two copies"**, while
+  `tests/helpers/assetDesignHarness.ts` still builds the same nine-command bundle and a byte-identical
+  `SPEC_SHEETS`/`specSheetProbe` (the follow-up round's final review, N2). The claim has to be made true, not narrowed.
+- **A test that cannot fail.** The Shift **corner** case in
+  `tests/presentation/designer/selection/selectionDragClearance.test.ts` tells the solve from the plain scale by
+  about 5.7e-7 mm of solver noise (T5-M1). CLAUDE.md's Testing rules require a test that fails without the fix.
+- **The walk does not name a calibration's re-show.** AD18-R23's read-back rule re-shows a hidden PENDING clearance
+  that a calibration rescales (`CalibrateAsset.ts`), and after its undo. The manual pass names only `Set dimensions`
+  (step 36a of `Calibrate a sheet and reserve space`). The final review asked for both.
+
+**Recorded as already fine, so nobody reopens them:**
+- **A pointer resting in the canvas's 40 px edge band keeps growing a resize.** `edgeScroll.ts` scrolls on purpose
+  while a drawing pointer rests at the edge, and tells the active tool where the pointer now is in the world, so
+  the part follows the content under the pointer. That is edge autoscroll, in both editors. The walk already
+  says to keep drag steps clear of the band.
+- **`samePolygon` compares bulges with strict `===`.** Its docblock gives the reason (a stadium and the rectangle
+  through its corners share every point). Both sides of the runtime's comparison are read back from the sidecar,
+  and a JSON round trip of a double is exact, so a clearance nothing changed does not re-show.
+- **`restingLabels.test.ts` at 448 of 450 lines, and its synthetic-stage label-only case** (T2-b, T2-c). The arm
+  is reached and asserted both ways. The next case goes in a sibling file.
+- **The tree's 1.5 × 1.5 corner improvement has no preset assertion of its own** (T11-M11). The mechanism is pinned
+  by the fixture cases and the shrub hold.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

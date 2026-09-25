@@ -57,6 +57,7 @@ import { designerSelectionLayoutEn } from './designerSelectionLayout';
 import { designerPlacementSourceEn } from './designerPlacementSource';
 import { designerClearanceHelperEn } from './designerClearanceHelper';
 import { saveStateRelativeEn } from './saveStateRelative';
+import { designerTypedLandingEn } from './designerTypedLanding';
 export const editorEn = {
 	...curvesEn,
 	...assetSymbolsEn,
@@ -71,6 +72,7 @@ export const editorEn = {
 	...designerLegendEn,
 	...saveStateRelativeEn,
 	...designerClearanceHelperEn,
+	...designerTypedLandingEn,
 	...designerPlacementSourceEn,
 	...designerSelectionLayoutEn,
 	...designerAddEn,

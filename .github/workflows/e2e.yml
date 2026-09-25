@@ -1,0 +1,66 @@
+name: E2E
+
+# `npm run test:e2e` against a REAL Obsidian, which `npm run check` cannot launch. Its own
+# workflow rather than a CI step: it downloads Obsidian, needs a display, and answers a
+# different question — whether the host accepts what every fake in the suite accepted.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  e2e:
+    name: Obsidian ${{ matrix.version }} / ${{ matrix.ui }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 1.13.7 is the earliest PUBLIC build at `minAppVersion` (1.13.0 was Insiders-only).
+          - version: "1.13.7"
+            ui: desktop
+          - version: latest
+            ui: desktop
+          # Desktop Obsidian with mobile emulation — NOT a device test.
+          - version: "1.13.7"
+            ui: mobile-emulation
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Obsidian downloads
+        uses: actions/cache@v6
+        with:
+          path: node_modules/.cache/obsidian
+          key: obsidian-${{ matrix.version }}-${{ runner.os }}
+
+      - name: Install virtual display
+        run: sudo apt-get update -q && sudo apt-get install -y xvfb herbstluftwm x11-xserver-utils libnss3 libasound2t64 libgbm1
+
+      - name: Run e2e in a disposable vault
+        run: xvfb-run -a --server-args='-screen 0 1280x1024x24' sh -c 'herbstluftwm & npm run test:e2e'
+        env:
+          OBSIDIAN_VERSION: ${{ matrix.version }}
+          OBSIDIAN_UI: ${{ matrix.ui }}
+
+      - name: Upload evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-${{ matrix.version }}-${{ matrix.ui }}-${{ github.run_attempt }}
+          path: e2e-results/
+          if-no-files-found: warn
+          retention-days: 14

@@ -38,6 +38,7 @@ npm run dev          # watch build
 npm run test:watch   # watch tests
 npm run harness      # the view in a browser, with Obsidian's own app.css and no Obsidian
 npm run test-build   # build into the vault in this repository and look at it in Obsidian
+npm run test:e2e     # drive a real Obsidian (downloaded on first use) through tests/e2e/
 ```
 
 `npm run harness` starts a Vite dev server and draws the real view against the real

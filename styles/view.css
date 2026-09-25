@@ -41,12 +41,18 @@
 /*
  * The partial-read warning. A strip rather than a replacement, because what loaded is still
  * worth showing: this sits beside the list, never over it.
+ *
+ * The warning colour is the left EDGE, not the text — `.rp-warning-strip__item--warning`'s
+ * shape. As text it measured 2.73:1 in the default light theme (`--text-warning` #ec7500 on
+ * `--background-secondary` #f6f6f6, WCAG AA wants 4.5:1), found by `npm run test:e2e`'s axe
+ * scan in a real renderer, which jsdom's scans cannot grade.
  */
 .rp-view-notice {
 	margin: 0;
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-smaller);
-	color: var(--text-warning);
+	color: var(--text-normal);
 	background-color: var(--background-secondary);
 	border-top: 1px solid var(--background-modifier-border);
+	border-left: 2px solid var(--text-warning);
 }

@@ -35,18 +35,21 @@ An incomplete-write warning means a multi-file operation could neither finish no
 partial writes. Inspect the Plan note and related geometry against your backup before making
 further changes. This pauses writing everywhere in the vault, not only in the tab that raised
 it — most of what the plugin offers as a command or form is refused until the incident is
-resolved. Not everything is inside this pause. The plugin applies it at one step — where it runs a
-command — so anything that writes without passing that step is not refused. Undo and redo now
-pass through that same step on both the Plan editor and the Asset designer, so undoing a zone
-deletion, an asset assignment or a quantity or cost override is paused along with everything
-else. What still writes straight to its target without passing that step is the link update the
-plugin makes when you rename or move a file the plan links to as evidence. That is an example
-rather than a boundary: nothing in the plugin lists or checks what sits outside the pause, so do
-not read this as a complete list. An action outside the pause is not refused, but
-it is not unwatched either: when it notices that it left files half-written, it records an
-incident exactly as a command does, and writing pauses everywhere from then on. What it cannot
-record is a half-write it did not notice — not every failure is detected where it happens — so
-this warning is not guaranteed to appear for every partial write. So do not read
+resolved. Not everything is inside this pause. The plugin checks for an open incident at two
+kinds of step — where it runs a command, and where the Plan editor or the Asset designer runs
+an Undo or Redo — so anything that writes without passing one of those checks is not refused.
+Because of the second, undoing a zone deletion, an asset assignment or a quantity or cost
+override is paused along with everything else. What still writes straight to its target without
+passing either check is the link update the plugin makes when you rename or move a file the plan
+links to as evidence. That is an example rather than a boundary: nothing in the plugin lists or
+checks what sits outside the pause, so do not read this as a complete list. An action outside
+the pause is not refused, but it is not unwatched either: the plugin records an incident at the
+moment any of its writes notices that it left files half-written, whichever action made the
+write, and every checked write is refused from then on. What it cannot record is a half-write it did
+not notice — not every failure is detected where it happens — or one noticed while the plugin is
+disabled, after it unloads and before it loads again, unless a save that started before the
+unload is still running — so this warning is not guaranteed to appear for every partial write.
+So do not read
 any single action still working as proof the incident has cleared, and do not treat a quiet
 failure in one of those actions as nothing having happened. Stop making changes anywhere in the
 vault and inspect the affected files against your backup instead. Reading, navigating and
@@ -112,6 +115,13 @@ the rest of your vault's recovery records are unaffected.
 An open draft in this state offers source-note inspection and Cancel. It does not offer a
 read retry or promise that reading will resume Apply. You can copy its retained text before
 cancelling and reviewing the affected files against your backup.
+
+An Undo in the Asset designer that another change overtook — a second pane, the asset library,
+or a sync changing the same asset between your edit and your Undo — is refused with a message
+that the change was edited elsewhere after this step, and that you can reload and undo again.
+That is not an incident: writing is not paused and the tab's save indicator is left alone. In
+one rare case — two other writers changing a calibrated asset during the Undo — the asset can be
+left without its calibration behind that same message, so check its scale if you see it there.
 
 For the connected editing journey, see [Plan a renovation from the floor](using-plan-editor.md).
 

@@ -523,6 +523,17 @@ could name, not about whether the vault is safe.
   a second function of that name, oxlint) `tests/gates/stamp-construction-boundary.test.ts`
   drives. A stamp made while no registry is installed is still lost; the keep-alive narrows that
   window to saves none of its holders counts.
+  **Durable residuals over a vault that may be coherent (added 2026-09-26, S21 close-out).** The
+  designer's background undo (#17 in the census) still stamps when its note put-back is refused
+  as a FAULT: two genuine faults on an uncalibrated asset (P2), a sidecar-only sync write followed
+  by a put-back fault (P5), another writer's delete or a sync client's lock inside the put-back's
+  own read (P8), and a put-back refused `asset.pre-write-invalid` — each of which now durably
+  pauses, under D-08, a vault the code cannot tell from one that genuinely half-failed. The owner
+  accepted the first three by ruling 19 and the fourth by ruling 23 (census §7).
+  **A racing designer undo is not a stamp (rulings 17, 27 and 30).** A designer undo refused by a
+  racing change, and on the single-file undos also one refused because the write ledger has no
+  version for the step, reads as `undo.superseded`, leaves the save badge alone and records
+  nothing; a genuine write fault on those undos is unchanged.
   **Correction, 2026-09-26 (S21 fix round): recording at STAMP TIME also changes who a reload's
   old save answers to.** `SessionStores`'s constructor installs its new registry as the active
   one immediately, before that session's own `seed()` has run, and `markUncompensated` records

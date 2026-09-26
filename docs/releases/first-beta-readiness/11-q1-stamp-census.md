@@ -28,7 +28,7 @@ planted fixture before its answer over `src/` was trusted.
 
 | Instrument | What it gave | Planted-fixture test | What it cannot see |
 |---|---|---|---|
-| `census.mjs`: a TypeScript type-checker program over every `.ts` in `src/`, plus every `.vue` file's `<script>` blocks through `@vue/compiler-sfc`. For every identifier it resolves the symbol through aliases (`getAliasedSymbol`) and compares it with `markUncompensated`'s declaration. It also finds every property named `uncompensatedWrite`, and every call whose target resolves to `WriteIncidentRegistry.record` | 1 definition, 17 imports, **23 calls**, **0 re-exports**, **0 references that escape as a value**. One `uncompensatedWrite` property, the definition's own body (`DispatchOutcome.ts:307`). **Two recorders**: `guardAgainstThrowing.ts › guardCommand` and `evidenceRename.ts › evidenceRenamed` | `fixture/` has a renamed re-export, a namespace call, a renamed import, a `.vue` caller, a function held in a variable, a hand-built stamp, a `record` call on the registry and one on an unrelated object, and a comment and a string that spell the call. It reported 4 calls (re-export, namespace, rename, `.vue`), the held function as a value escape, the hand-built stamp, and exactly one `record`. It reported nothing for the comment or the string | Calls made through a variable (flagged as a value escape and then read by hand; there are none in `src/`). A stamp built with a computed key. Anything outside `src/`. A `.vue` template expression, which is not a script block. `.vue` line numbers are relative to the script block |
+| `census.mjs`: a TypeScript type-checker program over every `.ts` in `src/`, plus every `.vue` file's `<script>` blocks through `@vue/compiler-sfc`. For every identifier it resolves the symbol through aliases (`getAliasedSymbol`) and compares it with `markUncompensated`'s declaration. It also finds every property named `uncompensatedWrite`, and every call whose target resolves to `WriteIncidentRegistry.record` | 1 definition, 17 imports, **23 calls**, **0 re-exports**, **0 references that escape as a value**. One `uncompensatedWrite` property, the definition's own body (`DispatchOutcome.ts` › `markUncompensated`). **Two recorders**: `guardAgainstThrowing.ts › guardCommand` and `evidenceRename.ts › evidenceRenamed` | `fixture/` has a renamed re-export, a namespace call, a renamed import, a `.vue` caller, a function held in a variable, a hand-built stamp, a `record` call on the registry and one on an unrelated object, and a comment and a string that spell the call. It reported 4 calls (re-export, namespace, rename, `.vue`), the held function as a value escape, the hand-built stamp, and exactly one `record`. It reported nothing for the comment or the string | Calls made through a variable (flagged as a value escape and then read by hand; there are none in `src/`). A stamp built with a computed key. Anything outside `src/`. A `.vue` template expression, which is not a script block. `.vue` line numbers are relative to the script block |
 | `refs.mjs`: the TypeScript language service's `findReferences`, over the same `src/` program | Every constructor call and factory call of each class and function on a raise path (§3) | Checked live, and it found its own limit: on `ObsidianPlanRepository.delete` it returned only the definition, because that class does not declare `implements PlanRepository` | A class that satisfies a port structurally, without declaring it. `decls.mjs` covers that case |
 | `decls.mjs`: for each member name, every declaration that a call `x.save(…)`, `x.delete(…)` or `x.insert(…)` in `src/` resolves to | Every call to a stamping repository method resolves to a PORT interface. The only callers: `ZoneRepository.save` from `CreateZone`, `EditZoneDetails`, `RenameZone`, `MoveSpatialObject` and `restore-zone`. `ZoneRepository.delete` from `DeleteZone` and `ReversibleDeleteZoneCommand.removeAgain`. `PlanRepository.save` with `'absent'` from `CreatePlan` only. `PlanRepository.delete` from `DeletePlan`. `AssetRepository.delete` from `DeleteAsset`. **0 unresolved calls** | `fixture2/` has an interface call, a type-literal call, a class call, a destructured method, an element access, an `any` receiver and a comment. It saw the first three, reported the `any` call as unresolved, and did not see the destructured method, the element access or the comment | A destructured method and an element access. So `git grep` was run for `['save']`, `['delete']`, `{ save } =`, `{ delete } =` and for `.save`/`.delete` passed as a value, over `src/`. It found nothing |
 | Reading each hop from a raise site to a door, cited below by file and symbol. Hops that reading could not settle were driven in the suite (§4) | The path column in §3 | — | Dispatch through a runtime-built object that none of the three scripts sees. The composition in `src/plugin/` was read for each door instead |
@@ -139,12 +139,14 @@ before the gesture:
 
 The calibrated row's stamp was truthful, but the vault it left was still a LEGAL one — an
 uncalibrated asset over its old background, not a corrupt one — so under option 2 a lost
-calibration would have paused every write in the vault until a reload, the same as the false stamp
-did, for a loss that was real but narrow.
+calibration would have paused every write in the vault — durably, across reloads and restarts,
+until the user removes `write-incidents.json` and reloads (D-08; this sentence said "until a
+reload" until the S21 close-out) — the same as the false stamp did, for a loss that was real but
+narrow.
 
 **Since `28409ace0` / `b22a2ed41` (owner rulings 13 and 18; §7 below), this finding no longer
 holds.** The test above is renamed to "refuses cleanly, with the note put back, when a peer writes
-the sidecar between the undo's pre-flight read and its restore" (`:421`), and it now asserts no
+the sidecar between the undo's pre-flight read and its restore", and it now asserts no
 stamp. On the same peer (`setFacing`, a conflict on the sidecar restore only), the put-back
 succeeds — no second writer contends for the note — so the undo answers unstamped, with the note
 left holding the *gesture's own* background rather than the pre-gesture one: the whole gesture is
@@ -158,8 +160,9 @@ needs a *second* refusal, on the put-back itself: a peer that writes the SIDECAR
 restore, and a *different* peer write that lands on the NOTE before the put-back refuses that too,
 as a conflict. That shape (the S21 #17 re-review's Q2a, Minor 1; pinned in
 `designerUndoStampOnHealthyVault.test.ts` › "#17 — a note peer between the refused sidecar restore
-and the put-back") is answered unstamped, as an ordinary conflict — owner ruling 18 accepts that
-miss, and the docblock at `ReversibleAssetDesignCommands.ts` (~`:553`) states it.
+and the put-back") is answered unstamped, as an ordinary conflict (since `99f8ff21f`, as
+`undo.superseded`; §7) — owner ruling 18 accepts that miss, and `putNoteBack`'s docblock in
+`ReversibleAssetDesignCommands.ts` states it.
 
 **Why it could happen, historically:** #17 was the only unrecorded site whose condition was ONE
 refused write, where the other five each needed a second. **That is no longer true**: #17 now also
@@ -184,7 +187,7 @@ writer's delete landing inside the put-back's own read, or a sync client's lock 
 reading only), surfacing as a fault rather than a conflict (P8) — each over a vault the code cannot
 tell from one that genuinely failed. **A put-back refused as `asset.pre-write-invalid` stamps too,
 by the same rule** — the refusal is neither a conflict (`WRITE_BOUNDARY_CODES`) nor a genuine write
-failure, and the docblock at `ReversibleAssetDesignCommands.ts` (~`:598`, `putNoteBack`) names it
+failure, and `putNoteBack`'s docblock in `ReversibleAssetDesignCommands.ts` names it
 by code as counting on the fault side regardless. On an uncalibrated asset the vault it leaves is
 still coherent — P2's class, not a new one; on a calibrated one the lost calibration makes it a
 true half-undo. Whether Obsidian can produce any of these interleavings in practice is not
@@ -209,14 +212,16 @@ to `schema-version: not-a-number`, and plan listings skip that as note-local
 (`SKIPPABLE_PLAN_CODES`). Renaming the folder `Evidence` → `Archive` moves A's evidence correctly,
 then B's read refuses. **A vault-wide incident opens**: `plan.schema-version-malformed`, naming
 plan A, which was the plan correctly updated. The vault's data is coherent, and every guarded
-write is paused until a reload. This happens today, with no option taken. It is the same risk
+write is paused — durably, across reloads and restarts, until the user removes
+`write-incidents.json` and reloads (D-08; this sentence said "until a reload" until the S21
+close-out). This happens today, with no option taken. It is the same risk
 option 2 carries, and it needs only a hand-edited plan that comes later in index order than a
 plan citing the renamed path. If the unreadable plan comes first, the loop stops before writing,
 no stamp is raised, and the plans after it are never updated.
 
 **It is broader than one hand-edited plan.** Three codes open the same vault-wide incident on any
 rename, all treated as ordinary and skippable by `listByProject`
-(`ObsidianPlanRepository.ts:72-81`), and all driven in the S21 review round (`e5f649398`):
+(`ObsidianPlanRepository.ts` › `SKIPPABLE_PLAN_CODES` and `isSkippablePlanRefusal`), and all driven in the S21 review round (`e5f649398`):
 
 - `plan.schema-version-malformed` — plan B's hand-edited, non-numeric `schema-version`, the case
   reproduced above.
@@ -227,8 +232,8 @@ rename, all treated as ordinary and skippable by `listByProject`
   version.
 
 So the trigger is not only a hand edit: ordinary sync lag and ordinary version skew reach the same
-incident, through the same door (`RenovationPlannerPlugin.ts:990-993`, which calls
-`evidenceRenamed` on EVERY rename in the vault).
+incident, through the same door (`RenovationPlannerPlugin`'s `vault.on('rename')` listener,
+which calls `evidenceRenamed` on EVERY rename in the vault).
 
 **Since `9ba3432a2` (owner ruling 14),** a rename skips a plan any of these three codes refuses and records it in the diagnostics ledger, so none of them opens an incident or raises a failure notice. `plan.migration-failed` is the one read refusal the skip does not cover: a plan answering it still stops every rename at that plan with a failure notice, as before. It fails closed on purpose, and the ruling does not reach it.
 
@@ -265,7 +270,9 @@ Everything above is dated to `d54e95931`. Since then, #17 has been narrowed twic
 rulings 13 and 18, #23 has been fixed once under owner ruling 14 (already recorded in §5), and
 the recorder itself has moved into `markUncompensated` under rulings 13, 19 and 20 — so §3's
 "Recorder" column and every "reaches no recorder" in §1–§4 describe `d54e95931`, not the code now.
-The 23 raise sites themselves are unchanged.
+The 23 raise sites themselves are unchanged. Rulings 17, 27 and 30 then changed only what a
+designer undo refused by a race SHOWS: it reads as `undo.superseded`, leaves the save badge
+alone and records nothing, and no stamp moved.
 
 | Commit | Date | What changed |
 |---|---|---|
@@ -275,6 +282,8 @@ The 23 raise sites themselves are unchanged.
 | `b22a2ed41` | 2026-09-26 | Owner ruling 18: `undoLeftBehind`'s cached-read comparison is removed outright. The put-back's refusal is classified at the SOURCE instead — a CONFLICT (`WRITE_BOUNDARY_CODES`) is always answered unstamped, and a FAULT (any other code) always stamps — so no stamp at #17 depends on a cached read any more, and a peer's or a sync's conflicting write can no longer raise the stamp by itself. |
 | `8895ddc45` | 2026-09-26 | Owner rulings 13, 19 and 20, step 2 (tests at `52e84a385`): `markUncompensated` records every stamp it makes through the write-incident holder, and `guardCommand` and `evidenceRenamed` record nothing, so the §3 "Recorder" column is now the same for all 23 sites — recorded at the stamp — and the six sites with an unrecorded path (#11, #15, #16, #17, #21, #22) close by construction. A recorded stamp is durable across restarts (D-08, ruling 21). Driven: the five history-path positive controls in `undoStampOnHealthyVault.test.ts` and #17's in `designerUndoStampOnHealthyVault.test.ts` now open an incident; one #21 stamp crossing two guarded doors is one incident, not two; a multi-element delete undo whose Room restore stamps has its guarded walls compensation refused `writes-paused`, leaving four walls and two incidents (ruling 20). `STAMP_CONSTRUCTION_BAN` (`eslint.config.mjs`) refuses a stamp built by hand in `src/`. Nothing ran in a vault. |
 | `9ba3432a2` | 2026-09-25 | Owner ruling 14 (#23): a rename skips a plan refused by `plan.schema-version-malformed`, `plan.sidecar-unreadable` or `plan.schema-version-unsupported` and records it in the diagnostics ledger, rather than opening the vault-wide incident §5 describes. `plan.migration-failed` still stops the rename with a failure notice; the ruling does not reach it. (Already recorded in §5.) |
+| `99f8ff21f` | 2026-09-26 | Owner ruling 17, built per ruling 24 (tests at `5edecb8ac`): the background undo's three unstamped conflict returns — the note restore refused as a conflict, and `putNoteBack`'s two unstamped arms — pass through a private `raced`, which answers `undo.superseded` for a conflict (a code ending `.revision-conflict` or `.external-modification`, `WRITE_BOUNDARY_CODES`) and passes anything else through. `undo.superseded` does not touch the save badge, so the user sees a toast where the badge showed a save error. The stamped fault arm is unchanged. `b12ac50ad` restores a space lost from one test case's title. |
+| `274cd9499` | 2026-09-26 | Owner rulings 27 and 30 (tests at `5ee9b9c16`): `raced` moves into the base class unchanged, and the single-file undos (the geometry edits such as facing, and height) map a conflict on their restoring write to `undo.superseded` too — every conflict, including a write ledger holding no version for the step (ruling 30 superseding ruling 27's "the 'undo history broken' cases keep failing as faults"). A write fault on those undos still shows the save error, unstamped. Only `undo()` changed. |
 
 **Remaining coherent-vault stamps at #17, all fault-shaped** (the S21 #17 re-review, `2026-09-26`,
 on `28409ace0..b22a2ed41`):
@@ -293,5 +302,25 @@ on `28409ace0..b22a2ed41`):
 P2 and P5 each require a genuine fault (a code other than a conflict-coded refusal), while P8 is
 very low likelihood — and none of them is a peer's or a sync's ordinary write landing where the
 code could tell it apart from a genuine failure. That is the residual owner ruling 18 accepts, and
-the docblock at `ReversibleAssetDesignCommands.ts` (~`:553`, `putNoteBack`) states it at the
-decision site.
+`putNoteBack`'s docblock in `ReversibleAssetDesignCommands.ts` states it at the decision site.
+Since step 2 (`8895ddc45`) each of the four stamps is recorded, so each durably pauses the vault
+(D-08: across reloads and restarts, until the user removes `write-incidents.json` and reloads).
+The owner accepted P2, P5 and P8 by ruling 19 and `asset.pre-write-invalid` by ruling 23.
+
+**Accepted residuals of rulings 17, 27 and 30, and one observation** (S21 close-out,
+`2026-09-26`):
+
+- **Ruling 29**: the double-conflict half-undo on a calibrated asset (the Q2a shape above) now
+  reads "edited elsewhere" — the `undo.superseded` toast — where it showed the save-error badge.
+  It has been unstamped since ruling 18, so only its presentation changed. Pinned by
+  `designerUndoStampOnHealthyVault.test.ts` › "#17 — a note peer between the refused sidecar
+  restore and the put-back".
+- **Ruling 30**: on the single-file undos (facing, height and the other single-resource edits),
+  a refusal caused by a bookkeeping bug — the write ledger holding no version for the step —
+  leaves by the same write with the same conflict codes as a race, so it too reads as
+  superseded; nothing is written. Pinned by `reversibleAssetDesignWindows.test.ts`'s two "…is
+  refused as superseded, writing nothing…" cases.
+- **Observation, not asked of the owner** (the ruling-17 review): if only the asset's NOTE is
+  deleted before the background undo's pre-flight — in the file explorer, say — the undo answers
+  `asset.not-found`, a toast with the badge unchanged, not the superseded copy. A guarded delete
+  removes the sidecar too and reads as superseded.

@@ -1745,6 +1745,29 @@ Minors worth fixing before the walk. All six were fixed in one wave (12f36cf40).
 was green on its first attempt. The manual pass grew from 232 to **241 steps**. The integrator and an independent
 reviewer each re-derived that count, and the reviewer checked every new expectation against source.
 
+### AD18-R26 to AD18-R29 — automating the manual walk, after a clause audit. (2026-09-26)
+
+**Context.** W23-A and W24-A (2026-09-25, recorded in their reports rather than here) drove the
+`obsidian`-tier steps in a real Obsidian and wrote an *Automated in Obsidian* table into each case.
+Session twenty audited those tables clause by clause
+([`MANUAL-PASS-audit.md`](../reports/MANUAL-PASS-audit.md)): eight read-only auditors, one independent
+reviewer, 29 mutations (13 in a real Obsidian), seven of which stayed green and each moved a row that
+had read as covered. Result on `4f918f8fd`: **177 of 241 steps fully discharged**, 48 open (36 clauses
+needing a real host, 37 a vitest or the browser harness), 16 human, and 21 CONTRARY clauses where a
+test pins what the build does against what the row says. The user took four rulings in one batched
+round, every one as recommended:
+
+| Item | Shipped before | Ruled |
+|---|---|---|
+| **AD18-R26** — what this round builds | the 36 B and 37 D clauses unasserted | **All B and all D.** Two B clauses are out of reach and stay recorded, not built: Design 89 (Cmd+G needs a macOS leg; none exists) and Browse 31 (the host records no leaf history for the library, so the assertion cannot fail until it does) |
+| **AD18-R27** — the 21 CONTRARY clauses and the two RULING clauses (Browse 32, 33) | case rows describe behaviour the build does not have; a walker would fail them against a passing build | **Rows are rewritten to what the build does**, each citing its pinning test, and every finding is listed as recorded, not fixed, in RESUME. No `src/` change for them this round; the pins go red the day the behaviour changes |
+| **AD18-R28** — a step every clause of which a test discharges | counted in the walk; the *Automated* tables tell a walker what to skip | **Retagged, and excluded from the count.** The row stays in its case with a new tier naming its tests, and MANUAL-PASS's counting command stops matching it, so the count is the human steps only |
+| **AD18-R29** — the E2E budget | desktop legs 10–12 min under a 20-min job timeout | **The desktop legs are sharded** with vitest's `--shard` in the workflow matrix, so wall time stays near today's while CI minutes roughly double; the e2e wiring gate follows the matrix |
+
+**Not authorized by these rulings, and asked for separately if needed:** a schema change, a stored
+field, a new runtime dependency or devDependency, AD17 or roadmap work, or any element of CLAUDE.md's
+*Deliberately absent* list.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

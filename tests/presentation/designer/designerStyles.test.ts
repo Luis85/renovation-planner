@@ -92,13 +92,16 @@ describe('the placement point group’s three equal segments', () => {
 	 * two-column grid: an `auto` column minimum is each column's own min-content contribution — the
 	 * width of its longest unbreakable run — which is what forced the uneven split this fix answers.
 	 */
-	it('lays the group out as a three-column grid of equal-width segments', () => {
+	it('lays the group out as a grid of equal-width segments, each wide enough for a one-word label', () => {
 		const rules = partial('designer-selection.css');
 
 		expect(declared(rules, '.rp-designer-placement-modes', 'display')).toEqual(parsed('display', 'grid'));
+		// A fixed `repeat(3, minmax(0, 1fr))` split `Custo` / `m` in a real Obsidian on Linux (the
+		// e2e's step 15c); the column minimum is sized in the label's own `em` and the grid wraps.
 		expect(declared(rules, '.rp-designer-placement-modes', 'grid-template-columns')).toEqual(
-			parsed('grid-template-columns', 'repeat(3, minmax(0, 1fr))'),
+			parsed('grid-template-columns', 'repeat(auto-fit, minmax(min(100%, calc(4em + 2 * var(--size-4-1) + 2px)), 1fr))'),
 		);
+		expect(declared(rules, '.rp-designer-placement-modes', 'font-size')).toEqual(parsed('font-size', 'var(--font-ui-smaller)'));
 	});
 
 	/**

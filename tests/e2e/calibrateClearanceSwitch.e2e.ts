@@ -217,7 +217,9 @@ describe('Show clearance, in the real Obsidian host', () => {
 		await expect.poll(reference.switchOn).toBe(true);
 
 		// Step 21e: switched off in the middle of a trace, the finished boundary still shows.
-		const corners = square(0.4, 0.5, 0.5);
+		// Every corner clear of the canvas's 40px edge-scroll band: at a 0.4 half, a 1024px window's
+		// 340px canvas put two of them 34px in, and the pause between clicks panned the camera away.
+		const corners = square(0.3, 0.5, 0.5);
 		await reference.tool('Trace clearance').click();
 		for (const [fx, fy] of corners.slice(0, 2)) await reference.clickAt(await reference.canvasPoint(fx, fy));
 		await reference.setSwitch(false);

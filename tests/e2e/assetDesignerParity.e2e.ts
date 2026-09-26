@@ -101,9 +101,10 @@ describe('Design an Asset, the parity round, in the real Obsidian host', () => {
 			}, await rail.getElement());
 		const columns = async () => new Set((await tiles()).map((tile) => tile.left)).size;
 
-		// Step 76, and a finding: Obsidian's DEFAULT 1024 px window gives this leaf 679 px and the
-		// rail 120 px — already under 9rem, so the tiles are ONE column before anything is narrowed.
-		expect(await parity.leafWidth()).toBe(679);
+		// Step 76, and a finding: Obsidian's DEFAULT 1024 px window gives this leaf about 680 px (679
+		// on Windows, 680 on Linux) and the rail 120 px — already under 9rem, so the tiles are ONE
+		// column before anything is narrowed.
+		expect(Math.abs((await parity.leafWidth()) - 680)).toBeLessThanOrEqual(3);
 		expect(await rail.getSize('width')).toBeLessThan(144);
 		expect(await columns()).toBe(1);
 

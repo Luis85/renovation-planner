@@ -47,8 +47,8 @@ const onDisk = (vault: string): unknown[] => {
 /**
  * A restart that tests the RESTORE: first a gesture that makes Obsidian save its layout (the
  * project view's tab brought forward) and the disk polled until it carries `saved`, then the
- * restart and the library brought forward. Without that gesture a publish never reaches the disk
- * (step 16's finding), and a restart would be testing Obsidian's save timing instead.
+ * restart and the library brought forward. Without that gesture whether a publish has reached the
+ * disk is Obsidian's save timing, which differs by platform, and a restart would be testing that.
  */
 const restart = async (browser: NativeBrowser, vault: string, ui: PlannerPage, lib: LibraryPage, saved: unknown[]): Promise<void> => {
 	await ui.openProjectView();
@@ -70,10 +70,9 @@ describe('The asset library\'s view state, in the real Obsidian host', () => {
 		const saved = [{ assetId: 'asset-e2e-0', expanded: ['furniture'] }];
 		await expect.poll(lib.viewState).toEqual(saved);
 
-		// FINDING: a publish does not make Obsidian SAVE the layout. Three seconds on, the disk still
-		// holds an older state, and a restart now (a session ended, as a quit ends one) restores that.
-		await browser.pause(3000);
-		expect(onDisk(page.getVaultPath())).not.toEqual(saved);
+		// A publish is not a SAVE, and when Obsidian saves is its own timing: on Windows the disk still
+		// held an older state three seconds on, on the Linux CI legs it already held this one. So the
+		// case pins neither and restarts through `restart`, which makes the save happen first.
 		await restart(browser, page.getVaultPath(), ui, lib, saved);
 		await expect.poll(() => lib.library().$('.rp-al-inspector__name').getText()).toBe('Sofa');
 		expect(await lib.shelfHead('Furniture').getAttribute('aria-expanded')).toBe('true');

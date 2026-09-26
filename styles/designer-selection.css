@@ -128,11 +128,21 @@
  * avoid). Grid's own default `stretch` gives every segment the row's own height, so "Back centre"
  * wrapping to two lines does not leave "Centre" and "Custom" visibly shorter next to it — three
  * DIFFERENT heights would read as three buttons again, not one control.
+ *
+ * **Three columns only while `Custom` fits WHOLE in one** (e2e on Linux, 2026-09-26). A fixed
+ * three-column `minmax(0, 1fr)` split `Custo` / `m` at Obsidian's default 1024 x 800 window, where
+ * the inspector gives this group 160px and the three segments need about 170px — the smaller text
+ * and padding in `designer-add.css` were a prediction measured on Windows fonts only. So each
+ * column's minimum is the longest one-word label (about 3.8em in a wide face such as DejaVu Sans,
+ * 4em here) plus the segment's own padding and border, and `auto-fit` drops to two columns, then
+ * one, rather than breaking a word. The group's `font-size` is the segments' own, so that `em` is
+ * the label's. `min(100%, …)` keeps a single column from overflowing a narrower group still.
  */
 .rp-designer-placement-modes {
 	display: grid;
-	grid-template-columns: repeat(3, minmax(0, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(4em + 2 * var(--size-4-1) + 2px)), 1fr));
 	gap: var(--size-4-1);
+	font-size: var(--font-ui-smaller);
 }
 
 /*

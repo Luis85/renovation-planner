@@ -118,6 +118,14 @@ Editor (Design 27); Take 6's pre-scan window (unreachable through a plugin load)
   `require('@electron/remote').getCurrentWindow().setSize` or `app.workspace.leftSplit.setSize`.
 - **Obsidian's default window is 1024 × 800**, a 679px designer leaf. Several rows assume a wider
   one; the cases size the leaf where a row names a width.
+- **Every case here was measured on Windows, and the first Linux run (2026-09-26) failed 21 of
+  them.** CI's herbstluftwm TILES by default, so the window filled the 1280 × 1024 screen and ignored
+  every resize; `herbstclient rule floating=on` in `.github/workflows/e2e.yml` took that to four.
+  Of those four, three were Windows measurements pinned too tightly — a 679px leaf that is 680 on
+  Linux, a layout save that had already happened within 3 s, and trace corners inside the 40px
+  edge-scroll band once the canvas was 340px wide — and one was a real defect: the Placement point
+  group's `Custom` split `Custo` / `m` in Linux's wider font, which `styles/designer-selection.css`
+  now answers by wrapping the group rather than the word.
 - **Focus is a shared resource.** Seven Obsidians on one desktop steal window focus from each other,
   and a held drag behind a pending write is dropped when its window loses focus (Design 32b). The
   sharded full run on a quiet machine saw it once more, in Design 85a's held drag (red once, green

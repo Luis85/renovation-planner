@@ -1,4 +1,5 @@
-import { err, isErr, isOk, ok } from '../../../core/result/Result';
+import { err, isErr, isOk, ok, type Result } from '../../../core/result/Result';
+import type { AppError } from '../../../core/errors/AppError';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { Asset } from '../../../domain/asset/Asset';
 import { assetDesignChanged } from '../../../domain/asset/Asset.events';
@@ -437,18 +438,25 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
  * kept on every refusal, so a retry re-attempts the whole restore rather than losing the gesture's
  * inverse outright.
  */
+/**
+ * The captured pre-state `ReversibleAssetBackgroundEdit.execute` keeps, named so `undoPreflight`
+ * below can take it as a parameter — it was an inline object type on the field alone before the
+ * split, and a parameter needs a name to take.
+ */
+type BackgroundInverse = {
+	readonly entity: Asset;
+	readonly notePreVersion: EntityVersion;
+	readonly noteGeneration: number;
+	readonly document: AssetGeometryDocument;
+	readonly geometryPreVersion: EntityVersion;
+	readonly geometryGeneration: number;
+};
+
 class ReversibleAssetBackgroundEdit
 	extends ReversibleAssetEdit<SetAssetBackgroundInput>
 	implements ReversibleAssetDesignEdit
 {
-	private inverse: {
-		readonly entity: Asset;
-		readonly notePreVersion: EntityVersion;
-		readonly noteGeneration: number;
-		readonly document: AssetGeometryDocument;
-		readonly geometryPreVersion: EntityVersion;
-		readonly geometryGeneration: number;
-	} | null = null;
+	private inverse: BackgroundInverse | null = null;
 
 	async execute(): Promise<DispatchResult> {
 		const { assets, sidecar, noteLedger, geometryLedger } = this.deps;
@@ -502,11 +510,26 @@ class ReversibleAssetBackgroundEdit
 		return ok('wrote');
 	}
 
-	async undo(): Promise<DispatchResult> {
-		const inverse = this.inverse;
-		if (inverse === null) return ok('no-write');
-
-		const { assets, sidecar, events, noteLedger, geometryLedger } = this.deps;
+	/**
+	 * The two generation refusals plus the two pre-write reads `undo` needs before either
+	 * restore, split out only to keep `undo` under fallow's complexity budget — every read, its
+	 * order (sidecar first, per this class's own docblock) and every refusal run exactly as they
+	 * did inline. Returns what `undo` needs to condition and perform both writes, or the same
+	 * error `undo` would have returned in that arm's place.
+	 */
+	private async undoPreflight(
+		inverse: BackgroundInverse,
+	): Promise<
+		Result<
+			{
+				readonly geometryExpected: EntityVersion;
+				readonly noteExpected: EntityVersion;
+				readonly replacedEntity: Asset;
+			},
+			AppError
+		>
+	> {
+		const { assets, sidecar, noteLedger, geometryLedger } = this.deps;
 		const assetId = this.input.assetId;
 		if (this.supersededSince(noteLedger, inverse.noteGeneration)) return err(undoSuperseded(assetId));
 		if (this.supersededSince(geometryLedger, inverse.geometryGeneration)) return err(undoSuperseded(assetId));
@@ -529,12 +552,26 @@ class ReversibleAssetBackgroundEdit
 		if (replaced.value === null) return err(assetNotFound(assetId));
 
 		const noteExpected = noteLedger.lastWritten(assetId) ?? inverse.notePreVersion;
+		return ok({ geometryExpected, noteExpected, replacedEntity: replaced.value.entity });
+	}
+
+	async undo(): Promise<DispatchResult> {
+		const inverse = this.inverse;
+		if (inverse === null) return ok('no-write');
+
+		const { assets, sidecar, events, noteLedger, geometryLedger } = this.deps;
+		const assetId = this.input.assetId;
+
+		const preflight = await this.undoPreflight(inverse);
+		if (isErr(preflight)) return preflight;
+		const { geometryExpected, noteExpected, replacedEntity } = preflight.value;
+
 		const savedNote = await assets.save(inverse.entity, noteExpected);
 		if (isErr(savedNote)) return savedNote;
 		noteLedger.record(assetId, savedNote.value.version);
 
 		const savedGeometry = await sidecar.write(assetId, inverse.document, geometryExpected);
-		if (isErr(savedGeometry)) return this.putNoteBack(replaced.value.entity, savedNote.value.version, savedGeometry.error);
+		if (isErr(savedGeometry)) return this.putNoteBack(replacedEntity, savedNote.value.version, savedGeometry.error);
 		geometryLedger.record(assetId, savedGeometry.value);
 
 		this.inverse = null;

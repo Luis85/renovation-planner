@@ -185,6 +185,8 @@ reading only), surfacing as a fault rather than a conflict (P8) — each over a 
 tell from one that genuinely failed. Whether Obsidian can produce any of these interleavings in
 practice is not checkable here.
 
+One leaf's HEALTHY history cannot reach any of them: `CommandHistory` serialises run, undo and redo through one queue, so each needs either a write that genuinely faults or another writer or a sync landing in the read-to-write window — not what one leaf's own fault-free cycle produces by itself (only for that one serialised leaf: the fake vault is synchronous). Whether Obsidian can produce these interleavings in practice is not checkable here.
+
 Under option 2 (record inside `markUncompensated`), any of these residual stamps would still
 become a vault-wide write block, and the only way to clear one is a reload (D-06).
 
@@ -257,9 +259,9 @@ Nothing else counted in §1–§3 has changed code under it.
 
 | Commit | Date | What changed |
 |---|---|---|
-| `ede046a05` | 2026-09-25 | Owner ruling 13 step 1, first pass at #17: the note is put back when the sidecar restore is refused, and the stamp is raised only when the vault the put-back leaves is genuinely a half-undo — a cached-read comparison (`undoLeftBehind`) checks the note's background and the sidecar's calibration against the inverse. A peer write that leaves a coherent vault no longer stamps by itself. |
+| `ede046a05` | 2026-09-25 | Owner ruling 13 step 1, first pass at #17: the note is put back when the sidecar restore is refused, and the stamp is raised only when the put-back is *also* refused, on an asset still there — with no check yet on whether the vault the put-back leaves actually differs from the undo's target. A peer write that the put-back can absorb no longer stamps by itself, but a peer write that also refuses the put-back on a coherent, uncalibrated vault still does (the #17 review's Important 1). |
 | `d8ac76607` | 2026-09-25 | Pins I2 at #17: the put-back's own save is conditioned on the version the note restore produced, so a peer's note edit landing between the refused sidecar restore and the put-back refuses the put-back rather than being silently overwritten. |
-| `28409ace0` | 2026-09-25 | Lands `ede046a05`'s fix and `d8ac76607`'s guard together, plus M1 (the fault arm publishes `assetDesignChanged` before it stamps, uncalibrated included) and M3 (the stale docblocks and comments corrected for the new, two-refusal condition). |
+| `28409ace0` | 2026-09-25 | Fixes that Important 1: the refused arm now asks the vault first — a new private `undoLeftBehind(inverse)` checks that the note still names `inverse.entity.background` AND the sidecar's calibration differs from `inverse.document.calibration` — so a two-refusal case that leaves a coherent, uncalibrated vault no longer stamps. Also lands `d8ac76607`'s guard, M1 (the fault arm publishes `assetDesignChanged` before it stamps, uncalibrated included) and M3 (the stale docblocks and comments corrected for the new condition). (`b22a2ed41` later removed `undoLeftBehind` under ruling 18.) |
 | `b22a2ed41` | 2026-09-26 | Owner ruling 18: `undoLeftBehind`'s cached-read comparison is removed outright. The put-back's refusal is classified at the SOURCE instead — a CONFLICT (`WRITE_BOUNDARY_CODES`) is always answered unstamped, and a FAULT (any other code) always stamps — so no stamp at #17 depends on a cached read any more, and a peer's or a sync's conflicting write can no longer raise the stamp by itself. |
 | `9ba3432a2` | 2026-09-25 | Owner ruling 14 (#23): a rename skips a plan refused by `plan.schema-version-malformed`, `plan.sidecar-unreadable` or `plan.schema-version-unsupported` and records it in the diagnostics ledger, rather than opening the vault-wide incident §5 describes. `plan.migration-failed` still stops the rename with a failure notice; the ruling does not reach it. (Already recorded in §5.) |
 
@@ -268,14 +270,14 @@ on `28409ace0..b22a2ed41`):
 
 - **P2** — two genuine faults on an uncalibrated asset: the sidecar restore faults, and the note
   put-back faults too. The vault after the stamp equals the finished undo.
-- **P5** — a sidecar-only sync write refuses the restore as a conflict, and the put-back then
-  faults, on an uncalibrated asset.
+- **P5** — a sidecar-only sync write refuses the restore (P5, uncalibrated — the exact refusal code is not recorded in the source review), and the put-back then faults.
 - **P8** (the re-review's Minor 2) — another writer's delete landing inside the put-back's own
   read (driven), or a sync client's lock (`EBUSY`, established by reading only) at the same
   moment — indistinguishable here from a disk fault, so it also stamps, over a vault where the
   asset is simply gone.
 
-All three are very low likelihood, and none is a conflict-coded refusal — so none is a peer's or a
-sync's ordinary write landing where the code could tell it apart from a genuine failure. That is
-the residual owner ruling 18 accepts, and the docblock at `ReversibleAssetDesignCommands.ts`
-(~`:553`, `putNoteBack`) states it at the decision site.
+P2 and P5 each require a genuine fault (a code other than a conflict-coded refusal), while P8 is
+very low likelihood — and none of them is a peer's or a sync's ordinary write landing where the
+code could tell it apart from a genuine failure. That is the residual owner ruling 18 accepts, and
+the docblock at `ReversibleAssetDesignCommands.ts` (~`:553`, `putNoteBack`) states it at the
+decision site.

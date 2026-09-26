@@ -3,8 +3,11 @@
  *
  * `docs/tests/cases/Recover an asset design rather than lose it.md` steps 3, 5, 7 and 30, and
  * `docs/tests/cases/Two designers on one asset.md` step 8 — the clauses the audit
- * (`.superpowers/sdd/audit/recover.md`, `.superpowers/sdd/audit/two-designers.md`) found bucket D
- * (no test asserts them at all): after a REFUSED write, nothing else on screen reacts to it (no
+ * (`.superpowers/sdd/audit/recover.md`, `.superpowers/sdd/audit/two-designers.md`, both
+ * gitignored) found bucket D (no test asserts them at all). Each mutation that watched these
+ * clauses go red is in the committed
+ * `docs/tasks/asset-designer-expansion/reports/AD18-walk-automation-evidence.md`'s "Task 6"
+ * section. After a REFUSED write, nothing else on screen reacts to it (no
  * notice, no failure panel, every mode tool stays live, no dialog opens); a refused write's
  * optimistic preview really clears, so the canvas draws the position the vault still holds; and a
  * design kept on screen after a FAILED re-read keeps its position, its selection and its Inspector

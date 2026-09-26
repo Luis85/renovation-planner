@@ -227,9 +227,11 @@ the four-sided helper is withheld there (step 23's rule) and Generate is absent.
 `tests/presentation/designer/designerCalibrationPendingLines.test.ts`,
 `tests/presentation/designer/designerHiddenClearanceWalk.test.ts` and
 `tests/presentation/designer/designerClearanceReviewName.test.ts` — all three jsdom-mounted, no host
-needed. Each clause below was watched red against a one-clause mutation of `src/`
-(`.superpowers/sdd/task-7-report.md` carries the mutation, the failing assertion and which
-neighbour files stayed green).
+needed. Each clause below was watched red against a one-clause mutation of `src/` —
+`docs/tasks/asset-designer-expansion/reports/AD18-walk-automation-evidence.md`'s "Task 7" section
+carries the mutation, the failing assertion and which neighbour files stayed green for every row
+below; `.superpowers/sdd/task-7-report.md` (gitignored, local-only) is that table's own source and
+carries a few extra measurements the committed table condenses.
 
 | Step | Clause | Discharged by |
 | --- | --- | --- |

@@ -1,6 +1,7 @@
 import { describe, expect } from 'vitest';
 import { test } from './fixture';
 import { createDesignerPage } from './designer';
+import { createCanvasPage } from './designerCanvas';
 import { createFollowupsPage } from './designerFollowups';
 import { createParityPage } from './designerParity';
 import { mobileEmulation, type NativeBrowser } from './session';
@@ -10,7 +11,9 @@ import { mobileEmulation, type NativeBrowser } from './session';
  * real host makes: `Design an Asset.md` step 97's dedicated ContextMenu KEY (WebDriver has no key
  * code for it, so it is sent through Chrome DevTools' `Input.dispatchKeyEvent` over the driver's
  * `goog/cdp/execute` door — `sendCommandAndGetResult` — which enters the renderer's input pipeline
- * as a trusted key rather than as a script's `KeyboardEvent`); step 73's name read from Obsidian's
+ * as a trusted key rather than as a script's `KeyboardEvent`. The test SUPPLIES `key: 'ContextMenu'`
+ * to CDP, so the operating system's own keycode-to-`event.key` mapping is exercised on no leg: what
+ * is covered is the renderer's delivery of that key to the focused canvas); step 73's name read from Obsidian's
  * OWN hover tooltip; step 70's labels each keeping a point a click lands on; and `Calibrate a
  * sheet and reserve space.md` step 32's button reached by a real Tab.
  */
@@ -102,9 +105,22 @@ describe('Design an Asset and Calibrate, the input and layout clauses only the r
 		const f = createFollowupsPage(browser, designer);
 		await designer.createAsset('Measured vanity');
 		await designer.applyPreset('vanity');
+		// One leaf width on every platform — the host's default, 679 px on Windows and 680 on Linux,
+		// measured — and the fit camera at it, so a red here is the clause and not the window.
+		await createParityPage(browser, designer).setLeafWidth(680);
+		await createCanvasPage(browser, designer).zoomBy('zoom-fit');
 		await f.allDimensions(true);
 		await expect.poll(async () => (await f.dimensionNames()).length).toBe(26);
-		await browser.pause(300);
+		// Until the labels stop moving: two reads of every box that agree.
+		let last = '';
+		await expect
+			.poll(async () => {
+				const now = JSON.stringify(await browser.execute((sel) => [...document.querySelectorAll(`${sel} [data-rp-dimension]`)].map((label) => label.getBoundingClientRect().toJSON() as DOMRect), ACTIVE));
+				const settled = now === last;
+				last = now;
+				return settled;
+			})
+			.toBe(true);
 		const unreachable = await browser.execute((sel) => {
 			const root = document.querySelector(sel);
 			const canvas = root?.querySelector('.rp-plan-canvas')?.getBoundingClientRect();

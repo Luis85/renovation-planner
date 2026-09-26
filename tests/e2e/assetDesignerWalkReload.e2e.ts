@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs';
 import { describe, expect } from 'vitest';
 import { test } from './fixture';
 import { createDesignerPage, DESIGNER, type DesignerPage } from './designer';
+import { createCanvasPage } from './designerCanvas';
 import { createParityPage, type ParityPage } from './designerParity';
 import type { PlannerPage } from './helpers';
-import { mobileEmulation, type NativeBrowser } from './session';
+import { mobileEmulation, PLUGIN_ID, type NativeBrowser } from './session';
 
 /**
  * `docs/tests/cases/Design an Asset.md` step 24, the four facts beside the shape that a plugin
@@ -19,7 +20,13 @@ import { mobileEmulation, type NativeBrowser } from './session';
  * Every read here — the first one, every post-command refresh and a reopen — runs the one
  * hydration routine over the vault's files, so what "survives" can mean is narrow and is asserted
  * as exactly that: the files are byte-for-byte what they were before the toggle, and a designer
- * opened fresh after it draws the same four readings the one open before it drew.
+ * opened fresh after it draws the same readings the one open before it drew.
+ *
+ * **What "the same calibration" rests on.** The Reference tab's Scale row says only
+ * `Calibrated` or `Not calibrated`, so it proves one EXISTS. Its value is held twice: by the
+ * sidecar's text, compared byte for byte, and by the drawn sheet's size in WORLD units — the
+ * raster's pixels times the calibration's scale, which the camera does not touch — and the two
+ * assets are calibrated to different known lengths so that size differs between them.
  */
 const desktop = mobileEmulation ? test.skip : test;
 
@@ -51,10 +58,14 @@ async function dress(browser: NativeBrowser, designer: DesignerPage, ui: Planner
 }
 
 /** What the designer open on `assetId` draws, beside the sidecar's text and the note's height. */
-async function record(designer: DesignerPage, parity: ParityPage, ui: PlannerPage, assetId: string, name: string) {
+async function record(browser: NativeBrowser, designer: DesignerPage, parity: ParityPage, ui: PlannerPage, assetId: string, name: string) {
 	const states = (await designer.leafStates(DESIGNER)) as { assetId: string }[];
 	await ui.activate(DESIGNER, states.findIndex((state) => state.assetId === assetId));
+	const canvas = createCanvasPage(browser, designer);
+	// Polled: a reopened designer loads its sheet a beat after it draws the Inspector.
+	await expect.poll(async () => (await canvas.drawnSheet([])) !== null).toBe(true);
 	return {
+		sheet: (await canvas.drawnSheet([]))?.size,
 		shown: await parity.placementReadings(),
 		sidecar: readFileSync(designer.sidecarPath(assetId), 'utf8'),
 		height: (await ui.notesOfType('renovation-asset'))[`Renovation/Library/Assets/${name}.md`]?.height,
@@ -74,25 +85,24 @@ describe('Design an Asset, the facts beside the shape across a plugin reload', (
 			[first, second].toSorted(),
 		);
 
-		const before = { [first]: await record(designer, parity, ui, first, A.name), [second]: await record(designer, parity, ui, second, B.name) };
+		const before = { [first]: await record(browser, designer, parity, ui, first, A.name), [second]: await record(browser, designer, parity, ui, second, B.name) };
 		// As left: each fact set, and set to its own asset's value.
 		for (const [assetId, dressing] of [[first, A], [second, B]] as const) {
 			expect(before[assetId]?.shown).toMatchObject({ anchor: ['placement-back-centre'], front: dressing.front, height: String(dressing.height) });
 			expect(before[assetId]?.shown.scale).toBe('Calibrated');
 			expect((JSON.parse(before[assetId]?.sidecar ?? '{}') as { calibration: unknown }).calibration).not.toBeNull();
 		}
+		expect(before[first]?.sheet).not.toEqual(before[second]?.sheet);
 
-		await page.disablePlugin('renovation-planner');
-		await page.enablePlugin('renovation-planner');
+		for (const enabled of [false, true]) await (enabled ? page.enablePlugin(PLUGIN_ID) : page.disablePlugin(PLUGIN_ID));
+		// Neither leaf came back by itself (W24-A's finding); both are reopened by hand.
 		await expect.poll(() => designer.leafStates(DESIGNER)).toEqual([]);
-
-		await designer.openDesignerFor(A.name);
-		await designer.openDesignerFor(B.name);
+		for (const { name } of [A, B]) await designer.openDesignerFor(name);
 		await expect.poll(async () => ((await designer.leafStates(DESIGNER)) as { assetId: string }[]).map((state) => state.assetId).toSorted()).toEqual(
 			[first, second].toSorted(),
 		);
 		// Each reopened designer draws what its predecessor drew, over files the toggle left alone.
-		expect(await record(designer, parity, ui, first, A.name)).toEqual(before[first]);
-		expect(await record(designer, parity, ui, second, B.name)).toEqual(before[second]);
+		expect(await record(browser, designer, parity, ui, first, A.name)).toEqual(before[first]);
+		expect(await record(browser, designer, parity, ui, second, B.name)).toEqual(before[second]);
 	});
 });

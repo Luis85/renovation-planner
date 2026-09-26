@@ -71,18 +71,21 @@ describe('Design an Asset, what the host draws', () => {
 		await expect.poll(() => designer.readSidecar(assetId).revision).toBe(1);
 
 		// Step 7: the accent triangle is drawn where the sheet's own top-left puts it, and none of
-		// its three mirror images is.
-		let samples: Awaited<ReturnType<typeof canvas.sheetSamples>> = [];
-		await expect
-			.poll(async () => {
-				samples = await canvas.sheetSamples([TRIANGLE, ...MIRRORS]);
-				return samples.length === 4 && samples.every((sample) => sample.inside && (sample.rgba[3] ?? 0) > 0);
-			})
-			.toBe(true);
-		await writeEvidence(directory, 'sheet-samples', samples);
-		const redness = samples.map(({ rgba: [r = 0, , b = 0] }) => r - b);
-		const [triangle = 0, ...mirrors] = redness;
-		expect(mirrors.map((mirror) => triangle - mirror > ACCENT_MARGIN)).toEqual([true, true, true]);
+		// its three mirror images is — in the layer's pixels, and in the order the SCREEN shows them.
+		const read = () => canvas.drawnSheet([TRIANGLE, ...MIRRORS]);
+		await expect.poll(async () => (await read())?.samples.every((sample) => sample.inside && (sample.rgba[3] ?? 0) > 0) ?? false).toBe(true);
+		const sheet = await read();
+		if (!sheet) throw new Error('The sheet went away after it was drawn.');
+		await writeEvidence(directory, 'sheet-samples', sheet);
+		const [triangle, acrossX, acrossY] = sheet.samples;
+		const redness = sheet.samples.map(({ rgba: [r = 0, , b = 0] }) => r - b);
+		const [accent = 0, ...mirrors] = redness;
+		expect(mirrors.map((mirror) => accent - mirror > ACCENT_MARGIN)).toEqual([true, true, true]);
+		// The sheet's left edge is on the screen's left and its top on the screen's top: a camera or
+		// stage flip moves the samples along with the pixels, and only this order sees it.
+		expect({ left: (triangle?.screen.x ?? 0) < (acrossX?.screen.x ?? 0), above: (triangle?.screen.y ?? 0) < (acrossY?.screen.y ?? 0) }).toEqual({ left: true, above: true });
+		// And nothing mirrors the canvas after it is drawn.
+		expect(sheet.cssMirrors).toEqual([]);
 
 		// Step 8: Obsidian's own explorer lists the sidecar in the library's Geometry folder.
 		const row = await explorerRow(browser, `Renovation/Library/Geometry/${assetId}.rpgeo`);

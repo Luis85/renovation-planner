@@ -210,38 +210,53 @@ export function createCanvasPage(browser: NativeBrowser, designer: DesignerPage)
 	};
 
 	/**
-	 * The background sheet as DRAWN, sampled where the unmirrored raster would put each `[fx, fy]`
-	 * fraction of it: the point is placed from the image node's own box (`x`, `y`, `width`,
-	 * `height`) through its LAYER's transform — never the node's own, which a flip would carry
-	 * along — and read back as the mean RGBA of a 3×3 pixel patch of that layer's own canvas.
-	 * `inside` says whether the point fell on the stage at all; no sheet drawn yet answers `[]`.
+	 * The background sheet as DRAWN, or `null` before it has loaded (a caller polls).
+	 *
+	 * The node is the `Image` on the `asset-background` layer (`BACKGROUND_LAYER`). Each `[fx, fy]`
+	 * fraction of the unmirrored raster is placed from that node's own box (`x`, `y`, `width`,
+	 * `height`) through its LAYER's absolute transform — never the node's own, which a flip of the
+	 * node would carry along; the node's own rotation and crop are ignored, and a sheet with neither
+	 * (step 7's) is what this reads. Each sample carries the mean RGBA of a 3×3 patch of the layer's
+	 * canvas and its point on SCREEN (the canvas box plus the transformed point), because the layer
+	 * transform includes the camera and the stage, so a flip THERE would carry the samples along
+	 * too — only the screen order of two samples can see it. What neither can see is a CSS
+	 * transform on the canvas or an ancestor, which moves pixels without moving the box:
+	 * `cssMirrors` names every element in that chain whose computed transform mirrors an axis.
+	 * `size` is the node's box in WORLD units, which the calibration decides and the camera does not.
 	 */
-	const sheetSamples = (fractions: readonly (readonly [number, number])[]) =>
+	const drawnSheet = (fractions: readonly (readonly [number, number])[]) =>
 		browser.execute(
 			(sel, wanted) => {
-				type Node = { x(): number; y(): number; width(): number; height(): number; getLayer(): Layer };
-				type Layer = { getAbsoluteTransform(): { point(p: { x: number; y: number }): { x: number; y: number } }; getCanvas(): { getPixelRatio(): number }; getNativeCanvasElement(): HTMLCanvasElement };
-				const konva = (window as unknown as { Konva: { stages: { find(s: string): Node[]; container(): HTMLElement }[] } }).Konva;
+				type Node = { x(): number; y(): number; width(): number; height(): number; name(): string; find(s: string): Node[] };
+				type Layer = Node & { getAbsoluteTransform(): { point(p: { x: number; y: number }): { x: number; y: number } }; getCanvas(): { getPixelRatio(): number }; getNativeCanvasElement(): HTMLCanvasElement };
+				const konva = (window as unknown as { Konva: { stages: { find(s: string): Layer[]; container(): HTMLElement }[] } }).Konva;
 				const host = document.querySelector(sel);
-				const image = konva.stages.find((stage) => host?.contains(stage.container()))?.find('Image')[0];
-				// Nothing yet, rather than a throw: a caller polls until the sheet has loaded.
-				if (!image) return [];
-				const layer = image.getLayer();
+				const layer = konva.stages.find((stage) => host?.contains(stage.container()))?.find('Layer').find((candidate) => candidate.name() === 'asset-background');
+				const image = layer?.find('Image')[0];
+				if (!layer || !image) return null;
 				const ratio = layer.getCanvas().getPixelRatio();
 				const canvas = layer.getNativeCanvasElement();
 				const context = canvas.getContext('2d');
 				if (!context) throw new Error('No sheet context.');
-				return wanted.map(([fx, fy]) => {
+				const box = canvas.getBoundingClientRect();
+				const cssMirrors: string[] = [];
+				for (let el: Element | null = canvas; el; el = el.parentElement) {
+					const transform = getComputedStyle(el).transform;
+					const matrix = transform === 'none' ? null : new DOMMatrix(transform);
+					if (matrix && (matrix.a < 0 || matrix.d < 0)) cssMirrors.push(`${el.tagName}.${el.className}:${transform}`);
+				}
+				const samples = wanted.map(([fx, fy]) => {
 					const at = layer.getAbsoluteTransform().point({ x: image.x() + image.width() * fx, y: image.y() + image.height() * fy });
 					const [px, py] = [Math.round(at.x * ratio), Math.round(at.y * ratio)];
 					const data = context.getImageData(px - 1, py - 1, 3, 3).data;
-					const mean = [0, 1, 2, 3].map((channel) => Math.round(data.filter((_, index) => index % 4 === channel).reduce((sum, value) => sum + value, 0) / 9));
-					return { inside: px > 0 && py > 0 && px < canvas.width - 1 && py < canvas.height - 1, rgba: mean };
+					const rgba = [0, 1, 2, 3].map((channel) => Math.round(data.filter((_, index) => index % 4 === channel).reduce((sum, value) => sum + value, 0) / 9));
+					return { inside: px > 0 && py > 0 && px < canvas.width - 1 && py < canvas.height - 1, rgba, screen: { x: box.left + at.x, y: box.top + at.y } };
 				});
+				return { size: { width: image.width(), height: image.height() }, cssMirrors, samples };
 			},
 			ACTIVE,
 			fractions,
 		);
 
-	return { canvasBox, clickAt, clickCanvas, tool, trace, labels, label, shapeBoxes, viewToggle, viewTicked, leafWidth, zoom, zoomBy, holdSnapshot, pan, sheetSamples };
+	return { canvasBox, clickAt, clickCanvas, tool, trace, labels, label, shapeBoxes, viewToggle, viewTicked, leafWidth, zoom, zoomBy, holdSnapshot, pan, drawnSheet };
 }

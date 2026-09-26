@@ -8,6 +8,12 @@ interface Rect { x: number; y: number; width: number; height: number }
 interface MidDrag { legend: string[]; revision: number }
 export interface Camera { x: number; y: number; scale: number; centre: { x: number; y: number } }
 
+/** Obsidian's untyped hotkey manager and command registry, as the two readers below use them. */
+interface HotkeyHost {
+	commands: { commands: Record<string, unknown> };
+	hotkeyManager: { getHotkeys(id: string): { modifiers: string[]; key: string }[] | undefined; getDefaultHotkeys(id: string): { modifiers: string[]; key: string }[] | undefined };
+}
+
 /** What `thumbnailColours` reads: computed colour strings, before any arithmetic. */
 export interface DrawnColours { stroke: string; opacity: number; backgrounds: string[] }
 
@@ -172,7 +178,7 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 	/** Whatever Obsidian itself has bound to a command, as `Mod+G`-style strings. */
 	const hotkeysOf = (command: string) =>
 		browser.executeObsidian(({ app }, id) => {
-			const manager = (app as unknown as { hotkeyManager: { getHotkeys(id: string): { modifiers: string[]; key: string }[] | undefined; getDefaultHotkeys(id: string): { modifiers: string[]; key: string }[] | undefined } }).hotkeyManager;
+			const manager = (app as unknown as HotkeyHost).hotkeyManager;
 			const keys = manager.getHotkeys(id) ?? manager.getDefaultHotkeys(id) ?? [];
 			return keys.map((key) => [...key.modifiers, key.key].join('+'));
 		}, command);
@@ -272,17 +278,24 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 
 	/**
 	 * Every Obsidian command whose EFFECTIVE hotkeys (the user's, else the default) include one of
-	 * `combos` (`Mod+Z`-style) — the question "what would the host run for this key", asked of the hotkey manager.
+	 * `combos` (`Mod+Shift+Z`-style) — "what would the host run for this key", asked of the
+	 * hotkey manager. Both sides are normalised before comparing: modifiers sorted, the key upper
+	 * case, and `Ctrl` read as `Mod` off macOS (where the two are one key). What this cannot see:
+	 * an Electron application-menu accelerator, which lives outside `app.hotkeyManager`.
 	 */
 	const boundTo = (combos: string[]) =>
 		browser.executeObsidian(({ app }, wanted) => {
-			const host = app as unknown as {
-				commands: { commands: Record<string, unknown> };
-				hotkeyManager: { getHotkeys(id: string): { modifiers: string[]; key: string }[] | undefined; getDefaultHotkeys(id: string): { modifiers: string[]; key: string }[] | undefined };
-			};
+			const host = app as unknown as HotkeyHost;
+			const mac = document.body.classList.contains('mod-macos');
+			const spell = (modifiers: string[], key: string) =>
+				[...modifiers.map((modifier) => (modifier === 'Ctrl' && !mac ? 'Mod' : modifier)).toSorted(), key.toUpperCase()].join('+');
+			const targets = wanted.map((combo) => {
+				const parts = combo.split('+');
+				return spell(parts.slice(0, -1), parts.at(-1) ?? '');
+			});
 			return Object.keys(host.commands.commands).filter((id) => {
 				const keys = host.hotkeyManager.getHotkeys(id) ?? host.hotkeyManager.getDefaultHotkeys(id) ?? [];
-				return keys.some((key) => wanted.includes([...key.modifiers, key.key.toUpperCase()].join('+')));
+				return keys.some((key) => targets.includes(spell(key.modifiers, key.key)));
 			});
 		}, combos);
 

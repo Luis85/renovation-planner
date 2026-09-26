@@ -113,6 +113,14 @@ export class WriteIncidentRegistry {
 	 * presented as zero open incidents, so a refused list seeds one unreadable incident and
 	 * the gate shuts. That is the same answer rule 7 gives an unsupported schema version, and
 	 * it is the answer ADR-0034 requires of this file specifically.
+	 *
+	 * **Skips a listed incident this registry's own `open` already holds, by `incidentId`.**
+	 * A reload installs a NEW registry over the same durable file at CONSTRUCTION, before
+	 * `startPersistence` calls `seed()` at `onLayoutReady` — a window in which a save still in
+	 * flight from the OLD session can half-fail and `record()` into this (the now-active) one,
+	 * pushing the incident into `open` and onto disk before `seed()` ever runs. Without the
+	 * check, `seed()` read that same incident back off the store and pushed the listed copy a
+	 * second time: two in-memory entries sharing one `incidentId`, one record on disk.
 	 */
 	async seed(): Promise<void> {
 		if (this.seeded) return;
@@ -123,7 +131,8 @@ export class WriteIncidentRegistry {
 			this.logger.error('incident.seed-failed', { cause: listed.error });
 			return;
 		}
-		this.open.push(...listed.value);
+		const known = new Set(this.open.map((incident) => incident.incidentId));
+		this.open.push(...listed.value.filter((incident) => !known.has(incident.incidentId)));
 	}
 
 	/**

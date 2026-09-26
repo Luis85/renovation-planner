@@ -96,6 +96,19 @@ export class SessionStores {
 	 * `WriteIncidentRegistry.hold()` names had counted when this ran. A save that never
 	 * settles keeps the registry until the next load replaces it, which is the cost the ruling
 	 * accepted — an old session's record answering for the vault until the next load.
+	 *
+	 * **A reload's own construction installs the NEW registry before ANY of this runs, and
+	 * `markUncompensated` records into whichever one `activeWriteIncidentRegistry()` answers at
+	 * stamp time (owner ruling 13) — not into the registry that gated the save.** So a save
+	 * still in flight from the OLD session when a reload constructs a new `SessionStores` — the
+	 * exact window `hold()`/`whenIdle` keep this instance installed for — half-fails into the
+	 * NEW session's registry instead: the new gate shuts at once, the old session's own
+	 * `writeIncidents` never learns of it and answers `anyOpen() === false` for as long as it is
+	 * kept around, and the shared file carries the incident either way. Pinned at
+	 * `tests/plugin/sessionStores.test.ts`'s "pins a reload during an old save". A registry's
+	 * own `seed()` guards against re-reading a listed incident its `open` already holds by
+	 * `incidentId`, for exactly the case this produces: the new registry's `record()` can land
+	 * before its `seed()` runs at `onLayoutReady`.
 	 */
 	dispose(): void {
 		this.writeIncidents.whenIdle(() => {

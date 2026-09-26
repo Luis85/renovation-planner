@@ -133,6 +133,27 @@ describe('WriteIncidentRegistry', () => {
 		expect(registry.anyOpen()).toBe(true);
 	});
 
+	/**
+	 * Minor 3 (S21 fix round): the reviewer's reload-before-seed probe, reduced to one registry.
+	 * A reload installs a NEW `WriteIncidentRegistry` over the SAME durable file as CONSTRUCTION
+	 * time (`SessionStores`), before `startPersistence` calls `seed()` at `onLayoutReady` — so a
+	 * save still in flight from the OLD session can half-fail and `record()` into the NEW
+	 * registry first, pushing the incident into `open` AND onto disk, and only THEN does
+	 * `seed()` run and read that same incident back off the store. `seed()` used to push the
+	 * listed copy again with no check against what `open` already held, by `incidentId` —
+	 * two in-memory entries for one incident, one on disk.
+	 */
+	it('does not duplicate an incident record() already holds when seed() reads it back off the store', async () => {
+		const store = new InMemoryWriteIncidentStore();
+		const registry = new WriteIncidentRegistry(store, recorder);
+
+		await registry.record(stamped());
+		await registry.seed();
+
+		expect(registry.report().open).toHaveLength(1);
+		expect(expectOk(await store.list())).toHaveLength(1);
+	});
+
 	it('fails CLOSED when the seeding read itself refuses: unreadable is not empty', async () => {
 		const unreadable: WriteIncidentStore = {
 			list: () => Promise.resolve(err(persistenceError('write-incident.file-unreadable', 'no'))),

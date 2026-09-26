@@ -523,6 +523,19 @@ could name, not about whether the vault is safe.
   a second function of that name, oxlint) `tests/gates/stamp-construction-boundary.test.ts`
   drives. A stamp made while no registry is installed is still lost; the keep-alive narrows that
   window to saves none of its holders counts.
+  **Correction, 2026-09-26 (S21 fix round): recording at STAMP TIME also changes who a reload's
+  old save answers to.** `SessionStores`'s constructor installs its new registry as the active
+  one immediately, before that session's own `seed()` has run, and `markUncompensated` records
+  into whichever registry is active when the stamp is made — not into the one that gated the
+  write. So a save still in flight from the OLD session at reload (the exact window `hold()` /
+  `whenIdle` keep the old `SessionStores` installed for) half-fails into the NEW session's
+  registry: the new gate shuts at once, and the old session's own registry never learns of it.
+  `WriteIncidentRegistry.seed()` guards against the matching hazard this produces — its own
+  `record()` landing before its `seed()` runs at `onLayoutReady` — by skipping a listed incident
+  already held in memory by `incidentId`, rather than pushing a second copy of it. Pinned at
+  `tests/plugin/sessionStores.test.ts`'s "pins a reload during an old save" and
+  `tests/application/incidents/writeIncidentRegistry.test.ts`'s "does not duplicate an incident
+  record() already holds…"; disclosed at `SessionStores.dispose`'s own docblock.
 
 ## Amendment 1, 2026-09-18 — an UNDO is refused while the vault is paused
 

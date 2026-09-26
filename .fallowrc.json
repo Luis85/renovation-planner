@@ -14,7 +14,7 @@
 	// background, and it imports nothing under `src/` or `tests/`. `scripts/chromium.mjs` deliberately does NOT: both of them import it, so fallow
 	// reaches it through the graph — and it having to be reachable is the point of it being
 	// one file rather than a copy in each.
-	// The nine `*.test-d.ts` files are a fourth kind, next to `scripts/lint-edited.mjs` above:
+	// The ten `*.test-d.ts` files are a fourth kind, next to `scripts/lint-edited.mjs` above:
 	// nothing imports them and no npm script runs them either — `vue-tsc -noEmit`
 	// type-checks them because `tsconfig.json`'s `include` is `src/**` plus `tests/**`, four
 	// globs that sweep these files in rather than eight entries naming each one, and
@@ -129,6 +129,7 @@
 		"tests/domain/cost/costPipelineInput.test-d.ts",
 		"tests/presentation/library/assetLibraryContext.test-d.ts",
 		"tests/core/geometry/geometryBrands.test-d.ts",
+		"tests/application/queries/assetGeometryOrphanDiagnostics.test-d.ts",
 		"src/prototypes/**/*.vue",
 		"tests/fixtures/promotion/ZoneSummary.promoted.vue",
 		"tests/gates/fixtures/brokenFake.fixture.ts",

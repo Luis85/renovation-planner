@@ -235,5 +235,9 @@ export function harnessEditorContext(): PlanEditorContext {
 		// Bound to `harnessDeps()`'s own `openNote`, which answers `'opened'` without touching
 		// anything — the honest result for a page with no vault, matching every other door here.
 		openPlanNote: () => deps.openNote(HARNESS_PLAN.id).then(() => undefined),
+		// A no-op for `closeLeaf`'s reason, one layer further out: the diagnostics report is a
+		// `plugin/` modal over a ledger this page has no plugin to hold. The button on the
+		// `unreadable-zones` row still renders and still presses; there is nothing to open.
+		openDiagnosticsReport: () => undefined,
 	};
 }

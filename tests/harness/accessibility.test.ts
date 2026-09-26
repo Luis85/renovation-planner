@@ -98,7 +98,7 @@
  * one.
  */
 import axe from 'axe-core';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, nextTick } from 'vue';
 import { flushPromises } from '@vue/test-utils';
 import { prototypeEntries } from './entries';
@@ -110,6 +110,7 @@ import { detailDeps, mountWithDrawRoom, price, refusingWith } from './accessibil
 import { mountPlanEditor, runtimeOf, settle, type EditorHarness } from '../helpers/editor';
 import { FIXTURE_PLAN } from '../helpers/planFixtures';
 import { installObsidianDom } from '../helpers/dom';
+import { recorder } from '../helpers/logger';
 import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver, resizeTo } from '../helpers/layout';
 import { useSelectionStore } from '../../src/presentation/editor/selection/selection-store';
@@ -167,6 +168,7 @@ beforeEach(() => {
  */
 afterEach(() => {
 	Platform.isMobile = false;
+	vi.restoreAllMocks();
 });
 
 describe('axe against the mounted view', () => {
@@ -1022,9 +1024,16 @@ describe('axe against the mounted view', () => {
 	 * `<FieldError>`'s minted id and `aria-describedby` wiring, every `<label for>`, and
 	 * `<FormBanner>`'s hidden-until-populated region, none of which the stub `form` case
 	 * above renders. Opened the same way `ViewRoot.onCreateProject` opens it (a `form`
-	 * descriptor naming the real component and a `dispatch` fixture), never through a click
-	 * on the empty state's button — this file already scans that button in the case above;
-	 * dispatching through it here would test Vue's click wiring, not axe.
+	 * descriptor naming the real component and a `dispatch` fixture, plus the `logger`
+	 * that same call site passes — `NewProjectForm` declares it required, and omitting it
+	 * warned `[Vue warn]: Missing required prop: "logger"` on every run, hidden for a
+	 * passing case by the `agent` reporter vitest picks under an AI agent, and shown by
+	 * `default` or `--reporter=verbose`), never through a click on the empty state's button — this file already scans
+	 * that button in the case above; dispatching through it here would test Vue's click
+	 * wiring, not axe. The spy below is what makes that warning a check rather than
+	 * something only a verbose run happens to show: Vue's `warn` falls through to
+	 * `console.warn` whenever no `app.config.warnHandler` is installed
+	 * (`@vue/runtime-core`'s `warn$1`), and `mountHarness`'s app installs none.
 	 */
 	it('reports no semantic violations with the New Project form open', async () => {
 		const { view } = mountHarness(document.body);
@@ -1032,12 +1041,15 @@ describe('axe against the mounted view', () => {
 		// the synchronous mount, and this dialog is opened from that same view.
 		await flushPromises();
 
+		const warnSpy = vi.spyOn(console, 'warn');
+
 		void useDialogStore().openDialog({
 			kind: 'form',
 			title: 'New project',
 			component: NewProjectForm,
 			props: {
 				dispatch: () => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })),
+				logger: recorder,
 			},
 		});
 		await nextTick();
@@ -1051,6 +1063,7 @@ describe('axe against the mounted view', () => {
 		const results = await axe.run(view.contentEl, runOptions);
 
 		expect(results.violations).toEqual([]);
+		expect(warnSpy.mock.calls.map((call) => String(call[0])).filter((text) => text.includes('Missing required prop'))).toEqual([]);
 	});
 });
 

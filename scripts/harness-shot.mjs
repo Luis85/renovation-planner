@@ -101,12 +101,27 @@ const ITEM_DRAWN = ['.rp-task-banner [data-rp-object-shape="rectangle"][aria-pre
  * the same shape against a real mount.
  */
 const DETAIL_ANCESTRY_CRUMB = '.rp-context-bar__crumbs > .rp-context-bar__crumb:nth-child(2):not([aria-current])';
+// The persistent warning strip rows these shots wait on, each waited on by its own BUTTON rather
+// than by the strip container — see the shots that use them for why that distinction is
+// load-bearing rather than fussy. NOT a census of the strip's actioned rows: `editorWarnings`
+// (`src/presentation/editor/shell/warnings.ts`) is, and a row it grows here would go unphotographed
+// with nothing red.
+const STALE_ROW_BUTTON = '[data-rp-warning="stale"] button';
+const UNREADABLE_ROW_BUTTON = '[data-rp-warning="unreadable-zones"] button[data-rp-action="open-diagnostics"]';
+// The project detail state's own diagnostics button (L-34). Waited on by the BUTTON for the
+// reason the two above are: the shots that use it would otherwise be satisfied by the resting
+// pane.
+const PROJECT_DIAGNOSTICS_BUTTON = '.rp-project-detail [data-rp-action="open-diagnostics"]';
+// The schedule section's (L-40). Its own class rather than the one above, which the schedule's
+// section also carries — so a `&section=schedule` that stopped reaching it would satisfy that one
+// with the detail state's button.
+const PROJECT_SCHEDULE_DIAGNOSTICS_BUTTON = '.rp-project-work [data-rp-action="open-diagnostics"]';
 
 /**
- * The asset the four selected shots open on — `tests/harness/assetLibrary.ts`'s one DESIGNED
+ * The asset the selected shots open on — `tests/harness/assetLibrary.ts`'s one DESIGNED
  * seed, so §3.5's Shape section draws a footprint, a clearance and a spec sheet rather than
- * three "nothing yet" lines. Named once here because four shots share it and a fifth would
- * otherwise be a fifth place to keep in step.
+ * three "nothing yet" lines. Named once here because several shots share it and each would
+ * otherwise be one more place to keep in step.
  */
 const LIBRARY_SELECTED_ASSET = 'base-cabinet-600';
 
@@ -454,6 +469,18 @@ const SHOTS = [
 		width: 460,
 		scrollTo: '.rp-asset-price-header',
 	},
+	// L-34's door on this surface: `?plans-unreadable=` is what makes the notice and its
+	// **Show diagnostics report** button drawable at all outside a vault. Both wait on the
+	// BUTTON rather than on the view wrapper, which the resting detail state satisfies just as
+	// well — a dropped knob would otherwise photograph the ordinary state under a name
+	// promising the notice and exit 0, the hazard `plan-editor-unreadable` already names. Two
+	// widths because what is in question is where a bare button lands under a notice `<p>`,
+	// and 460 is the sidebar leaf's real width where that pair either wraps or does not.
+	{ name: 'project-detail-unreadable', query: '?project=project-1&plans=3&plans-unreadable=2&theme=light', selector: PROJECT_DIAGNOSTICS_BUTTON },
+	{ name: 'project-detail-unreadable-narrow', query: '?project=project-1&plans=3&plans-unreadable=2&theme=light', selector: PROJECT_DIAGNOSTICS_BUTTON, width: 460 },
+	// The same door on the schedule section (L-40), at the same two widths for the same reason.
+	{ name: 'project-schedule-unreadable', query: '?project=project-1&plans=3&plans-unreadable=2&section=schedule&theme=light', selector: PROJECT_SCHEDULE_DIAGNOSTICS_BUTTON },
+	{ name: 'project-schedule-unreadable-narrow', query: '?project=project-1&plans=3&plans-unreadable=2&section=schedule&theme=light', selector: PROJECT_SCHEDULE_DIAGNOSTICS_BUTTON, width: 460 },
 	// The Plan Editor in both schemes: it is the first surface with real content, and the
 	// only place the layered Konva scene can be looked at outside a vault. No phone shot —
 	// SDD §61 scopes the MVP to desktop, and a canvas editor is the least mobile of the
@@ -486,6 +513,25 @@ const SHOTS = [
 		selector: [PLAN_CANVAS, '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail', DETAIL_ANCESTRY_CRUMB],
 		width: 460,
 	},
+	// BP-04's numeric outline editor with its chosen-corner list (slice A2). `harness-terrace` is
+	// the one seeded zone that is not a rectangle — five corners, so the list has a length worth
+	// photographing and the form carries ten inputs rather than eight. The narrow shot is the
+	// instrument for BP-04's own test case 12, "constrained-layout focus": 460px is the width an
+	// Obsidian sidebar leaf actually has, and a modal full of coordinate pairs is exactly the
+	// shape that stops fitting there.
+	//
+	// **`outline=1` rather than a bare `outline`, and the CHOSEN state is the point.** Action 3's
+	// highlight does not exist until a corner is chosen, jsdom can neither draw nor measure a
+	// Konva radius or fill, and corner 1 of the terrace is the one vertex of it that a 1280px
+	// capture leaves clear of the dialog. Each waits on `aria-pressed="true"` rather than on the
+	// list, so a shot cannot certify a chosen corner while photographing an unchosen one.
+	//
+	// The knob OPENS that editor programmatically, so these three are pictures of the surface and
+	// not evidence of a route to it. The route exists since BP-04 slice B (two doors, closing
+	// limitation L-24) and `plan-editor-selected-narrow` below is where one of them is photographed.
+	{ name: 'plan-editor-outline', query: '?view=plan-editor&select=harness-terrace&outline=1&theme=light', selector: '[data-rp-corner="choose"][aria-pressed="true"]' },
+	{ name: 'plan-editor-outline-dark', query: '?view=plan-editor&select=harness-terrace&outline=1', selector: '[data-rp-corner="choose"][aria-pressed="true"]' },
+	{ name: 'plan-editor-outline-narrow', query: '?view=plan-editor&select=harness-terrace&outline=1&theme=light', selector: '[data-rp-corner="choose"][aria-pressed="true"]', width: 460 },
 	{ name: 'plan-editor-locked', query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
 	{ name: 'plan-editor-locked-dark', query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
 	// Property-tree polish (2026-09-12): the `?tree` knob's four-plan property, so the tree's
@@ -551,6 +597,18 @@ const SHOTS = [
 		query: '?view=plan-editor&select=harness-kitchen&theme=light',
 		selector: '.rp-room-inspector',
 	},
+	// The same Inspector at an Obsidian sidebar's width (R-S12-6): BP-04 slice B's `Edit corners`
+	// button is one row in a column of rows, and 460px is the width at which a row of buttons
+	// stops fitting. TWO knobs, because at that width the Inspector is an overlay:
+	// `ResponsiveEditorShell` `v-show`s the whole region away unless `overlay === 'inspector'`,
+	// so every control in it is attached and `display: none`, and `?select` alone leaves it that
+	// way — its rail press is guarded on the room-list row being `null`, which an attached-but-
+	// hidden row is not (measured in Chromium, 2026-09-20: `display: none`, zero-area rect).
+	// `?details` is the press. The wait is scoped INSIDE `.rp-inspector-drawer` and onto the
+	// button, for the same reason the two `?tree` narrow rows above scope theirs inside the
+	// Layers overlay: a bare `.rp-room-inspector` is satisfied by the hidden region and would
+	// exit 0 on a picture of the canvas.
+	{ name: 'plan-editor-selected-narrow', query: '?view=plan-editor&select=harness-kitchen&details&theme=light', selector: '.rp-inspector-drawer [data-rp-action="edit-outline"]', width: 460 },
 	{ name: 'plan-editor-add-menu', query: '?view=plan-editor&add&theme=light', selector: '.rp-add-menu' },
 	{
 		name: 'plan-editor-multiple',
@@ -633,17 +691,16 @@ const SHOTS = [
 	// wait on the container would certify the strip MOUNTED, not that the knob's write actually
 	// landed — the same "arming versus landing" hazard `plan-editor-add-room-narrow`'s own
 	// comment states for its `[aria-disabled="false"]` wait, met a second time here.
-	{
-		name: 'plan-editor-stale',
-		query: '?view=plan-editor&select=harness-kitchen&stale&theme=light',
-		selector: '[data-rp-warning="stale"] button',
-	},
-	{
-		name: 'plan-editor-stale-narrow',
-		query: '?view=plan-editor&select=harness-kitchen&stale',
-		selector: '[data-rp-warning="stale"] button',
-		width: 460,
-	},
+	{ name: 'plan-editor-stale', query: '?view=plan-editor&select=harness-kitchen&stale&theme=light', selector: STALE_ROW_BUTTON },
+	{ name: 'plan-editor-stale-narrow', query: '?view=plan-editor&select=harness-kitchen&stale', selector: STALE_ROW_BUTTON, width: 460 },
+	// The `unreadable-zones` row and its **Show diagnostics report** button — the row this
+	// repository had no picture of at all until the `?unreadable=N` knob existed. Light at 1280
+	// and dark at 460, the same two-shot split the
+	// stale pair above takes, and the selector waits on the ROW'S OWN BUTTON for that pair's
+	// stated reason: a wait on `.rp-warning-strip` would certify the strip mounted rather than
+	// that this row drew.
+	{ name: 'plan-editor-unreadable', query: '?view=plan-editor&unreadable=2&theme=light', selector: UNREADABLE_ROW_BUTTON },
+	{ name: 'plan-editor-unreadable-narrow', query: '?view=plan-editor&unreadable=2', selector: UNREADABLE_ROW_BUTTON, width: 460 },
 	// A LIST rather than one selector (R14, 2026-09-04): the canvas alone attaches before the
 	// constrained-layout reflow has actually happened, so a wait on it could complete with the
 	// Layers/Details rail not yet on screen — the same wrong-state shape as `plan-editor-dark`'s
@@ -792,11 +849,7 @@ const SHOTS = [
 	//     shipped selector, which is a stand-in and not evidence the query fires.
 	{ name: 'asset-library-dark', query: '?view=asset-library', selector: ASSET_LIBRARY_VIEW },
 	{ name: 'asset-library-light', query: '?view=asset-library&theme=light', selector: ASSET_LIBRARY_VIEW },
-	{
-		name: 'asset-library-selected',
-		query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`,
-		selector: ASSET_LIBRARY_VIEW,
-	},
+	{ name: 'asset-library-selected', query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`, selector: ASSET_LIBRARY_VIEW },
 	{
 		name: 'asset-library-middle',
 		query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`,
@@ -827,6 +880,10 @@ const SHOTS = [
 		selector: ASSET_LIBRARY_VIEW,
 		width: 460,
 	},
+	// L-43: the library on a phone, read-only. It waits on the mobile notice rather than on the
+	// view, so a dropped `phone` cannot photograph the writable library under this name, and it
+	// scrolls to the Actions row so `Open designer` and `Delete` are in the picture.
+	{ name: 'asset-library-phone', query: `?view=asset-library&phone&theme=light&asset=${LIBRARY_SELECTED_ASSET}`, selector: `${ASSET_LIBRARY_VIEW} [data-rp-notice="mobile-read-only"]`, width: 360, scrollTo: '.rp-al-actions' },
 	// The harness's own index — the one surface here this command could not photograph. That is
 	// not a gap worth leaving in a tool whose whole argument is that a capture read by eye
 	// reaches defects no gate can: the index's own chrome went unlooked-at while it accumulated

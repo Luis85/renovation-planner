@@ -157,6 +157,30 @@
 }
 
 /*
+ * BP-04's chosen-corner list (`OutlinePointsForm.vue`, opt-in). No native marker: each row's own
+ * text already opens with its number (`editor.area.corner-position`), so a marker beside it would
+ * say the same thing twice. The row wraps rather than shrinking its button — at a sidebar's width
+ * a coordinate line and a control do not both fit on one line, and a button that has become
+ * narrower than its label is a worse answer than a second line.
+ */
+.rp-dialog-corners {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	margin: 0;
+	padding-inline-start: 0;
+	list-style: none;
+}
+
+.rp-dialog-corners li {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+}
+
+/*
  * THE BUSY STATE HAS TO BE VISIBLE, and neither mechanism that produces it draws anything.
  *
  * No control in a form dialog may be `:disabled` while a write is in flight — `FormDialog.vue`

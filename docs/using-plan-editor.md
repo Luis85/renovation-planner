@@ -7,11 +7,18 @@
 > Switching perspectives does not write a saved change. In German these visible modes are
 > **Plan**, **Renovieren** and **Prüfen**.
 
-> The current editor supports dragging an existing Room or Area corner in Plan, but it has
-> no approved non-drag or keyboard route for changing one arbitrary existing vertex. Numeric
-> coordinates remain available for supported creation/detail forms and reference calibration;
-> they are not a substitute for existing-corner editing. This limitation is intentionally
-> retained for validation and release decisions.
+> **Correcting one existing corner — 2026-09-20.** Select a Room or Area in Plan and choose
+> **Edit corners**, either from its right-click menu or from the Inspector, to type a corner's
+> position instead of dragging it. The dialog lists that zone's corners by number; choosing one
+> marks it on the plan and puts the caret in its X position field. The outline previews as you
+> type, and applying saves one reversible change. The route is Plan only: the menu entry is
+> greyed in Renovate, and neither door appears in Review. It changes the position of a corner
+> that already exists — it cannot add or remove one — and it does not replace dragging.
+> **Whether it is usable by keyboard and with assistive technology is not established yet.**
+> Nothing in this build has been run in a live vault, and the automated accessibility checks in
+> this repository run without a rendering engine, so they measure neither a visible focus ring
+> nor contrast nor hit-target size. At a sidebar's width the dialog covers the canvas, so the
+> marked corner cannot be seen on the plan while you type.
 
 Open a floor from its Project. An empty floor offers three starting points: **Add rooms**,
 **Upload a floor plan**, or **Start empty**. A reference image or PDF can be cropped,
@@ -33,8 +40,9 @@ Use **Add** to choose a Room, Area, wall, hosted opening or another supported el
 Temporary tools show Finish and Cancel. Finish validates the draft and saves one change;
 Cancel discards it. Room creation supports a rectangle and a free-shape outline. Numeric
 controls let you enter exact dimensions or corner coordinates when the active creation/detail
-form supports them; they do not provide a non-drag route for changing one arbitrary corner of
-an existing Room or Area.
+form supports them. For a corner of a Room or Area you have already saved, **Edit corners** is
+the non-drag route; it moves an existing corner only, so adding or removing one stays **Add
+point** and Undo.
 With canvas focus, Enter finishes an Object, Path, Fence, Measurement, Stair or Direction arrow; Backspace removes
 its last draft point. Pending numeric input must be applied or discarded first. Enter in a
 numeric field applies that field’s form and does not finish the element.
@@ -68,8 +76,14 @@ does not add history.
 While saving, Select, Add and Cancel retain the pending edit. Switching tools deliberately
 abandons an unsaved entry; changing perspective first asks about the draft.
 
-A Room’s shape is edited by dragging its corner points on the plan. There is currently no
-keyboard or other approved non-drag route for editing one arbitrary existing corner. To add a corner, right-click
+A Room’s shape is edited by dragging its corner points on the plan, or by typing one corner’s
+position: right-click the Room or Area, or use its Inspector, and choose **Edit corners**. Pick a
+corner from the numbered list — it is marked on the plan and the caret lands in its X position
+field — enter X or Y in metres, watch the preview follow, then submit the dialog or **Cancel**.
+The submit button reads **Save**. Cancel writes nothing, and one Undo restores the outline a
+submitted change replaced.
+Whether this route is usable by keyboard and with assistive technology in a real vault is not
+validated yet. To add a corner, right-click
 a Room, Area, wall, path or fence and choose **Add point**: it lands on the nearest edge where you
 clicked, ready to drag, and one Undo removes it. A wall is cut there into two, so the new junction
 drags like any wall end; a cut through an opening is refused. Use **Details** to open the
@@ -160,7 +174,7 @@ outlines remain independent of walls.
 
 Rotation preserves identity, names and links; separate Planned geometry stays independent.
 The rectangular Room size form remains limited to axis-aligned rectangles: drag the corner
-points of rotated outlines on the plan. Reference plans rotate through their existing configuration workflow.
+points of rotated outlines on the plan, or type them one at a time with **Edit corners**. Reference plans rotate through their existing configuration workflow.
 Saved groups and multiple selections rotate as an assembly. If another edit changes the
 saved baseline, the stale turn is refused. Read-back retry after a successful save only refreshes
 the view.

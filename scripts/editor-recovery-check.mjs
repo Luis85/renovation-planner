@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { writeFile } from 'node:fs/promises';
 import { journey as planningJourney } from './editor-planning-check.mjs';
-import { runAreaBrowserMatrix, activate, tabTo } from './editor-area-browser.mjs';
+import { runAreaBrowserMatrix, activate, tabTo, tabBackTo } from './editor-area-browser.mjs';
 import { panel } from './editor-structure-check.mjs';
 import { recordText, recordApply, recordShot } from './editor-record-browser.mjs';
 const form = '[data-rp-form="planning"]', retry = '[data-rp-warning="stale"] [data-rp-action="retry"]';
@@ -71,6 +71,46 @@ async function accessibility(page, scenario, out, suffix = '') {
  assert.deepEqual(violations, [], 'WCAG automated findings');
  return { violations: violations.length, incompleteChecks: result.incomplete.length, scope: 'real browser DOM, WCAG 2.2 AA tags; manual screen-reader acceptance separate' };
 }
+/**
+ * Runs `action` in the Inspector with Rooms and areas CLOSED, then reopens the section by keyboard.
+ * At 1440 and 1000 px the open list lies between its summary and the Inspector in forward Tab order,
+ * and closing it is what keeps the forward walk inside tabTo's 150 presses; at 460 px the list is in
+ * the Layers overlay and never in that walk, and the same close and reopen run anyway. So `pan` and
+ * `materialPan` run with the list open, and whatever `action` does runs with it closed.
+ */
+async function pastRoomsList(page, action) {
+ const section = '[data-rp-section="rooms"] summary';
+ await overlay(page, 'layers');
+ await tabTo(page, section); await page.keyboard.press('Enter');
+ assert.equal(await page.locator('[data-rp-section="rooms"]').evaluate(el => el.open), false, 'Rooms and areas closed by keyboard');
+ await overlay(page, 'details');
+ const result = await action();
+ // A freshly opened overlay has focus on its own root, ahead of the summary; side by side, the summary precedes the Inspector.
+ await (await overlay(page, 'layers') ? tabTo : tabBackTo)(page, section); await page.keyboard.press('Enter');
+ assert.equal(await page.locator('[data-rp-section="rooms"]').evaluate(el => el.open), true, 'Rooms and areas reopened by keyboard');
+ // Guards against the list being re-rendered short or unmounted; a closed <details> keeps its rows, so this cannot see the reopen.
+ await page.waitForFunction(() => document.querySelectorAll('[data-rp-region="layers"] .rp-room-list__row').length === 80);
+ return result;
+}
+/**
+ * Switches the constrained layout's overlay without wrapping the page: Escape inside an overlay returns
+ * focus to the counterpart rail button of the overlay it closed (ResponsiveEditorShell's closeOverlay,
+ * keyed by RAIL_BUTTON: layers→layers, inspector→details), with that button's aria-expanded now false.
+ * A no-op where the rail is hidden or `name` is already open; answers whether it switched.
+ */
+async function overlay(page, name) {
+ const rail = `[data-rp-rail="${name}"]`;
+ if (!await page.locator(rail).isVisible() || await page.locator(rail).getAttribute('aria-expanded') === 'true') return false;
+ await page.keyboard.press('Escape');
+ // The overlay Escape just closed is whichever of RAIL_BUTTON's two entries `name` is not:
+ // RAIL_BUTTON has only { layers: 'layers', inspector: 'details' }. PanelRail.vue draws a third
+ // rail button, `property`, that RAIL_BUTTON does not name; this script passes only `layers` and `details`.
+ const closedRail = `[data-rp-rail="${name === 'layers' ? 'details' : 'layers'}"]`;
+ assert.equal(await page.evaluate(sel => document.activeElement?.matches(sel) ?? false, closedRail), true, "Escape returns focus to the closed overlay's own rail button");
+ assert.equal(await page.locator(closedRail).getAttribute('aria-expanded'), 'false', "Escape leaves the closed overlay's rail marked collapsed");
+ await (name === 'layers' ? tabBackTo : tabTo)(page, rail); await page.keyboard.press('Enter');
+ return true;
+}
 async function largeFloor(page, scenario, out) {
  await page.reload(); await page.locator('[data-rp-empty="floor-start"]').waitFor();
  const fixture = await page.evaluate(() => window.planningRecovery.seedLarge());
@@ -80,28 +120,44 @@ async function largeFloor(page, scenario, out) {
  const started = await page.evaluate(async () => { const start = performance.now(); await window.planningRecovery.reopen(); return start; });
  await page.locator('.rp-plan-canvas').waitFor();
  const usableMs = await page.evaluate(start => performance.now() - start, started);
+ // Counted on the stage after usableMs: that window ends at the canvas attaching and does not wait for the reference, which may or may not have drawn by then.
+ try {
+  await page.waitForFunction(() => { const drawn = window.planningRecovery.structure()[0]; return drawn?.walls > 0 && drawn.openings > 0 && drawn.reference !== null; });
+ } catch (error) { if (error?.name !== 'TimeoutError') throw error; /* the deepEqual below names which of walls, openings or the reference is missing */ }
+ const { walls, openings, reference } = await page.evaluate(() => window.planningRecovery.structure()[0]), expected = { walls: 320, openings: 160, reference: { width: 2400, height: 1800 } };
+ assert.deepEqual({ walls, openings, reference }, expected, 'the large floor draws every seeded wall and opening and the 2400 × 1800 reference');
+ assert.deepEqual({ walls: fixture.walls, openings: fixture.openings, reference: fixture.reference }, expected, 'seedLarge reports what the stage draws');
+ await recordShot(page, scenario, out, 'large-floor');
  await panel(page, 'layers'); const room = `[data-rp-region="layers"] .rp-room-list__row[data-rp-id="${fixture.firstRoom}"]`;
  await tabTo(page, room); const selectionStart = await page.evaluate(() => performance.now()); await page.keyboard.press('Enter');
  await page.waitForFunction(id => document.querySelector(`[data-rp-id="${id}"]`)?.getAttribute('aria-pressed') === 'true', fixture.firstRoom);
  const selectionMs = await page.evaluate(start => performance.now() - start, selectionStart);
  if (scenario.width === 460) await page.keyboard.press('Escape');
  const pan = await panFrames(page);
- await activate(page, '[data-rp-perspective="renovate"]'); await panel(page, 'details');
- await activate(page, '[data-rp-linked="materials"]'); await idle(page);
+ await tabBackTo(page, '[data-rp-perspective][tabindex="0"]'); await activate(page, '[data-rp-perspective="renovate"]'); await panel(page, 'details');
+ await pastRoomsList(page, async () => { await activate(page, '[data-rp-linked="materials"]'); await idle(page); });
  await page.waitForFunction(() => window.planningRecovery.scene()[0]?.materialMarkers === 3);
+ assert.equal(await page.locator(room).getAttribute('aria-pressed'), 'true', 'selection survives the Rooms-and-areas close/reopen');
  if (scenario.width === 460) await page.keyboard.press('Escape');
  const materialPan = await panFrames(page);
  assert.equal(materialPan.sceneAfter.materialMarkers, 3, 'first Room retains its three material markers through pan/zoom');
  await panel(page, 'details');
- if (!await page.locator('[data-rp-mode="photos"]').isVisible()) await activate(page, '[data-rp-room-navigation]');
- await tabTo(page, '[data-rp-mode="photos"]');
- const inspectorStart = await page.evaluate(() => performance.now()); await page.keyboard.press('Enter');
- await page.waitForFunction(() => document.querySelectorAll('.rp-evidence-thumbnail').length === 40);
- const inspectorMs = await page.evaluate(start => performance.now() - start, inspectorStart);
- await page.locator('.rp-evidence-thumbnail').first().scrollIntoViewIfNeeded(); await page.waitForFunction(() => document.querySelector('.rp-evidence-thumbnail')?.naturalWidth === 1600);
- await recordShot(page, scenario, out, 'large-photos');
+ // The photos tab, its thumbnails and the shot all live in the Inspector, so they stay inside this
+ // crossing: pastRoomsList's own reopen switches back to the Layers overlay, and at a constrained
+ // width that would hide them again before they were read. So `inspectorMs` and the large-photos
+ // shot are taken with Rooms and areas closed.
+ const inspectorMs = await pastRoomsList(page, async () => {
+  if (!await page.locator('[data-rp-mode="photos"]').isVisible()) await activate(page, '[data-rp-room-navigation]');
+  await tabTo(page, '[data-rp-mode="photos"]');
+  const inspectorStart = await page.evaluate(() => performance.now()); await page.keyboard.press('Enter');
+  await page.waitForFunction(() => document.querySelectorAll('.rp-evidence-thumbnail').length === 40);
+  const elapsed = await page.evaluate(start => performance.now() - start, inspectorStart);
+  await page.locator('.rp-evidence-thumbnail').first().scrollIntoViewIfNeeded(); await page.waitForFunction(() => document.querySelector('.rp-evidence-thumbnail')?.naturalWidth === 1600);
+  await recordShot(page, scenario, out, 'large-photos');
+  return elapsed;
+ });
  const resources = []; for (let count = 0; count < 3; count++) { const result = await page.evaluate(() => window.planningRecovery.close()); resources.push(result); assert.equal(result.stages, 0); assert.equal(result.listeners, 0); assert.equal(result.images, 0); assert.equal(result.objectUrls, 0); await page.evaluate(() => window.planningRecovery.reopen()); await page.locator('.rp-plan-canvas').waitFor(); }
- return { fixture, usableMs, selectionMs, inspectorMs, pan, materialPan, resources, targets: { usableMs: 1500, selectionMs: 100, inspectorMs: 200, fps: 'target60/min30' }, limitation: 'warm harness mount; synthetic images; timings include browser-driver round trips and are not live Obsidian measurements' };
+ return { fixture, usableMs, selectionMs, inspectorMs, pan, materialPan, resources, targets: { usableMs: 1500, selectionMs: 100, inspectorMs: 200, fps: 'target60/min30' }, limitation: 'warm harness mount; synthetic images, the reference included; usableMs ends at the canvas attaching and is not held to include or exclude the reference decode; timings include browser-driver round trips and are not live Obsidian measurements' };
 }
 async function panFrames(page) {
  const canvas = await page.locator('.rp-plan-canvas').boundingBox(); assert.ok(canvas);
@@ -117,7 +173,7 @@ async function panFrames(page) {
  await page.waitForFunction(zoom => { const camera = window.planningRecovery.scene()[0]?.camera; return camera && camera.zoom !== zoom; }, sceneAfterPan.camera.zoom);
  const sceneAfter = await page.evaluate(() => window.planningRecovery.scene()[0]);
  const frames = (await sampled).toSorted((a, b) => a - b);
- return { samples: frames.length, medianMs: frames[Math.floor(frames.length / 2)], p95Ms: frames[Math.floor(frames.length * .95)], sceneBefore, sceneAfterPan, sceneAfter, method: 'requestAnimationFrame cadence during verified middle-button pan and wheel zoom, headless browser' };
+ return { samples: frames.length, medianMs: frames[Math.floor(frames.length / 2)], p95Ms: frames[Math.floor(frames.length * .95)], sceneBefore, sceneAfterPan, sceneAfter, method: 'requestAnimationFrame cadence starting at the middle-button pan, headless browser' };
 }
 async function zoomReflow(page, scenario, out) {
  await page.setViewportSize({ width: Math.max(920, scenario.width), height: 900 });
@@ -139,6 +195,8 @@ async function zoomReflow(page, scenario, out) {
  return { layout, method: '200% CSS layout zoom with retained draft/focus and keyboard Cancel; native Obsidian zoom acceptance remains separate' };
 }
 async function journey(page, scenario, out) {
+ // ponytail: --performance-only skips the planning, recovery, accessibility and reflow journeys; drop the flag once the default journey completes again.
+ if (process.argv.includes('--performance-only')) return { mode: 'performance-only', performance: await largeFloor(page, scenario, out) };
  const normal = await planningJourney(page, scenario, out);
  const recovered = await recovery(page, scenario, out), axe = await accessibility(page, scenario, out);
  const reflow = await zoomReflow(page, scenario, out);

@@ -80,7 +80,7 @@ what they do not claim.
 ## Deliberately NOT checked
 
 - **The Asset library's write controls.** They have their own design package and their own hook,
-  and are recorded as still open in the requirement note rather than guarded here.
+  and this case does not check them on a device.
 - **Hit-target size and contrast on a phone.** Real, and not this case's: they are properties of
   every surface at every width, and [[Find and resume a project]] step 4 already owns the
   measurement on the pane this one reads.

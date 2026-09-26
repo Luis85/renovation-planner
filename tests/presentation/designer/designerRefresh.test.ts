@@ -33,8 +33,6 @@ import {
 	type AssetDesignerContext,
 } from '../../../src/presentation/designer/AssetDesignerContext';
 import { provideDesignerRuntime, useDesignerRuntime, type DesignerRuntime } from '../../../src/presentation/designer/runtime';
-import type { EditorContext } from '../../../src/presentation/editor/tools/editor-context';
-import type { EditorTool } from '../../../src/presentation/editor/tools/editor-tool';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { assetDesign } from '../../helpers/assetDesign';
 import { installObsidianDom } from '../../helpers/dom';
@@ -633,47 +631,5 @@ describe('reaching the runtime from a region', () => {
 		);
 
 		expect(injected).toBe(provided);
-	});
-});
-
-describe('the tool framework this leaf builds', () => {
-	/**
-	 * `writesBlocked` on the designer's own `EditorContext` — design spec §2.9 has no
-	 * counterpart on this surface (no `ProjectStore`, no stale re-read a write could race), so
-	 * every context this leaf builds answers `false` and no registered tool ever asks: only the Plan
-	 * Editor's `SelectTool` reads `context.writesBlocked()`, and the designer's own
-	 * `DesignerSelectTool` does not. A probe tool registered under `'measure'` — an id this surface
-	 * does not register; it was `'select'` until the designer registered a Select tool, when
-	 * `ToolManager.register` began refusing the duplicate — is what reaches the REAL context
-	 * `buildRuntime` builds, without reaching past `ToolManager`'s own public door.
-	 */
-	it('answers false for writesBlocked, which this surface builds but never asks', async () => {
-		const { runtime } = harness();
-		await flushPromises();
-		// A mutable-cell holder rather than a bare `let`, for the reason this repository's own
-		// Testing section records: a `let` reassigned only inside a closure narrows to `null`
-		// at every later read, and a definite-assignment `!` would claim the object exists
-		// before `setActiveTool` has run. `buildDispatcherChain`'s own `inspectorRef` breaks the
-		// identical narrowing the same way.
-		const captured: { current: EditorContext | null } = { current: null };
-		const probe: EditorTool = {
-			id: 'measure',
-			activate: (context) => {
-				captured.current = context;
-			},
-			deactivate: () => undefined,
-			pointerDown: () => undefined,
-			pointerMove: () => undefined,
-			pointerUp: () => undefined,
-			cancel: () => undefined,
-			abandonGesture: () => undefined,
-			hasDraft: () => false,
-		};
-		runtime.toolManager.register(probe);
-
-		runtime.toolManager.setActiveTool('measure');
-
-		expect(captured.current).not.toBeNull();
-		expect(captured.current?.writesBlocked()).toBe(false);
 	});
 });

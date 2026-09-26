@@ -37,14 +37,14 @@ it('names the current overlap target, retains the existing Alt cycle, and restor
 
 	await openAt(rig, { x: 1000, y: 0 });
 	expect(rig.selection.selectedIds).toEqual(['opening-i09-overlap']);
-	expect(rig.wrapper.get('.rp-canvas-context-menu-title').text()).toBe(`${tr('editor.input.current-target', { target: tr('editor.add.door.label') })} ${tr('editor.input.overlap-cycle-guidance')}`);
+	expect(rig.wrapper.get('.rp-canvas-context-menu-title').text()).toBe(`${tr('editor.input.current-target', { target: tr('editor.add.door.label') })}. ${tr('editor.input.overlap-cycle-guidance')}`);
 	await dismiss(rig);
 	expect(document.activeElement).toBe(rig.canvasEl);
 	expect(rig.selection.selectedIds).toEqual(['opening-i09-overlap']);
 
 	await openAt(rig, { x: 1000, y: 0 }, true);
 	expect(rig.selection.selectedIds).toEqual(['wall-a']);
-	expect(rig.wrapper.get('.rp-canvas-context-menu-title').text()).toBe(`${tr('editor.input.current-target', { target: tr('editor.structure.wall-number', { n: '1' }) })} ${tr('editor.input.overlap-cycle-guidance')}`);
+	expect(rig.wrapper.get('.rp-canvas-context-menu-title').text()).toBe(`${tr('editor.input.current-target', { target: tr('editor.structure.wall-number', { n: '1' }) })}. ${tr('editor.input.overlap-cycle-guidance')}`);
 	await dismiss(rig);
 	expect(document.activeElement).toBe(rig.canvasEl);
 	expect(rig.selection.selectedIds).toEqual(['wall-a']);

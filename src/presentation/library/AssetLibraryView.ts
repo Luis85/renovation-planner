@@ -1,4 +1,4 @@
-import { ItemView, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
+import { ItemView, Platform, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
 import { createApp, ref, type App as VueApp, type Ref } from 'vue';
 import { createPinia } from 'pinia';
 import AssetLibraryRoot from './AssetLibraryRoot.vue';
@@ -295,6 +295,8 @@ export class AssetLibraryView extends ItemView {
 			assetId: this.assetIdRef,
 			expanded: this.expandedRef,
 			publishViewState: this.publishViewState,
+			// Read at every mount, as `RenovationProjectView` reads it at its own `provide()`.
+			readOnly: Platform.isMobile,
 		};
 		app.provide(ASSET_LIBRARY_CONTEXT, context);
 		// Onto `contentEl` itself, with no wrapper — see the class docblock's height chain.

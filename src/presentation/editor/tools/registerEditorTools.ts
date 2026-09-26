@@ -8,7 +8,7 @@ import type { useDialogStore } from '../../dialogs/dialog-store';
 import type { ToolManager } from './tool-manager';
 import { CalibrateTool } from './calibrate-tool';
 import { DrawPolygonTool } from './draw-polygon-tool';
-import { areaOutline } from '../add/areaOutline';
+import { simpleAreaOutline } from '../add/simpleOutline';
 import { DrawRoomTool } from './draw-room-tool';
 import { SelectTool, type SelectGestureDeps } from './select-tool';
 import { PanTool } from './pan-tool';
@@ -107,8 +107,8 @@ export function registerEditorTools(toolManager: ToolManager, deps: EditorToolDe
 	}, { flush: 'sync' });
 	// Preserve the legacy free-shape Room completion; Area has its own semantic identity.
 	const polygonEntries = [
-		{ id: 'draw-polygon', zoneType: 'Room', defaultName: () => roomDraft.name, onCompleted: returnToSelect, validateOutline: areaOutline },
-		{ id: 'draw-area', zoneType: 'Custom', defaultName: () => tr('editor.area.default-name', { n: String(projectStore.zones.size + 1) }), onCompleted: deps.onAreaCompleted, validateOutline: areaOutline },
+		{ id: 'draw-polygon', zoneType: 'Room', defaultName: () => roomDraft.name, onCompleted: returnToSelect, validateOutline: simpleAreaOutline },
+		{ id: 'draw-area', zoneType: 'Custom', defaultName: () => tr('editor.area.default-name', { n: String(projectStore.zones.size + 1) }), onCompleted: deps.onAreaCompleted, validateOutline: simpleAreaOutline },
 	] as const;
 	for (const entry of polygonEntries) {
 		toolManager.register(

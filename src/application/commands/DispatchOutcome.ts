@@ -1,6 +1,8 @@
 import { isErr, ok, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
 import type { EntityVersion } from '../ports/versioning';
+import type { DiagnosticEntityKind } from '../ports/diagnostics';
+import { activeWriteIncidentRegistry } from '../incidents/WriteIncidentRegistry';
 
 /**
  * What a dispatched reversible gesture DID, beside whether it succeeded.
@@ -149,45 +151,202 @@ export async function plainDispatch(versioned: Promise<VersionedDispatchResult>)
  * every consumer that reads them reads exactly what it read before, and the one consumer that
  * asks about persistence gets an answer nothing had to infer.
  *
- * **Five producers in four files, dated rather than trusted, because this count has already
- * gone stale once.** `grep -rn "markUncompensated(" src/`, EXCLUDING this docblock's own line
- * above (its quoted grep pattern contains the literal substring it searches for, so the
- * instrument counts itself — this repository's own recurring shape), printed on 2026-09-05:
- * `deleteResolution.ts`'s `compensate` and its `markStalePersisted` re-read,
- * `SetAssetBackground.ts`'s failed calibration restore, `ReversibleAssetDesignCommands.ts`'s
- * failed sidecar restore on a background undo, and `ObsidianZoneRepository`'s
- * `compensateFailedSidecarWrite` (the failed-insert AND failed-update restore, one call site
- * covering both — the trust-path increment's fourth file). This sentence said "four producers
- * in three files" from the moment that fourth file's call site landed until this edit; a count
- * kept as prose is a count nothing re-runs, so re-run the grep rather than trusting either
- * number. Each producer is at a moment the vault is KNOWN to be half-written. A compensation
- * that succeeds leaves the vault at its pre-state and is deliberately NOT marked with this:
- * neutral is the true answer for the indicator, and `CompensatedWrite` below is how the LEDGER
- * still hears of it.
+ * **23 producers in 17 files, dated rather than trusted, because this count has already gone
+ * stale FIVE times now — the fourth time inside the very edit that was fixing the third, and
+ * this is the fifth.** BP-02 slice 2 task 2's own count paragraph said "23 lines … of which
+ * that one is the self-count," naming exactly one self-match. That was already wrong the
+ * moment it was written: the SAME edit added `AffectedEntityKind`'s docblock a few dozen lines
+ * below, and that docblock quoted this identical grep pattern too, to explain how ITS
+ * membership was measured — a second self-matching line the first paragraph never counted,
+ * because a paragraph about an instrument counting itself did not re-check itself against its
+ * own sibling. That produced "24 lines, 2 self-matches, 22 producers in 16 files," which then
+ * went stale a fifth time when BP-02 slice 2 task 4 Part B added `relocateEvidence.ts` as a new
+ * producer and left this paragraph unrun — exactly the failure mode this sentence already
+ * warned about, landing again in the task named to fix a different, unrelated set of findings.
+ * Re-run on 2026-09-16 (BP-02 slice 2 task 4 review-fix pass), `grep -rn "markUncompensated(" src/`
+ * prints **25 lines**, of which **2 are self-matches** — this paragraph's own quoted pattern,
+ * and one line in `AffectedEntityKind`'s docblock below that still quotes it to explain its own
+ * measurement. 25 lines minus 2 self-matches is 23 producers; `relocateEvidence.ts` is a new
+ * file with one producer, so producers now sit in 17 files, six of which spell two calls each.
+ * An `import` of this function carries no `(` and is therefore not in the number. The number
+ * first moved from 23 producers in 17 files to 22 in 16 earlier in the design-slice history,
+ * because a pass NARROWED `project.write-uncompensated` (`ObsidianProjectRepository`) to stop
+ * stamping at all — see the empty-folder paragraph below — and has now moved back to 23 in 17
+ * for the unrelated reason of a new producer arriving, which is worth stating so a reader does
+ * not mistake the coincidence of matching numbers for the count having been reverted.
+ *
+ * **The DEFINITION below is out of the number too, and NOT because anything excluded it.**
+ * It is spelled `markUncompensated<TError extends AppError>(`, so the pattern's `(` never
+ * meets it — this repository's own "a grep for `foo(` misses `foo<T>(`" hazard, landing in
+ * our favour here by accident rather than by design. Stated because the next reader re-runs
+ * the grep, notices the definition is missing from a count of producers, and "corrects" it
+ * by widening the pattern to `markUncompensated` — which then matches the definition, the
+ * imports and this docblock, and prints a number that is not producers at all.
+ *
+ * **No list of them is kept here**, and that is the correction rather than laziness. This
+ * sentence said "four producers in three files" while five existed, then "five in four" while
+ * seventeen did — off by more than 3x — and both times the ENUMERATION is what rotted first,
+ * because a producer added in another file cannot edit a list that lives in this one. What is
+ * durable is the RULE: each producer sits at a moment the vault is KNOWN to be half-written,
+ * and the grep above is the census. Run it.
+ *
+ * **One member stretched that word and is DECIDED rather than stamped now**:
+ * `project.write-uncompensated`'s residue is an EMPTY FOLDER — no note was written, so the
+ * vault's data is coherent and "half-written" is true only of the folder tree. This paragraph
+ * used to pose that as the question a later slice's gate would have to answer; ADR-0034
+ * answers it: a later slice's gate is vault-WIDE (every guarded write pauses while any
+ * incident record exists), so stamping this site would pause every unrelated write in the
+ * vault over a stray folder nothing else depends on. `ObsidianProjectRepository`'s insert
+ * keeps its existing log line (`project.insert-compensation-failed`, one per stranded
+ * folder); it is the one raise site that does not call `markUncompensated` at all, and the
+ * reason lives at that call site as well as here.
+ *
+ * The 2026-09-16 pass is the second stale-count repair and it moved the number itself: a sweep
+ * of the repository layer found that five of its six compensation paths raised nothing at all
+ * — `ObsidianZoneRepository.delete`, `ObsidianPlanRepository`'s `delete` and `insertNew`,
+ * `trashNoteBackedEntity` and `ObsidianProjectRepository`'s insert — so a half-written vault
+ * on any of them was recorded in a log line and nowhere a surface could see. A sixth turned up
+ * beside them in `undoDeleteResolution.rollBack`, which is `deleteResolution.compensate`'s own
+ * mirror and had been the one of that pair not stamping.
+ *
+ * A compensation that succeeds leaves the vault at its pre-state and is deliberately NOT
+ * marked with this: neutral is the true answer for the indicator, and `CompensatedWrite` below
+ * is how the LEDGER still hears of it. Every one of the six paths above carries a test for
+ * that arm too, watched red against a build that stamped unconditionally.
+ *
+ * **BP-02 slice 2 task 2 widens the stamp from a bare `true` to the entities left standing**,
+ * because a later task makes it durable and vault-scoped (ADR-0034) and a durable record that
+ * cannot say WHICH files it is about is not evidence a user can act on. `AffectedEntity`
+ * below is the shape; ADR-0034's identity ruling states why it is a best-effort SET rather
+ * than a guaranteed-complete one, and why that incompleteness is acceptable: the set is
+ * evidence for a person to read, never a predicate a gate evaluates.
  */
 export interface UncompensatedWrite {
-	readonly uncompensatedWrite: true;
+	readonly uncompensatedWrite: readonly AffectedEntity[];
 }
 
 /**
- * Stamp a refusal as having left writes behind. Returns a copy: the errors these sequences
- * carry are plain data (`AppError` is deliberately not a class), and mutating a caller's
- * value to record something about the caller's own failure is a second surprise on top of
- * the first.
+ * The closed vocabulary `AffectedEntity.entityKind` may name — an ALIAS of
+ * `DiagnosticEntityKind` (`application/ports/diagnostics.ts`), not a parallel union with its
+ * own membership.
+ *
+ * **It was a five-member union measured independently from the raise sites, and that was the
+ * defect a review round found.** `noteEntityWrite.ts`'s `trashNoteBackedEntity` takes its kind
+ * as a caller-supplied `DiagnosticEntityKind` — the wider, ten-member vocabulary
+ * `DiagnosticsLedger.record` already uses — and stamped it here through `kind as
+ * AffectedEntityKind`, a cast from the wider vocabulary to the narrower one. A future
+ * `DiagnosticEntityKind` this build does not yet raise (`'project'`, `'trade'`, `'supplier'`,
+ * `'quote'`, `'plan-geometry'`) would have compiled silently through that cast, defeating the
+ * closed union's whole purpose: the type said "these five and no others" while the value
+ * flowing into it was drawn from a wider set the type could not see. Making this an alias
+ * removes the cast (`noteEntityWrite.ts`) rather than widen-then-narrow it, because the
+ * two vocabularies were never actually different sets — both are ADR-0034's and SDD §68's
+ * answer to "which entity kinds does this system hand to a content-free report," diagnostics
+ * and this stamp being two readers of the same fact. The closure itself still lives at
+ * `DiagnosticEntityKind`'s own declaration, unmoved.
+ *
+ * **What is ACTUALLY raised today, measured from every `markUncompensated(` raise site in
+ * `src/` (the same grep the count above runs, read site by site) — kept here as prose because
+ * it is real information, and it no longer needs its own narrower type to be true:**
+ * `deleteResolution.ts` and `MaterialCommand.ts` name a `requirement`;
+ * `reversible-delete-zone-command.ts` and `ObsidianZoneRepository.ts` name a `zone` (and, since
+ * this task's threading, the `plan` whose sidecar shares the write); `RenovationCommand.ts`,
+ * `StructureCommand.ts`, `GroupGeometryCommand.ts`, `ConfigurePlanReference.ts`,
+ * `ConstructionMaterialCommand.ts`, `ObsidianPlanRepository.ts` and, since BP-02 slice 2 task 4
+ * Part B, `relocateEvidence.ts` all name a `plan`;
+ * `SetAssetBackground.ts` and `ReversibleAssetDesignCommands.ts` name an `asset`; and
+ * `noteEntityWrite.ts`'s `trashNoteBackedEntity`'s three real callers pass
+ * `'asset'` (`ObsidianAssetRepository.ts`), `'asset-price'`
+ * (`ObsidianAssetPriceOverrideRepository.ts`) and `'requirement'`
+ * (`ObsidianRequirementRepository.ts`) — of which only the asset caller's spec supplies the
+ * `alsoRemove` this stamp's branch requires to be reached at all today. `'project'`, `'trade'`,
+ * `'supplier'`, `'quote'` and `'plan-geometry'` are valid members of the alias and no current
+ * raise site produces any of them.
+ *
+ * **What this instrument cannot see, now that the type is exactly as wide as
+ * `DiagnosticEntityKind`**: nothing stops a future raise site from stamping any of the five
+ * unused members above for a write that has nothing to do with diagnostics' existing use of
+ * that kind — the alias buys "this is a real, spelled-correctly entity kind," not "this kind
+ * is one this stamp has ever meant." That is weaker than the five-member union's claim used to
+ * read, and it is the honest version of it: the five-member claim was never true once a cast
+ * could feed it a sixth.
+ */
+export type AffectedEntityKind = DiagnosticEntityKind;
+
+/**
+ * One entity a refusal's raise site could name as left inconsistent. The pairing is the
+ * codebase's own existing answer to "how do you disambiguate an id" — `SequenceMarker`
+ * (`deleteResolution.ts`) already carries `entityId: string` beside `entityKind` under the
+ * comment "an ID alone cannot say", and `WriteLedger` already proves a single collection can
+ * hold ids from several kinds at the widest brand. Not a branded id: the raise sites bind
+ * `ZoneId`, `PlanId`, `AssetId` and `RequirementId` interchangeably into this one shape, and a
+ * branded union here would only relocate the widening each site already does.
+ */
+export interface AffectedEntity {
+	/** Which repository would restore this entity — an ID alone cannot say. */
+	readonly entityKind: AffectedEntityKind;
+	readonly entityId: string;
+}
+
+/**
+ * Stamp a refusal as having left writes behind, naming what it left, AND record it as a write
+ * incident. Returns a copy: the errors these sequences carry are plain data (`AppError` is
+ * deliberately not a class), and mutating a caller's value to record something about the
+ * caller's own failure is a second surprise on top of the first.
+ *
+ * **Not side-effect-free, since owner ruling 13: this is the ONE place a stamp is recorded.** The
+ * record used to be taken at two doors — `guardCommand` on a stamped result, and the host-rename
+ * listener — so a stamp returning through `CommandHistory` over raw ports reached neither, and
+ * six raise sites had such a path (`docs/releases/first-beta-readiness/11-q1-stamp-census.md`).
+ * Recording where the stamp is MADE closes all of them by construction, and the doors record
+ * nothing now, so one stamp is one incident whichever door it leaves by. The record goes into the
+ * registry `activeWriteIncidentRegistry()` answers at stamp time — `void`ed, since `record`
+ * appends to the in-memory list synchronously and resolves for every fault — and is a no-op when
+ * none is installed (a caller composing without a session). A recorded stamp is DURABLE: it is
+ * written to `write-incidents.json` and re-read at every load (ADR-0034, D-08), so it pauses
+ * every guarded write in the vault across restarts until the user removes that file.
+ *
+ * Two consequences owner ruling 20 accepted, both pinned in
+ * `tests/plugin/undoStampOnHealthyVault.test.ts`: a site that stamps an error already stamped
+ * (a compensation over a stamped cause) records a SECOND incident, while a stamp crossing two
+ * guarded doors is still one; and once a stamp lands mid-gesture the gate is shut, so a later
+ * guarded step of the same gesture — its own compensation included — is refused.
+ *
+ * **What it cannot see**: a stamp built anywhere but here — `eslint.config.mjs`'s
+ * `STAMP_CONSTRUCTION_BAN` refuses the literal spellings in `src/` and states the ones it cannot
+ * see — and a stamp made when no registry is installed, which is lost; the keep-alive
+ * (`WriteIncidentRegistry.hold`) is what keeps one installed across a teardown for the saves its
+ * holders count.
+ *
+ * **`entities` is REQUIRED, not optional with a default.** An optional parameter would let a
+ * new raise site inherit an empty list silently, which is indistinguishable from a site that
+ * looked and genuinely found nothing to name — this way every call site DECIDES. An empty
+ * array is itself a legal, meaningful argument (`leftWritesBehind` treats it as a presence
+ * test, not an equality test) for the raise sites that provably cannot name what they left
+ * standing — `undoDeleteResolution.ts`'s `rollBack` among them, commented at its own call.
  */
 export function markUncompensated<TError extends AppError>(
 	error: TError,
+	entities: readonly AffectedEntity[],
 ): TError & UncompensatedWrite {
-	return { ...error, uncompensatedWrite: true };
+	const stamped = { ...error, uncompensatedWrite: entities };
+	void activeWriteIncidentRegistry()?.record(stamped);
+	return stamped;
 }
 
 /**
- * Did this refusal leave writes standing? Asked rather than spelled inline at the two call
- * sites, so `uncompensatedWrite` is a string in ONE place and a consumer cannot half-spell it
- * into a predicate that silently answers `false` forever.
+ * Did this refusal leave writes standing? Asked rather than spelled inline at the call sites,
+ * so `uncompensatedWrite` is a string in ONE place and a consumer cannot half-spell it into a
+ * predicate that silently answers `false` forever.
+ *
+ * **A PRESENCE test, not an equality test.** `markUncompensated` can be called with an empty
+ * array — "half-written, and this site cannot name what" is still a stamp — so this asks
+ * whether the field is an array at all, never whether it is non-empty. An error that was
+ * never stamped carries no `uncompensatedWrite` field, so `Array.isArray` on `undefined`
+ * answers `false` for it, same as before this task widened the field's type.
  */
 export function leftWritesBehind(error: AppError): boolean {
-	return (error as Partial<UncompensatedWrite>).uncompensatedWrite === true;
+	return Array.isArray((error as Partial<UncompensatedWrite>).uncompensatedWrite);
 }
 
 /**

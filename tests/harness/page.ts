@@ -76,11 +76,14 @@ const wantsAssetDesigner = params.get('view') === 'asset-designer';
 const wantsAssetLibrary = params.get('view') === 'asset-library';
 
 /**
- * The Plan Editor's own ten knobs:`?select=<zoneId>` selects and frames a seeded zone once
+ * The Plan Editor's knobs read HERE — a count is deliberately not given, for the reason the
+ * paragraph above already paid for twice: `?select=<zoneId>` selects and frames a seeded zone once
  * the editor is ready and `?add` opens the Add menu once it is ready (both Task 21);
  * `?room=<widthMm>x<depthMm>` (Task 14) walks Add → Room → the two length fields, so a capture
  * can show the room task with a sized rectangle under it; `?stale` (Task 14) drives the trust
- * path's own stale-projection warning through a real zero-referent zone deletion; `?detail`
+ * path's own stale-projection warning through a real zero-referent zone deletion;
+ * `?unreadable=<n>` answers that many refused zone notes, which is the only way the
+ * `unreadable-zones` warning row and its Show diagnostics report button can be drawn; `?detail`
  * (detail-plan polish, 2026-09-11) composes the plan as a fresh detail plan with no zones and a
  * parent-zone guide; `?locked=<id,id>` answers the named seeded zones as locked (ADR-0027);
  * `?detailed=<id,id>` gives each named seeded zone a detail plan (ADR-0028); `?tree` answers a
@@ -89,7 +92,9 @@ const wantsAssetLibrary = params.get('view') === 'asset-library';
  * buttons once drawn — `collapsed` for both, or `layers`/`inspector` for one; `?rooms=<n>`
  * (the 2026-09-13 performance pass) appends that many synthetic rooms after the seeded zones,
  * which is the only way the canvas can be looked at — or measured — at the plan size SDD §62
- * budgets for. All ten are read here, beside `wantsPlanEditor`, and handed to `mountPlanEditorHarness` below
+ * budgets for; and `?details` presses the constrained rail's Details button, which is the only
+ * thing that puts the Inspector on SCREEN at that width (every control in it is attached and
+ * `display: none` until then). Each is read here, beside `wantsPlanEditor`, and handed to `mountPlanEditorHarness` below
  * rather than read a second time there — one parse of the URL, like every other knob on this
  * page. `?panels` is the one read directly in the literal below rather than through its own
  * named const: `collapsePanelsOnceReady` takes the raw string, so there is no local transform
@@ -109,10 +114,13 @@ const selectZoneId = params.get('select');
 const wantsAddMenu = params.has('add');
 const room = parseRoomKnob(params.get('room'));
 const wantsStale = params.has('stale');
+/** `?unreadable=N`: how many zone notes the read refuses (`planEditor.ts`'s own knob paragraph). */
+const askedUnreadable = Number.parseInt(params.get('unreadable') ?? '', 10);
 const wantsDetail = params.has('detail');
 const lockedZoneIds = params.get('locked') ?? undefined;
 const detailedZoneIds = params.get('detailed') ?? undefined;
 const wantsTree = params.has('tree');
+const wantsDetails = params.has('details');
 /** `?rooms=N` (2026-09-13): clamped like `?projects=`, for the same reason its paragraph gives. */
 const askedRooms = Math.max(0, Number.parseInt(params.get('rooms') ?? '', 10));
 
@@ -230,6 +238,19 @@ if (wantsIndex) {
 	 * the END and would photograph a full list under a URL asking for an empty one.
 	 */
 	const askedPlans = Math.max(0, Number.parseInt(params.get('plans') ?? '', 10));
+	/**
+	 * `?plans-unreadable=<n>`: how many plan notes the project's reads report as refused, which
+	 * draws the `some-plans-unreadable` notice and the **Show diagnostics report** button beside
+	 * it outside a vault. Clamped like the two above, for their reason.
+	 *
+	 * It reaches both surfaces that draw that sentence, by two different mechanisms: the detail
+	 * state through `mount.ts`'s wrap of `listPlansByProject`, and `&section=schedule` through
+	 * plan notes `scheduleKnob.ts` damages, so the schedule's count is a refused read.
+	 * `scheduleKnob.test.ts` drives the second through this file.
+	 */
+	const askedUnreadablePlans = Math.max(0, Number.parseInt(params.get('plans-unreadable') ?? '', 10));
+	// `quotes` falls to `details` with every other value: nothing here composes its services.
+	const askedSection = params.get('section');
 	view = wantsPlanEditor
 		? mountPlanEditorHarness(document.body, {
 				select: selectZoneId ?? undefined,
@@ -238,15 +259,23 @@ if (wantsIndex) {
 				area: params.has('area') && params.get('area') !== 'numeric',
 				numericArea: params.get('area') === 'numeric',
 				roomResize: params.get('resize') === 'room',
+				// `?outline` — BP-04's numeric outline editor, open on `?select`'s zone, and
+				// `?outline=<n>` with corner `n` chosen. Needs `?select=` to name a zone, and is
+				// discarded silently without one; see the option's own paragraph in
+				// `planEditor.ts`, which carries that half. Absent stays `undefined`, so a bare
+				// `?outline` is an empty string rather than an unset knob.
+				outline: params.has('outline') ? params.get('outline') ?? '' : undefined,
 				roomNaming: params.get('rename') === 'room',
 				reference: params.has('reference'),
 				room,
 				stale: wantsStale,
+				unreadable: Number.isFinite(askedUnreadable) ? askedUnreadable : undefined,
 				detail: wantsDetail,
 				locked: lockedZoneIds,
 				detailed: detailedZoneIds,
 				rooms: Number.isFinite(askedRooms) ? askedRooms : undefined,
 				tree: wantsTree,
+				details: wantsDetails,
 				// `&item=<gesture>` (2026-09-14): refused on the console when unknown, like `?room`; see `itemKnob.ts`.
 				item: parseItemKnob(params.get('item')),
 			}).view
@@ -265,9 +294,10 @@ if (wantsIndex) {
 				: mountHarness(document.body, {
 						projectId: params.get('project'),
 						plans: Number.isFinite(askedPlans) ? askedPlans : undefined,
+						unreadablePlans: Number.isFinite(askedUnreadablePlans) ? askedUnreadablePlans : undefined,
 						projects: Number.isFinite(asked) ? asked : undefined,
 						initialQuery: params.get('q') ?? undefined,
-						section: params.get('section') === 'prices' ? 'prices' : 'details',
+						section: askedSection === 'prices' || askedSection === 'schedule' ? askedSection : 'details',
 						// `?recovery` (P03): present at all, like `?phone` and `?add` — the screen
 						// either is the recovery one or is not, so a value would be a second way to
 						// say the same thing.

@@ -82,6 +82,19 @@ Editor's Pinia store (`rebindOpenViews`), dropping `unrecoveredWrite` along with
 reset a close-and-reopen gets. `tests/plugin/rootSwapRebind.test.ts`'s "drops a leaf's
 unrecovered-write flag on rebind" pins this window; it is recorded rather than closed.
 
+**Amendment (2026-09-16): closed.** The incident moved to `PlanEditorView`'s own
+`unrecoveredWrite`, carried in Obsidian's view state beside `planId`, and each mount's store is
+seeded from it — so it now stands for the LEAF's life: a rebind and a close-and-reopen that
+reuses the view object, both driven here, plus a detached-and-reopened leaf or a restart if and
+only if Obsidian hands the persisted view state back, which is its behaviour rather than a
+checked claim. Still cleared by nothing, still not reaching a second leaf on the same plan, and
+still open on a write already in flight when the save lands (`PlanEditorView.rebind`'s docblock
+carries that one). The case the amendment
+above named was renamed with the behaviour it now asserts, to
+`tests/plugin/rootSwapRebind.test.ts`'s "keeps a leaf’s unrecovered-write flag across a rebind,
+re-seeded into the fresh Pinia" — the 2026-09-06 title is gone from `tests/`;
+`tests/presentation/views/planEditorIncident.test.ts` is the rest.
+
 **What was NOT injected here, so it is not read as covered.** This task exercised the note/sidecar
 COMPENSATION boundary. The marker and recovery boundaries — `runDeleteResolution`'s durable
 markers and `recoverInterruptedSequences` — were not driven, and the two application-layer

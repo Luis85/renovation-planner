@@ -1,9 +1,28 @@
 /**
  * @vitest-environment jsdom
  *
- * Two doors into the diagnostics report, one function behind them — this repository's
- * one-action-every-input rule, checked rather than asserted. A second entry point with its own
- * composition looks correct alone and drifts the moment either is edited.
+ * The doors into the diagnostics report this file names, driven, and counted by the modals they
+ * open.
+ *
+ * **Read that as narrowly as it is written.** What these cases check is that each listed door
+ * opens exactly one report. They do NOT check that the doors share one composition, and they
+ * say nothing at all about a door nobody gave them a case for: `Modal.opened` counts a
+ * `DiagnosticsReportModal` whoever built it, so a door composing its own passes here —
+ * measured, by making `assetLibraryViewDeps` do exactly that and watching every case stay
+ * green. One-action-every-input is what the code is written to, and it is stated as the rule
+ * at `RenovationPlannerPlugin.openDiagnosticsReport`; this file is not its check.
+ *
+ * **No count is written in this file's prose, and that is deliberate.** This header read *"Two
+ * doors"* for the whole of the life of the third one, beside a `describe` that said three and
+ * an assertion that said 3 — the same claim in three places, ageing at three different rates.
+ * The one number left is derived from the list of drivers below, so it cannot disagree with
+ * what the case actually drives.
+ *
+ * **What a "door" is here, because the word is doing real work.** It is a SEAM that reaches the
+ * report, not a control a user can press: the case drives the palette command's callback, the
+ * settings row's action, and each view bundle's injected member read off the REGISTERED
+ * factory. No warning row and no button is clicked here — the Plan Editor's row has never been.
+ * Which controls press which member is each surface's own case.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 // From the MOCK module by path, not from `'obsidian'`. `tests/**` is type-checked against the
@@ -18,8 +37,17 @@ import { DEFAULT_SETTINGS } from '../../../src/plugin/settings/settings';
 import { tr } from '../../../src/presentation/i18n/strings';
 import { DiagnosticsReportModal } from '../../../src/plugin/diagnostics/DiagnosticsReportModal';
 import { showDiagnosticsReport } from '../../../src/plugin/diagnostics/showDiagnosticsReport';
+import { NO_WRITE_INCIDENTS } from '../../../src/application/incidents/WriteIncidentRegistry';
 import { recorder } from '../../helpers/logger';
+import { PLAN_EDITOR_VIEW, type PlanEditorDeps } from '../../../src/presentation/views/PlanEditorView';
+import { RENOVATION_PROJECT_VIEW } from '../../../src/presentation/views/RenovationProjectView';
+import type { RenovationProjectDeps } from '../../../src/presentation/views/RenovationProjectContext';
+import { ASSET_LIBRARY_VIEW } from '../../../src/presentation/library/AssetLibraryView';
+import type { AssetLibraryDeps } from '../../../src/presentation/library/AssetLibraryDeps';
+import { FakeLeaf } from '../../helpers/workspace';
+import { expectDefined } from '../../helpers/domain';
 import type { PluginCommandHost } from '../../../src/plugin/commandHost';
+import type { DiagnosticsSnapshot } from '../../../src/application/queries/GetDiagnosticsSnapshot';
 
 vi.mock('../../../src/infrastructure/logging/consoleLogger', async () =>
 	(await import('../../helpers/logger')).consoleLoggerMock(),
@@ -44,7 +72,20 @@ const definitions = (): ReturnType<SettingsTab['getSettingDefinitions']> =>
 const diagnosticsRow = (): ReturnType<SettingsTab['getSettingDefinitions']>[number] | undefined =>
 	definitions().find((row) => row.name === tr('settings.diagnostics.name'));
 
-describe('the diagnostics report has two doors', () => {
+/**
+ * A view's injected member, read off the factory the plugin REGISTERED — so this is the wiring
+ * a user gets rather than a bundle the test composed.
+ *
+ * The generic is the compile-time half: naming each real deps interface at the call site means
+ * a bundle that lost the member fails the constraint here, which is why no case asserts the
+ * member merely EXISTS.
+ */
+const viewDeps = <T extends { openDiagnosticsReport: () => void }>(type: string): T =>
+	(expectDefined(plugin.views.get(type), `a registered factory for ${type}`)(
+		new FakeLeaf() as never,
+	) as unknown as { deps: T }).deps;
+
+describe('the doors into the diagnostics report', () => {
 	it('is registered as a command', () => {
 		expect(plugin.commands.map((command) => command.id)).toContain('show-diagnostics-report');
 	});
@@ -58,24 +99,40 @@ describe('the diagnostics report has two doors', () => {
 	});
 
 	/**
-	 * Both doors OPEN one, which is the property that matters and the one a spy on the module
-	 * export could not settle: a spy that binds to nothing reports `not.toHaveBeenCalled()` for
+	 * Every door OPENS one, which is the property this can settle and the one a spy on the
+	 * module export could not: a spy that binds to nothing reports `not.toHaveBeenCalled()` for
 	 * every build ever written. `Modal.opened` is the fake's own record, so a door that composed
-	 * its own modal separately would still be counted here — and that is the point, because the
-	 * drift this rule guards against is two compositions, not two call sites.
+	 * its own modal separately is counted here too — that is the blind spot, stated where the
+	 * mechanism is rather than promised away by the case's name.
+	 *
+	 * A view's door is its injected member, read through the registered factory:
+	 * `presentation/` may not import `plugin/`, so what a warning row or a repair strip presses
+	 * is a callback the composition root injects. One such member can serve SEVERAL controls —
+	 * the project view provides one context object to its whole Vue tree — which is why a count
+	 * of this list is not a count of the buttons a user can press.
+	 *
+	 * The expected count is `doors.length` rather than a literal, so adding a driver to the
+	 * list is the whole edit — there is no second number to keep in step with it.
 	 */
-	it('both doors open the report', async () => {
-		plugin.commands.find((command) => command.id === 'show-diagnostics-report')?.callback?.();
-		await Promise.resolve();
-		await Promise.resolve();
-		// `action` receives the row's index within its group, per `SettingDefinitionAction`. The
-		// value is unused by this row and passed anyway, because calling it with none would be
-		// an input Obsidian never sends.
-		diagnosticsRow()?.action?.(0);
-		await Promise.resolve();
-		await Promise.resolve();
+	it('each opens exactly one report', async () => {
+		const doors: readonly (() => void)[] = [
+			() => plugin.commands.find((command) => command.id === 'show-diagnostics-report')?.callback?.(),
+			// `action` receives the row's index within its group, per `SettingDefinitionAction`. The
+			// value is unused by this row and passed anyway, because calling it with none would be
+			// an input Obsidian never sends.
+			() => diagnosticsRow()?.action?.(0),
+			() => viewDeps<PlanEditorDeps>(PLAN_EDITOR_VIEW).openDiagnosticsReport(),
+			() => viewDeps<RenovationProjectDeps>(RENOVATION_PROJECT_VIEW).openDiagnosticsReport(),
+			() => viewDeps<AssetLibraryDeps>(ASSET_LIBRARY_VIEW).openDiagnosticsReport(),
+		];
 
-		expect(Modal.opened).toHaveLength(2);
+		for (const open of doors) {
+			open();
+			await Promise.resolve();
+			await Promise.resolve();
+		}
+
+		expect(Modal.opened).toHaveLength(doors.length);
 		expect(Modal.opened.every((modal) => modal instanceof DiagnosticsReportModal)).toBe(true);
 	});
 });
@@ -109,13 +166,22 @@ describe('what showDiagnosticsReport hands the modal', () => {
 					index: { getPath: (id: string) => (id === ISSUE.entityId ? SINK : undefined) },
 					queries: {
 						diagnostics: {
-							execute: () =>
+							// Annotated as `Promise<DiagnosticsSnapshot>` -- narrower than the outer
+							// `as unknown as PluginCommandHost` cast below, which cannot see a missing
+							// field here. That cast is why the compiler did not say so when ADR-0034 added
+							// `writeIncidents` as required: this literal reached the real renderer, which
+							// read `.open` off `undefined` and threw -- a fake thinner than the real thing,
+							// caught by the suite rather than by the type it was cast to. Typing the
+							// literal itself, rather than trusting the cast around it, is what makes the
+							// NEXT required field a build error here too.
+							execute: (): Promise<DiagnosticsSnapshot> =>
 								Promise.resolve({
 									pluginVersion: '0.1.0',
 									obsidianVersion: '1.13.0',
 									schemaVersions: { zone: 1 },
 									migrationState: { pending: [], lastApplied: null },
 									validationIssues: [ISSUE],
+									writeIncidents: NO_WRITE_INCIDENTS,
 								}),
 						},
 					},

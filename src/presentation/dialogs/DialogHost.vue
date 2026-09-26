@@ -356,15 +356,42 @@ watch(
  * leaving the caller suspended is the defect this hook was added for. So a `saveSettings`
  * landing inside the window of a single `vault.create` tells `ViewRoot.onCreateProject()`
  * the dialog was cancelled while its write runs on against the root `rebind` is retiring.
- * What that costs, measured rather than assumed: the project IS created, under the PREVIOUS
- * default project folder; `ProjectCreated` reaches the retired root's event bus, so the
- * rebound tree's `onProjectsChanged` never hears it; and `VaultChangeAdapter` indexes the
- * note into the new root while publishing nothing — the publisher that matters on this path is
- * the full scan, and `saveSettings` runs that BEFORE the rebind. The rebound list is stale
- * until the leaf is reopened. (This said `projectIndexRebuilt()` has "exactly one publisher",
- * which stopped being true when the create-zone adapter gained a refused-reverse-lookup
- * fallback that publishes it too. That second publisher does not sit on this path, so the
- * conclusion is unchanged and only the count was wrong.)
+ * What that costs, measured on a rig driving the real plugin, the real composition root and
+ * the real `applySettings` → `rebindOpenViews` chain with a `vault.create` held open:
+ * the project IS created, under the PREVIOUS default project folder, and `ProjectCreated`
+ * reaches the retired root's event bus, so the rebound tree's `onProjectsChanged` never
+ * hears it. Both confirmed exactly as they were written.
+ *
+ * **What is NOT one behaviour is everything after that, and this paragraph used to state one
+ * arm of it as the whole.** It SPLITS on whether Obsidian's metadata cache has parsed the new
+ * note by the time `VaultChangeAdapter` processes the `create` event:
+ *
+ * - **Cache warm.** `frontmatterOf` reads a real cache entry, the note is recognised as ours,
+ *   the entry is upserted into the NEW root's index and ONE `ProjectIndexEntryChanged` is
+ *   published on the NEW bus. The rebound tree hydrates and the project row appears
+ *   unprompted. **The list is not stale at all** in this arm.
+ * - **Cache cold.** `getFileCache` answers `null`, `frontmatterOf` falls back to the new
+ *   root's echo window — which has never heard of the path — and `processNote` takes the
+ *   not-ours arm: nothing indexed, nothing published. The single `create` event is spent and
+ *   nothing re-raises it when the parse queue later drains (this plugin registers no
+ *   `metadataCache.on('changed')` listener). **Reopening the leaf does NOT fix this**, which
+ *   is worse than this paragraph used to claim: `ListProjects` resolves through the Project
+ *   Index, so a fresh leaf reads the same empty index. It clears only at the next FULL index
+ *   rebuild — the next settings save, a library migration, or in practice a plugin reload.
+ *   The user-visible consequence is that they are told nothing, the project exists under the
+ *   old folder, and the list never shows it, so they may create it again and end up with two.
+ *
+ * **Which arm production takes is UNVERIFIED** — it turns on the ordering of Obsidian's
+ * `create` event, its asynchronous parse and this adapter's 500 ms debounce, and nothing on
+ * this branch has ever been run in a vault. Do not collapse the two arms into one here
+ * without that experiment.
+ *
+ * (This paragraph also said `VaultChangeAdapter` "indexes the note into the new root while
+ * publishing nothing at all". That is false in BOTH arms — warm it publishes and indexes,
+ * cold it does neither — and it predates `ProjectIndexEntryChanged` existing. And it said
+ * `projectIndexRebuilt()` has "exactly one publisher", which stopped being true when the
+ * create-zone adapter gained a refused-reverse-lookup fallback that publishes it too; that
+ * count is 2 in `src/`, re-counted, and neither publisher sits on this path.)
  *
  * The remedy the report named — defer the rebind, or otherwise coordinate the active write —
  * needs the `ItemView` to learn that its Vue tree is mid-write, a seam that does not exist,

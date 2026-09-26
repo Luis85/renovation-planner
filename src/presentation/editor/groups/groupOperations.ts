@@ -77,7 +77,7 @@ export function createGroupOperations(context: PlanEditorContext, runtime: Group
 			if (count) {
 				preview.value = next;
 				const accepted = await dialogs.openDialog({ kind: 'confirm', title: tr('editor.group.connected-title'),
-					message: tr('editor.group.connected-hint', { count: String(count) }), confirmLabel: tr('editor.rename.apply') });
+					message: tr('editor.group.connected-hint', { count: String(count) }) });
 				if (accepted !== 'confirm') return;
 			}
 			const result = await dispatch(next); saved = result.ok; if (alive && !result.ok) notifyOperationFailure(result.error);

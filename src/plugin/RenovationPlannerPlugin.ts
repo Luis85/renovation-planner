@@ -41,7 +41,7 @@ import type { RenovationProjectDeps } from '../presentation/views/RenovationProj
 import { isDataAbsent, settingsFrom, type RenovationPlannerSettings, type SettingsPatch } from './settings/settings';
 import type { LibraryPersistOutcome } from './settings/libraryMigration';
 import { SettingsTab } from './settings/SettingsTab';
-import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
+import { SessionStores } from './sessionStores';
 import { ContinueContextStore } from '../infrastructure/obsidian/plugin-data/continueContextStore';
 import { recoverInterruptedSequences } from '../application/reference/recoverInterruptedSequences';
 import { ReferenceLocks } from '../application/reference/ReferenceLocks';
@@ -212,12 +212,14 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// live. Applied once the setting could have been read. Unreadable settings keep the
 		// bootstrap floor — no verbosity without a preference that asked for it.
 		if (loaded?.verboseLogging) logger.setLevel('debug');
+		this.stores = new SessionStores(this.app.vault.adapter, this.manifest.dir, logger);
+		this.disposers.push(() => this.stores.dispose());
 		this.root = createCompositionRoot(
 			loaded,
 			logger,
 			this.vaultStack,
 			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
-			{ ledger: this.ledger, markers: this.sequenceMarkerStore(logger), locks: this.sessionLocks() },
+			{ ledger: this.ledger, markers: this.stores.markers, locks: this.sessionLocks() },
 		);
 		// The cascade handlers and the adapter's pending flush are retired together, last in
 		// push order — the drain loop is synchronous, so nothing can land between disposers.
@@ -669,7 +671,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			this.root.logger,
 			this.vaultStack,
 			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
-			{ ledger: this.ledger, markers: this.sequenceMarkerStore(this.root.logger), locks: this.sessionLocks() },
+			{ ledger: this.ledger, markers: this.stores.markers, locks: this.sessionLocks() },
 		);
 		// The new root carries an EMPTY index. Re-running the build is what makes the swap
 		// complete; without it the session reads an index of nothing until the next reload,
@@ -711,7 +713,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * exports, not a dead argument.
 	 */
 	private projectViewDeps(leaf: WorkspaceLeaf): RenovationProjectDeps {
-		return renovationProjectDeps(this.root, this.app.workspace, this.app.vault, {
+		// `openDiagnosticsReport` is added HERE and not inside `renovationProjectDeps`, for the
+		// reason `planEditorViewDeps` below states about its own bundle: that function holds no
+		// plugin instance, so reaching the report from there would compose the action a second
+		// time. This closure calls the same public method every other door into it calls.
+		return { ...renovationProjectDeps(this.root, this.app.workspace, this.app.vault, {
 			projectId: null,
 			// Through `navigateToProject` (Task 11), NOT a raw `setViewState`, and it closes
 			// two holes at once. A bare `void` on a rejecting `setViewState` is an unhandled
@@ -748,7 +754,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// Task 2 (design slice 22). Same `void` reasoning as `rememberContinue` above:
 			// `ContinueContextStore.clear` cannot reject either.
 			forgetContinue: (validated) => void this.continueContextStore(this.root.logger).clear(validated),
-		});
+		}), openDiagnosticsReport: () => { this.openDiagnosticsReport(); } };
 	}
 
 	/**
@@ -761,7 +767,12 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 */
 	private planEditorViewDeps(): PlanEditorDeps {
 		const { panelLayout, viewPreferences } = planEditorDeviceSlots(this.app, this.manifest.id, this.root.logger);
-		return { ...planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard, panelLayout), viewPreferences };
+		// `openDiagnosticsReport` is added HERE rather than inside `planEditorDeps`, and that is
+		// the one-action-every-input rule rather than a preference: that function holds no `App`
+		// and no plugin instance, so reaching the report from there would mean composing
+		// `showDiagnosticsReport(host)` a second time. This closure calls the same public method
+		// the palette command and `SettingsTab`'s action row call.
+		return { ...planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard, panelLayout), viewPreferences, openDiagnosticsReport: () => { this.openDiagnosticsReport(); } };
 	}
 
 	/** ONE spelling of the asset designer's bundle, for the factory and the rebind. */
@@ -771,9 +782,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/** ONE spelling of the Asset library's bundle, for the factory and the rebind. */
 	private assetLibraryViewDeps(): AssetLibraryDeps {
-		return assetLibraryDeps(this.root, this.app.workspace, this.app.vault, {
+		return { ...assetLibraryDeps(this.root, this.app.workspace, this.app.vault, {
 			indexScanCompleted: () => this.indexScanCompleted,
-		});
+		}), openDiagnosticsReport: () => { this.openDiagnosticsReport(); } };
 	}
 
 	/**
@@ -842,22 +853,15 @@ export default class RenovationPlannerPlugin extends Plugin {
 	private vaultStack: VaultStack | null = null;
 
 	/**
-	 * The durable marker store behind multi-entity deletes — one plugin-local FILE beside
-	 * `data.json`, deliberately not `data.json`'s settings object (`settingsFrom` drops
-	 * undeclared keys, which would silently discard an outstanding recovery). One instance
-	 * per session: the file it points at survives root swaps, and a store rebuilt per swap
-	 * would buy nothing but a second queue.
+	 * The plugin-directory stores whose lifetime is the SESSION rather than the composition
+	 * root — the sequence-marker file and ADR-0034's write-incident record, with the registry
+	 * `guardCommand` reads. Their own module, because this file is at its `max-lines` cap and
+	 * the fix for that is the extraction; `sessionStores.ts` carries why they outlive a root.
+	 *
+	 * Definite assignment: `onload` builds it before the first `createCompositionRoot` call,
+	 * and `applySettings` cannot run before `onload`.
 	 */
-	private markerStore: SequenceMarkerFileStore | null = null;
-
-	private sequenceMarkerStore(logger: Logger): SequenceMarkerFileStore {
-		this.markerStore ??= new SequenceMarkerFileStore(
-			this.app.vault.adapter,
-			`${this.manifest.dir}/sequence-markers.json`,
-			logger,
-		);
-		return this.markerStore;
-	}
+	private stores!: SessionStores;
 
 	/**
 	 * G2/R7's third session collaborator, memoised for the reason `markerStore` above is: what
@@ -954,6 +958,21 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// was no catch anywhere in that module, so a faulting vault read at load became an
 			// unhandled rejection. `tests/application/reference/recovery.test.ts` is what fails
 			// without the catch that makes the sentence true.
+			// ADR-0034: an incident recorded in a PREVIOUS session has to close the gate before
+			// the user can write anything, so the registry is seeded from the same load step the
+			// sequence recovery runs in. `seed` resolves rather than rejects for every fault and
+			// fails CLOSED on a refused read — an unreadable incidents file is not an empty one
+			// (SDD §87 rule 8) — which is why the `void` here is safe and why a fault leaves the
+			// gate shut rather than open. `startPersistence` is re-entered by `applySettings` on
+			// every settings save, ABOVE the `listenersRegistered` guard below — so THIS call
+			// re-runs on every save too, and it is idempotent by `WriteIncidentRegistry`'s OWN
+			// `seeded` guard rather than by memoisation here: the registry itself is constructed
+			// once per session (`SessionStores`), but until that guard existed a second `seed()`
+			// re-read the store and re-pushed the same durable incidents onto the open list,
+			// unbounded — invisible only because `anyOpen()` tests `length > 0` rather than a
+			// count.
+			void this.stores.writeIncidents.seed();
+
 			void recoverInterruptedSequences({
 				markers: persistence.markers,
 				requirements: persistence.requirements,
@@ -1074,9 +1093,18 @@ export default class RenovationPlannerPlugin extends Plugin {
 	}
 
 	/**
-	 * Both doors into the diagnostics report land here, and this is the whole of what either
-	 * one does — the command above and `SettingsTab`'s action row, which reaches it through
-	 * the same public method.
+	 * EVERY input that opens the diagnostics report lands here, and this is the whole of what
+	 * any of them does — CLAUDE.md's *one action, every input*, stated as the RULE rather than
+	 * as a list of doors. The list spelling went stale exactly once: it read "both doors… the
+	 * command above and `SettingsTab`'s action row" while the Plan Editor's `unreadable-zones`
+	 * warning row was becoming the third. Adding an input means calling this method; it never
+	 * means composing `showDiagnosticsReport` beside it.
+	 *
+	 * The rule above is a rule and not a check. `tests/plugin/diagnostics/diagnosticsReportDoors.test.ts`
+	 * drives the doors it names and counts the modals they open, so it catches a door that stops
+	 * opening one or opens two — and it can say nothing about a door nobody gave it a case for,
+	 * nor about one that composed its own report, since the fake counts a modal whoever built
+	 * it. Measured, by making a door compose its own and watching that file stay green.
 	 *
 	 * `runDetached` rather than a bare `void`, and the difference from `openProjectDetail`
 	 * below is the reason rather than a preference: that one calls `navigateToProject`, which

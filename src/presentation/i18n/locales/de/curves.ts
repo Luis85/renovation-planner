@@ -10,7 +10,7 @@ export const curvesDe: Record<keyof typeof curvesEn, string> = {
 	'editor.curves.limit': 'Eine Biegung darf höchstens einen Halbkreis bilden. Der Radius muss mindestens die Hälfte des Abstands zwischen den Ecken betragen.',
 	'editor.curves.straighten': 'Diese Kante begradigen',
 	'editor.curves.save': 'Kurven übernehmen',
-	'editor.curves.invalid': 'Diese Kurve kreuzt eine andere Begrenzung oder die Öffnungen passen nicht mehr auf die Wand. Passe die Biegung vor dem Übernehmen an.',
-	'editor.curves.conflict': 'Die Quelle wurde geändert. Brich ab und öffne Kurven bearbeiten erneut, um die aktuelle Geometrie zu verwenden.',
+	'editor.curves.invalid': 'Diese Kurve kreuzt eine andere Begrenzung oder die Öffnungen passen nicht mehr auf die Wand. Passen Sie die Biegung vor dem Übernehmen an.',
+	'editor.curves.conflict': 'Die Quelle wurde geändert. Brechen Sie ab und öffnen Sie Kurven bearbeiten erneut, um die aktuelle Geometrie zu verwenden.',
 	'editor.curves.wall-note': 'Öffnungen folgen der gebogenen Wand entlang ihrer Länge. Verbundene Räume behalten ihre eigenen Umrisse.',
 };

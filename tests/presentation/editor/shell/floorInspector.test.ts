@@ -48,11 +48,19 @@ describe('the floor state', () => {
 		expect(primary.element.previousElementSibling?.tagName).toBe('H3');
 	});
 
-	it('marks counts partial when zones were unreadable', async () => {
+	/**
+	 * The EXACT rendered string, on a bare-count row and on the unit-carrying one. `toContain('2')`
+	 * stood here and was green either way: the annotation already opens with that digit, so it could
+	 * not see the glue between the value and the annotation at all. A bare space rendered
+	 * `1 2 could not be read` — a value ending in a digit against an annotation starting with one.
+	 */
+	it('marks counts partial when zones were unreadable, and brackets the annotation off the value', async () => {
 		harness = await mountPlanEditorCanvas({ unreadableZones: 2 });
+		const unreadable = t('en', 'editor.inspector.partial', { count: '2' });
 
 		expect(harness.wrapper.find('[data-rp-stat="rooms"]').classes()).toContain('rp-floor-inspector__stat--partial');
-		expect(harness.wrapper.find('[data-rp-stat="rooms"]').text()).toContain('2');
+		expect(harness.wrapper.find('[data-rp-stat="rooms"]').text()).toBe(`1 (${unreadable})`);
+		expect(harness.wrapper.find('[data-rp-stat="total-area"]').text()).toBe(`15 m² (${unreadable})`);
 	});
 
 	it('lists every room and every area as a button, and a row selects and frames its record', async () => {
@@ -242,5 +250,22 @@ describe('the guidance region', () => {
 		await settle();
 
 		expect(harness.wrapper.find('.rp-selection-guidance').text()).toBe('');
+	});
+
+	/**
+	 * The text the region carries on a SINGLE selection, written out rather than rebuilt from the
+	 * two keys it is composed of: an assertion that glues them the way the component does cannot
+	 * fail on how they are joined. Read after ONE `nextTick()` for the reason the timing docblock
+	 * above gives — `settle()` drains the clearing timer and would find an empty string. English
+	 * only; nothing here grades the German rendering.
+	 */
+	it('names a single selected target as its own sentence, separated from the Alt-click guidance', async () => {
+		harness = await mountPlanEditorCanvas();
+		await settle();
+
+		useSelectionStore().select(['zone-kitchen' as never]);
+		await nextTick();
+
+		expect(harness.wrapper.find('.rp-selection-guidance').text()).toBe('Current target: Kitchen. Alt-click to select another overlapping item.');
 	});
 });

@@ -1,7 +1,6 @@
 import { createSpatialEditing, type SpatialEditing } from './elements/spatialEditing';
 import { createEditorFormActions, type EditorFormActions } from './editorFormActions';
-import { createLatestRead } from '../composables/latest-read';
-import { createPlanningRefresh } from './planning/planningRefresh';
+import type { createPlanningRefresh } from './planning/planningRefresh';
 import { selectAndFrameOn } from './selection/selectAndFrame';
 import { createRenovationDeletionGuard } from './renovation/renovationDeleteGuard';
 import { createHistoryActions } from './tools/historyActions';
@@ -15,7 +14,6 @@ import {
 	provide,
 	reactive,
 	ref,
-	useId,
 	watch,
 	type InjectionKey,
 	type Ref,
@@ -34,7 +32,6 @@ import { useProjectStore } from '../stores/ProjectStore';
 import { useSelectionStore } from './selection/selection-store';
 import type { InspectorDto, InspectorEdit } from './inspector/inspector-store';
 import type { RequirementInspectorDTO } from '../../application/queries/GetRequirementsForZone';
-import { CommandHistory } from './tools/command-history';
 import { createEditorContext, type EditorContext } from './tools/editor-context';
 import type { ToolId } from './tools/editor-tool';
 import { RenderState } from './tools/render-state';
@@ -43,13 +40,9 @@ import { createToolSwitch } from './tools/tool-switch';
 import { registerEditorTools } from './tools/registerEditorTools';
 import { useRoomDraftStore, type RoomDraftStore } from './add/room-draft-store';
 import { createRoomFromDraft, type RoomCreationOutcome } from './add/roomCreation';
-import { createProjectionRefresh } from './tools/with-editor-state-refresh';
-import { withStateRefresh, type RefreshedHistory } from './tools/with-state-refresh';
-import { withStaleGate } from './tools/with-stale-gate';
-import { wrapDispatcher } from './tools/wrap-dispatcher';
-import { useSaveStateStore } from './save-state/save-state-store';
+import type { RefreshedHistory } from './tools/with-state-refresh';
+import { buildDispatcherChain } from './dispatcherChain';
 import { singleFlight } from '../composables/single-flight';
-import { withSaveStateTracking } from './save-state/with-save-state-tracking';
 import { useDialogStore } from '../dialogs/dialog-store';
 import { createEditorSnapService } from './snapping/editorSnapping';
 import { roomSnapCandidates } from './snapping/roomSnapCandidates';
@@ -63,8 +56,10 @@ import { makeCommitField } from './commitField';
 import { createNudgeSelectionAction } from './nudge';
 
 /**
- * One Plan Editor leaf's live machinery (design slice 8): the history and its refresh
- * decorator, the tool manager with its concrete tools, and the stores those tools read.
+ * One Plan Editor leaf's live machinery (design slice 8): the tool manager with its concrete
+ * tools, the stores those tools read, and the leaf's one dispatcher — which is ASSEMBLED in
+ * `./dispatcherChain.ts` (the history and its refresh, tracking and gate decorators) and only
+ * wired up here, because this file was one code line over its `max-lines` cap.
  *
  * Built INSIDE the Vue tree — `PlanEditorRoot`'s setup — because half of it is Pinia
  * state, and a Pinia store may not be touched before its app's instance is active. It is
@@ -89,6 +84,7 @@ export interface EditorRuntime {
 	readonly labelActions: SpatialEditing['labelActions'];
 	readonly groupActions: SpatialEditing['groupActions'];
 	readonly areaDetails: EditorFormActions['areaDetails'];
+	readonly zoneOutline: EditorFormActions['zoneOutline'];
 	readonly planning: ReturnType<typeof createPlanningRefresh>;
 	readonly renovation: ReturnType<typeof createRenovationActions>;
 	readonly structureTask: StructureEditing['structureTask'];
@@ -194,18 +190,29 @@ export interface EditorRuntime {
 	 */
 	readonly refreshProjection: () => Promise<void>;
 	/**
-	 * The trust path (design spec §2.2, §2.9): a computed over `ProjectStore.stale`. Every
+	 * The trust path (design spec §2.2, §2.9): a computed over THREE terms, built in
+	 * `dispatcherChain.ts` — `projectStore.status !== 'ready' || projectStore.stale ||
+	 * unsafeHistory()`, the last being `planning.failed || save.unrecoveredWrite`. This sentence
+	 * read "a computed over `ProjectStore.stale`" until 2026-09-19 — an understatement from the
+	 * day the status term landed (BP-03 / F2), and one a reader of this file could no longer
+	 * correct for themselves once the definition moved out of it. `dispatcherChain.ts`'s own
+	 * docblock on the computed is the authority for WHY each term is there. Every
 	 * paused control in the shell reads this directly (it is already inside the Vue tree);
 	 * `EditorContext.writesBlocked` is the one non-Vue consumer's own door onto the identical
 	 * fact, threaded through `createEditorContext` rather than duplicated.
 	 */
 	readonly writesBlocked: Readonly<Ref<boolean>>;
 	/**
-	 * One `useId()` per leaf (design spec §2.9), minted here rather than in the component that
-	 * renders it: `buildRuntime` already runs inside `PlanEditorRoot`'s `setup()` (SDD §12's Vue
-	 * app per leaf), which is the one place `useId()` may be called at all, and every paused
-	 * control's `aria-describedby` needs the SAME id the hidden reason sentence carries — a
-	 * value threaded once through the runtime rather than re-derived per consumer.
+	 * One `useId()` per leaf (design spec §2.9), minted while this runtime is built rather than
+	 * in the component that renders it: `buildRuntime` already runs inside `PlanEditorRoot`'s
+	 * `setup()` (SDD §12's Vue app per leaf) — the one place `useId()` may be called at all —
+	 * reached through `provideEditorRuntime`, which that setup calls and which calls
+	 * `buildRuntime` as its first statement. FOUR synchronous hops rather than the three this
+	 * sentence used to compress them to; the intermediate one is named because a reader checking
+	 * the legality has to walk it. And every paused control's `aria-describedby` needs the SAME id the hidden reason sentence
+	 * carries, a value threaded once through the runtime rather than re-derived per consumer.
+	 * The call itself sits in `dispatcherChain.ts`, which `buildRuntime` invokes synchronously
+	 * with no `await` in between, so it is inside that same setup.
 	 */
 	readonly pausedReasonId: string;
 	/**
@@ -546,72 +553,6 @@ function createCancelActiveTask(
 		toolManager.cancelGesture();
 		setTool('select');
 	};
-}
-
-/**
- * Every leaf's ONE dispatcher (design slice 8), widened by the trust path (design spec §2.2,
- * §2.3, §2.9) — pulled out of `buildRuntime` for its `max-lines-per-function` budget rather
- * than for a shared caller, the same budget that has already pushed `createRoomCreationAction`,
- * `selectAndFrameOn` and `subscribeToChangedFigures` out of it.
- *
- * The chain: `CommandHistory` → `withStateRefresh` (the named `refreshProjection`, §2.3) →
- * `withSaveStateTracking` → the stale gate (§2.2, AFTER the tracker so a refusal opens no
- * saving batch) → `wrapDispatcher` (BEFORE which the gate sits, so the undo/redo flags still
- * refresh). `writesBlocked` is the one computed both this leaf's shell and
- * `EditorContext.writesBlocked` read; `pausedReasonId` is one `useId()` per leaf (§2.9) — legal
- * here because this runs synchronously from `buildRuntime`, itself called from
- * `PlanEditorRoot`'s `setup()`, with no `await` between either call and this one.
- *
- * `inspectorRef` travels back out because its `current` is not assigned until AFTER the
- * Inspector store exists, which needs `wrappedDispatcher` to be built first — the same
- * mutable-cell break `buildRuntime` used before this extraction.
- */
-function buildDispatcherChain(
-	context: PlanEditorContext,
-): {
-	readonly planning: ReturnType<typeof createPlanningRefresh>;
-	readonly wrappedDispatcher: RefreshedHistory;
-	readonly canUndo: Ref<boolean>;
-	readonly canRedo: Ref<boolean>;
-	readonly refreshProjection: () => Promise<void>;
-	readonly writesBlocked: Readonly<Ref<boolean>>;
-	readonly pausedReasonId: string;
-	readonly inspectorRef: { current: { refresh(): Promise<void>; invalidate(): void } | null };
-} {
-	const projectStore = useProjectStore(), session = useRenovationSession();
-	const history = new CommandHistory();
-	const inspectorRef: { current: { refresh(): Promise<void>; invalidate(): void } | null } = { current: null };
-	const planning = createPlanningRefresh(context);
-	const refreshSpatial = createProjectionRefresh({
-		projectStore,
-		// The cell breaks construction order and is retired on disposal. A late hydration
-		// must not start another Inspector query after the editor has closed.
-		// A superseded hydration leaves refreshing set for its queued replacement. Its
-		// Inspector query must wait for that replacement's scene instead of reading now.
-		inspectorStore: { refresh: async () => { if (!projectStore.refreshing) await inspectorRef.current?.refresh(); } },
-		queries: context.queries,
-		planId: context.planId,
-	});
-	const spatialReads = createLatestRead(refreshSpatial, () => {});
-	let active = true;
-	const refreshProjection = async (): Promise<void> => {
-		if (!active) return;
-		projectStore.invalidateHydration(); inspectorRef.current?.invalidate();
-		await Promise.all([spatialReads.refresh(), planning.refresh()]);
-	};
-	onBeforeUnmount(() => { active = false; inspectorRef.current?.invalidate(); inspectorRef.current = null; spatialReads.dispose(); projectStore.cancelHydration(); });
-	const dispatcher = withStateRefresh(history, refreshProjection);
-	const save = useSaveStateStore();
-	const tracked = withSaveStateTracking(dispatcher, save);
-	const unsafeHistory = (): boolean => planning.failed.value || save.unrecoveredWrite;
-	const writesBlocked = computed(() => projectStore.stale || unsafeHistory());
-	const gated = withStaleGate(tracked, () => writesBlocked.value || session.perspective === 'review', unsafeHistory);
-	const historyState = wrapDispatcher(history, gated);
-	const wrappedDispatcher = historyState.dispatcher;
-	const canUndo = computed(() => !unsafeHistory() && historyState.canUndo.value);
-	const canRedo = computed(() => !unsafeHistory() && historyState.canRedo.value);
-	const pausedReasonId = useId();
-	return { planning, wrappedDispatcher, canUndo, canRedo, refreshProjection, writesBlocked, pausedReasonId, inspectorRef };
 }
 
 function buildRuntime(context: PlanEditorContext): Omit<EditorRuntime, 'renovation' | keyof EditorFormActions> {

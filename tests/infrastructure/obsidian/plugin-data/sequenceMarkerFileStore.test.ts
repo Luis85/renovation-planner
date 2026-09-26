@@ -7,9 +7,10 @@ import { recorder as logger } from '../../../helpers/logger';
 
 /**
  * The plugin-local durability of an outstanding sequence marker: ONE json file beside
- * `data.json`, rewritten per mutation (markers are rare and tiny), with the discard rule
- * the task spec fixes — a marker a newer version cannot read is dropped WITH a diagnostic,
- * never migrated and never answered as present.
+ * `data.json`, rewritten per mutation (markers are rare and tiny), and the rule BP-02
+ * slice 3 corrected — a marker this build cannot read is reported through the listing's
+ * UNREADABLE half and preserved verbatim in the file, never migrated, never discarded and
+ * never answered as an absence.
  */
 
 function fakeAdapter(files: Map<string, string>): TextFileAdapter {
@@ -56,35 +57,22 @@ describe('SequenceMarkerFileStore', () => {
 		expectOk(await store.write(marker('zone-x')));
 		expectOk(await store.write(marker('asset-y')));
 		expect(files.get(PATH)).toContain('"schemaVersion":1');
-		expect(expectOk(await store.list()).map((m) => m.entityId).toSorted()).toEqual(['asset-y', 'zone-x']);
+		expect(expectOk(await store.list()).markers.map((m) => m.entityId).toSorted()).toEqual(['asset-y', 'zone-x']);
 
 		expectOk(await store.clear('zone-x'));
-		expect(expectOk(await store.list()).map((m) => m.entityId)).toEqual(['asset-y']);
+		expect(expectOk(await store.list()).markers.map((m) => m.entityId)).toEqual(['asset-y']);
 	});
 
 	it('answers null for a missing file rather than an error', async () => {
 		const store = new SequenceMarkerFileStore(fakeAdapter(new Map()), PATH, logger);
 		expect(expectOk(await store.read('zone-x'))).toBeNull();
-		expect(expectOk(await store.list())).toEqual([]);
+		expect(expectOk(await store.list())).toEqual({ markers: [], unreadable: [] });
 	});
 
 	it('refuses a file that is not valid JSON instead of answering empty', async () => {
 		const files = new Map<string, string>([[PATH, '{not json']]);
 		const store = new SequenceMarkerFileStore(fakeAdapter(files), PATH, logger);
 		expect(expectErr(await store.read('zone-x')).code).toBe('sequence.marker-unreadable');
-	});
-
-	it('discards a marker at an unknown schemaVersion with a diagnostic naming the entity', async () => {
-		const stale = { ...marker('zone-old'), schemaVersion: 99 };
-		const files = new Map<string, string>([
-			[PATH, JSON.stringify({ schemaVersion: 99, markers: { 'zone-old': stale } })],
-		]);
-		const spy = vi.spyOn(logger, 'error');
-		const store = new SequenceMarkerFileStore(fakeAdapter(files), PATH, logger);
-
-		expect(expectOk(await store.read('zone-old'))).toBeNull();
-		expect(spy).toHaveBeenCalledWith('sequence.marker.discarded', expect.objectContaining({ entityId: 'zone-old' }));
-		spy.mockRestore();
 	});
 
 	it('refuses an envelope whose shape is unreadable instead of guessing', async () => {
@@ -126,5 +114,178 @@ describe('SequenceMarkerFileStore', () => {
 
 		writesFail = false;
 		expectOk(await store.write(marker('zone-x')));
+	});
+
+	/**
+	 * An EMPTY store, and every id here is a member of `Object.prototype`. Both halves used to
+	 * be `{}`, so `entityId in parsed.value.unreadable` answered `true` for a name the file had
+	 * never held: `read` refused a marker that was simply absent, and `write` refused a
+	 * legitimate delete outright. Ids are `<prefix>-<ULID>` today, so this needs a hand-edited
+	 * note — which is exactly the population BP-02 slice 3 is about.
+	 */
+	it('does not mistake an Object.prototype member for a held entry', async () => {
+		const files = new Map<string, string>();
+		const store = new SequenceMarkerFileStore(fakeAdapter(files), PATH, logger);
+
+		for (const id of ['constructor', 'toString', 'valueOf', 'hasOwnProperty', '__proto__']) {
+			expect(expectOk(await store.read(id))).toBeNull();
+			expectOk(await store.write(marker(id)));
+		}
+
+		expect(expectOk(await store.list()).markers.map((m) => m.entityId).toSorted()).toEqual(
+			['__proto__', 'constructor', 'hasOwnProperty', 'toString', 'valueOf'],
+		);
+	});
+});
+
+/**
+ * BP-02 slice 3. The old rule dropped an entry this build could not read from the returned
+ * map and then rewrote the file without it on the next mutation — so a vault sitting
+ * mid-rollback presented as a vault with nothing outstanding (SDD §87 rule 8) and the very
+ * next marker operation destroyed the evidence a newer build would have needed (rule 7
+ * failing open). Every case below is about the ENTRY level; the whole-ENVELOPE refusal
+ * above is a different level and is unchanged.
+ */
+describe('SequenceMarkerFileStore and an entry this build cannot read', () => {
+	const FUTURE = { ...marker('zone-future'), schemaVersion: 99 };
+
+	function seeded(entries: Record<string, unknown>): { files: Map<string, string>; store: SequenceMarkerFileStore } {
+		const files = new Map<string, string>([
+			[PATH, JSON.stringify({ schemaVersion: SEQUENCE_MARKER_SCHEMA_VERSION, markers: entries })],
+		]);
+		return { files, store: new SequenceMarkerFileStore(fakeAdapter(files), PATH, logger) };
+	}
+
+	it('reports it in the unreadable half with the version found, beside the readable ones', async () => {
+		const { store } = seeded({ 'zone-future': FUTURE, 'zone-ok': marker('zone-ok') });
+
+		const listing = expectOk(await store.list());
+
+		expect(listing.markers.map((m) => m.entityId)).toEqual(['zone-ok']);
+		expect(listing.unreadable).toEqual([{ entityId: 'zone-future', foundSchemaVersion: 99 }]);
+	});
+
+	it('logs it from list() and from no other door, so a preserved entry is not a line per operation', async () => {
+		const { store } = seeded({ 'zone-future': FUTURE });
+		const spy = vi.spyOn(logger, 'error');
+
+		expectErr(await store.read('zone-future'));
+		expectOk(await store.write(marker('zone-ok')));
+		expectOk(await store.clear('zone-ok'));
+		expect(spy).not.toHaveBeenCalled();
+
+		expectOk(await store.list());
+		expect(spy).toHaveBeenCalledTimes(1);
+		expect(spy).toHaveBeenCalledWith('sequence.marker.unreadable', {
+			entityId: 'zone-future',
+			foundSchemaVersion: 99,
+		});
+		spy.mockRestore();
+	});
+
+	it('keeps it in the FILE when an unrelated marker is written', async () => {
+		const { files, store } = seeded({ 'zone-future': FUTURE });
+
+		expectOk(await store.write(marker('zone-ok')));
+
+		// The written text, not a later `list()`: a store that held the entry in memory and
+		// dropped it from disk would pass the weaker assertion and still lose the evidence.
+		const written = JSON.parse(files.get(PATH) ?? '') as { markers: Record<string, unknown> };
+		expect(written.markers['zone-future']).toEqual(FUTURE);
+		expect(Object.keys(written.markers).toSorted()).toEqual(['zone-future', 'zone-ok']);
+	});
+
+	it('keeps it in the FILE when an unrelated marker is cleared', async () => {
+		const { files, store } = seeded({ 'zone-future': FUTURE, 'zone-ok': marker('zone-ok') });
+
+		expectOk(await store.clear('zone-ok'));
+
+		const written = JSON.parse(files.get(PATH) ?? '') as { markers: Record<string, unknown> };
+		expect(written.markers).toEqual({ 'zone-future': FUTURE });
+	});
+
+	/**
+	 * The collision, and the one case the first version of this slice got wrong: `write()` used
+	 * to file the recognised marker into the validated half and leave the raw one in the
+	 * unreadable half, and `writeEnvelope`'s spread then let the recognised one win — so a
+	 * delete of the very entity whose outstanding record this build cannot read destroyed that
+	 * record silently, with no log and no refusal. It is reachable: `runDeleteResolution` opens
+	 * every sequence with `markers.write(marker)` keyed on the entity being deleted.
+	 */
+	it('refuses write() for that same id rather than superseding the record it cannot read', async () => {
+		const { files, store } = seeded({ 'zone-future': FUTURE });
+		const before = files.get(PATH);
+
+		const refusal = expectErr(await store.write(marker('zone-future')));
+
+		expect(refusal.code).toBe('sequence.marker-write-blocked');
+		// The bytes, not a later `list()`: the whole defect was a rewrite nobody could see.
+		expect(files.get(PATH)).toBe(before);
+		expect(expectOk(await store.list()).unreadable).toEqual([
+			{ entityId: 'zone-future', foundSchemaVersion: 99 },
+		]);
+	});
+
+	/**
+	 * The one key for which "preserved and reported" was false. `unreadable[id] = value` on a
+	 * plain object invokes `Object.prototype`'s `__proto__` SETTER instead of creating an own
+	 * property, so the entry landed in neither half: `list()` reported nothing, and the next
+	 * unrelated write rewrote the file without it — BP-02 slice 3's original defect, alive for
+	 * exactly this id. The computed key is load-bearing: `{ __proto__: FUTURE }` written plainly
+	 * would set this literal's prototype rather than seed an entry.
+	 */
+	it('preserves and reports a __proto__ entry like any other it cannot read', async () => {
+		const { files, store } = seeded({ ['__proto__']: FUTURE, 'zone-ok': marker('zone-ok') });
+
+		expect(expectOk(await store.list()).unreadable).toEqual([{ entityId: '__proto__', foundSchemaVersion: 99 }]);
+
+		expectOk(await store.write(marker('zone-other')));
+
+		const written = JSON.parse(files.get(PATH) ?? '') as { markers: Record<string, unknown> };
+		expect(Object.keys(written.markers).toSorted()).toEqual(['__proto__', 'zone-ok', 'zone-other']);
+		expect(Object.getOwnPropertyDescriptor(written.markers, '__proto__')?.value).toEqual(FUTURE);
+	});
+
+	it('refuses read() for it rather than manufacturing an absence', async () => {
+		const { store } = seeded({ 'zone-future': FUTURE });
+		expect(expectErr(await store.read('zone-future')).code).toBe('sequence.marker-unreadable');
+	});
+
+	it('clear() removes it — an explicit clear is an intentional gesture', async () => {
+		const { files, store } = seeded({ 'zone-future': FUTURE });
+
+		expectOk(await store.clear('zone-future'));
+
+		expect(expectOk(await store.list()).unreadable).toEqual([]);
+		const written = JSON.parse(files.get(PATH) ?? '') as { markers: Record<string, unknown> };
+		expect(written.markers).toEqual({});
+	});
+
+	it('treats a recognised version with a non-array progress as unreadable, not as readable', async () => {
+		const { store } = seeded({ 'zone-bent': { ...marker('zone-bent'), progress: 'not an array' } });
+
+		const listing = expectOk(await store.list());
+
+		expect(listing.markers).toEqual([]);
+		expect(listing.unreadable).toEqual([
+			{ entityId: 'zone-bent', foundSchemaVersion: SEQUENCE_MARKER_SCHEMA_VERSION },
+		]);
+	});
+
+	/**
+	 * `null` and a bare number are what a hand-edited file produces, and the property read the
+	 * validation performs is exactly what a `null` entry cannot take — the same four-byte
+	 * defect the ENVELOPE guard above already carries, one level down.
+	 */
+	it('treats a null or primitive entry as unreadable instead of throwing out of a coded door', async () => {
+		const { store } = seeded({ 'zone-null': null, 'zone-number': 5 });
+
+		const listing = expectOk(await store.list());
+
+		expect(listing.markers).toEqual([]);
+		expect(listing.unreadable).toEqual([
+			{ entityId: 'zone-null', foundSchemaVersion: undefined },
+			{ entityId: 'zone-number', foundSchemaVersion: undefined },
+		]);
 	});
 });

@@ -84,7 +84,12 @@ class ConfigurePlanReference {
 			let restored;
 			try { restored = await this.deps.plans.save(this.current.plan.entity, saved.value.version); }
 			catch (cause) { restored = err(persistenceError('reference.restore-failed', 'Reference metadata could not be restored.', cause)); }
-			if (!restored.ok) return err(markUncompensated(persistenceError('reference.compensation-failed', 'Reference recovery failed. Reopen the floor before editing.', restored.error)));
+			if (!restored.ok) {
+				return err(markUncompensated(
+					persistenceError('reference.compensation-failed', 'Reference recovery failed. Reopen the floor before editing.', restored.error),
+					[{ entityKind: 'plan', entityId: plan.id }],
+				));
+			}
 			this.current = { ...this.current, plan: restored.value };
 			return written;
 		}

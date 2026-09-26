@@ -71,6 +71,7 @@ export interface MountOptions {
 	indexScanCompleted?: () => boolean;
 	openNote?: (path: string) => Promise<'opened' | 'missing' | 'failed'>;
 	openDesigner?: (assetId: AssetId) => Promise<void>;
+	openDiagnosticsReport?: () => void;
 	onLibraryChanged?: AssetLibraryDeps['onLibraryChanged'];
 	/**
 	 * §6.3's own per-leaf view state, as the WRITABLE refs `AssetLibraryView` holds privately —
@@ -109,6 +110,7 @@ export async function mountRoot(options: MountOptions = {}): Promise<VueWrapper>
 		indexScanCompleted: options.indexScanCompleted ?? (() => true),
 		openNote: options.openNote ?? (() => Promise.resolve('opened')),
 		openDesigner: options.openDesigner ?? (() => Promise.resolve()),
+		openDiagnosticsReport: options.openDiagnosticsReport ?? base.openDiagnosticsReport,
 		onLibraryChanged: options.onLibraryChanged ?? base.onLibraryChanged,
 	});
 	const assetId = options.assetId ?? ref('');

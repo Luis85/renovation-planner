@@ -13,7 +13,8 @@ import {
 } from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import { backingCanvas, clearResources, installCanvas, registerResource } from '../../helpers/canvas';
 import { installObsidianDom } from '../../helpers/dom';
-import { pdfFixture, PDF_FIXTURE_POINTS, pngFixture } from '../../helpers/backgroundFixtures';
+import { pdfFixture, PDF_FIXTURE_POINTS, pngFixture, TWO_PAGE_PDF } from '../../helpers/backgroundFixtures';
+import { createHash } from 'node:crypto';
 
 // Both: the canvas backing is what makes a raster real, and the PDF path builds its
 // canvas with Obsidian's global `createEl` rather than `document.createElement`.
@@ -163,5 +164,36 @@ describe('loading a plan background', () => {
 		const { image, ...serializable } = model;
 		expect(image).toBeInstanceOf(HTMLImageElement);
 		expect(JSON.stringify(serializable)).not.toMatch(/base64|data:/i);
+	});
+
+	it('decodes the page a reference names, not page 1, from a multi-page PDF', async () => {
+		const vault = fakeVault({ 'Plans/two.pdf': pdfFixture(TWO_PAGE_PDF) });
+		const decoded = await Promise.all([1, 2].map(async page => {
+			const model = await loadBackground({ path: 'Plans/two.pdf', kind: 'pdf', page }, vault);
+			if (model.kind !== 'raster') throw new Error(`page ${page} did not decode: ${JSON.stringify(model)}`);
+			// The rectangle's centre is PDF (50,40); PDF y runs bottom-up on the page's own height.
+			const scale = model.width / TWO_PAGE_PDF[page - 1].width;
+			const pixel = backingCanvas(model.image as HTMLCanvasElement)?.getContext('2d')
+				.getImageData(Math.round(50 * scale), Math.round((TWO_PAGE_PDF[page - 1].height - 40) * scale), 1, 1).data;
+			return { width: model.width, height: model.height, rgba: [...(pixel ?? [])] };
+		}));
+
+		expect(decoded).toEqual([
+			{ width: 400, height: 200, rgba: [0, 0, 255, 255] },
+			{ width: 600, height: 300, rgba: [255, 0, 0, 255] },
+		]);
+	});
+
+	it('reports page 3 of a two-page PDF as unreadable', async () => {
+		const model = await loadBackground({ path: 'Plans/two.pdf', kind: 'pdf', page: 3 }, fakeVault({ 'Plans/two.pdf': pdfFixture(TWO_PAGE_PDF) }));
+
+		expect(model).toEqual({ kind: 'unavailable', reason: 'unreadable' });
+	});
+});
+
+describe('the PDF fixture', () => {
+	it('keeps the no-argument call byte-identical to the one-page file every existing caller was written against', () => {
+		// The SHA-256 of `pdfFixture()` as it stood before it took a page list (commit d5ad8c1d7).
+		expect(createHash('sha256').update(pdfFixture()).digest('hex')).toBe('289f0c34578e45cc2b322b1d72863784c5641abb5204fac05505e054dc9ce6bc');
 	});
 });

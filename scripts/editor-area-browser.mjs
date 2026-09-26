@@ -40,6 +40,15 @@ export async function tabTo(page, selector) {
 	}
 	throw new Error(`Tab did not reach ${selector}`);
 }
+/** Shift+Tab until focus is on `selector` (a string; no disclosure reveal); same 150-press budget as `tabTo`. */
+export async function tabBackTo(page, selector) {
+	const target = page.locator(selector);
+	for (let count = 0; count < 150; count++) {
+		if (await target.evaluateAll(els => els.includes(document.activeElement))) return;
+		await page.keyboard.press('Shift+Tab');
+	}
+	throw new Error(`Shift+Tab did not reach ${selector}`);
+}
 /** Reveal the actual action through native disclosure controls, using only the keyboard. */
 async function revealAction(page, selector) {
 	const target = typeof selector === 'string' ? page.locator(selector) : selector;

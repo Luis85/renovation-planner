@@ -232,7 +232,7 @@ export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInpu
 				// announces nothing, for the reason `markCompensated` states below: the vault is
 				// back at its pre-state and there is nothing to re-read.
 				await events.publish(assetDesignChanged({ assetId: input.assetId }));
-				return err(markUncompensated(saved.error));
+				return err(markUncompensated(saved.error, [{ entityKind: 'asset', entityId: input.assetId }]));
 			}
 			// The restore SUCCEEDED, and it is a write this gesture's history has to record:
 			// `CompensatedWrite` says why a refusal carries a version at all.

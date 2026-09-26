@@ -25,6 +25,8 @@ async function choose(page, name, index) { await tabTo(page, `${form} select[nam
 const apply = (page, scope = form) => recordApply(page, scope, scope !== form);
 async function work(page) {
  const recordForm = '[data-rp-form="renovation"]';
+ // Plan's Room Inspector offers one route into Renovate (RoomInspector.vue, `renovate-room`), not the mode list.
+ await activate(page, '[data-rp-action="renovate-room"]');
  await activate(page, '[data-rp-mode="existing"]'); await activate(page, '[data-rp-action="new-record"]'); await text(page, 'description', 'Timber floor', recordForm); await apply(page, recordForm);
  await activate(page, '[data-rp-action="plan-record"]'); await text(page, 'description', 'Repair and oil', recordForm); await apply(page, recordForm);
  await activate(page, '[data-rp-mode="planned"]'); await activate(page, '[data-rp-action="work-record"]'); await text(page, 'title', 'Floor finish', recordForm); await apply(page, recordForm);

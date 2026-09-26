@@ -37,6 +37,10 @@ describe('element editing finishes safely after source and leaf changes', () => 
 		const opener = rig.wrapper.get<HTMLButtonElement>('[data-rp-action="edit-element"]').element;
 		opener.focus(); opener.click(); await settle();
 		expect(rig.wrapper.findComponent(OutlinePointsForm).exists()).toBe(true);
+		// BP-04 slice A2's chosen-corner list is OPT-IN on this shared form (controller ruling
+		// R-S11-1): it arrives with a `highlight` prop, this caller passes none, and an element
+		// family with its own point-count `accepts` rules is out of BP-04's scope.
+		expect(rig.wrapper.find('[data-rp-corner-list]').exists()).toBe(false);
 		// A sibling writer uses its own history, then the normal projection refresh arrives.
 		const baseline = expectOk(await rig.renovation.read(rig.plan.id));
 		expectOk(await rig.renovation.command(baseline, elementInput(baseline, path, true), new SessionWriteLedger()).execute());
@@ -61,7 +65,10 @@ describe('element editing finishes safely after source and leaf changes', () => 
 		await form.get('[name="2.y"]').setValue('0.5'); await form.get('[name="3.y"]').setValue('0.5');
 		const run = vi.spyOn(rig.runtime.dispatcher, 'run'), bytes = [...rig.stack.vault.entries];
 		await form.trigger('submit'); await settle();
-		expect(form.find('[role="alert"]').exists()).toBe(true);
+		// Its TEXT, at the SECOND mount of this shared form and under a cause that carries no
+		// per-field message beside it: every coordinate here parsed, and it is the resulting
+		// figure that was refused. The Object is not a room and has no width/depth fields.
+		expect(form.get('[role="alert"]').text()).toBe('A geometry value is invalid.');
 		expect(form.get<HTMLInputElement>('[name="3.x"]').element.value).toBe('4.5');
 		expect(rig.runtime.elementActions.preview.value).toBeNull(); expect(run).not.toHaveBeenCalled();
 		expect([...rig.stack.vault.entries]).toEqual(bytes);

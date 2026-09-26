@@ -2218,6 +2218,25 @@ of them." The rules that lasted:
   `projectIndexRebuilt()` had "exactly one publisher" until the publishing increment gave the
   create-zone adapter a refused-reverse-lookup fallback that raises it too — a second publisher
   off this path, so the conclusion stands and only the count was wrong.)
+
+  **REFUTED LATER — 2026-09-18, BP-03/F1. The paragraph above is left as written because it is
+  the record of what was believed at the time; read it as superseded, not as current.** A rig
+  driving the real plugin, the real composition root and the real `applySettings` →
+  `rebindOpenViews` chain with a `vault.create` held open measured three of its claims FALSE.
+  "`VaultChangeAdapter` indexes the note while publishing nothing" is false in both arms —
+  the behaviour SPLITS on whether Obsidian's metadata cache has parsed the note when the
+  adapter processes the `create`: warm, it indexes AND publishes `ProjectIndexEntryChanged`,
+  the tree hydrates and the row appears unprompted, so the list is not stale at all; cold, it
+  does neither, and "stale until the leaf is reopened" is wrong in the other direction —
+  reopening the leaf does NOT fix it, since `ListProjects` resolves through the Project Index
+  and a fresh leaf reads the same empty index; it clears only at a full index rebuild, in
+  practice a plugin reload. **Which arm production takes is UNVERIFIED** and needs a run in a
+  real vault, which has never happened on this branch. Confirmed and NOT refuted: the project
+  IS created, under the previous default projects folder, and `ProjectCreated` reaches the
+  retired root's bus. The corrected account lives in `DialogHost.vue`'s `onBeforeUnmount`
+  docblock, with the same split in `formBusy.test.ts`'s last case,
+  `docs/tasks/16-form-and-inline-validation-feedback.md`'s amendment, and row F1 of
+  `docs/releases/first-beta-readiness/04-lifecycle-contract.md`.
 - **The half of a staleness that no COMMAND can raise, and the docblock that called it
   unfixable was pointing at the fix.** `projectListChangeSource` gained `ProjectCreated` in
   one round and still missed every project note added by hand, copied in, or arriving through
@@ -5242,6 +5261,18 @@ kept, because the next reviewer will find them again."
   carrying a pointer rather than a rewrite,
   `docs/superpowers/specs/2026-09-04-plan-editor-trust-path-design.md` and
   `docs/superpowers/plans/2026-09-04-plan-editor-trust-path.md`.
+
+  **2026-09-16: that window is CLOSED, and this bullet is left standing as the record of what
+  was true then** — the same shape ADR-0015 and its rejected note take, a pointer on the stale
+  side rather than a rewrite. The flag is now `PlanEditorView`'s own field, carried in
+  Obsidian's view state beside `planId` and seeded into each fresh store by `mount`, so it is
+  sticky for the LEAF (`67f5acf9c`, `41d803611`, `2af92f8fd`). The pinned case flipped with it
+  and is named "keeps a leaf’s unrecovered-write flag across a rebind, re-seeded into the fresh
+  Pinia"; `tests/presentation/views/planEditorIncident.test.ts` is the rest. Three limits were
+  NOT closed and are recorded at `PlanEditorView.rebind` and in
+  [`docs/issues/A settings save clears the unrecovered-write warning without repairing the vault.md`](../issues/A%20settings%20save%20clears%20the%20unrecovered-write%20warning%20without%20repairing%20the%20vault.md):
+  a second leaf on the same plan, an incident raised by a write still in flight when the save
+  lands, and the restart half, which is Obsidian's behaviour rather than a checked claim.
 - **E8**: only the "moves a zone" half shipped (an arrow-key nudge dispatching the same move
   gesture `select-tool` builds); the "or edits a vertex" half stays open, by the task's own
   scoping rather than by a defect found against it.

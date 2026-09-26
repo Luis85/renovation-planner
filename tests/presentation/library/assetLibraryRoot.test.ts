@@ -359,6 +359,24 @@ describe('AssetLibraryRoot, the repair strip', () => {
 		await settle();
 		expect(missingReads).toHaveBeenCalledTimes(2);
 	});
+
+	/**
+	 * L-34's door: the heading sentence tells the user to open the diagnostics report, and this
+	 * is the control that opens it. OUTSIDE the `<ul>`, so the case above — which counts the
+	 * per-row `Open note` buttons with `.rp-view-notice li button` — still counts rows.
+	 */
+	it('offers the diagnostics report the heading names, and presses the injected door once', async () => {
+		const openDiagnosticsReport = vi.fn<() => void>();
+		const root = await mountRoot({ unreadable: [aNoIdNote()], openDiagnosticsReport });
+
+		const button = root.get('.rp-al-repair > [data-rp-action="open-diagnostics"]');
+		expect(button.text()).toBe(tr('command.show-diagnostics-report'));
+
+		await button.trigger('click');
+
+		expect(openDiagnosticsReport).toHaveBeenCalledTimes(1);
+		expect(root.findAll('.rp-view-notice li button')).toHaveLength(1);
+	});
 });
 
 /**

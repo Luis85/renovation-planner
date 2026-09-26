@@ -39,7 +39,12 @@ export interface CanvasMenuSubmenu { readonly id: string; readonly label: String
 export type CanvasMenuItem = CanvasMenuAction | CanvasMenuSubmenu;
 export function isSubmenu(item: CanvasMenuItem): item is CanvasMenuSubmenu { return 'children' in item; }
 const GROUP_ORDER: readonly CanvasMenuGroup[] = ['plans', 'edit', 'create', 'records', 'clipboard', 'arrange', 'view', 'destructive'];
-const GEOMETRY_ACTIONS = new Set(['wall-thickness', 'adjust-thickness', 'add-point', 'edit', 'move-opening', 'rotate', 'add', 'measure', 'add-door', 'add-window', 'add-opening', 'new-wall', 'enclose']);
+// `edit-outline` is here because typing a corner MOVES the zone's outline, which is exactly what
+// `renovateRoomManipulation.test.ts` already holds a dragged corner to outside Plan. Review is not
+// why: the computed below returns before `singleActions` there, so a zone's entries never exist in
+// Review at all. RENOVATE is the live arm — the menu is built there, and a zone's `rename`/`delete`
+// are ungated in it (`guardGeometryActions` reaches those two only for an ELEMENT).
+const GEOMETRY_ACTIONS = new Set(['wall-thickness', 'adjust-thickness', 'add-point', 'edit', 'edit-outline', 'move-opening', 'rotate', 'add', 'measure', 'add-door', 'add-window', 'add-opening', 'new-wall', 'enclose']);
 /** A captured menu action must obey the current perspective when invoked later. */
 function guardGeometryActions(actions: readonly CanvasMenuAction[], canEdit: () => boolean, elementSelected: boolean, planOnly: boolean): CanvasMenuAction[] {
 	return actions.map(action => {
@@ -63,6 +68,25 @@ function designerActions(context: PlanEditorContext | undefined, project: Return
 	const navigation = context?.navigation, open = navigation?.asset?.bind(navigation);
 	if (!assetId || !open || shapes.answerFor(assetId)?.kind === 'missing') return [];
 	return [{ id: 'open-asset-designer', label: 'editor.asset.open-designer', group: 'plans', icon: 'square-dashed-mouse-pointer', run: () => open(assetId) }];
+}
+/**
+ * A zone's own two edits. Outside `useCanvasMenuActions` for that function's 100-line budget, which
+ * BP-04 slice B's second entry is what pushed it over — the same reason `promoteActions` above sits
+ * out here.
+ */
+function zoneEditActions(runtime: ReturnType<typeof useEditorRuntime>, zone: ZoneDto, blocked: boolean): CanvasMenuAction[] {
+	const id = zone.id as ZoneId;
+	return [
+		// An Area's form edits its type as well as its name, so it is named for the form it opens.
+		zone.zoneType === 'Room'
+			? { id: 'rename', label: 'editor.input.rename', group: 'edit', icon: 'text-cursor-input', disabled: blocked, run: () => runtime.renameRoom(id) }
+			: { id: 'rename', label: 'editor.area.details', group: 'edit', icon: 'pencil', disabled: blocked, run: () => runtime.areaDetails.editAreaDetails(id) },
+		// EVERY zone type, so a sibling of that ternary rather than an arm of it: BP-04's numeric
+		// outline editor accepts a Garden exactly as it accepts a Room (`zoneOutlineAction.ts`'s
+		// `accepts: () => true`). `editZoneOutline` is the ONE function this and the Inspector's
+		// `ZoneOutlineAction.vue` both call.
+		{ id: 'edit-outline', label: 'editor.area.outline', group: 'edit', icon: 'square-dashed', disabled: blocked, run: () => runtime.zoneOutline.editZoneOutline(id) },
+	];
 }
 function thicknessActions(runtime: ReturnType<typeof useEditorRuntime>, id: string, wall: boolean, blocked: boolean): CanvasMenuAction[] {
 	if (!wall) return [];
@@ -151,12 +175,8 @@ export function useCanvasMenuActions(add: () => void, opened: () => Point) {
 		const structure = [...project.structure.walls, ...project.structure.openings].some(item => item.id === id);
 		const element = project.structure.elements?.some(item => item.id === id);
 		if (zone) {
-			// An Area's form edits its type as well as its name, so it is named for the form it opens.
-			result.push(zone.zoneType === 'Room'
-				? { id: 'rename', label: 'editor.input.rename', group: 'edit', icon: 'text-cursor-input', disabled: blocked, run: () => runtime.renameRoom(id as ZoneId) }
-				: { id: 'rename', label: 'editor.area.details', group: 'edit', icon: 'pencil', disabled: blocked, run: () => runtime.areaDetails.editAreaDetails(id as ZoneId) });
+			result.push(...zoneEditActions(runtime, zone, blocked), ...detailPlans(id, zone.name, blocked));
 			result.push({ id: 'delete', label: 'editor.input.delete', group: 'destructive', icon: 'trash', disabled: blocked, run: () => runtime.deleteZone(id as ZoneId, zone.name) });
-			result.push(...detailPlans(id, zone.name, blocked));
 		} else if (structure || element) {
 			const actions = structure ? runtime.structureActions : runtime.elementActions;
 			result.push({ id: 'edit', label: 'editor.input.edit', group: 'edit', icon: 'pencil', disabled: blocked || actions.active.value, run: () => actions.edit(id) });

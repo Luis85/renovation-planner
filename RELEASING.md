@@ -101,9 +101,11 @@ That installs the plugin into `.obsidian/plugins/renovation-planner/` in this re
 the repository root opens as a vault — no second checkout, no symlink. On a vault's first
 open, turn off Restricted Mode in Settings → Community plugins.
 
-**There is no case catalog yet, so this step is currently a judgement call rather than a
-list**, and that is the honest state rather than a gap to paper over. What to walk today:
-every surface the release touches, plus these, which nothing automated here can see —
+**A catalog exists at `docs/tests/cases/`** — 44 case files — but walking it is still mostly a
+judgement call rather than a checklist to tick: only 9 of the 44 record an executed run in the
+case's own account of itself, and the remaining 35 have never been walked in a vault. Read a
+case before trusting it. What to walk today: every surface the release touches, plus these,
+which nothing automated here can see —
 
 - the plugin loads with no console error, and unloads without leaving a view behind;
 - each view opens, redraws after a workspace layout change, and survives a reload;

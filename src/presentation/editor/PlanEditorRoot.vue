@@ -76,6 +76,23 @@ const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed }
 const { emptyStateKey } = storeToRefs(projectStore);
 const { unrecoveredWrite } = storeToRefs(useSaveStateStore());
 const pausedReason = computed(() => tr(unrecoveredWrite.value ? 'editor.unrecovered' : 'editor.paused.reason'));
+/**
+ * Whether either sentence `pausedReason` can say is TRUE right now — which is a narrower
+ * question than `runtime.writesBlocked`, and used to be the same one.
+ *
+ * BP-03 / F2 gave `writesBlocked` a `status !== 'ready'` term so no write lands while a plan
+ * is still being read (lifecycle contract row F2). `editor.paused.reason` names "the floor
+ * could not be re-read after the last change" and `editor.unrecovered` names a write that
+ * could not be undone; on an ordinary FIRST load neither has happened. Measured before the
+ * split: a healthy vault's first load rendered the re-read sentence for the whole of the read,
+ * and so did the `failed` terminal state. Wrong information, not wrong emphasis.
+ *
+ * So the three terms here are `writesBlocked`'s own, MINUS the status one — `stale`, plus both
+ * halves of its `unsafeHistory()`. Nothing about any control's disabled state changes: every
+ * paused control still reads `runtime.writesBlocked` directly, and this decides only whether
+ * the sentence explaining a pause is in the DOM.
+ */
+const pausedReasonApplies = computed(() => stale.value || runtime.planning.failed.value || unrecoveredWrite.value);
 
 /**
  * The overlay's props, or `null` for no overlay.
@@ -164,11 +181,12 @@ const backgroundStatus = ref<BackgroundStatus>('none');
  * Task 20's keyed collection over the facts the shell used to read independently — see
  * `editorWarnings`' own header for the fixed order and why the collection replaced four
  * separate `v-if`s. Task 9 widens the input with the trust path's own facts
- * (`unrecoveredWrite`, `refreshing`, `retriesFailed`) and the two callbacks every action here
+ * (`unrecoveredWrite`, `refreshing`, `retriesFailed`) and the callbacks every action here
  * dispatches through: `retry` is `runtime.refreshProjection` and nothing else (§2.3 — a
  * retry re-reads, it cannot replay a write, because this closure takes no command), and
  * `openSourceNote` is `runtime.openPlanNote`, forwarded from the context so every row's
  * action reaches the same door `EditorContextBar`'s own note-opening affordance would.
+ * `openDiagnosticsReport` is the third, injected from the composition root.
  */
 const warnings = computed(() =>
 	editorWarnings({
@@ -180,6 +198,10 @@ const warnings = computed(() =>
 		backgroundStatus: backgroundStatus.value,
 		retry: hydrate,
 		openSourceNote: () => void runtime.openPlanNote(),
+		// Straight off the context rather than through `runtime`, unlike `openSourceNote` above:
+		// the runtime forwards `openPlanNote` because the spatial-editing bundle needs it too,
+		// and this callback has exactly one reader.
+		openDiagnosticsReport: () => context.openDiagnosticsReport(),
 	}),
 );
 
@@ -490,13 +512,34 @@ watch(() => renovationSession.perspective, perspective => { if (perspective !== 
 				-->
 				<!--
 					Design spec §2.9: the ONE hidden sentence every paused control's `aria-describedby`
-					points at, minted here as `runtime.pausedReasonId` (one `useId()` per leaf) and
-					rendered only while `runtime.writesBlocked` — a reference naming an id no element
-					carries is what axe reports as `aria-valid-attr-value`, so the two share this one
-					`v-if` rather than the sentence being always in the DOM.
+					points at, minted here as `runtime.pausedReasonId` (one `useId()` per leaf). It is
+					NOT always in the DOM: a reference naming an id no element carries is what axe
+					reports as `aria-valid-attr-value`.
+
+					The `v-if` is `pausedReasonApplies`, not `runtime.writesBlocked` — see that
+					computed for why, BP-03 / F2. That is a real split and it owes a statement of
+					what keeps the references honest across it, and the honest answer is that no
+					enumeration does. A first draft of this comment listed the consumers of
+					`pausedReasonId` and gave one mechanism for all of them ("the canvas is not
+					drawn, so they unmount with it"); a re-review found the list short by two
+					(`AssetAssignControl` and `RequirementRow`, the latter fed by `RoomInspector`)
+					and the mechanism true of only part of it — the canvas-borne consumers do
+					unmount with the `status === 'ready'` gate above, while the inspector-borne ones
+					sit in a region that mounts in EVERY status and are absent only because the
+					store has no plan and no selection. So neither a list nor a single mechanism is
+					claimed here. What holds is the CHECK:
+					`tests/presentation/editor/pausedSurfaces.test.ts`'s first-load case, which reads
+					the whole subtree for any `aria-describedby` naming the id and requires the count
+					to be zero while the sentence is absent.
+
+					**Read that check narrowly.** It drives ONE non-ready state — `loading`, the
+					first read still in flight, with no plan, no selection and no inspector body —
+					so what reddens it is a consumer that renders THERE, measured. A consumer that
+					needs a plan or a selection, or that appears only in `failed` or `missing`, is
+					outside that case and is checked by nothing.
 				-->
 				<p
-					v-if="runtime.writesBlocked.value"
+					v-if="pausedReasonApplies"
 					:id="runtime.pausedReasonId"
 					class="rp-visually-hidden"
 				>

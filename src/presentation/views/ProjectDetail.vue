@@ -26,6 +26,7 @@ import HostIcon from '../components/HostIcon.vue';
 import PlanList from './PlanList.vue';
 import ProjectEntryGuidance from './ProjectEntryGuidance.vue';
 import ProjectPrices from './ProjectPrices.vue';
+import UnreadablePlansNotice from './UnreadablePlansNotice.vue';
 import { statusLabel } from './statusLabel';
 import { tr } from '../i18n/strings';
 
@@ -69,7 +70,7 @@ const props = defineProps<{
 	commitAssetPrice: (edit: AssetPriceEdit) => Promise<AssetPriceCommitResult>;
 	logger: Logger;
 }>();
-defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: []; deletePlan: [planId: string, name: string]; prices: []; schedule: []; quotes: []; toggleGuidance: []; refresh: []; retryPlans: []; scrolled: [top: number]; editState: [assetId: string, dirty: boolean, pending: boolean] }>();
+defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: []; deletePlan: [planId: string, name: string]; prices: []; schedule: []; quotes: []; toggleGuidance: []; refresh: []; retryPlans: []; openDiagnostics: []; scrolled: [top: number]; editState: [assetId: string, dirty: boolean, pending: boolean] }>();
 const planEmpty = computed(() => (props.plansFailure ? null : props.emptyState));
 
 const planList = ref<InstanceType<typeof PlanList> | null>(null);
@@ -103,6 +104,16 @@ const isNew = computed(() => props.plans.length === 0 && props.unreadablePlans =
 const planRowsAbsent = computed(() => (props.plansFailure ?? null) !== null || props.plans.length === 0);
 
 /**
+ * The SOME arm, named once and read twice — by `plansNotice` below, to pick its sentence, and
+ * as `UnreadablePlansNotice`'s `canOpenReport`, to decide whether the button draws at all.
+ *
+ * It is one expression rather than two because the button's gate IS the arm: only
+ * `some-plans-unreadable` names the report, so a button gated on `plansNotice !== null` would
+ * offer an action the `all-plans-unreadable` sentence never mentions.
+ */
+const somePlansUnreadable = computed(() => props.unreadablePlans > 0 && props.plans.length > 0);
+
+/**
  * The plan read's warning, and it is TWO sentences rather than one with a count.
  *
  * `all-plans-unreadable` when the read succeeded, kept nothing and refused something: the state
@@ -112,7 +123,7 @@ const planRowsAbsent = computed(() => (props.plansFailure ?? null) !== null || p
 const plansNotice = computed(() =>
 	props.unreadablePlans === 0
 		? null
-		: tr(props.plans.length === 0 ? 'view.project.all-plans-unreadable' : 'view.project.some-plans-unreadable'),
+		: tr(somePlansUnreadable.value ? 'view.project.some-plans-unreadable' : 'view.project.all-plans-unreadable'),
 );
 
 const heading = ref<HTMLElement | null>(null);
@@ -231,13 +242,16 @@ defineExpose({ focusEntry });
 					</button>
 				</div>
 
-				<p
-					v-if="plansNotice !== null"
+				<!-- The band is declared here rather than inside the component, so the schedule
+				     surface's copy of the same pair stays bare. `canOpenReport` is the SOME arm
+				     and never the notice's own existence: `all-plans-unreadable` names no
+				     report. -->
+				<UnreadablePlansNotice
 					class="rp-view-notice"
-					role="status"
-				>
-					{{ plansNotice }}
-				</p>
+					:notice="plansNotice"
+					:can-open-report="somePlansUnreadable"
+					@diagnostics="$emit('openDiagnostics')"
+				/>
 
 				<div
 					v-if="missingPlan"

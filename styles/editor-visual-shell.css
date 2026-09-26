@@ -37,8 +37,11 @@
 	align-items: center;
 	gap: 6px;
 	font-weight: var(--font-semibold);
-	color: var(--rp-perspective-accent);
+	color: var(--text-normal);
 }
+/* L-47: the perspective's hue lives on the icon and the leading border, never on the name — as text,
+   axe measured the Renovate green under 4.5:1 in the harness's light scheme. */
+.renovation-plan-editor .rp-perspective-context__mode .rp-host-icon { color: var(--rp-perspective-accent); }
 .renovation-plan-editor .rp-perspective-context__caption {
 	overflow: hidden;
 	text-overflow: ellipsis;

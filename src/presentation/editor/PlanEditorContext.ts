@@ -197,6 +197,18 @@ export interface PlanEditorContext {
 	 * inside the opener — routing it a second time would be the double report slice 17 forbids.
 	 */
 	openPlanNote(): Promise<void>;
+	/**
+	 * Open the diagnostics report — the surface `editor.some-zones-unreadable` has told the
+	 * user to open since it was written, with no control that could. The third door onto
+	 * `RenovationPlannerPlugin.openDiagnosticsReport()`, beside the palette command and
+	 * `SettingsTab`'s action row: ONE action, every input.
+	 *
+	 * Injected rather than reached, because the modal is `plugin/`'s and `presentation/` may
+	 * not import that layer. Synchronous and answers nothing, unlike `openPlanNote` above: the
+	 * method it lands on owns the detached-fault decision (`runDetached`, `'diagnostics.report
+	 * .failed'`), so there is nothing here to await and nothing to report a second time.
+	 */
+	openDiagnosticsReport(): void;
 }
 
 export const PLAN_EDITOR_CONTEXT: InjectionKey<PlanEditorContext> = Symbol('renovation-planner:editor-context');

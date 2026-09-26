@@ -4,6 +4,7 @@ import type { SpatialRecordDto } from '../../read-models/spatialRecords';
 import { watch } from 'vue';
 import AreaDetailsAction from '../metadata/AreaDetailsAction.vue';
 import RoomSizeAction from '../resize/RoomSizeAction.vue';
+import ZoneOutlineAction from '../resize/ZoneOutlineAction.vue';
 import RoomNameAction from '../naming/RoomNameAction.vue';
 import { useRenovationSession } from '../renovation/renovationSession';
 import { useProjectStore } from '../../stores/ProjectStore';
@@ -38,6 +39,17 @@ watch(() => props.record?.kind === 'area' ? props.zoneId : null, id => {
 	</template>
 	<AreaDetailsAction
 		v-if="record?.kind === 'area'"
+		:zone-id="zoneId"
+	/>
+	<!--
+		BP-04 slice B: typing a corner means the same thing for every zone type
+		(`zoneOutlineAction.ts`'s `accepts: () => true`), so this is a sibling of both arms above
+		rather than a member of either. The two kinds are stated rather than folded into a bare
+		`v-if="record"`: `SpatialRecordDto.kind` carries seven values, and only these two are ever
+		a zone.
+	-->
+	<ZoneOutlineAction
+		v-if="record?.kind === 'room' || record?.kind === 'area'"
 		:zone-id="zoneId"
 	/>
 </template>

@@ -255,15 +255,87 @@ describe('the German locale', () => {
 	 * `Überprüfen Sie` today, whose du-forms are exactly `Öffne` and `Überprüfe`. The trailing
 	 * guard is what keeps the Sie-forms out: `Öffnen` fails `(?!\p{L})` at its own `n`.
 	 *
-	 * **What stays a LIST is stated rather than quietly widened.** These ten are the du-forms of
-	 * verbs this locale actually uses; a dozen more Sie-forms in it (`Vergrößern`, `Löschen`,
-	 * `Verwerfen`, `Erstellen`, …) have du-forms nothing here refuses, so a register slip in one
-	 * of those is invisible. Closing that is a judgement about which verbs to enumerate, which is
-	 * a different question from the boundary this edit fixes, and the honest answer is that it is
-	 * open rather than covered.
+	 * **TWO ARMS, because a register slips in two ways and the first version of this check had
+	 * only one.** ELEVEN du-form strings sat behind this case while it was green — the count is
+	 * the widened pattern’s own output and not a sweep’s, which reported nine; the two it missed
+	 * were `editor.curves.conflict` and `quote.from-room`. One of the eleven is
+	 * `schedule.unrecovered`, the closest sibling of the unrecovered-write strings the increment
+	 * that wrote this check was editing. The ten-verb list could not see any of them: five of the
+	 * verbs (`Lade`, `Prüfe`, `Erstelle`, `Erfasse`, `Passe`) were simply absent, and a string
+	 * that carries no imperative at all (`Dein Entwurf …`, `… bevor du weiterbearbeitest`) was
+	 * outside the shape it looks for. So there is a PRONOUN arm now — `du`/`dich`/`dir` and the
+	 * `dein` possessives — which is the arm that does not depend on enumerating anything, and the
+	 * verb list beside it.
+	 *
+	 * **Case-insensitive, which the single-arm version was not, because a du-form imperative is
+	 * not always sentence-initial.** `quote.conflict` read `… schließe ihn und prüfe …` and
+	 * `editor.curves.conflict` read `Brich ab und öffne …`; a capital-only list is blind to every
+	 * one of those by construction.
+	 *
+	 * **The `\p{L}` lookarounds carry the whole of the false-friend defence, and they are the
+	 * reason `/i` is affordable.** German embeds all of these letter runs in ordinary words —
+	 * `Deinstallation` contains `dein`, `Durchmesser` contains `du`, `Direkt` contains `dir`,
+	 * `Ladefläche` contains `Lade`, and every Sie-form of a listed verb contains its own du-form
+	 * as a prefix (`Prüfen`, `Erstellen`, `Öffnen`). The trailing guard is what refuses each of
+	 * them. `catches a du-form and spares its false friends` below drives exactly that, in both
+	 * directions, because an instrument that reaches nothing looks the same as a clean tree.
+	 *
+	 * **What it cannot see, stated as blind spots rather than admitted as openness.** A German
+	 * imperative is not decidable by a regular expression and nothing here is a grammar engine:
+	 *
+	 * - **The verb arm is still a LIST.** It holds the du-forms this locale has actually produced
+	 *   plus the obvious siblings of those; a du-form of a verb nobody has written yet
+	 *   (`Kopiere`, `Drehe`, `Justiere`, …) passes. The pronoun arm is what makes that gap
+	 *   narrower than it was — most informal copy reaches for `du`, `dir` or `dein` somewhere —
+	 *   but a single pronoun-free imperative of an unlisted verb is invisible.
+	 * - **A du-form that is spelled identically to something legitimate is not separable here.**
+	 *   `Passe` is an imperative and also a noun; the pattern reports the first and would report
+	 *   the second. It is a gate that fails LOUD, and the remedy for a real collision is to write
+	 *   the exception down, not to drop the verb.
+	 * - **Only `de` is read.** A register is a per-locale fact and no other locale declares one.
+	 * - **Value text only.** A KEY is never user-facing, and a placeholder's substituted value is
+	 *   not in this table at all.
 	 */
 	const INFORMAL_IMPERATIVE =
-		/(?<!\p{L})(Gib|Wähle|Setze|Lege|Zeichne|Tippe|Klicke|Ziehe|Öffne|Überprüfe)(?!\p{L})/u;
+		/(?<!\p{L})(?:du|dich|dir|dein(?:en|em|er|es|e)?|Gib|Wähle|Setze|Lege|Zeichne|Tippe|Klicke|Ziehe|Öffne|Überprüfe|Prüfe|Lade|Erstelle|Erfasse|Passe|Brich|Schließe|Speichere|Lösche|Füge|Entferne|Ändere|Wechsle|Verschiebe|Benenne|Vergrößere|Verkleinere|Verwirf|Wiederhole|Beginne|Beende|Kehre|Gehe|Nimm|Lies|Verwende|Benutze|Beachte|Achte|Starte|Versuche|Ordne|Behalte|Melde|Vergiss|Verbinde|Markiere|Aktiviere|Deaktiviere|Bestätige|Korrigiere|Bearbeite|Trage|Wende|Entscheide)(?!\p{L})/iu;
+
+	/**
+	 * The instrument before the measurement: a pattern that matched nothing would make this whole
+	 * locale read as clean. Both directions are driven, because widening a register check is
+	 * exactly the edit that buys false positives — every `spares` row is a real German word (or a
+	 * real Sie-form from this locale) whose letters contain a listed token and which the `\p{L}`
+	 * guards must refuse.
+	 */
+	it('catches a du-form and spares its false friends', () => {
+		const catches = [
+			'Lade den Vault neu.',                                  // verb the ten-verb list lacked
+			'Prüfe die Quelldatei.',                                // ditto, and the sibling of the write family
+			'Erstelle Arbeiten, um zu beginnen.',
+			'Erfasse ein Angebot.',
+			'Passe die Biegung vor dem Übernehmen an.',
+			'Brich ab und öffne Kurven erneut.',                    // LOWERCASE, mid-sentence
+			'Speichere, schließe ihn und prüfe die Beträge.',       // ditto
+			'Dein Entwurf ist noch offen.',                         // pronoun arm, no imperative at all
+			'Lies es, bevor du weiterbearbeitest.',                 // ditto
+			'Das gehört dir.',
+			'Wir informieren dich.',
+			'Öffne den Bericht.',                                   // the umlaut case the boundary exists for
+		];
+		const spares = [
+			'Öffnen Sie den Bericht.',                              // every Sie-form is its du-form plus a letter
+			'Überprüfen Sie die Angaben.',
+			'Prüfen Sie die Quelldatei.',
+			'Erstellen Sie eine Arbeit.',
+			'Laden Sie den Vault neu.',
+			'Die Deinstallation entfernt alle Daten.',              // embeds `dein`
+			'Der Durchmesser der Öffnung.',                         // embeds `du`
+			'Eine direkte Verbindung zur Direktion.',               // embeds `dir`
+			'Die Ladefläche ist belegt.',                           // embeds `Lade`
+			'Wählen Sie eine Zeichenfläche und ziehen Sie sie.',
+		];
+		expect(catches.filter((s) => !INFORMAL_IMPERATIVE.test(s)), 'must be reported').toEqual([]);
+		expect(spares.filter((s) => INFORMAL_IMPERATIVE.test(s)), 'must NOT be reported').toEqual([]);
+	});
 
 	it('addresses the user formally throughout: no du-form imperative anywhere in de.ts', () => {
 		const offenders = Object.entries(de)

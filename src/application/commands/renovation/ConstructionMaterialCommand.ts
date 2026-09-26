@@ -44,7 +44,10 @@ class ConstructionMaterialCommand {
 	}
 
 	private refusal(): DispatchResult {
-		return err(markUncompensated(persistenceError('renovation.recovery-required', 'Reopen the floor before editing.')));
+		return err(markUncompensated(
+			persistenceError('renovation.recovery-required', 'Reopen the floor before editing.'),
+			[{ entityKind: 'plan', entityId: this.planId }],
+		));
 	}
 
 	private async apply(): Promise<DispatchResult> {
@@ -75,7 +78,14 @@ class ConstructionMaterialCommand {
 	private async putBack(error: AppError, moved: Step[], forward: boolean): Promise<DispatchResult> {
 		for (const earlier of moved.toReversed()) {
 			const back = await (forward ? earlier.undo() : earlier.execute());
-			if (!back.ok) { this.retired = true; return err(markUncompensated(error)); }
+			if (!back.ok) {
+				this.retired = true;
+				// `moved` holds opaque `Step`s (material and renovation commands alike), with no
+				// id exposed — but every step here belongs to the ONE plan this whole gesture is
+				// scoped to, and that id is genuinely bound regardless of which step's put-back
+				// refused.
+				return err(markUncompensated(error, [{ entityKind: 'plan', entityId: this.planId }]));
+			}
 		}
 		moved.length = 0;
 		if (leftWritesBehind(error)) this.retired = true;

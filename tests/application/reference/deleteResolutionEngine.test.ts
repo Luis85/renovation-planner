@@ -12,7 +12,7 @@ import {
 // declared beside the engine. Imported from the engine, the name resolved to nothing — and
 // an `implements` clause against an unresolved type reports NOTHING, which is what hid the
 // missing `list` member on `ScriptedMarkers` below.
-import type { SequenceMarkerStore } from '../../../src/application/ports/SequenceMarkerStore';
+import type { SequenceMarkerListing, SequenceMarkerStore } from '../../../src/application/ports/SequenceMarkerStore';
 import type {
 	EntityVersion,
 	Expected,
@@ -27,10 +27,10 @@ import { ReferenceLocks } from '../../../src/application/reference/ReferenceLock
 import { leftWritesBehind, markUncompensated } from '../../../src/application/commands/DispatchOutcome';
 import { InMemorySequenceMarkerStore } from '../../../src/infrastructure/persistence/in-memory/InMemorySequenceMarkerStore';
 
-/** The marker list out of a `list()` that answered ok — asserted on three times below. */
-function listed(result: Result<readonly SequenceMarker[], PersistenceError>): readonly SequenceMarker[] {
+/** The RECOGNISED half of a `list()` that answered ok — asserted on three times below. */
+function listed(result: Result<SequenceMarkerListing, PersistenceError>): readonly SequenceMarker[] {
 	if (!result.ok) throw new Error('the marker store refused a list');
-	return result.value;
+	return result.value.markers;
 }
 
 /**
@@ -200,11 +200,12 @@ class ScriptedMarkers implements SequenceMarkerStore {
 	/**
 	 * What the load-time recovery pass walks. Absent until this file was type-checked, and
 	 * silently so: the `implements` clause above was measured against a type that failed to
-	 * resolve, so a fake missing a whole port member reported nothing. It answers the empty
-	 * list because no case here drives a recovery, which is the true state throughout.
+	 * resolve, so a fake missing a whole port member reported nothing. It answers an EMPTY
+	 * LISTING — both halves — because no case here drives a recovery, which is the true state
+	 * throughout.
 	 */
-	list(): Promise<Result<readonly SequenceMarker[], PersistenceError>> {
-		return Promise.resolve(ok([]));
+	list(): Promise<Result<SequenceMarkerListing, PersistenceError>> {
+		return Promise.resolve(ok({ markers: [], unreadable: [] }));
 	}
 
 	clear(entityId: string): Promise<Result<void, PersistenceError>> {
@@ -437,6 +438,11 @@ describe('compensation', () => {
 		// property that kept this out of slice 17's error-to-surface territory.
 		expect(result.error.code).toBe('test.injected-failure');
 		expect(result.error.category).toBe('Persistence');
+		// BP-02 slice 2 task 2: `compensate`'s stamp now NAMES the requirement it could not
+		// restore, bound from inside the loop rather than left at the bare `true` this case
+		// asserted before. `requirement-1` is the one whose forward write landed (`markStale`
+		// succeeded for it) and whose restore then refused.
+		expect(result).toMatchObject({ error: { uncompensatedWrite: [{ entityKind: 'requirement', entityId: 'requirement-1' }] } });
 	});
 
 	/**
@@ -451,7 +457,7 @@ describe('compensation', () => {
 		const ops = makeOps();
 		ops.markStaleResults = [
 			ok({ ...V2 }),
-			err(markUncompensated(injectedPersistenceError())),
+			err(markUncompensated(injectedPersistenceError(), [{ entityKind: 'requirement', entityId: 'requirement-2' }])),
 		];
 
 		const result = await runDeleteResolution(

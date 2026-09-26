@@ -39,7 +39,9 @@ import { areaNumericWorkspace, enterNumericArea } from './areaNumericWorkspace';
 import { memoryDeviceStorage } from '../helpers/deviceStorage';
 import { detailedZoneDeps, detailPlanDeps, lockedZoneDeps, treePlanDeps } from './detailPlanKnob';
 import { roomsDeps } from './roomsKnob';
+import { runtimeOfPluginView } from '../helpers/editorRuntime';
 import { driveItemKnob, type ItemGesture } from './itemKnob';
+import { loadedZones } from './unreadableKnob';
 
 /**
  * The REAL Plan Editor, mounted outside Obsidian for LOOKING at — `npm run harness`
@@ -312,9 +314,19 @@ function staleTriggerDeleteZoneCommand(): PlanEditorCommandServices['deleteZone'
  * `keepPreviousOnFailure` re-read fails exactly as a real vault fault would. `harnessDeps()`
  * with no argument is unaffected — every existing caller (`fixture.ts`, its own tests) calls
  * it that way, and `stale` defaults to off.
+ *
+ * `unreadable` arms the `?unreadable=N` knob: `findZonesByPlan` answers that refusal count, so
+ * the `unreadable-zones` warning row — and the **Show diagnostics report** button it carries —
+ * can be drawn at all. It was unreachable before, because the count was hard-coded to `0`.
+ * It also REMOVES those N zones from the answer (`unreadableKnob.ts`, which owns which two and
+ * refuses an `N` above them); the count alone made this fake kinder than a real listing.
  */
-export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEditorDeps {
+export function harnessDeps(options: { readonly stale?: boolean; readonly unreadable?: number } = {}): PlanEditorDeps {
 	const stale = options.stale === true;
+	const unreadable = Math.max(0, options.unreadable ?? 0);
+	// Synchronous, so an `N` above the fixture's maximum refuses here rather than inside a
+	// promise nothing awaits.
+	const loaded = loadedZones(HARNESS_ZONES, unreadable);
 	// Closure-scoped rather than truly module-level: each capture is a fresh page navigation
 	// in a real browser, so module state resets on its own, and a counter that lived here
 	// instead would carry a call from one mount into the next if this page ever mounted the
@@ -344,8 +356,13 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 			// right one. See [[Project-hydration fakes ignore the requested project ID]].
 			getProject: (id) => Promise.resolve(ok(id === HARNESS_PROJECT.id ? structuredClone(HARNESS_PROJECT) : null)),
 			listPlans: () => Promise.resolve(ok([structuredClone(HARNESS_PLAN)])),
+			// `zones` is the pruned list; **`structure` is NOT, and that is not a compromise.**
+			// The real query (`planEditorQueries.ts`) reads `structure` out of the per-plan
+			// GEOMETRY SIDECAR — one shared document, read independently of which zone notes
+			// loaded — so a real vault at `unreadable=2` hands back the whole structure beside
+			// two zones. Pruning it here would be a NEW infidelity, not a smaller one.
 			findZonesByPlan: () =>
-				Promise.resolve(ok({ zones: structuredClone(HARNESS_ZONES), unreadable: 0, structure: structuredClone(HARNESS_STRUCTURE) })),
+				Promise.resolve(ok({ zones: structuredClone(loaded), unreadable, structure: structuredClone(HARNESS_STRUCTURE) })),
 			// Slice 10's four reads, shared with `fakeQueries` — see `emptyRequirementReads`
 			// for why EMPTY rather than refused, and for what a refusal bundle costs a READ.
 			...emptyRequirementReads(),
@@ -395,7 +412,10 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 		 */
 		commands: {
 			...unavailablePlanEditorCommands(),
-			zoneInspector: zoneInspectorAnswering(HARNESS_ZONES),
+			// The LOADED list, not the fixture: the real Inspector query reads the zone note, and a
+			// refused one has none to read. `zoneInspectorAnswering` answers `ok(null)` for an id
+			// it does not hold, which is what that read really does.
+			zoneInspector: zoneInspectorAnswering(loaded),
 			...(stale
 				? {
 						deleteZone: staleTriggerDeleteZoneCommand(),
@@ -442,6 +462,11 @@ export function harnessDeps(options: { readonly stale?: boolean } = {}): PlanEdi
 		// therefore no vault to raise a file event, and its background is a fixture rather than a
 		// file. §55 is why this page refuses a background outright.
 		onVaultFileChanged: () => () => undefined,
+		// Inert for the reason the doors above are, one layer further out: the report is a
+		// `plugin/` modal over a diagnostics ledger this page has no plugin to hold. The
+		// `unreadable-zones` row's button still renders and still presses — which is the whole
+		// point of `?unreadable=N` — it simply has nothing to open.
+		openDiagnosticsReport: () => undefined,
 	};
 }
 
@@ -451,23 +476,74 @@ export interface MountedPlanEditor {
 }
 
 /**
- * The nine harness-only knobs `?view=plan-editor` takes beside itself — `?select=<zoneId>`,
- * `?add`, `?room=<w>x<d>`, `?stale`, `?detail`, `?locked=<id,id>`, `?detailed=<id,id>`,
- * `?tree` and `?panels=` — for a headless capture that needs the Room Inspector, the Add menu,
- * the room task already under way, the trust path's own stale-projection warning, a fresh detail
- * plan, a locked zone, a zone with detail plans, a three-level Property tree, or collapsed side
- * panels, with nothing to click. All
- * nine are optional and independent; nothing here refuses combining them, and `?room`
+ * The harness-only knobs `?view=plan-editor` takes beside itself, for a headless capture that
+ * needs the Room Inspector, the Add menu, the room task already under way, the trust path's own
+ * stale-projection warning, refused zone notes, a fresh detail plan, a locked zone, a zone with
+ * detail plans, a three-level Property tree, or collapsed side panels, with nothing to click.
+ *
+ * **Stated as a rule rather than a count**, for the reason `page.ts`'s own knob paragraph
+ * already paid for twice: this said "nine" and named nine while the interface below declared
+ * twice that many, and the enumeration goes stale in the direction of a WEAKER claim. The
+ * members below are the list **this interface carries**, and every one is optional — they are
+ * not the list of knobs the page takes. Others are read straight out of `location.search` and
+ * are declared nowhere — some by `mountPlanEditorHarness` itself, more by the workspaces it
+ * composes — and they are deliberately not enumerated here: the last count written in this
+ * paragraph said four and missed six one call deeper, which is the same stale-toward-weaker
+ * failure the sentence above already names. `grep -rn "location.search" tests/harness/` is the
+ * census; this paragraph is not, and nothing re-runs it.
+ *
+ * **They are NOT all independent, and the rule is about WHERE a knob is armed rather than about
+ * which knobs they are.** `?stale` and `?unreadable` are armed inside the base dependency bundle
+ * (`harnessDeps`); every other knob's layer is composed OVER that bundle by
+ * `mountPlanEditorHarness`. A layer that REPLACES the query one of those two arms — rather than
+ * wrapping it — answers its own value, so the knob's whole effect is gone, with no error
+ * anywhere: the page comes up without the thing the URL asked for. Measured, both directions and
+ * **over the seven layers composed over that bundle**: `?unreadable` arms `findZonesByPlan`,
+ * which `?detail`, `?numericArea`/`?roomResize`/`?roomNaming`/`?outline` and `?reference` each
+ * replace and `?locked`, `?detailed`, `?rooms` and `?tree` do not; `?stale` arms `getPlan`,
+ * which of those same seven only `?reference` replaces. `unreadableKnob.test.ts` re-runs BOTH
+ * partitions over all seven — it sees the layers that exist today and cannot see one added
+ * later, so a NEW layer overriding either query has to be added to both its tables by hand.
+ *
+ * **`?downstream` is the exception to every sentence above and is re-run by neither table.** It
+ * is not a layer over the base bundle at all: `downstreamWorkspace` builds its `queries` from a
+ * real composition root and spreads its base's into nothing, so it replaces both queries and
+ * discards both knobs. That one is read from the code — see `unreadableKnob.test.ts` for why it
+ * is not constructible there.
+ *
+ * Two combinations that are fine and read as if they might not be: `?room`
  * needs no combining with `?add`: it opens the Add menu itself on its way through, so pairing
- * the two is redundant rather than contradictory. `?stale` is the one that is not independent of
- * `?select` in EFFECT, even though both are legal on their own: see `mountPlanEditorHarness` for
- * why it sequences the two rather than racing them.
+ * the two is redundant rather than contradictory. `?stale` is not independent of `?select` in
+ * EFFECT, even though both are legal on their own: see `mountPlanEditorHarness` for why it
+ * sequences the two rather than racing them. It is not the only such pair — `?outline`'s own
+ * paragraph below carries another — and `mountPlanEditorHarness`'s composition is where they
+ * are readable, since no list of them is kept here.
  */
 export interface PlanEditorHarnessOptions {
 	/** Real commands against ephemeral memory repositories, with an editable numeric outline. */
 	readonly numericArea?: boolean;
 	readonly roomResize?: boolean;
 	readonly roomNaming?: boolean;
+	/**
+	 * `?outline` — BP-04's numeric outline editor, open on `?select`'s zone, for a capture of the
+	 * chosen-corner list and of the corner it marks on the canvas. `?outline=<n>` goes one step
+	 * further and CHOOSES corner `n` (1-based, the number the list itself shows), which is the
+	 * only way a capture can show action 3's highlight at all: nothing is highlighted until a
+	 * corner is chosen, and no gate in this repository can see a Konva fill or radius on screen.
+	 *
+	 * **Without `?select` this knob is discarded ENTIRELY, silently** — `mountPlanEditorHarness`
+	 * pushes it only when both are present — while a bare `?outline` still swaps the whole deps
+	 * bundle to `areaNumericWorkspace` and then opens nothing. This is the paragraph `page.ts`'s
+	 * own `outline:` comment points at for that dependency; it did not carry it until now.
+	 *
+	 * **Opened PROGRAMMATICALLY, and that is a harness door rather than a UI one.** That action
+	 * has no production reach yet (limitation L-24: nothing in the plugin's UI opens it; slice B
+	 * is the reach and is blocked on owner copy), so unlike `?area` and `?room` this knob cannot
+	 * drive the controls a user would — there are none. The CHOOSING half is different and is
+	 * driven exactly as a user would, through the row's own button. A capture taken through it
+	 * shows what the surface LOOKS like, and says nothing about anybody being able to get to it.
+	 */
+	readonly outline?: string;
 	readonly reference?: boolean;
 	/** A seeded zone's id (e.g. `harness-kitchen`) to select and frame once the editor is ready. */
 	readonly select?: string;
@@ -489,6 +565,13 @@ export interface PlanEditorHarnessOptions {
 	 * raced against it.
 	 */
 	readonly stale?: boolean;
+	/**
+	 * `?unreadable=N` — the zone read answers N refused notes AND drops those N zones, which is
+	 * the only way the `unreadable-zones` warning row and its **Show diagnostics report** button
+	 * can be drawn at all. `unreadableKnob.ts` owns which zones those are and refuses an `N`
+	 * above them rather than clamping.
+	 */
+	readonly unreadable?: number;
 	/** A fresh detail plan: no zones, a parent-zone guide and one ancestor (`detailPlanKnob.ts`). */
 	readonly detail?: boolean;
 	/** Comma-separated seeded zone ids answered as locked (`detailPlanKnob.ts`). */
@@ -503,6 +586,8 @@ export interface PlanEditorHarnessOptions {
 	 * the tree is opened too, since a hidden tree is nothing a capture can look at.
 	 */
 	readonly tree?: boolean;
+	/** Presses the constrained rail's Details button, which is the only thing that puts the Inspector on screen at that width. */
+	readonly details?: boolean;
 	/** `collapsed`, `layers` or `inspector`: collapses those full-layout side panels once drawn. */
 	readonly panels?: string;
 	/** Over `reference` (whose `&item` seeds the items): draws an item or promotes a seeded one (`itemKnob.ts`). */
@@ -550,10 +635,17 @@ async function selectZoneOnceReady(root: HTMLElement, zoneId: string): Promise<v
 		);
 	}
 
+	// THROWS for a row it cannot find, copied from `selectMultipleOnceReady`'s own line rather
+	// than invented here — `guardKnob` wraps both and `view.onClose` replays both, which
+	// `knobRejectionIsolation.test.ts` proves for the multi-id path and this file's own
+	// `?unreadable=2&select=harness-terrace` drive confirms for this one. `row?.click()` was a
+	// silent no-op, and the zone prune is what made it reachable: a capture naming a refused zone
+	// would otherwise photograph the UNSELECTED editor under a selected shot's name and exit 0.
 	const row = [...root.querySelectorAll<HTMLButtonElement>('.rp-room-list__row')].find(
 		(candidate) => candidate.dataset.rpId === zoneId,
 	);
-	row?.click();
+	if (row === undefined) throw new Error(`No selection row for ${zoneId}`);
+	row.click();
 }
 
 /**
@@ -615,6 +707,29 @@ async function openLayersOnceReady(root: HTMLElement): Promise<void> {
 		"the ?tree knob's three-level tree, or the rail that holds it, to render",
 	);
 	root.querySelector<HTMLButtonElement>('[data-rp-rail="layers"]')?.click();
+}
+
+/**
+ * Drives the `?details` knob: the Details side of `openLayersOnceReady`. In `constrained` the
+ * whole Inspector region is `v-show`n away until `overlay === 'inspector'`, so every control in
+ * it is ATTACHED and `display: none`; in `full` the rail never renders and nothing is pressed.
+ * `open()` on the rail calls `workspace.openOverlay`, which is not a toggle, so a second press
+ * from another knob cannot shut what this one opened.
+ *
+ * **Its own knob rather than a step inside `selectZoneOnceReady`, and the reason is measured.**
+ * That function's rail press is guarded by `querySelector('.rp-room-list__row') === null`, which
+ * an attached-but-hidden row satisfies — so it never fires at 460, and its docblock's "the rail
+ * is pressed only when the row is not already on screen" is true of ATTACHMENT rather than of
+ * screen. Making it fire would open the drawer under `plan-editor-outline-narrow` and
+ * `plan-editor-stale-narrow` as well, two captures whose subject is what sits behind the modal
+ * and the warning strip.
+ */
+async function openDetailsOnceReady(root: HTMLElement): Promise<void> {
+	await settleUntil(
+		() => root.querySelector('.rp-editor-shell[data-layout="full"], [data-rp-rail="details"]') !== null,
+		"the ?details knob's rail, or a layout with no rail to press",
+	);
+	root.querySelector<HTMLButtonElement>('[data-rp-rail="details"]')?.click();
 }
 
 /**
@@ -731,6 +846,40 @@ async function enterAreaTaskOnceReady(root: HTMLElement): Promise<void> {
 }
 
 /**
+ * Drives `?outline`: waits for `?select`'s zone to actually be selected — the Inspector carrying
+ * that id is the DOM's own answer to that, and the two knobs run concurrently — then opens the
+ * numeric outline editor on it.
+ *
+ * **`void`, not `await`.** `editZoneOutline` is the edit lifecycle's `open`, which does not
+ * resolve until the dialog CLOSES; awaiting it here would hang this knob for the whole capture
+ * and then be reported against `view.onClose`. The dialog's own markup is what is waited on
+ * instead, so a knob that reached nothing still fails as itself.
+ */
+async function openZoneOutlineOnceReady(view: PlanEditorView, root: HTMLElement, zoneId: string, corner: string): Promise<void> {
+	await settleUntil(
+		() => root.querySelector(`.rp-room-inspector[data-rp-id="${zoneId}"]`) !== null,
+		`the ?outline knob's selected zone "${zoneId}"`,
+	);
+	void runtimeOfPluginView(view).zoneOutline.editZoneOutline(zoneId as ZoneId);
+	await settleUntil(
+		() => root.querySelector('[data-rp-form="outline-points"]') !== null,
+		`the ?outline knob's numeric outline editor for "${zoneId}"`,
+	);
+
+	// `?outline` alone opens and stops; `?outline=<n>` chooses that corner. A number below 1 or
+	// past the end clicks nothing and the wait below fails as this knob, which is the point:
+	// clicking nothing and capturing anyway would photograph an unchosen list under a name
+	// promising a chosen one.
+	const chosen = Number.parseInt(corner, 10);
+	if (Number.isNaN(chosen)) return;
+	if (chosen > 0) root.querySelectorAll<HTMLButtonElement>('[data-rp-corner="choose"]')[chosen - 1]?.click();
+	await settleUntil(
+		() => root.querySelector('[data-rp-corner="choose"][aria-pressed="true"]') !== null,
+		`the ?outline knob's chosen corner ${corner}`,
+	);
+}
+
+/**
  * Wraps a knob's fire-and-forget promise so a rejection that lands after its caller has moved
  * on cannot escape as a process-level unhandled rejection naming no test.
  *
@@ -762,10 +911,10 @@ export function mountPlanEditorHarness(
 	// view, and the leaf frame plus `tests/harness/theme.css` is what supplies the height
 	// Obsidian's own pane would.
 	const leafEl = root.createDiv('rp-harness-leaf');
-	const base = harnessDeps({ stale: options.stale });
+	const base = harnessDeps({ stale: options.stale, unreadable: options.unreadable });
 	const workspace = options.reference === true ? referenceWorkspace(base, HARNESS_PLAN, new URLSearchParams(location.search).has('planning')) : null;
 	const downstream = workspace && new URLSearchParams(location.search).has('downstream') ? downstreamWorkspace(workspace, leafEl) : null;
-	const deps = downstream?.deps ?? (workspace ? workspace.deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base);
+	const deps = downstream?.deps ?? (workspace ? workspace.deps : (options.numericArea === true || options.roomResize === true || options.roomNaming === true || options.outline !== undefined) ? areaNumericWorkspace(base, HARNESS_PLAN, HARNESS_ZONES) : base);
 	const detailed = options.detail === true ? detailPlanDeps(deps) : deps;
 	const locked = options.locked === undefined ? detailed : lockedZoneDeps(detailed, options.locked.split(','));
 	const detailedZones = options.detailed === undefined ? locked : detailedZoneDeps(locked, options.detailed.split(','));
@@ -808,7 +957,9 @@ export function mountPlanEditorHarness(
 	if (options.numericArea === true) knobs.push(guardKnob(enterNumericArea(leafEl)));
 	if (options.room !== undefined) knobs.push(guardKnob(enterRoomTaskOnceReady(leafEl, options.room)));
 	if (options.tree === true) knobs.push(guardKnob(openLayersOnceReady(leafEl)));
+	if (options.details === true) knobs.push(guardKnob(openDetailsOnceReady(leafEl)));
 	if (options.item !== undefined) knobs.push(guardKnob(driveItemKnob(leafEl, options.item)));
+	if (options.outline !== undefined && options.select !== undefined) knobs.push(guardKnob(openZoneOutlineOnceReady(view, leafEl, options.select, options.outline)));
 
 	// Every caller's teardown is `await view.onClose()` (`grep -rn "view.onClose()" tests/harness`
 	// today prints 8 files), so wrapping it here surfaces a late knob failure as THAT case's own

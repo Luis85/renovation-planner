@@ -86,6 +86,9 @@ describe('existing Room dimensions through the real editor', () => {
 	it('keeps invalid text, focuses its error, and cancels without changing geometry or selection', async () => {
 		const r = await rig(); await open(r); await type(r, 'bad', '0'); await apply(r);
 		expect(r.harness.wrapper.findAll('[aria-invalid="true"]')).toHaveLength(2);
+		// `editor.resize.invalid` is CORRECT here and wrong on the corner dialog (b512f2db6). Pin the
+		// sentence, not the key: swapping it for `error.category.geometry` left 179 tests green.
+		expect(r.harness.wrapper.get('.rp-room-dimensions [role="alert"]').text()).toBe('Enter valid dimensions that can describe this room.');
 		expect(document.activeElement).toBe(r.harness.wrapper.get('input[name="width"]').element);
 		expect(runtimeOf(r.harness).renderState.previewPolygon).toBeNull();
 		await type(r); await cancel(r);

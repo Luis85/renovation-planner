@@ -105,7 +105,10 @@ class StructureCommand {
 	}
 	private recovery(): DispatchResult {
 		this.state.retired = true;
-		return err(markUncompensated(persistenceError('spatial.compensation-failed', 'Spatial recovery failed. Reopen the floor before editing.')));
+		return err(markUncompensated(
+			persistenceError('spatial.compensation-failed', 'Spatial recovery failed. Reopen the floor before editing.'),
+			[{ entityKind: 'plan', entityId: this.input.planId }],
+		));
 	}
 	private async restoreRoom(before: PlanGeometryDocument, room: SpatialRoomCommand): Promise<boolean> {
 		return (await this.safe(() => room.undo())).ok && (await this.safe(() => this.afterRoom(before))).ok;

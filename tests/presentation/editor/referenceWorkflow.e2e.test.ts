@@ -240,7 +240,7 @@ describe('M05 → M06 in the real editor with FakeVault repository commands', ()
 	});
 	it('announces uncompensated writes through the existing save-state recovery warning', async () => {
 		const r = await rig(); await open(r); await prepare(r); await measure(r);
-		vi.spyOn(r.services, 'command').mockReturnValue({ execute: () => Promise.resolve(err(markUncompensated(injectedPersistenceError()))), undo: () => Promise.resolve(err(injectedPersistenceError())) });
+		vi.spyOn(r.services, 'command').mockReturnValue({ execute: () => Promise.resolve(err(markUncompensated(injectedPersistenceError(), []))), undo: () => Promise.resolve(err(injectedPersistenceError())) });
 		await submit(r); expect(useSaveStateStore(r.harness.pinia).unrecoveredWrite).toBe(true); await cancel(r); r.harness.unmount();
 	});
 	it('finishes an already authorized transaction after leaf disposal without opening a retired dialog', async () => {

@@ -3,6 +3,7 @@ import { isErr } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
 import type { Logger } from '../../application/ports/Logger';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
+import { activeWriteIncidentRegistry } from '../../application/incidents/WriteIncidentRegistry';
 import { faultError } from '../notices/notify';
 import { routeError, type FieldErrorMap } from '../errors/route-error';
 
@@ -128,6 +129,15 @@ export function useFieldCommit<T, TInput>(options: {
 	 * same class, the Escape path, and named it exactly.
 	 */
 	let queued: { readonly value: T } | null = null;
+	/**
+	 * The write-incident record, held from the gesture that starts a chain of rounds until the
+	 * chain ends — owner ruling 16. Two shapes reach the vault outside both doors
+	 * `WriteIncidentRegistry.hold()` names: a value QUEUED behind a round in flight, which the
+	 * save before it settling would otherwise leave a teardown free to release a clean record
+	 * under, and a `history.run` that queues before its first door (the designer's height field,
+	 * through its write chain). One hold per chain covers both, and a value `onCancel` drops.
+	 */
+	let chainHold: (() => void) | undefined;
 	let lastCommitted: { readonly value: T } | null = null;
 
 	// NOT `drafted.value?.value ?? toValue(...)`: optional chaining plus nullish coalescing
@@ -314,6 +324,8 @@ export function useFieldCommit<T, TInput>(options: {
 			if (!continuing) {
 				inFlight = false;
 				pending.value = false;
+				chainHold?.();
+				chainHold = undefined;
 			}
 		}
 	}
@@ -350,6 +362,7 @@ export function useFieldCommit<T, TInput>(options: {
 		}
 		inFlight = true;
 		pending.value = true;
+		chainHold = activeWriteIncidentRegistry()?.hold();
 		await commitOnce(drafted.value);
 	}
 

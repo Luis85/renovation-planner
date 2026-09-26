@@ -68,6 +68,11 @@ export interface AssetLibraryContext extends AssetLibraryDeps {
 	 * publish that re-entered would be an infinite loop no type can see.
 	 */
 	readonly publishViewState: (assetId: string, expanded: readonly string[]) => void;
+	/**
+	 * `true` on a mobile device: the catalogue stays readable and its write controls are
+	 * disabled with the read-only sentence as their description (L-43). Absent means writable.
+	 */
+	readonly readOnly?: boolean;
 }
 
 export const ASSET_LIBRARY_CONTEXT: InjectionKey<AssetLibraryContext> = Symbol(

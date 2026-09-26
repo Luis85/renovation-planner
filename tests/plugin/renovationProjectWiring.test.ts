@@ -108,13 +108,13 @@ const vaultStack = (): VaultStack =>
  */
 function refusingDeps(): RenovationProjectDeps {
 	const root = createCompositionRoot(null, recorder, vaultStack());
-	return renovationProjectDeps(root, new FakeWorkspace() as never, vaultStack().vault, {
+	return { openDiagnosticsReport: () => undefined, ...renovationProjectDeps(root, new FakeWorkspace() as never, vaultStack().vault, {
 		projectId: null,
 		navigate: () => undefined,
 		indexScanCompleted: () => true,
 		continueContext: () => Promise.resolve(null),
 		rememberContinue: () => undefined, forgetContinue: () => undefined,
-	});
+	}) };
 }
 
 /**

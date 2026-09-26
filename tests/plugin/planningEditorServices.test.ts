@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Workspace } from 'obsidian';
 import { createCompositionRoot } from '../../src/plugin/composition-root';
 import { planningEditorServices } from '../../src/plugin/planningEditorServices';
@@ -11,6 +11,9 @@ import { renovationStack } from '../helpers/renovation';
 import { expectDefined, expectOk } from '../helpers/domain';
 import { buildProjectIndexEntries } from '../../src/infrastructure/persistence/index/buildProjectIndexEntries';
 import { installObsidianDom } from '../helpers/dom';
+import { SessionStores } from '../../src/plugin/sessionStores';
+import { createPlanId } from '../../src/domain/plan/PlanId';
+import { activeWriteIncidentRegistry, installWriteIncidentRegistry } from '../../src/application/incidents/WriteIncidentRegistry';
 installObsidianDom();
 async function setup() {
  const rig = await planningStack(); rig.stack.metadataCache.catchUp();
@@ -22,6 +25,7 @@ async function setup() {
  return { ...rig, root, persistence, services, openLinkText };
 }
 describe('production planning composition and fresh-stack hydration', () => {
+ afterEach(() => installWriteIncidentRegistry(null));
  it('creates the first renovation register through composition and removes it again on undo', async () => {
   const rig = await renovationStack(); rig.stack.metadataCache.catchUp();
   const root = createCompositionRoot(DEFAULT_SETTINGS, rig.stack.logger, rig.stack.deps);
@@ -83,4 +87,38 @@ describe('production planning composition and fresh-stack hydration', () => {
  for (const subscription of rig.persistence.subscriptions) subscription.dispose();
  });
 
+ /**
+  * The rename listener is outside both doors `WriteIncidentRegistry.hold()` names, and its stamp is
+  * recorded at the end of its work: a rename relocating evidence when a clean session disposed used to
+  * find the record released and lose its half-write. A second plan that refuses to read makes the
+  * rename a refusal after a landed save.
+  */
+ it('holds the write-incident record while a rename relocates evidence, so a half-write outliving unload is recorded', async () => {
+ const rig = await setup(), planning = expectDefined(rig.services.planning, 'planning'), renovation = expectDefined(rig.services.renovation, 'renovation');
+ expectOk(await planning.material(expectOk(await planning.read(rig.plan.id)), rig.input, rig.ledger).execute());
+ expectOk(await renovation.command(expectOk(await renovation.read(rig.plan.id)), { renovation: { ...rig.value, depth: rig.depth }, intended: undefined }, rig.ledger).execute());
+ const read = rig.persistence.plans.getById.bind(rig.persistence.plans), broken = createPlanId();
+ vi.spyOn(rig.persistence.index, 'getIdsByType').mockReturnValueOnce([rig.plan.id, broken]);
+ vi.spyOn(rig.persistence.plans, 'getById').mockImplementation(id => id === broken ? Promise.resolve(err({ category: 'Persistence', code: 'test.read', message: 'offline' })) : read(id));
+ const stores = await renamingAtDispose(rig, 'Evidence');
+ expect(stores.writeIncidents.anyOpen()).toBe(true); expect(activeWriteIncidentRegistry()).toBe(stores.writeIncidents);
+ });
+ it('releases a clean record once the rename in flight at dispose settles', async () => {
+ await renamingAtDispose(await setup(), 'Nothing');
+ expect(activeWriteIncidentRegistry()).toBeNull();
+ });
 });
+
+/** Starts a rename whose first plan read waits, disposes a clean session under it, then lets it finish. */
+async function renamingAtDispose(rig: Awaited<ReturnType<typeof setup>>, oldPath: string) {
+ const files = { exists: () => Promise.resolve(false), read: () => Promise.resolve(''), write: () => Promise.resolve(), remove: () => Promise.resolve() };
+ const stores = new SessionStores(files, 'plugins/renovation-planner', rig.stack.logger), read = rig.persistence.plans.getById.bind(rig.persistence.plans);
+ let proceed!: () => void; const paused = new Promise<void>(resolve => { proceed = resolve; });
+ vi.spyOn(rig.persistence.plans, 'getById').mockImplementationOnce(async id => { await paused; return read(id); });
+ try {
+  const renaming = evidenceRenamed(rig.root, oldPath, 'Archive'); stores.dispose();
+  expect(activeWriteIncidentRegistry()).toBe(stores.writeIncidents);
+  proceed(); await renaming;
+  return stores;
+ } finally { for (const subscription of rig.persistence.subscriptions) subscription.dispose(); }
+}

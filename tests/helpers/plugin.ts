@@ -1,7 +1,7 @@
 import type { FileManager, MetadataCache, TAbstractFile, TFile, Vault } from 'obsidian';
 import RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
 import type { Plugin as MockPlugin } from './obsidian-mock';
-import { FakeWorkspace } from './workspace';
+import { FakeLeaf, FakeWorkspace } from './workspace';
 
 /**
  * What the plugin reaches through the host surfaces — a STRUCTURAL contract, not the fake's
@@ -132,6 +132,8 @@ export async function loadedPlugin(
 		return surface.vault;
 	};
 	const asked: string[] = [];
+	/** Plugin-directory files this session has written — what `adapter.read` answers from. */
+	const pluginFiles = new Map<string, string>();
 	/** Vault event handlers the plugin registered — tests fire these directly. */
 	/**
 	 * The vault-event handlers the plugin registered, in registration order.
@@ -155,10 +157,40 @@ export async function loadedPlugin(
 	const byReference = new Map<object, { name: string; handler: (file: never, oldPath?: string) => void }>();
 	const vault = {
 		configDir: '.obsidian',
+		/**
+		 * The plugin-directory file surface — `DataAdapter`'s four members the plugin-data stores
+		 * use, not just the one `data.json`'s probe uses.
+		 *
+		 * **`exists` used to answer `dataFileExists` for EVERY path, and that made this stub both
+		 * thin and harsh.** `SequenceMarkerFileStore` and ADR-0034's `WriteIncidentFileStore` each
+		 * ask this adapter about their own JSON file, and a stub that claimed a file exists and
+		 * then had no `read` at all answered "present and unreadable" for a file no test ever
+		 * planted — which a real vault answers "absent" for. It logged
+		 * `sequence.recovery.list-failed` on every plugin load here for as long as that store has
+		 * existed, invisibly, because recovery only logs; the write-incident gate FAILS CLOSED on
+		 * an unreadable file, so the same lie stopped every guarded write in the suite instead.
+		 * That is this repository's fake rule met from two of its four faces at once.
+		 *
+		 * So: `dataFileExists` still decides `data.json` — including the deliberately incoherent
+		 * "file present, no data" case the docblock above describes — and every other path is
+		 * answered from what has actually been written here.
+		 */
 		adapter: {
 			exists: (path: string): Promise<boolean> => {
 				asked.push(path);
-				return Promise.resolve(dataFileExists);
+				return Promise.resolve(path.endsWith('/data.json') ? dataFileExists : pluginFiles.has(path));
+			},
+			read: (path: string): Promise<string> => {
+				const text = pluginFiles.get(path);
+				return text === undefined ? Promise.reject(new Error(`no file ${path}`)) : Promise.resolve(text);
+			},
+			write: (path: string, data: string): Promise<void> => {
+				pluginFiles.set(path, data);
+				return Promise.resolve();
+			},
+			remove: (path: string): Promise<void> => {
+				pluginFiles.delete(path);
+				return Promise.resolve();
 			},
 		},
 		// The index scan iterates these. An empty vault is the honest default; a suite that
@@ -255,4 +287,62 @@ export async function loadedPlugin(
 		/** How many vault listeners are still registered — what a released subscription leaves. */
 		vaultListenerCount: (): number => byReference.size,
 	};
+}
+
+/**
+ * What a test can ask of a view the PLUGIN built, rather than of a class it named.
+ *
+ * `openViewOnLeaf` goes through a `ViewFactory`, whose declared return is `unknown` — every
+ * registered view is a different class and the mock's registry is deliberately type-agnostic
+ * about them. Declaring the four members here is what keeps the alternative out: a second
+ * `as never` at each of the dozen call sites, which is a cast added because the helper's own
+ * shape was thinner than the thing it stands for.
+ *
+ * `setState` is optional because `RenovationProjectView` is opened with no state at all, and
+ * `getState` is here rather than asserted per call site because every `View` Obsidian knows
+ * has one and two rebind cases ask a rebound view which subject it is still showing.
+ */
+export interface OpenedView {
+	onOpen: () => Promise<void>;
+	setState?: (state: unknown, result: unknown) => Promise<void>;
+	getState: () => Record<string, unknown>;
+	deps: Record<string, unknown>;
+}
+
+/**
+ * Obsidian's own part: build the registered view for a leaf, put it ON the leaf, and give the
+ * leaf the view state that makes `getLeavesOfType` answer for it. All three, because a fake
+ * that only built the view leaves `rebindOpenViews` nothing to find — the thin-fake shape this
+ * repository keeps paying for.
+ *
+ * **Here and not in `tests/helpers/workspace.ts`, which is where `FakeLeaf` lives.** That
+ * file's header states it imports nothing from `src/presentation/` and gives a measured reason
+ * (a re-export that reached a `.vue` file turned into a coverage false positive in every
+ * node-environment file that imported it for `FakeWorkspace` alone). Every factory in
+ * `plugin.views` constructs a real view, so a helper that calls one drags exactly that weight
+ * — which this file already carries, importing `RenovationPlannerPlugin` outright. `LoadedPlugin`
+ * above is what names `views` as a visible member, so nothing here casts to reach it.
+ *
+ * **Not `FakeWorkspace.withOpen`, and the difference is the reason this is a second helper
+ * rather than a widening of that one.** `withOpen` sets `leaf.state` directly and never calls
+ * the plugin's registered factory, so a view paired with it is constructed with hand-assembled
+ * dependencies. Going through `plugin.views.get(type)` is what resolves `projectViewDeps(leaf)`
+ * / `planEditorViewDeps()` from the CURRENT root, which is the per-root binding a rebind or an
+ * unload test is about — and teaching `withOpen` to do that would put a plugin and a
+ * `src/presentation/` reach into the file that states it must have neither.
+ */
+export async function openViewOnLeaf(
+	plugin: LoadedPlugin,
+	workspace: FakeWorkspace,
+	type: string,
+	state?: Record<string, unknown>,
+): Promise<{ leaf: FakeLeaf; view: OpenedView }> {
+	const leaf = new FakeLeaf();
+	await leaf.setViewState({ type, state });
+	const view = plugin.views.get(type)?.(leaf) as OpenedView;
+	leaf.view = view;
+	workspace.leaves.push(leaf);
+	if (state !== undefined) await view.setState?.(state, {});
+	await view.onOpen();
+	return { leaf, view };
 }

@@ -38,7 +38,7 @@ import { useSelectionStore } from '../selection/selection-store';
 import { useEditorRuntime } from '../runtime';
 import type { ThemeTokens } from '../theme/themeTokens';
 import { STAGE_PIXELS, worldToScreen, viewportTransform } from '../viewport/Viewport';
-import { SELECTION_BADGE_RADIUS_PX, VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
+import { SELECTION_BADGE_RADIUS_PX, VERTEX_HANDLE_HIGHLIGHT_RADIUS_PX, VERTEX_HANDLE_RADIUS_PX } from '../handleMetrics';
 import RoomDraftSketch from './RoomDraftSketch.vue';
 import MarqueeOverlay from './MarqueeOverlay.vue';
 import { structureCandidates } from '../structure/structureCandidates';
@@ -160,6 +160,28 @@ const editableVertices = computed(() => {
 	const lockedSelection = zones.value.get(String(selectedIds.value[0]))?.locked === true;
 	return renovationSession.perspective === 'plan' && runtime.activeToolId.value !== 'edit-curves' && !lockedSelection ? selectedScreenPoints.value : [];
 });
+
+/**
+ * One vertex handle of the single selected zone, and BP-04 action 3's highlight: the one corner
+ * a numeric editor has the user on is drawn larger and filled, so it reads as chosen among
+ * identical siblings. `highlightedVertex` is `null` in every other state this layer draws, and
+ * indexes the SAVED outline — see `RenderState`'s own field for why it does not ride the preview.
+ *
+ * A function rather than two ternaries in the `:config`, because the template's cognitive
+ * complexity is a fallow threshold and object literals in a `v-for` count against it.
+ */
+function vertexConfig(vertex: { x: number; y: number }, index: number) {
+	const chosen = index === runtime.renderState.highlightedVertex;
+	return {
+		x: vertex.x,
+		y: vertex.y,
+		radius: chosen ? VERTEX_HANDLE_HIGHLIGHT_RADIUS_PX : VERTEX_HANDLE_RADIUS_PX,
+		fill: chosen ? props.tokens.accent : props.tokens.canvasBackground,
+		stroke: props.tokens.accent,
+		strokeWidth: 1.5,
+		listening: false,
+	};
+}
 </script>
 
 <template>
@@ -236,15 +258,7 @@ const editableVertices = computed(() => {
 			<VCircle
 				v-for="(vertex, index) in editableVertices"
 				:key="index"
-				:config="{
-					x: vertex.x,
-					y: vertex.y,
-					radius: VERTEX_HANDLE_RADIUS_PX,
-					fill: props.tokens.canvasBackground,
-					stroke: props.tokens.accent,
-					strokeWidth: 1.5,
-					listening: false,
-				}"
+				:config="vertexConfig(vertex, index)"
 			/>
 		</template>
 		<template

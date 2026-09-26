@@ -176,6 +176,16 @@ export interface RenovationProjectDeps {
 	 */
 	readonly openAssetLibrary: () => void;
 	/**
+	 * Opens the diagnostics report — injected all the way from the composition root, because
+	 * the modal lives in `plugin/` and `presentation/` may not import it.
+	 *
+	 * REQUIRED rather than optional, for the reason `EditorWarningInput.openDiagnosticsReport`
+	 * already states about its own bundle: an optional member would let a composition draw a
+	 * sentence that tells the user to open the report and no control that opens it, which is
+	 * the state this member exists to close.
+	 */
+	readonly openDiagnosticsReport: () => void;
+	/**
 	 * "Some plan of THIS project changed — re-read it." The project-plans change source
 	 * (`projectPlansChangeSource`), filtered on the owning project, which `PlanCreated`'s
 	 * payload carries.

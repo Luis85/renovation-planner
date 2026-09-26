@@ -388,6 +388,9 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
 	}
 }
 
+/** A store's own conflict refusal (`WRITE_BOUNDARY_CODES`): another writer moved the version this write presented. */
+const isConflict = (error: AppError): boolean => WRITE_BOUNDARY_CODES.some((code) => error.code.endsWith(`.${code}`));
+
 /**
  * The inverse of `SetAssetBackground` (Task B7) — the first inverse in this file that spans
  * BOTH resources, because the command it wraps writes both: the note's reference and the
@@ -567,7 +570,7 @@ class ReversibleAssetBackgroundEdit
 		const { geometryExpected, noteExpected, replacedEntity } = preflight.value;
 
 		const savedNote = await assets.save(inverse.entity, noteExpected);
-		if (isErr(savedNote)) return savedNote;
+		if (isErr(savedNote)) return this.raced(savedNote.error);
 		noteLedger.record(assetId, savedNote.value.version);
 
 		const savedGeometry = await sidecar.write(assetId, inverse.document, geometryExpected);
@@ -585,7 +588,8 @@ class ReversibleAssetBackgroundEdit
 	 * is put back rather than left standing, conditional on the version it produced, so a
 	 * refusal leaves NO half of the undo behind: the vault is what the undo found plus whatever
 	 * the peer wrote, which is the state a peer landing before the pre-flight read leaves too.
-	 * That refusal carries the sidecar's own error, UNSTAMPED, and keeps the inverse.
+	 * That refusal is UNSTAMPED and keeps the inverse; it carries the sidecar's own error, which
+	 * `raced` turns into `undo.superseded` when it is a conflict (owner ruling 17).
 	 *
 	 * A put-back refused as a CONFLICT (`WRITE_BOUNDARY_CODES`, raised by `checkExpectedVersion`
 	 * before or inside the note write) is answered the same way, unstamped: another writer changed
@@ -612,11 +616,22 @@ class ReversibleAssetBackgroundEdit
 			// A write this history dispatched, so it records — or a retry conditions its note
 			// restore on the version this put-back replaced and is refused as somebody else's.
 			noteLedger.record(assetId, putBack.value.version);
-			return err(cause);
+			return this.raced(cause);
 		}
-		if (WRITE_BOUNDARY_CODES.some((code) => putBack.error.code.endsWith(`.${code}`))) return err(cause);
+		if (isConflict(putBack.error)) return this.raced(cause);
 		await events.publish(assetDesignChanged({ assetId }));
 		return err(markUncompensated(cause, [{ entityKind: 'asset', entityId: assetId }]));
+	}
+
+	/**
+	 * An UNSTAMPED refusal of one of this undo's own writes, as the user should read it (owner
+	 * ruling 17): a conflict means another change raced the undo, which is `undo.superseded` — the
+	 * toast the pre-flight read's refusal already raises, with the save badge left alone — while a
+	 * write FAULT passes through and still reads as a save error. The stamped arm above never comes
+	 * here, so rulings 18 and 23 are untouched: its cause keeps its own code.
+	 */
+	private raced(error: AppError): DispatchResult {
+		return err(isConflict(error) ? undoSuperseded(this.input.assetId) : error);
 	}
 }
 

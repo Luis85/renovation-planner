@@ -105,6 +105,19 @@ function createLibraryPage(browser: NativeBrowser, ui: PlannerPage) {
 		return browser.execute(() => document.querySelector('.workspace-leaf.mod-active .renovation-asset-library')?.clientWidth ?? 0);
 	};
 
+	/**
+	 * The library's container walked to about `target` px by the window, the way `resize` sets it,
+	 * answering the width it reached: the window's frame and ribbon are measured rather than assumed.
+	 */
+	const resizeTo = async (target: number): Promise<number> => {
+		let reached = await resize(target + 45);
+		for (let step = 0; step < 3 && Math.abs(reached - target) > 4; step += 1) {
+			const outer = await browser.execute(() => window.outerWidth);
+			reached = await resize(outer + target - reached);
+		}
+		return reached;
+	};
+
 	/** Obsidian's own view state for every library leaf, as it would persist it. */
 	const viewState = () =>
 		browser.executeObsidian(({ app }, type) => app.workspace.getLeavesOfType(type).map((leaf) => leaf.getViewState().state), LIBRARY);
@@ -147,6 +160,7 @@ function createLibraryPage(browser: NativeBrowser, ui: PlannerPage) {
 		seed,
 		open,
 		resize,
+		resizeTo,
 		viewState,
 		focused,
 		glyphOffset,

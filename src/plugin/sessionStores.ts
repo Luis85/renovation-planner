@@ -67,12 +67,15 @@ export class SessionStores {
 	 * to releasing exactly what this instance added, never a later instance's replacement.
 	 *
 	 * **An OPEN registry is not released at all, and that is the lifecycle contract's rule 3 —
-	 * a refusal is not cleared by a teardown.** `onunload` unmounts no Vue app and detaches no
-	 * leaf, so every view is still mounted and still able to dispatch when this runs. Releasing
-	 * an open registry there disarms all three of its readers at once: `guardCommand` skips its
-	 * refusal arm (`incidents !== null && incidents.anyOpen()`), `withIncidentGate`'s `paused()`
-	 * answers `false` through its `?? false`, and `void incidents?.record(…)` stops recording.
-	 * Measured on a rig driving the plugin's own registered view factory: the identical
+	 * a refusal is not cleared by a teardown.** `onunload` itself unmounts no Vue app and detaches
+	 * no leaf; whether a view is still mounted when this runs is Obsidian's order, and the one
+	 * measurement (tracker row L-21, 1.13.7, Windows, one machine) found Obsidian closes the Plan
+	 * Editor view BEFORE `onunload` — other panes, versions and mobile unmeasured. Where a view
+	 * does survive, releasing an open registry disarms all three of its readers at once:
+	 * `guardCommand` skips its refusal arm (`incidents !== null && incidents.anyOpen()`),
+	 * `withIncidentGate`'s `paused()` answers `false` through its `?? false`, and
+	 * `void incidents?.record(…)` stops recording. Measured on a rig whose fake leaves the view
+	 * mounted, driving the plugin's own registered view factory: the identical
 	 * `createZone` was refused with `write-incident.writes-paused` before `onunload` and wrote a
 	 * note after it, and an Undo refused before ran its inverse after
 	 * (`tests/plugin/unloadWithViewOpen.test.ts`).
@@ -88,8 +91,8 @@ export class SessionStores {
 	 * recorded and then keeps the registry installed by the rule 3 check.
 	 *
 	 * A CLEAN, idle registry is still released: there is no refusal to keep and no save to
-	 * record, so the removal rule has nothing to argue with. What stays open: a save that had not
-	 * reached either door `WriteIncidentRegistry.hold()` names when this ran. A save that never
+	 * record, so the removal rule has nothing to argue with. What stays open: a save no holder
+	 * `WriteIncidentRegistry.hold()` names had counted when this ran. A save that never
 	 * settles keeps the registry until the next load replaces it, which is the cost the ruling
 	 * accepted — an old session's record answering for the vault until the next load.
 	 */

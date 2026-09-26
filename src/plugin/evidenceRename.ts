@@ -19,9 +19,15 @@ import type { AppError } from '../core/errors/AppError';
  * this listener is not one, so it still runs while an incident is open. That is existing
  * behaviour ADR-0034 records rather than changes, and it is stated here so the next reader
  * does not infer a gate from the presence of a raise.
+ *
+ * **Held for its whole relocation** (owner ruling 16): it is outside both doors
+ * `WriteIncidentRegistry.hold()` names and reads the holder when it stamps, at the END, so the
+ * registry `activeWriteIncidentRegistry()` answers at its start is held synchronously until the
+ * `finally` — a session disposing while a rename is in flight keeps the record for its stamp.
  */
 export async function evidenceRenamed(root: CompositionRoot, oldPath: string, newPath: string): Promise<void> {
  if (!root.persistence) return;
+ const release = activeWriteIncidentRegistry()?.hold();
  try {
   const result = await relocateEvidence({ ...root.persistence, ledger: root.persistence.vaultDeps.ledger, events: root.eventBus }, oldPath, newPath);
   if (!result.ok) {
@@ -31,5 +37,5 @@ export async function evidenceRenamed(root: CompositionRoot, oldPath: string, ne
    if (leftWritesBehind(result.error)) void activeWriteIncidentRegistry()?.record(result.error as AppError & UncompensatedWrite);
    notifyOperationFailure(result.error);
   }
- } catch (cause) { notifyFault(cause, root.logger, 'evidence.rename-failed'); }
+ } catch (cause) { notifyFault(cause, root.logger, 'evidence.rename-failed'); } finally { release?.(); }
 }

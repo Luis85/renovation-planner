@@ -36,11 +36,12 @@ export function withSaveStateTracking(
 	saveState: SaveStateTracker,
 ): RefreshedHistory {
 	const track = async (operation: () => Promise<DispatchResult>): Promise<DispatchResult> => {
+		saveState.beginSaving();
 		// Held from the GESTURE, synchronously: a field the teardown blurs dispatches here before
 		// `onunload`, and reaches its guard only after it (owner ruling 16,
-		// `WriteIncidentRegistry.hold`).
+		// `WriteIncidentRegistry.hold`). After `beginSaving`, so nothing can throw between the
+		// hold and the `finally` that releases it.
 		const release = activeWriteIncidentRegistry()?.hold();
-		saveState.beginSaving();
 		try {
 			const result = await operation();
 			// **Three outcomes, and `ok` decides only two of them.** A success that wrote nothing

@@ -121,19 +121,27 @@ export class WriteIncidentRegistry {
 	}
 
 	/**
-	 * A save starting: its end is the returned function, called exactly once.
+	 * A save starting: its end is the returned function. One-shot — a second call is ignored,
+	 * because `whenIdle` tests `held === 0` exactly and a double release would count a save
+	 * still running as ended.
 	 *
 	 * Owner ruling 16 — the record is not released at unload while a save is still running,
 	 * because Obsidian's teardown blurs a typed field BEFORE `onunload` and the write that blur
 	 * commits reaches the vault AFTER it (`tests/e2e/unloadWindow.e2e.ts`, 1.13.7). Taken at the
 	 * two doors a gesture reaches synchronously — `guardCommand` and the editors'
 	 * `withSaveStateTracking` — so a save counts from its gesture, not from its guard, which two
-	 * serial queues put after `onunload`. A dispatch path that awaits before reaching either door
-	 * is not counted until it does.
+	 * serial queues put after `onunload`. Two holders sit outside those doors: `useFieldCommit`
+	 * holds from a field's commit gesture until its chain of rounds ends — which covers a value
+	 * QUEUED behind a round in flight, and the designer's height field, whose path queues before
+	 * its door — and `evidenceRenamed` holds for its whole relocation. Any other path that awaits
+	 * before reaching a door is not counted until it does.
 	 */
 	hold(): () => void {
 		this.held += 1;
+		let released = false;
 		return () => {
+			if (released) return;
+			released = true;
 			this.held -= 1;
 			if (this.held > 0) return;
 			const idle = this.idle;

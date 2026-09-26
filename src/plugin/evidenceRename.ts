@@ -1,19 +1,15 @@
 import type { CompositionRoot } from './composition-root';
 import { relocateEvidence } from '../infrastructure/obsidian/repositories/relocateEvidence';
 import { notifyFault, notifyOperationFailure } from '../presentation/notices/notify';
-import { leftWritesBehind, type UncompensatedWrite } from '../application/commands/DispatchOutcome';
 import { activeWriteIncidentRegistry } from '../application/incidents/WriteIncidentRegistry';
-import type { AppError } from '../core/errors/AppError';
 
 /**
  * One host listener calls this with the live root, including after a settings/root swap.
  *
- * **Its own ad-hoc boundary, and that is why the incident is raised HERE.** ADR-0034 names
- * this listener as one of the three paths outside `guardCommand`, so the stamp
- * `relocateEvidence` now raises would reach nothing if this function did not record it — the
- * exact gap the guarded chokepoint closes everywhere else. Recording is spelled the same way
- * `guardCommand` spells it, against the same module accessor, so the two doors cannot answer
- * about different registries.
+ * **Its own ad-hoc boundary, and it records NOTHING itself.** ADR-0034 names this listener as
+ * one of the three paths outside `guardCommand`, and it used to record `relocateEvidence`'s stamp
+ * here for that reason. Since owner ruling 13 `markUncompensated` records every stamp where it is
+ * made, through the same module accessor, so a record here would count this one twice.
  *
  * **Not gated, unlike a guarded command.** An open incident refuses every guarded COMMAND;
  * this listener is not one, so it still runs while an incident is open. That is existing
@@ -21,21 +17,16 @@ import type { AppError } from '../core/errors/AppError';
  * does not infer a gate from the presence of a raise.
  *
  * **Held for its whole relocation** (owner ruling 16): it is outside both doors
- * `WriteIncidentRegistry.hold()` names and reads the holder when it stamps, at the END, so the
- * registry `activeWriteIncidentRegistry()` answers at its start is held synchronously until the
- * `finally` — a session disposing while a rename is in flight keeps the record for its stamp.
+ * `WriteIncidentRegistry.hold()` names and its stamp reads the holder when it is made, late in the
+ * relocation, so the registry `activeWriteIncidentRegistry()` answers at its start is held
+ * synchronously until the `finally` — a session disposing while a rename is in flight keeps the
+ * record for its stamp. The `finally` is what releases it on a throw as well as on a refusal.
  */
 export async function evidenceRenamed(root: CompositionRoot, oldPath: string, newPath: string): Promise<void> {
  if (!root.persistence) return;
  const release = activeWriteIncidentRegistry()?.hold();
  try {
   const result = await relocateEvidence({ ...root.persistence, ledger: root.persistence.vaultDeps.ledger, events: root.eventBus }, oldPath, newPath);
-  if (!result.ok) {
-   // `void`, not awaited: `record` resolves rather than rejects for every fault (its own
-   // docblock), the in-memory list is appended to before the durable write is attempted, and
-   // the user's sentence below must not wait on a file write.
-   if (leftWritesBehind(result.error)) void activeWriteIncidentRegistry()?.record(result.error as AppError & UncompensatedWrite);
-   notifyOperationFailure(result.error);
-  }
+  if (!result.ok) notifyOperationFailure(result.error);
  } catch (cause) { notifyFault(cause, root.logger, 'evidence.rename-failed'); } finally { release?.(); }
 }

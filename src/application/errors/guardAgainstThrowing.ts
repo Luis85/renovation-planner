@@ -1,9 +1,8 @@
 import type { AppError, PersistenceError } from '../../core/errors/AppError';
-import { err, isErr, type Result } from '../../core/result/Result';
+import { err, type Result } from '../../core/result/Result';
 import type { Logger } from '../ports/Logger';
 import type { Command } from '../commands/Command';
 import type { Query } from '../queries/Query';
-import { leftWritesBehind, type UncompensatedWrite } from '../commands/DispatchOutcome';
 import { activeWriteIncidentRegistry, type WriteIncidentRegistry } from '../incidents/WriteIncidentRegistry';
 import { persistenceError } from '../errors';
 import type { VaultExceptionMapper } from './exceptionMapper';
@@ -79,10 +78,16 @@ export function writesPausedRefusal(): PersistenceError {
  * ADR-0034's gate, on the COMMAND door only.
  *
  * While any write incident is open — a write landed, its compensating undo also failed, and
- * the vault is half-written — every guarded command is refused BEFORE its `execute` runs, and
- * on the way out a failed result carrying `markUncompensated`'s stamp records a new incident.
- * That pair is the single observation point ADR-0034 names, and it sits here because this is
- * the one place a command's `Result` is inspected after every dispatch.
+ * the vault is half-written — every guarded command is refused BEFORE its `execute` runs.
+ *
+ * **It records nothing, since owner ruling 13.** The record used to be taken here, on a failed
+ * result carrying the stamp, and that reached only the stamps whose error returned through a
+ * guarded door — six raise sites had paths that returned through `CommandHistory` over raw ports
+ * instead, and reached no recorder at all. `markUncompensated` records where it stamps now, so
+ * every stamp is recorded once whichever door it leaves by, and a recorder kept here would count
+ * each stamp that does leave through a guarded door a second time. What that trade costs: the
+ * record is taken into whatever registry the holder answers AT STAMP TIME rather than the one
+ * this guard read at dispatch start, which is why the hold below matters for it too.
  *
  * **The refusal is NOT in `withBoundary`, which also backs `guardQuery`, and that is the
  * decision rather than an oversight.** Queries must keep working: `docs/using-planning-
@@ -126,17 +131,12 @@ export function guardCommand<I, T, E extends AppError>(
 				logger.error(event, { cause: refusal });
 				return err(refusal);
 			}
-			// Released only AFTER the record below, so a teardown waiting on this save finds the
-			// incident open and keeps the registry (owner ruling 16, `WriteIncidentRegistry.hold`).
+			// Held for the whole dispatch, so a stamp this command makes — recorded by
+			// `markUncompensated` through the holder — still finds the registry installed when a
+			// teardown ran meanwhile (owner ruling 16, `WriteIncidentRegistry.hold`).
 			const release = incidents?.hold();
 			try {
-				const result = await guarded(input);
-				// A presence test, not an emptiness test: "half-written, and this raise site cannot
-				// name what" is a legal stamp and a fully open incident.
-				if (isErr(result) && leftWritesBehind(result.error)) {
-					void incidents?.record(result.error as AppError & UncompensatedWrite);
-				}
-				return result;
+				return await guarded(input);
 			} finally {
 				release?.();
 			}

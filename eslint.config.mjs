@@ -718,13 +718,51 @@ const LANGUAGE_RESOLUTION_BAN = [
 ];
 
 /**
+ * A "partly failed write" stamp is BUILT in exactly one place: `markUncompensated`
+ * (`src/application/commands/DispatchOutcome.ts`), which is also, since owner ruling 13, the one
+ * place the stamp is RECORDED as a write incident. The record is therefore only as complete as
+ * that function's monopoly on the construction: a stamp spelled by hand elsewhere reaches every
+ * reader of `leftWritesBehind` — the save indicator, the undo pause — and opens no incident,
+ * which is the unrecorded half-write the ruling closed. A check at the forbidden construction
+ * rather than a list of the raise sites, so it holds for a raise site not yet written.
+ *
+ * The spellings these SEE: an object-literal property keyed `uncompensatedWrite` by identifier
+ * (shorthand included, and `Object.assign(e, { uncompensatedWrite: … })`, whose argument is such
+ * a literal) anywhere outside a function DECLARED `markUncompensated`; one keyed by the string
+ * `'uncompensatedWrite'` anywhere; and an assignment to a member of that name, dotted or
+ * string-keyed. A read, a destructuring pattern and a type declaring the field are not
+ * constructions and pass untouched.
+ *
+ * What they CANNOT see, pinned as absences in `tests/gates/stamp-construction-boundary.test.ts`:
+ * a computed key (`{ [KEY]: [] }`, and so `Object.assign` with one); `Object.defineProperty`,
+ * whether its name is computed or a literal — the name is an argument, not a property; a class
+ * field; and a SECOND function declared `markUncompensated`, since the exemption is by name.
+ * oxlint has no `no-restricted-syntax`, so the edit-loop hook cannot see any of this either.
+ */
+const STAMP_CONSTRUCTION_MESSAGE =
+	"A write-incident stamp built by hand opens no incident. Call markUncompensated (src/application/commands/DispatchOutcome.ts), which stamps AND records in one place (owner ruling 13).";
+const STAMP_CONSTRUCTION_BAN = [
+	{
+		selector:
+			"ObjectExpression > Property[key.name='uncompensatedWrite']:not(FunctionDeclaration[id.name='markUncompensated'] Property)",
+		message: STAMP_CONSTRUCTION_MESSAGE,
+	},
+	{ selector: "ObjectExpression > Property[key.value='uncompensatedWrite']", message: STAMP_CONSTRUCTION_MESSAGE },
+	{
+		selector:
+			"AssignmentExpression > MemberExpression.left:matches([property.name='uncompensatedWrite'], [property.value='uncompensatedWrite'])",
+		message: STAMP_CONSTRUCTION_MESSAGE,
+	},
+];
+
+/**
  * The `no-restricted-syntax` selectors EVERY file in `src/` carries, hoisted because three
  * blocks below now spread them and a hand-restated third copy is how the write boundary's
  * own extension list went stale once already. The two that are NOT here differ per block on
  * purpose: `WRITE_BOUNDARY` is off inside `infrastructure/obsidian/` (the sanctioned writer),
  * and `LANGUAGE_RESOLUTION_BAN` is off inside `strings.ts` (the sanctioned resolver).
  */
-const SHARED_SRC_SYNTAX_BANS = [...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN, ...NOTICE_TEXT_BAN];
+const SHARED_SRC_SYNTAX_BANS = [...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN, ...NOTICE_TEXT_BAN, ...STAMP_CONSTRUCTION_BAN];
 
 export default defineConfig([
 	{

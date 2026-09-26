@@ -74,8 +74,9 @@ export class SessionStores {
 	 * does survive, releasing an open registry disarms all three of its readers at once:
 	 * `guardCommand` skips its refusal arm (`incidents !== null && incidents.anyOpen()`),
 	 * `withIncidentGate`'s `paused()` answers `false` through its `?? false`, and
-	 * `void incidents?.record(…)` stops recording. Measured on a rig whose fake leaves the view
-	 * mounted, driving the plugin's own registered view factory: the identical
+	 * `markUncompensated`'s `activeWriteIncidentRegistry()?.record(…)` stops recording.
+	 * Measured on a rig whose fake leaves the view mounted, driving the plugin's own registered
+	 * view factory: the identical
 	 * `createZone` was refused with `write-incident.writes-paused` before `onunload` and wrote a
 	 * note after it, and an Undo refused before ran its inverse after
 	 * (`tests/plugin/unloadWithViewOpen.test.ts`).

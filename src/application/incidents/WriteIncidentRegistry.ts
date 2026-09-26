@@ -42,6 +42,12 @@ export const NO_WRITE_INCIDENTS: WriteIncidentReport = { path: '', open: [] };
 /**
  * The open write incidents, in memory, so the gate can answer SYNCHRONOUSLY.
  *
+ * **Recorded in ONE place: `markUncompensated`, where every stamp is made** (owner ruling 13).
+ * The two doors that used to record — `guardCommand` on a stamped result, and the host-rename
+ * listener — reached only the stamps that returned through them, and six raise sites had paths
+ * that returned through neither. A recorded stamp is durable (the store below, re-read at every
+ * load), so each of those paths now pauses the vault across restarts, not only for the session.
+ *
  * `guardCommand` runs on every command dispatch and cannot afford a file read per call, so
  * the durable store is read once at load and mirrored here. The mirror is append-only for
  * the same reason the port has no removal door (ADR-0034): nothing in the plugin retires an
@@ -182,7 +188,8 @@ export class WriteIncidentRegistry {
 	}
 
 	/**
-	 * Record a refusal that left writes behind — in memory FIRST, then durably.
+	 * Record a refusal that left writes behind — in memory FIRST, then durably. Its one caller in
+	 * `src/` is `markUncompensated`, which `void`s it; a test may record directly.
 	 *
 	 * **A failed durable write does not un-raise the incident.** The command's own write
 	 * already failed and the vault is already inconsistent; losing the record of that because
@@ -224,7 +231,8 @@ export class WriteIncidentRegistry {
 }
 
 /**
- * The registry the guard consults, installed once by the composition root.
+ * The registry the guard consults and `markUncompensated` records into, installed once by the
+ * composition root.
  *
  * **A module-level holder rather than a parameter, and the reason is the call sites.** The
  * refusal has to reach every guarded command, and there are 46 `guardCommand` call sites in

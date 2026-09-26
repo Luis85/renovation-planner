@@ -2,6 +2,7 @@ import { isErr, ok, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
 import type { EntityVersion } from '../ports/versioning';
 import type { DiagnosticEntityKind } from '../ports/diagnostics';
+import { activeWriteIncidentRegistry } from '../incidents/WriteIncidentRegistry';
 
 /**
  * What a dispatched reversible gesture DID, beside whether it succeeded.
@@ -288,10 +289,34 @@ export interface AffectedEntity {
 }
 
 /**
- * Stamp a refusal as having left writes behind, naming what it left. Returns a copy: the
- * errors these sequences carry are plain data (`AppError` is deliberately not a class), and
- * mutating a caller's value to record something about the caller's own failure is a second
- * surprise on top of the first.
+ * Stamp a refusal as having left writes behind, naming what it left, AND record it as a write
+ * incident. Returns a copy: the errors these sequences carry are plain data (`AppError` is
+ * deliberately not a class), and mutating a caller's value to record something about the
+ * caller's own failure is a second surprise on top of the first.
+ *
+ * **Not side-effect-free, since owner ruling 13: this is the ONE place a stamp is recorded.** The
+ * record used to be taken at two doors — `guardCommand` on a stamped result, and the host-rename
+ * listener — so a stamp returning through `CommandHistory` over raw ports reached neither, and
+ * six raise sites had such a path (`docs/releases/first-beta-readiness/11-q1-stamp-census.md`).
+ * Recording where the stamp is MADE closes all of them by construction, and the doors record
+ * nothing now, so one stamp is one incident whichever door it leaves by. The record goes into the
+ * registry `activeWriteIncidentRegistry()` answers at stamp time — `void`ed, since `record`
+ * appends to the in-memory list synchronously and resolves for every fault — and is a no-op when
+ * none is installed (a caller composing without a session). A recorded stamp is DURABLE: it is
+ * written to `write-incidents.json` and re-read at every load (ADR-0034, D-08), so it pauses
+ * every guarded write in the vault across restarts until the user removes that file.
+ *
+ * Two consequences owner ruling 20 accepted, both pinned in
+ * `tests/plugin/undoStampOnHealthyVault.test.ts`: a site that stamps an error already stamped
+ * (a compensation over a stamped cause) records a SECOND incident, while a stamp crossing two
+ * guarded doors is still one; and once a stamp lands mid-gesture the gate is shut, so a later
+ * guarded step of the same gesture — its own compensation included — is refused.
+ *
+ * **What it cannot see**: a stamp built anywhere but here — `eslint.config.mjs`'s
+ * `STAMP_CONSTRUCTION_BAN` refuses the literal spellings in `src/` and states the ones it cannot
+ * see — and a stamp made when no registry is installed, which is lost; the keep-alive
+ * (`WriteIncidentRegistry.hold`) is what keeps one installed across a teardown for the saves its
+ * holders count.
  *
  * **`entities` is REQUIRED, not optional with a default.** An optional parameter would let a
  * new raise site inherit an empty list silently, which is indistinguishable from a site that
@@ -304,7 +329,9 @@ export function markUncompensated<TError extends AppError>(
 	error: TError,
 	entities: readonly AffectedEntity[],
 ): TError & UncompensatedWrite {
-	return { ...error, uncompensatedWrite: entities };
+	const stamped = { ...error, uncompensatedWrite: entities };
+	void activeWriteIncidentRegistry()?.record(stamped);
+	return stamped;
 }
 
 /**

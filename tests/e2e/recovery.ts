@@ -84,3 +84,183 @@ export const referenceSheet = async (designer: DesignerPage, assetId: string): P
 	expect(designer.readSidecar(assetId).calibration).not.toBeNull();
 	return before + 2;
 };
+
+/** The active designer leaf, as the page's own selector — the one `ui.leaf` resolves. */
+const ACTIVE_DESIGNER = '.workspace-leaf.mod-active .workspace-leaf-content[data-type="renovation-asset-designer"]';
+
+/**
+ * What the active designer shows, as three lists a comparison can hold equal: every drawn Konva
+ * shape by id and screen box, the part rows pressed (the selection), and every Inspector field.
+ */
+export const designerPicture = (browser: NativeBrowser) =>
+	browser.execute((host) => {
+		const leaf = document.querySelector(host);
+		const konva = (window as unknown as { Konva: { stages: { container(): HTMLElement; find(sel: string): { id(): string; getClientRect(): Record<'x' | 'y' | 'width' | 'height', number> }[] }[] } }).Konva;
+		const stage = konva.stages.find((candidate) => leaf?.contains(candidate.container()));
+		const shapes = (stage?.find('Shape') ?? []).map((shape) => {
+			const box = shape.getClientRect();
+			return `${shape.id()}@${[box.x, box.y, box.width, box.height].map((value) => Math.round(value)).join(',')}`;
+		});
+		const pressed = [...(leaf?.querySelectorAll('.rp-designer-part-row[aria-pressed="true"]') ?? [])].map((row) => row.getAttribute('name'));
+		const inspector = [...(leaf?.querySelectorAll<HTMLInputElement>('.rp-designer-inspector input') ?? [])].map((field) => `${field.name}=${field.value}`);
+		return { shapes, pressed, inspector };
+	}, ACTIVE_DESIGNER);
+
+/** Every leaf in the workspace, of every view type, with the state Obsidian would persist for it. */
+export const allLeaves = (browser: NativeBrowser) =>
+	browser.executeObsidian(({ app }) => {
+		const found: { type: string; state: unknown }[] = [];
+		// A block body: `iterateAllLeaves` stops at the first callback returning a truthy value,
+		// and `push` returns the new length — measured, the arrow form listed one leaf per split.
+		app.workspace.iterateAllLeaves((leaf) => {
+			found.push({ type: leaf.getViewState().type, state: leaf.getViewState().state });
+		});
+		return found;
+	});
+
+/** Close the active designer's tab the way a user does: the tab header's own close button. */
+export const closeTabByHand = (browser: NativeBrowser) =>
+	browser.$('.workspace-tab-header.is-active[data-type="renovation-asset-designer"] .workspace-tab-header-inner-close-button').click();
+
+/**
+ * Record everything raised in front of the user from now on — a toast, a modal, a plugin dialog —
+ * however briefly it stays, since a toast that timed out before an assertion read the page would
+ * otherwise read as one never raised.
+ */
+export const recordInterruptions = (browser: NativeBrowser) =>
+	browser.execute(() => {
+		const raised = '.notice, .modal-container, .rp-dialog';
+		const seen: string[] = [];
+		(window as unknown as { rpInterruptions: string[] }).rpInterruptions = seen;
+		new MutationObserver((records) => {
+			for (const record of records) {
+				for (const node of record.addedNodes) {
+					if (node instanceof HTMLElement && (node.matches(raised) || node.querySelector(raised))) seen.push(node.className);
+				}
+			}
+		}).observe(document.body, { childList: true, subtree: true });
+	});
+
+export const interruptionsSeen = (browser: NativeBrowser) => browser.execute(() => (window as unknown as { rpInterruptions: string[] }).rpInterruptions);
+
+/**
+ * Hold Obsidian's own file watcher for the vault, so an edit made outside it reaches the plugin
+ * only through what the test does next. Returns the release. `onFileChange` is what both of the
+ * desktop watcher's handlers call (app.js 1.13.7: `fs.watch` → `onFileChange` → `reconcileFile`).
+ */
+export const holdHostWatcher = async (browser: NativeBrowser): Promise<() => Promise<void>> => {
+	await browser.executeObsidian(({ app }) => {
+		const adapter = app.vault.adapter as unknown as { onFileChange(path: string): void; rpHeld?: (path: string) => void };
+		adapter.rpHeld = adapter.onFileChange.bind(adapter);
+		adapter.onFileChange = () => undefined;
+	});
+	return async () => {
+		await browser.executeObsidian(({ app }) => {
+			const adapter = app.vault.adapter as unknown as { onFileChange(path: string): void; rpHeld?: (path: string) => void };
+			if (adapter.rpHeld) adapter.onFileChange = adapter.rpHeld;
+		});
+	};
+};
+
+/**
+ * Record, after every batch of child or text changes in the active designer (attributes are not
+ * watched), the three widgets that report a stale read — the notice, its Try again, and the header's
+ * `refresh needed` — so "together" is a fact about each intermediate state the DOM passed through
+ * rather than about the one a poll happened to land on.
+ */
+export const recordStaleTriple = (browser: NativeBrowser) =>
+	browser.execute((host) => {
+		const leaf = document.querySelector(host) as Node;
+		const seen: string[] = [];
+		const read = () => {
+			const scope = leaf as ParentNode;
+			const triple = [
+				scope.querySelector('.rp-designer-notice') !== null,
+				scope.querySelector('.rp-designer-retry') !== null,
+				scope.querySelector('.rp-save-state-label')?.textContent?.includes('refresh needed') ?? false,
+			].join(',');
+			if (seen.at(-1) !== triple) seen.push(triple);
+		};
+		read();
+		new MutationObserver(read).observe(leaf, { childList: true, subtree: true, characterData: true });
+		(window as unknown as { rpTriples: string[] }).rpTriples = seen;
+	}, ACTIVE_DESIGNER);
+
+export const staleTriples = (browser: NativeBrowser) => browser.execute(() => (window as unknown as { rpTriples: string[] }).rpTriples);
+
+/**
+ * Installed through CDP BEFORE the page's own scripts, so it is watching when Obsidian restores its
+ * leaves — which is before `onLayoutReady` and so before anything `executeObsidian` could install.
+ * A MutationObserver on the whole document counts each batch of changes after which a designer's
+ * failure panel exists, and a `requestAnimationFrame` loop counts the frames it was present in. A
+ * panel inserted and removed inside one batch is seen by neither — and is never painted either.
+ */
+const FAILURE_SAMPLER = `(() => {
+	const leaf = '.workspace-leaf-content[data-type="renovation-asset-designer"]';
+	const s = { atStart: document.querySelector(leaf) !== null, frames: 0, panelFrames: 0, panelMutations: 0, drawnFrames: 0 };
+	window.rpSampler = s;
+	const frame = () => {
+		s.frames += 1;
+		if (document.querySelector(leaf + ' .rp-view-failure')) s.panelFrames += 1;
+		if (document.querySelector(leaf + ' .rp-plan-canvas')) s.drawnFrames += 1;
+		requestAnimationFrame(frame);
+	};
+	requestAnimationFrame(frame);
+	new MutationObserver(() => {
+		if (document.querySelector(leaf + ' .rp-view-failure')) s.panelMutations += 1;
+	}).observe(document, { childList: true, subtree: true });
+})();`;
+
+/**
+ * Reload the renderer with the failure sampler watching from the first script. `app:reload` is
+ * `window.location.reload()` (app.js 1.13.7), so this is that command. The layout is saved first:
+ * Obsidian otherwise saves it on a one-second debounce, which a reload 50 ms later would race.
+ */
+export const reloadWatchingForFailure = async (browser: NativeBrowser): Promise<void> => {
+	await browser.executeObsidian(async ({ app }) => {
+		// Not in the public typings; `requestSaveLayout` debounces into exactly this call.
+		await (app.workspace as unknown as { saveLayout(): Promise<void> }).saveLayout();
+	});
+	await browser.sendCommandAndGetResult('Page.addScriptToEvaluateOnNewDocument', { source: FAILURE_SAMPLER });
+	await browser.execute(() => {
+		(window as unknown as { rpOldPage: boolean }).rpOldPage = true;
+		setTimeout(() => {
+			window.location.reload();
+		}, 50);
+	});
+	await browser.waitUntil(
+		() =>
+			browser
+				// The new page, its driver helper loaded, and its workspace past `onLayoutReady`.
+				.execute(() => {
+					const w = window as unknown as { rpOldPage?: boolean; wdioObsidianService?: unknown; app?: { workspace?: { layoutReady?: boolean } } };
+					return w.rpOldPage !== true && w.wdioObsidianService !== undefined && w.app?.workspace?.layoutReady === true;
+				})
+				.catch(() => false),
+		{ timeout: 60_000 },
+	);
+};
+
+/** What the sampler has seen since the reload began. */
+export const failureSample = (browser: NativeBrowser) => browser.execute(() => (window as unknown as { rpSampler: Record<'frames' | 'panelFrames' | 'panelMutations' | 'drawnFrames', number> & { atStart: boolean } }).rpSampler);
+
+/** An edit outside Obsidian that moves one detail's outline `dx` along x, keeping the document valid. */
+export const withDetailShifted = (detailId: string, dx: number) => (text: string) => {
+	const data = JSON.parse(text) as Sidecar;
+	const detail = data.shape?.details.find((candidate) => candidate.id === detailId);
+	if (!detail) throw new Error(`This sidecar has no detail ${detailId}.`);
+	detail.outline.points = detail.outline.points.map(([x = 0, y = 0]) => [x + dx, y]);
+	return JSON.stringify(data, null, '\t');
+};
+
+/** What the file explorer does to an asset note: move it to `to`, or send it to the trash. */
+export const fileExplorer = (browser: NativeBrowser, from: string, to: string | 'trash') =>
+	browser.executeObsidian(
+		async ({ app }, source, target) => {
+			const note = app.vault.getFileByPath(source);
+			if (note === null) throw new Error(`No note at ${source}.`);
+			await (target === 'trash' ? app.fileManager.trashFile(note) : app.fileManager.renameFile(note, target));
+		},
+		from,
+		to,
+	);

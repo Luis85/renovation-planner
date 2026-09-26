@@ -16,6 +16,13 @@ import { recorder, resetRecorder } from '../../helpers/logger';
 /**
  * ADR-0034's gate, at the one chokepoint that sees every command dispatch.
  *
+ * **The gate is the guard's whole job; recording is not.** Owner ruling 13 moved the record into
+ * `markUncompensated`, where every stamp is made, so the guard records nothing itself — a second
+ * recorder here would count one stamp twice. The stamp made inside a guarded command is what opens
+ * the incident, and the two cases below pin both halves: one incident per stamp, and none for a
+ * stamp the guard merely sees. That second case hand-builds its stamp, which only a test may do —
+ * `eslint.config.mjs` refuses one anywhere in `src/`.
+ *
  * `installWriteIncidentRegistry` is module-level state, so every case here installs its own
  * and `afterEach` takes it back off — the reset is owed WITHIN this file, and vitest's
  * per-file module registry is what keeps it from reaching any other.
@@ -77,7 +84,7 @@ describe('the write-incident gate on guardCommand', () => {
 		expect(spy).toHaveBeenCalledTimes(1);
 	});
 
-	it('records an incident from a failed result carrying the stamp, and shuts on the next command', async () => {
+	it('records exactly ONE incident for a stamp made inside the command, and shuts on the next command', async () => {
 		const store = new InMemoryWriteIncidentStore();
 		const registry = new WriteIncidentRegistry(store, recorder);
 		installWriteIncidentRegistry(registry);
@@ -86,7 +93,7 @@ describe('the write-incident gate on guardCommand', () => {
 		);
 
 		expect(expectErr(await execute('anything')).code).toBe('zone.sidecar-write-uncompensated');
-		expect(registry.anyOpen()).toBe(true);
+		expect(registry.report().open).toHaveLength(1);
 
 		const second = guarded(() => Promise.resolve(ok('wrote')));
 		expect(expectErr(await second.execute('anything')).code).toBe(WRITES_PAUSED_CODE);
@@ -102,6 +109,17 @@ describe('the write-incident gate on guardCommand', () => {
 		await execute('anything');
 
 		expect(registry.anyOpen()).toBe(true);
+	});
+
+	it('records NOTHING itself: a stamp built outside markUncompensated passes the guard unrecorded', async () => {
+		const registry = new WriteIncidentRegistry(new InMemoryWriteIncidentStore(), recorder);
+		installWriteIncidentRegistry(registry);
+		const handBuilt = { ...persistenceError('zone.sidecar-write-uncompensated', 'left standing'), uncompensatedWrite: [] };
+		const { execute } = guarded(() => Promise.resolve(err(handBuilt)));
+
+		expect(expectErr(await execute('anything')).code).toBe('zone.sidecar-write-uncompensated');
+
+		expect(registry.anyOpen()).toBe(false);
 	});
 
 	it('records nothing for a failed result WITHOUT the stamp', async () => {

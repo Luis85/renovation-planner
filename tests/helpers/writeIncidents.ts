@@ -86,9 +86,10 @@ export async function installUnseededWriteIncidents(): Promise<WriteIncidentRegi
  * A GUARDED save whose body waits until the case finishes it — a write still running when
  * `onunload` arrives, which is what owner ruling 16 keeps the record alive for.
  *
- * `seen` is which registry the body found installed when it ran: exactly what a stamp read at
- * stamp time (the next task's `markUncompensated`) would record into, and — since the guard
- * reads the same holder one line earlier — whether the save was gated at all.
+ * `seen` is which registry the body found installed when it ran: exactly what a stamp made then
+ * would record into (`markUncompensated` reads the holder at stamp time, owner ruling 13), and —
+ * since the guard reads the same holder one line earlier — whether the save was gated at all.
+ * `halfFail` stamps when IT is called, so it records into whatever is installed at that moment.
  */
 export function slowGuardedSave() {
 	let finish!: (result: Result<'wrote', AppError>) => void;

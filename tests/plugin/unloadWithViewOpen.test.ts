@@ -8,11 +8,15 @@
  *
  * **The state driven here is the contract's *unresolved incident*, which its own "where each
  * state lives" table marks "Survives remount: Yes" at all three levels — i.e. the one state the
- * document believed safe.** It was not. `onunload` unmounts no Vue app and detaches no leaf, so
- * every view is still mounted and still dispatching afterwards, while `SessionStores.dispose()`
- * took the write-incident registry off the module global that three readers consult. Rule 3 — a
- * refusal is not cleared by a teardown — was therefore broken at exactly the boundary the
- * contract treats as the safe one.
+ * document believed safe.** It was not. `onunload` itself unmounts no Vue app and detaches no
+ * leaf, so any view Obsidian has not already closed is still mounted and still dispatching
+ * afterwards, while `SessionStores.dispose()` took the write-incident registry off the module
+ * global that three readers consult. Which views that is depends on Obsidian's order: the one
+ * measurement (tracker row L-21, 1.13.7, Windows, one machine) found the Plan Editor view closed
+ * BEFORE `onunload` — other panes, versions and mobile unmeasured — so the rig here, whose fake
+ * leaves the view mounted, drives the case that measurement did not rule out. Rule 3 — a refusal
+ * is not cleared by a teardown — was therefore broken at exactly the boundary the contract
+ * treats as the safe one.
  *
  * **Both arms, because one does not imply the other.** A forward write is refused by
  * `guardCommand`, which reads `activeWriteIncidentRegistry()` and skips its refusal entirely on

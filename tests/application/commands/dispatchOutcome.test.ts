@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
 	leftWritesBehind,
 	markCompensated,
@@ -6,6 +6,8 @@ import {
 	type AffectedEntity,
 } from '../../../src/application/commands/DispatchOutcome';
 import type { PersistenceError } from '../../../src/core/errors/AppError';
+import { activeWriteIncidentRegistry, installWriteIncidentRegistry } from '../../../src/application/incidents/WriteIncidentRegistry';
+import { installQuietWriteIncidents } from '../../helpers/writeIncidents';
 
 /**
  * `DispatchOutcome.ts` has no dedicated suite of its own — every existing exercise of
@@ -57,6 +59,33 @@ describe('markUncompensated / leftWritesBehind', () => {
 		expect(stamped.category).toBe(original.category);
 		expect(stamped.code).toBe(original.code);
 		expect(stamped.message).toBe(original.message);
+	});
+});
+
+/**
+ * Owner ruling 13: every stamp is recorded in ONE place, the place it is made — so no raise site
+ * can reach the user unrecorded by returning through a path no door inspects. The record is
+ * synchronous into the in-memory list (`WriteIncidentRegistry.record` pushes before its first
+ * `await`), which is why these cases need no `await`.
+ */
+describe('markUncompensated records the incident where it stamps', () => {
+	afterEach(() => installWriteIncidentRegistry(null));
+
+	it('leaves exactly one open incident carrying the code, category and entities, and returns the stamped copy', () => {
+		const registry = installQuietWriteIncidents();
+		const original = cause();
+
+		const stamped = markUncompensated(original, entities);
+
+		expect(stamped).toEqual({ ...original, uncompensatedWrite: entities });
+		expect(registry.report().open).toEqual([
+			expect.objectContaining({ code: original.code, category: original.category, affected: entities }),
+		]);
+	});
+
+	it('with no registry installed, returns the stamped copy and throws nothing', () => {
+		expect(activeWriteIncidentRegistry()).toBeNull();
+		expect(markUncompensated(cause(), entities)).toEqual({ ...cause(), uncompensatedWrite: entities });
 	});
 });
 

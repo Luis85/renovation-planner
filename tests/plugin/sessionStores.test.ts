@@ -81,11 +81,14 @@ describe('SessionStores', () => {
 
 	/**
 	 * Lifecycle contract rule 3 — a refusal is not cleared by a teardown — at the unit, where
-	 * the branch lives. `onunload` unmounts no Vue app and detaches no leaf, so a released
-	 * registry disarms `guardCommand`'s refusal arm, `withIncidentGate`'s `paused()` and the
-	 * recording arm over views that are still mounted and still dispatching.
-	 * `tests/plugin/unloadWithViewOpen.test.ts` drives that consequence through the plugin's own
-	 * view factory; this case pins the decision the consequence rests on.
+	 * the branch lives. `onunload` itself unmounts no Vue app and detaches no leaf, so wherever a
+	 * view is still mounted when it runs, a released registry disarms `guardCommand`'s refusal
+	 * arm, `withIncidentGate`'s `paused()` and `markUncompensated`'s record for it. Whether one
+	 * IS still mounted is Obsidian's order: the one measurement (tracker row L-21, 1.13.7,
+	 * Windows, one machine) found the Plan Editor view closed BEFORE `onunload` — other panes,
+	 * versions and mobile unmeasured. `tests/plugin/unloadWithViewOpen.test.ts` drives the
+	 * consequence on a rig whose fake leaves the view mounted; this case pins the decision the
+	 * consequence rests on.
 	 */
 	it('keeps an OPEN registry installed on dispose, because a refusal outlives the teardown', async () => {
 		const stores = new SessionStores(fakeAdapter(), 'plugins/renovation-planner', recorder);
@@ -153,11 +156,13 @@ describe('SessionStores', () => {
 
 	/**
 	 * A reload before the old save settles: TWO registries, ONE file. Pinned, not endorsed. The
-	 * old save was gated by the old session's registry, so its half-failure is recorded THERE and
-	 * written to the shared file; the new session stays installed, and its gate — seeded once, at
-	 * its own load — does not learn of that incident until the load after.
+	 * old save was gated by the old session's registry, but its half-failure is recorded where it
+	 * is STAMPED (owner ruling 13) — into whichever registry the holder answers then, which is the
+	 * NEW session's. So the new gate shuts at once and the shared file carries the incident; the
+	 * old record takes nothing. (Until ruling 13 the old record took it, and the new gate learned
+	 * of it only at the load after.)
 	 */
-	it('pins a reload during an old save: the old record takes the stamp, the new one stays installed', async () => {
+	it('pins a reload during an old save: the new record takes the stamp, and stays installed', async () => {
 		const adapter = fakeAdapter();
 		const a = new SessionStores(adapter, 'plugins/renovation-planner', recorder);
 		const save = slowGuardedSave();
@@ -170,9 +175,9 @@ describe('SessionStores', () => {
 		await running;
 
 		expect(activeWriteIncidentRegistry()).toBe(b.writeIncidents);
-		expect(a.writeIncidents.anyOpen()).toBe(true);
-		expect(b.writeIncidents.anyOpen()).toBe(false);
-		await expect.poll(() => adapter.read(a.writeIncidents.report().path)).toContain('zone.write-uncompensated');
+		expect(a.writeIncidents.anyOpen()).toBe(false);
+		expect(b.writeIncidents.anyOpen()).toBe(true);
+		await expect.poll(() => adapter.read(b.writeIncidents.report().path)).toContain('zone.write-uncompensated');
 	});
 
 	/**
@@ -217,6 +222,33 @@ describe('SessionStores', () => {
 		expect(save.seen).toEqual([stores.writeIncidents]);
 		save.finish(ok('wrote'));
 		await expect.poll(() => activeWriteIncidentRegistry()).toBeNull();
+	});
+
+	/**
+	 * The THROW arm of that chain's release: a round whose `buildCommand` throws ends the chain in
+	 * `commitOnce`'s `finally`, which has to release the hold too — or the teardown after it waits
+	 * on a field that has already stopped writing, and keeps a clean record installed.
+	 */
+	it("releases a field commit's hold when a round throws", async () => {
+		const stores = new SessionStores(fakeAdapter(), 'plugins/renovation-planner', recorder);
+		const field = useFieldCommit<number, { readonly quantity: number }>({
+			canonicalValue: 0,
+			buildCommand: () => {
+				throw new Error('no command');
+			},
+			history: trackedHistory(),
+			errorMap: {},
+			field: 'quantity',
+			toUserMessage: (error) => error.code,
+			notify: noop,
+			logger: recorder,
+		});
+		field.onInput(1);
+		await expect(field.onCommit()).rejects.toThrow('no command');
+
+		stores.dispose();
+
+		expect(activeWriteIncidentRegistry()).toBeNull();
 	});
 });
 

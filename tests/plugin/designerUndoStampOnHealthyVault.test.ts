@@ -24,15 +24,16 @@ import { installQuietWriteIncidents } from '../helpers/writeIncidents';
  * first step — the pin that #17 no longer marks a coherent vault as half-written.
  *
  * `ReversibleAssetBackgroundEdit.undo` writes its snapshot back through the RAW ports, so its
- * stamp reaches no recorder. The ordinary door on a healthy vault raises none, with or without a
+ * stamp passes no guarded door — and since owner ruling 13's second step it is recorded anyway,
+ * where `markUncompensated` makes it. The ordinary door on a healthy vault raises none, with or without a
  * calibration to restore. A peer write landing inside the undo's read-to-write window — driven
  * right after the note restore, where the census found the stamp — now raises none either: the
  * undo puts the note back, refuses cleanly and leaves the vault as the undo found it plus the
  * peer's write. The positive control shows the same rig still sees the stamp when the sidecar
  * restore is refused AND the note compensation FAULTS; a compensation refused as a CONFLICT — some
  * other writer changed the note — raises none, whatever that writer left (owner ruling 18; the last
- * three describes). Deliberately NOT asserted: that the stamp stays unrecorded — true today, and
- * exactly what ruling 13's second step changes.
+ * three describes). The positive control asserts the stamp is RECORDED, which is ruling 13's
+ * second step: a recorded stamp is a durable write block that survives restarts (ADR-0034, D-08).
  */
 
 /** Every dispatch of the five wrote, none was refused, and nothing opened an incident. */
@@ -141,6 +142,7 @@ describe('ReversibleAssetBackgroundEdit.undo — the Asset designer undo', () =>
 		await r.dispatch('undo', r.history.undo());
 		expect(r.seen).toEqual([{ step: 'undo', code: 'test.injected-failure', stamped: true, named: [{ entityKind: 'asset', entityId: r.harness.assetId }] }]);
 		expect(r.saveState.unrecoveredWrite).toBe(true);
+		expect(r.registry.anyOpen()).toBe(true);
 		// The gesture's own announcement, then the stamped undo's: its note restore stands, so every leaf has to redraw.
 		expect(r.harness.designChanges).toHaveLength(2);
 	});

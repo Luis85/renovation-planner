@@ -4,7 +4,7 @@ import type { AppError } from '../../src/core/errors/AppError';
 import { err, type Result } from '../../src/core/result/Result';
 import type { Command } from '../../src/application/commands/Command';
 import { leftWritesBehind, type AffectedEntity, type DispatchResult, type UncompensatedWrite } from '../../src/application/commands/DispatchOutcome';
-import { guardCommand } from '../../src/application/errors/guardAgainstThrowing';
+import { guardCommand, WRITES_PAUSED_CODE } from '../../src/application/errors/guardAgainstThrowing';
 import { installWriteIncidentRegistry } from '../../src/application/incidents/WriteIncidentRegistry';
 import { SessionWriteLedger } from '../../src/application/editor/WriteLedger';
 import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
@@ -21,7 +21,7 @@ import { RoomBoundaryHistory } from '../../src/application/commands/spatial/Room
 import { DeleteSelectionCommand } from '../../src/application/commands/spatial/DeleteSelectionCommand';
 import { PasteCommand } from '../../src/application/commands/spatial/PasteCommand';
 import { ObsidianPlanGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
-import { projectFolderOf, sidecarPathFor } from '../../src/infrastructure/obsidian/repositories/paths';
+import { projectFolderOf, sidecarPathFor, zonesFolderFor } from '../../src/infrastructure/obsidian/repositories/paths';
 import { InMemoryAssetPriceOverrideRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
 import { captureClipboard } from '../../src/domain/spatial/clipboard';
 import type { ZoneId } from '../../src/domain/zone/ZoneId';
@@ -36,7 +36,7 @@ import { guardedStructure } from '../../src/plugin/guardedStructure';
 import { createRepositoryStack } from '../helpers/vault';
 import { makeAsset, makePlan, makeProject } from '../helpers/entities';
 import { expectDefined, expectFound, expectOk, injectedPersistenceError } from '../helpers/domain';
-import { recorder } from '../helpers/logger';
+import { lines, recorder } from '../helpers/logger';
 import { zoneSequenceCollaborators } from '../helpers/slice10';
 import { installQuietWriteIncidents } from '../helpers/writeIncidents';
 import { WALL_LOOP } from '../helpers/structure';
@@ -53,8 +53,11 @@ import { WALL_LOOP } from '../helpers/structure';
  * nothing — the first describe — and the second shows the same rig CAN see each site's stamp when
  * both writes its condition names are refused, so the first is not a probe that sees nothing.
  * Composed as production composes it (`planEditorDeps.ts`): guarded inner doors (`guardCommand`,
- * `guardedStructure`, `guardedRenovation`, `guardedGroups`), the raw zone port, one history. Deliberately NOT asserted here: that a stamp raised on these paths is left
- * unrecorded — true today, and exactly what the owner's choice may change.
+ * `guardedStructure`, `guardedRenovation`, `guardedGroups`), the raw zone port, one history.
+ *
+ * **Every positive control now also asserts the stamp is RECORDED** (owner ruling 13):
+ * `markUncompensated` records where it stamps, so a stamp on a path no guarded door inspects opens
+ * the incident all the same. The last describe pins the two side effects owner ruling 20 accepted.
  */
 
 /** Every dispatch of the five wrote, none was refused, and nothing opened an incident. */
@@ -212,6 +215,7 @@ describe('the positive controls: the named faults DO raise the stamp', () => {
 		vi.spyOn(r.stack.zones, 'delete').mockResolvedValueOnce(err(injectedPersistenceError()));
 		await r.dispatch('undo', r.history.undo());
 		expect(r.seen).toEqual([{ step: 'undo', code: 'test.injected-failure', stamped: true, named: [] }]);
+		expect(r.registry.anyOpen()).toBe(true);
 	});
 
 	it('undoDeleteResolution.rollBack control: the requirement restore refused ALONE compensates and raises no stamp', async () => {
@@ -220,6 +224,7 @@ describe('the positive controls: the named faults DO raise the stamp', () => {
 		vi.spyOn(r.stack.requirements, 'save').mockResolvedValueOnce(err(injectedPersistenceError()));
 		await r.dispatch('undo', r.history.undo());
 		expect(r.seen).toEqual([{ step: 'undo', code: 'test.injected-failure', stamped: false }]);
+		expect(r.registry.anyOpen()).toBe(false);
 	});
 
 	it('ReversibleDeleteZoneCommand restoreEntity: boundary restore refused AND the zone re-delete refused', async () => {
@@ -229,6 +234,7 @@ describe('the positive controls: the named faults DO raise the stamp', () => {
 		vi.spyOn(r.stack.zones, 'delete').mockResolvedValueOnce(err(injectedPersistenceError()));
 		await r.dispatch('undo', r.history.undo());
 		expect(r.seen).toEqual([{ step: 'undo', code: 'test.injected-failure', stamped: true, named: [{ entityKind: 'zone', entityId: zoneId }, { entityKind: 'plan', entityId: r.plan.id }] }]);
+		expect(r.registry.anyOpen()).toBe(true);
 	});
 
 	it('restoreZone (ObsidianZoneRepository insert arm) inside a delete undo: sidecar write refused AND the new note removal refused', async () => {
@@ -240,6 +246,7 @@ describe('the positive controls: the named faults DO raise the stamp', () => {
 		r.stack.vault.failures.add(`delete:${notePath}`);
 		await r.dispatch('undo', r.history.undo());
 		expect(r.seen).toEqual([{ step: 'undo', code: 'zone.sidecar-insert-uncompensated', stamped: true, named: [{ entityKind: 'zone', entityId: zoneId }, { entityKind: 'plan', entityId: r.plan.id }] }]);
+		expect(r.registry.anyOpen()).toBe(true);
 	});
 
 	it('restoreZone inside a REDO of a drawn Room: sidecar write refused AND the new note removal refused', async () => {
@@ -253,6 +260,7 @@ describe('the positive controls: the named faults DO raise the stamp', () => {
 		r.stack.vault.failures.add(`delete:${notePath}`);
 		await r.dispatch('redo', r.history.redo());
 		expect(r.seen).toEqual([{ step: 'redo', code: 'zone.sidecar-insert-uncompensated', stamped: true, named: [{ entityKind: 'zone', entityId: zoneId }, { entityKind: 'plan', entityId: r.plan.id }] }]);
+		expect(r.registry.anyOpen()).toBe(true);
 	});
 
 	it('composedSteps.restoreSteps on UNDO of a multi-element delete: the Room restore refused AND the walls re-delete refused', async () => {
@@ -275,5 +283,56 @@ describe('the positive controls: the named faults DO raise the stamp', () => {
 		vi.spyOn(r.stack.plans, 'save').mockImplementationOnce(save).mockResolvedValueOnce(err(compensation));
 		await r.dispatch('undo', r.history.undo());
 		expect(r.seen).toEqual([{ step: 'undo', code: 'test.cause-failure', stamped: true, named: [] }]);
+		expect(r.registry.anyOpen()).toBe(true);
+	});
+});
+
+/**
+ * The two side effects of recording at the stamp that owner ruling 20 accepted, pinned so a later
+ * change to either is a decision rather than a drift.
+ */
+/** The zone note a Room named `name` is created at, on this rig's one plan. */
+const roomNote = (r: PlanRig, name: string) => `${zonesFolderFor(expectDefined(projectFolderOf(r.stack.index, r.plan.projectId), 'folder'))}/${name}.md`;
+const sidecarOf = (r: PlanRig) => sidecarPathFor(expectDefined(projectFolderOf(r.stack.index, r.plan.projectId), 'folder'), r.plan.id);
+
+describe('owner ruling 20: what recording at the stamp changes', () => {
+	it('one stamp crossing TWO guarded doors is ONE incident: a Room drawn with walls whose zone insert is left standing', async () => {
+		const r = await planRig();
+		const points = WALL_LOOP.walls.map(wall => wall.start);
+		const room = r.createRoom({ planId: r.plan.id, name: 'Kitchen', zoneType: 'Room', geometry: { points } });
+		const roomStep = { execute: () => room.execute(), undo: () => room.undo(), get createdZoneId() { return room.createdZoneId; }, points };
+		const baseline = expectOk(await r.geometry.read(r.plan.id));
+		// The guarded `createZone` inside the room step is the inner door, `guardedStructure` the outer.
+		r.stack.vault.failures.add(`modify:${sidecarOf(r)}`);
+		r.stack.vault.failures.add(`delete:${roomNote(r, 'Kitchen')}`);
+		await r.dispatch('draw', r.structure.command({ planId: r.plan.id, baseline, structure: WALL_LOOP, ledger: r.ledger, room: roomStep }).execute());
+		expect(r.seen).toMatchObject([{ step: 'draw', code: 'zone.sidecar-insert-uncompensated', stamped: true }]);
+		expect(r.registry.report().open).toHaveLength(1);
+	});
+
+	it('once a stamp lands mid-gesture, the gesture\'s later guarded compensation is REFUSED: the walls stay restored', async () => {
+		const r = await planRig(), zoneId = await r.furnishedFloor();
+		await r.dropReferents(zoneId);
+		const notePath = expectDefined(r.stack.index.getPath(zoneId), 'note');
+		const baseline = expectOk(await r.renovation.read(r.plan.id));
+		const command = new DeleteSelectionCommand({ deleteRoom: id => r.deleteRoom({ zoneId: id }), renovation: r.renovation, ledger: r.ledger },
+			{ baseline, roomIds: [zoneId], structureIds: ['wall-a', 'wall-b'] });
+		await r.dispatch('run', r.history.run(command));
+		// Undo walks [walls, room]: the walls come back through the guarded renovation door, then the
+		// Room's own restore is left standing (#21) — failures armed for that one save only.
+		const save = r.stack.zones.save.bind(r.stack.zones);
+		vi.spyOn(r.stack.zones, 'save').mockImplementationOnce(async (zone, expected) => {
+			const armed = [`modify:${sidecarOf(r)}`, `delete:${notePath}`];
+			for (const key of armed) r.stack.vault.failures.add(key);
+			try { return await save(zone, expected); } finally { for (const key of armed) r.stack.vault.failures.delete(key); }
+		});
+		const logged = lines.length;
+		await r.dispatch('undo', r.history.undo());
+		expect(r.seen).toMatchObject([{ step: 'undo', code: 'zone.sidecar-insert-uncompensated', stamped: true }]);
+		// The Room's stamp shut the gate, so re-deleting the walls was refused rather than run, and
+		// `restoreSteps` stamped over that refusal: two incidents, and all four walls standing.
+		expect(lines.slice(logged).some(line => (line.context?.cause as AppError | undefined)?.code === WRITES_PAUSED_CODE)).toBe(true);
+		expect(r.registry.report().open).toHaveLength(2);
+		expect(expectOk(await r.geometry.read(r.plan.id)).document.structure?.walls).toHaveLength(4);
 	});
 });

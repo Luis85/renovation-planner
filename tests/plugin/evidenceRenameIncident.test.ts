@@ -26,10 +26,11 @@ installObsidianDom();
 
 /**
  * ADR-0034 names `relocateEvidence`'s host-rename listener as one of the three paths OUTSIDE
- * `guardCommand`. The stamp that path now raises therefore reaches nothing unless this
- * listener records it, which is the gap this closes — and the reason the case lives here
- * rather than beside the repository: the repository's own tests can only prove the stamp
- * exists, never that anything read it.
+ * `guardCommand`. Its stamp is recorded where `markUncompensated` makes it (owner ruling 13), so
+ * this listener records nothing itself — and the count below is what tells those apart: a
+ * listener still recording beside the stamp would open TWO incidents for one half-landed rename.
+ * The case lives here rather than beside the repository because it is the listener's composition
+ * that is under test, the registry installed and the hold taken around the relocation.
  */
 
 const FAILURE = { category: 'Persistence' as const, code: 'test.disk', message: 'offline' };
@@ -97,7 +98,7 @@ describe('the host-rename listener, which no guard sits in front of', () => {
 
 		await evidenceRenamed(rig.root, 'Evidence', 'Archive');
 
-		expect(registry.anyOpen()).toBe(true);
+		expect(registry.report().open).toHaveLength(1);
 		expect(registry.report().open[0]).toMatchObject({
 			code: 'test.disk',
 			category: 'Persistence',
@@ -114,6 +115,28 @@ describe('the host-rename listener, which no guard sits in front of', () => {
 		await evidenceRenamed(rig.root, 'Evidence', 'Archive');
 
 		expect(registry.anyOpen()).toBe(false);
+	});
+
+	/**
+	 * The THROW arm of the hold `evidenceRenamed` takes for its whole relocation (owner ruling 16):
+	 * a relocation that throws rather than refusing must still release it, or a later teardown
+	 * would wait on a rename that already ended and keep a clean record installed.
+	 */
+	it('releases its hold when the relocation throws', async () => {
+		const rig = await rootOf('Evidence/one.pdf');
+		const registry = new WriteIncidentRegistry(new InMemoryWriteIncidentStore(), recorder, 'plugins/rp/write-incidents.json');
+		installWriteIncidentRegistry(registry);
+		vi.spyOn(rig.index, 'getIdsByType').mockImplementation(() => {
+			throw new Error('index gone');
+		});
+
+		await expect(evidenceRenamed(rig.root, 'Evidence', 'Archive')).resolves.toBeUndefined();
+
+		let idle = false;
+		registry.whenIdle(() => {
+			idle = true;
+		});
+		expect(idle).toBe(true);
 	});
 
 	/**

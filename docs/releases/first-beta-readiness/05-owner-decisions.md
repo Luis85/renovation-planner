@@ -189,9 +189,9 @@ The owner then ruled, in order:
   construction.
 - **Ruling 19, "Go ahead, Q3 first".** Land the keep-alive of Q3 (ruling 16) first, then record.
   Taken knowing the corrected cost: a recorded stamp is **durable across restarts** (D-08), so
-  #17's three remaining fault-shaped cases (two disk faults, a sync write plus a fault, a delete
-  at the exact moment of the read) can durably block a healthy vault until the user removes
-  `write-incidents.json`.
+  #17's four remaining fault-shaped cases (two disk faults, a sync write plus a fault, a delete
+  at the exact moment of the read, and a put-back refused `asset.pre-write-invalid`) can durably
+  block a healthy vault until the user removes `write-incidents.json`.
 - **Ruling 20, "Accept both" side effects.** The diagnostics report lists slightly different
   entry counts on nested undo chains (a stamp crossing two guarded doors is one entry, not two;
   a compensation stamping over an already-stamped cause adds one), and once a mark lands

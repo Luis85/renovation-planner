@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -102,10 +102,26 @@ describe('the stamp construction boundary', () => {
 	/**
 	 * oxlint has no `no-restricted-syntax` at all, so the edit-loop hook — oxlint for every `.ts` —
 	 * never sees this rule; `npm run check`'s `eslint .` is where it is enforced.
+	 *
+	 * **Positive control first, the way `tests/gates/suppressions.test.ts:94-98` drives its own
+	 * instrument before trusting a silence from it.** An oxlint that reported nothing because it
+	 * was misconfigured, missing a binary, or handed the wrong path would also make the assertion
+	 * below pass, for the wrong reason — indistinguishable from the construction genuinely being
+	 * invisible to it. Driving a rule oxlint DOES own (`no-dupe-keys`) through the same `lintOne`
+	 * call first is what tells the two apart.
 	 */
 	it('is invisible to oxlint, and so to the edit-loop hook for a .ts file', () => {
-		const probe = path.join(mkdtempSync(path.join(tmpdir(), 'stamp-boundary-')), 'probe.ts');
-		writeFileSync(probe, HAND_BUILT);
-		expect(lintOne(probe)).toBe('');
+		const dir = mkdtempSync(path.join(tmpdir(), 'stamp-boundary-'));
+		try {
+			const probe = path.join(dir, 'probe.ts');
+
+			writeFileSync(probe, 'export const settings = { units: 1, units: 2 };\n');
+			expect(lintOne(probe)).toContain('no-dupe-keys');
+
+			writeFileSync(probe, HAND_BUILT);
+			expect(lintOne(probe)).toBe('');
+		} finally {
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 });

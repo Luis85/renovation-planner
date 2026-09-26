@@ -36,12 +36,13 @@ partial writes. Inspect the Plan note and related geometry against your backup b
 further changes. This pauses writing everywhere in the vault, not only in the tab that raised
 it — most of what the plugin offers as a command or form is refused until the incident is
 resolved. Not everything is inside this pause. The plugin applies it at one step — where it runs a
-command — so anything that writes without passing that step is not refused. Undo is where that
-mostly happens: undoing a zone deletion, undoing an asset assignment, and undoing a quantity or
-cost override each write straight to their notes and are not paused. Neither are the link
-updates the plugin makes when you rename or move a file the plan links to as evidence. Those are
-examples rather than a boundary: nothing in the plugin lists or checks what sits outside the
-pause, so do not read this as a complete list. An action outside the pause is not refused, but
+command — so anything that writes without passing that step is not refused. Undo and redo now
+pass through that same step on both the Plan editor and the Asset designer, so undoing a zone
+deletion, an asset assignment or a quantity or cost override is paused along with everything
+else. What still writes straight to its target without passing that step is the link update the
+plugin makes when you rename or move a file the plan links to as evidence. That is an example
+rather than a boundary: nothing in the plugin lists or checks what sits outside the pause, so do
+not read this as a complete list. An action outside the pause is not refused, but
 it is not unwatched either: when it notices that it left files half-written, it records an
 incident exactly as a command does, and writing pauses everywhere from then on. What it cannot
 record is a half-write it did not notice — not every failure is detected where it happens — so

@@ -852,11 +852,15 @@ describe('every service leaving the composition root is guarded', () => {
 			'editorDeps.clipboard',
 			// `ObsidianEvidenceFiles`: resolves and opens an evidence link. A read/navigation port with no write door.
 			'editorDeps.commands.evidenceFiles',
-			// Raw `AssetRepository`. A LIVE bypass surface of the L-06 shape — a stamp raised behind it reaches no recorder.
+			// Raw `AssetRepository`. A LIVE bypass surface of the L-06 shape — a write here bypasses
+			// `guardCommand`'s gate and refusal, though not its recorder any more: since owner
+			// ruling 13 moved recording into `markUncompensated` itself, a stamp raised behind this
+			// port reaches the recorder the same as one raised inside a guarded door.
 			'editorDeps.commands.requirementEdits.assets',
 			// `ReferenceLocks`: a lock set the link/unlink commands share, not a write door of its own.
 			'editorDeps.commands.requirementEdits.locks',
-			// Raw `RequirementRepository`. A LIVE bypass surface, same shape and same silence as `assets` above.
+			// Raw `RequirementRepository`. A LIVE bypass surface, same shape as `assets` above — still
+			// gate-bypassing, no longer recorder-silent.
 			'editorDeps.commands.requirementEdits.requirements',
 			// `RoomBoundaryHistory`, built fresh per call by `guardedStructure`'s `roomHistory`. A raw
 			// WRITE-capable collaborator — its `restore` calls `geometry.write` — reached by presentation

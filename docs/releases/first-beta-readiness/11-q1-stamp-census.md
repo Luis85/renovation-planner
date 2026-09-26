@@ -182,8 +182,13 @@ listed with their commits in §7 below — is two genuine faults on an uncalibra
 sidecar-only sync write followed by a put-back fault on an uncalibrated asset (P5), and another
 writer's delete landing inside the put-back's own read, or a sync client's lock (established by
 reading only), surfacing as a fault rather than a conflict (P8) — each over a vault the code cannot
-tell from one that genuinely failed. Whether Obsidian can produce any of these interleavings in
-practice is not checkable here.
+tell from one that genuinely failed. **A put-back refused as `asset.pre-write-invalid` stamps too,
+by the same rule** — the refusal is neither a conflict (`WRITE_BOUNDARY_CODES`) nor a genuine write
+failure, and the docblock at `ReversibleAssetDesignCommands.ts` (~`:598`, `putNoteBack`) names it
+by code as counting on the fault side regardless. On an uncalibrated asset the vault it leaves is
+still coherent — P2's class, not a new one; on a calibrated one the lost calibration makes it a
+true half-undo. Whether Obsidian can produce any of these interleavings in practice is not
+checkable here.
 
 One leaf's HEALTHY history cannot reach any of them: `CommandHistory` serialises run, undo and redo through one queue, so each needs either a write that genuinely faults or another writer or a sync landing in the read-to-write window — not what one leaf's own fault-free cycle produces by itself (only for that one serialised leaf: the fake vault is synchronous). Whether Obsidian can produce these interleavings in practice is not checkable here.
 
@@ -281,6 +286,9 @@ on `28409ace0..b22a2ed41`):
   read (driven), or a sync client's lock (`EBUSY`, established by reading only) at the same
   moment — indistinguishable here from a disk fault, so it also stamps, over a vault where the
   asset is simply gone.
+- **`asset.pre-write-invalid`** (S21 fix round disclosure) — a put-back refused with this code
+  counts as a fault by the same rule (neither a conflict nor a genuine write failure), and stamps.
+  Coherent on an uncalibrated asset (P2's class); a true half-undo on a calibrated one.
 
 P2 and P5 each require a genuine fault (a code other than a conflict-coded refusal), while P8 is
 very low likelihood — and none of them is a peer's or a sync's ordinary write landing where the

@@ -1,6 +1,6 @@
-# RESUME — session nineteen's hand-off, for the manual-walk session
+# RESUME — session twenty's hand-off, for the manual-walk session
 
-**Rewritten 2026-09-25, replacing session eighteen's packet wholesale.** An appended hand-off goes
+**Rewritten 2026-09-26, replacing session nineteen's packet wholesale.** An appended hand-off goes
 stale in a way its reader cannot detect.
 
 Branch `renovation-planner-asset-designer-bc5539`, worktree
@@ -10,153 +10,127 @@ ready, tags it or publishes it without asking the user.**
 
 | | |
 |---|---|
-| HEAD | **A hand-off cannot name its own sha.** Confirm it yourself: `gh run list --branch renovation-planner-asset-designer-bc5539 --limit 1 --json databaseId,headSha,status`, then `gh run view <id> --json status,conclusion,jobs`. The tree was clean and pushed when this was written |
-| Last code sha confirmed green | Named in the delivery note at the end of AD18-R25 in [`DECISIONS.md`](../contracts/DECISIONS.md), with its run id. `git diff --name-only <that sha>..HEAD` should show only `docs/` files |
-| `origin/main` | Last merged at `61fbf1588` (PR #238, e2e tests on a real Obsidian) as `305d70ce2` on 2026-09-25: no conflicts, CI run `36160547356` and E2E run `36160547358` green. That merge brought `npm run test:e2e` and three devDependencies (`webdriverio`, `wdio-obsidian-service`, `@axe-core/webdriverio`) that the shared local `node_modules` does not have yet: run `npm install` before a local gate. Fetch and check again before assuming nothing has moved |
+| HEAD | **A hand-off cannot name its own sha.** Confirm it: `gh run list --branch renovation-planner-asset-designer-bc5539 --limit 2 --json databaseId,workflowName,headSha,status`, then read BOTH workflows (CI and E2E) by run id |
+| Last green sha | Named, with its CI and E2E run ids, in the delivery note at the end of AD18-R26 to R29 in [`DECISIONS.md`](../contracts/DECISIONS.md) |
+| `origin/main` | Last merged at `61fbf1588` (PR #238) as `305d70ce2` on 2026-09-25. Fetch and check `git merge-base HEAD origin/main` before assuming nothing has moved; ask the user before merging |
 
-## The next session's job: the manual vault walk
+## The next session's job: walk the 26 human steps
 
-Nothing agent-closable is open in this package. What is left is the deferred terminal pass, which a
-person does in a real Obsidian vault (`npm run test-build` builds into this repository, which IS a
-vault).
+**The manual pass is 26 steps now, not 241.** Session twenty audited every clause of the walk
+([`MANUAL-PASS-audit.md`](MANUAL-PASS-audit.md)), built tests for every clause a test could settle, and
+retagged every step whose clauses are all asserted (`e2e` or `suite`, AD18-R28) so the index's counting
+command no longer counts it. Run that command from [`MANUAL-PASS.md`](MANUAL-PASS.md); it should print
+11 / 1 / 0 / 2 / 5 / 1 / 6. **Do not trust this line; run the command.**
 
-**Since this packet was written, the `obsidian`-tier steps of five of the seven cases run in a DRIVEN
-Obsidian** ([`W23-A-e2e-real-host.md`](W23-A-e2e-real-host.md), 2026-09-25): each of those case files
-carries an *Automated in Obsidian* clause table naming the test that discharges each clause, and a Runs
-row written from the run. Walk the rows those tables leave as `none` and the two cases they do not touch
-(`Compose an asset from parts`, `Browse the asset library`); the 241 below counts every step and is now
-an over-count for the walk. Seven findings in that report are host behaviour the walk must not file as
-new — the two that matter most: an external write to a `.rpgeo` raises no `modify` in a driven 1.13.7
-(the stale notice needs the host's reconcile), and a drag held across a PEER LEAF's write is dropped
-with no badge and no toast where `Two designers` step 8 expects `Save error`.
+What is left, by case, and why a person is the only instrument for it:
 
-- **The index is [`MANUAL-PASS.md`](MANUAL-PASS.md): 241 human steps across seven cases**
-  (111/19/23/27/33/8/20). It was 232. Do not trust the number: run the command the index prints.
-  Rows outside the seven counted cases: the Plan Editor zone lock's two rows in `Open a floor and select
-  a room`, and this round's chevron row 2a in `Find and resume a project`.
-- **Start with grouping and undo** (AD18-R20), then this round's new steps: `Design an Asset` 122–129
-  (round shapes that used to be refused, and the typed-size warning), `Calibrate a sheet and reserve
-  space` 36b (a calibration re-shows a hidden pending clearance), and `Compose an asset from parts` 26a
-  (the shared chevron, a `browser` row).
-- **A walk decides nothing on its own.** A step that fails against correct code is a step to fix, and a
-  step that passes a defect is worse. Every expectation added this session was checked against source by
-  an independent reviewer, and the whole-round review found one step (128) that could not fail as written
-  and had it rewritten; but a reviewer of text is not a vault.
+| Case | Steps | Why a person |
+|---|---|---|
+| Design an Asset | 7, 56, 57, 70, 88b, 89, 92, 103, 104, 109, 121 | legibility and "reads as" (7's scale bar, 57, 70's numbers, 103, 104, 109), a screen reader (88b), Electron's native menu (92), stated judgements (56, 121), and 89's Cmd+G, which needs a macOS leg nobody runs |
+| Take an asset into a plan | 23 | judgement (how the two door labels read side by side) |
+| Calibrate a sheet | 29, 32 | judgement (29); a screen reader announcing the notice (32 — its name, live region and Tab reachability are automated) |
+| Recover an asset design | 2, 6, 8, 20, 34 | judgements (20, 34); host clauses no test can pin honestly: 2's canvas and selection after a read-only chmod (no `src/` lever makes it fail), and 6/8's "Obsidian raises the change unprompted" (the host's timing is recorded, not asserted — the plugin's half is) |
+| Two designers | 10 | judgement (would you notice the silent failure) |
+| Browse the library | 1, 3, 11, 17, 31, 33 | legibility at 20 px and "reads as" (1, 3, 33), "unusable" at any width (11), a stated open judgement (17), and 31, which cannot fail until Obsidian records leaf history for the library view |
 
-## What this session shipped (rulings AD18-R24 and AD18-R25)
+**Walk every one of them in a real vault** (`npm run test-build`, into this repository, which is a
+vault), and fill each case's own Runs table and Outcome section. An aggregate "looks good" is not a
+filled Runs table.
 
-Session nineteen verified at source every item the follow-up round had recorded rather than fixed. **Two
-of the hand-off's premises were false**: the designer/project-list CSS clone did not predate the branch
-(84aad8e38 introduced it), and the tree's "validity island" was a core-geometry false refusal of valid
-circles, not a tree quirk. The user took three rulings in one batched round (AD18-R24) and three more
-after the reviews (AD18-R25), every one as recommended.
+## What this session shipped
 
-**Ruled:**
-- **A typed size that lands more than 0.5 mm from the number typed raises a warning** naming the size that
-  landed ("The typed size is out of reach for this shape. It now measures 270 × 270 mm."). Typed doors:
-  the inspector's Width and Depth, a canvas size label, and Set dimensions' scaling path. Drags stay
-  silent. Only the TYPED axis is checked (AD18-R25).
-- **One shared disclosure chevron** (`styles/disclosure-chevron.css`) for the designer's folds and the
-  project list's Completed group. Computed styles were byte-identical before and after, both surfaces,
-  both themes.
-- **Kept:** Ctrl+Z still does nothing while a `<select>` or a range slider has focus, in both editors.
-- **Deleted:** `selectionDrag.ts`'s held-drag retry, which Task 1's fix left unreached (AD18-R25).
-- **Accepted and recorded:** a residual cusp class in `arcArc` (below).
+- **E2E runs on Linux again.** It had been red since W24-A: herbstluftwm tiles, so the window ignored
+  every resize. A floating rule fixed 17 of 21; the other four were Windows-only pins and one real
+  defect (the Placement point group's `Custom` split `Custo`/`m` in Linux's wider font — the grid now
+  wraps the group, not the word). The desktop legs are sharded in two (AD18-R29).
+- **The audit** — eight read-only auditors, one independent review, 29 mutations (7 stayed green, each
+  a row that had read as covered). 177 of 241 steps were fully discharged before anything was built.
+- **Eight build tasks**, each independently reviewed, closing the 36 host and 37 suite clauses the
+  audit found open (AD18-R26): new e2e files `assetDesignerRecoveryWalk*`, `assetDesignerWalk{Host,
+  Reload,Keys}`, `assetDesignerInput`, `assetLibraryWalk`, `twoDesignersDrag`, and new vitest files
+  across `tests/presentation/`, `tests/application/` and `tests/plugin/`. **Every clause built this
+  round went through the mutation gate**; the evidence is committed in
+  [`AD18-walk-automation-evidence.md`](AD18-walk-automation-evidence.md).
+- **The seven case files rewritten** (AD18-R27, R28): 215 steps retagged, the contradicted rows
+  rewritten to what the build does, the audit's over-claims and omissions corrected. Four reviewers
+  re-read every retag against its test body and found none wrong.
 
-**Defects fixed without a ruling:**
-- **`arcArc` refused valid circles** (`src/core/geometry/circularIntersections.ts`). Two adjacent arcs on
-  nearly the same circle produced a phantom intersection just past tolerance, so Set dimensions 2987 ×
-  2987 on the tree was refused ("That outline is not a shape this plugin can store."), and so were many
-  other W = D sizes and rotations of a four-arc circle; a Plan Editor zone's curved edges reach the same
-  validation. It now lands exactly (measured in Chromium before and after).
-- **`designerComposition.ts` really is the one definition** of the designer's command bundle; the harness
-  helper no longer copies it.
-- **A clearance-drag test that could not fail** now discriminates by 72 mm.
-- **The walk now covers a calibration re-showing a hidden pending clearance** (36b).
-
-**Already fine, recorded so nobody reopens them:** the edge-scroll band growing a resize (by design,
-`edgeScroll.ts`); `samePolygon`'s strict bulge comparison (deliberate; a JSON round trip is exact);
-`restingLabels.test.ts` at 448 lines; the tree's 1.5 × 1.5 corner having no preset assertion of its own.
-
-The plan is [`AD18-followup-round-2-plan.md`](AD18-followup-round-2-plan.md). The rulings are AD18-R24
-and AD18-R25 in [`DECISIONS.md`](../contracts/DECISIONS.md).
+**Read the gating claim narrowly.** Clauses built this round were each watched red under a mutation of
+exactly that clause. Clauses already discharged before this round were checked by reading the test
+body; the audit mutated a sample of 29 of them and 7 did not hold (all since corrected). A retagged
+step is one whose every clause a named test asserts — not one whose every clause was mutation-gated.
 
 ## Known behaviour: the walk must NOT file these as new defects
 
-- **A typed Width on a curved part can move its Depth with no warning** (the toilet: Width 50 lands
-  exactly, Depth 700 → 535). The warning is about the typed value, which landed (AD18-R25).
-- **A drag past a curved part's reach stops at the nearest size it can reach, silently** (the vanity
-  basin stops at 270). Only typed sizes warn.
-- **A typed value that misses by exactly 0.5 mm does not warn**, although the field then reads the next
-  whole millimetre.
-- **A hidden clearance re-shows after ANY read-back that changes its geometry**, including a pending one
-  that `Set dimensions` or a calibration rescales, and after an undo of either.
-- **A drag whose pointer rests in the canvas's ~40 px edge band pans the camera, and the resize keeps
-  growing while it rests there.** Keep drag steps clear of the band.
-- **Ctrl+Z does nothing while a `<select>` or the corner-radius slider has focus** (both editors, ruled).
-- **Ctrl+Z and Ctrl+Y are claimed even with nothing to undo** (the Plan Editor's rule). Ctrl+G is left to
-  Obsidian when there is nothing to group.
-- **Ctrl+Z pressed on the open dimension form's buttons undoes the design and leaves the form open.**
-- **An overall label may sit over the drawing on a narrow canvas** (280–360 px).
-- Carried over and still true: an overall label may slide along its own line, even past its end
-  (AD18-R14); the Parts-row icon buttons wrap at a 580 px leaf (AD18-R22); 0 mm offset labels rest; at
-  the 760 and 580 leaves the overall depth label straddles the footprint's left edge; `Saved at HH:MM`
-  (same day) carries no date; on Windows, arrow keys on a closed `<select>` fire one edit per step.
+Every item here is pinned by a test that turns red the day the behaviour changes (AD18-R27 rewrote the
+case rows to say so). They are recorded, not fixed:
 
-## Things only the walk can settle (no gate here can)
+- **Obsidian's graph view takes Ctrl+G in a default vault**, so Group never runs by that chord until the
+  user unbinds `graph:open` (Compose 43, 49, 51; Design 90a, 90b, 95).
+- **Focus after Group from a Parts row stays on the row**, not the canvas (Compose 48).
+- **A duplicated or undone hidden part comes back shown** (Compose 7c).
+- **Edit dimensions on a traced, uncalibrated asset retypes its outline** and leaves a pending
+  clearance unscaled and hidden (Calibrate 36a).
+- **The asset's Edit dimensions drops a rounded rectangle's Corner radius row** (Design 102).
+- **A pointer click on the canvas draws no focus ring**; Tab does (Design 105).
+- **One trace point placed does not block Ctrl+Z** (Design 120).
+- **The basin's Width figure sits under the clearance offset** and is reached by keyboard (Design 125).
+- **The Add rail is one column at the default 680 px leaf** (Design 76).
+- **A drag held across a PEER leaf's write is dropped silently**: plain "Saved", no badge, no toast
+  (Two designers 8).
+- **Dragging a designer tab into a split MOVES it**; only the tab menu's Split right/down duplicate it
+  (Two designers 1).
+- **The library's category vocabulary is closed; the funnel shows until a tile is selected; a closed
+  and reopened library forgets Grid and the category; the narrow sidebar pushes the grid aside rather
+  than overlaying it** (Browse 22, 27, 30, 26). The category icon is centred on the tile (Browse 32).
+- **Obsidian reconciles an external `.rpgeo` edit on its own**, typically within a second, and heals a
+  repaired one about half a second later — so a "press Try again after repairing" exists only in the
+  race before the host reacts (Recover 37).
+- Carried over and still true: a typed width on a curved part can move its depth with no warning; a
+  drag past a curved part's reach stops at the nearest size silently; a miss of exactly 0.5 mm does not
+  warn; a hidden clearance re-shows after any read-back that changes it; a pointer resting in the
+  canvas's 40 px edge band pans the camera; Ctrl+Z does nothing in a focused `<select>` or on the
+  corner-radius slider; Ctrl+Z/Ctrl+Y are claimed even with nothing to undo.
 
-- **How the new warning notice reads and stacks in a real vault.** The browser harness declares no
-  notice styling at all and never calls `activateNotices()`, so no notice shows there without a
-  workaround (below).
-- **Obsidian's own Ctrl+G (graph view) against the designer's Group key**, and whether any user-assigned
-  hotkey on Ctrl+Z or Ctrl+Y goes dead while a designer leaf has focus.
-- **Focus after a Group from a Parts row**, seen in Chromium but never in a vault.
-- **How the lock toggle, the icon buttons and the save indicator read to a screen reader.**
-- **How the chevrons, styled selects, icon rows, 24 px rows, canvas ring and inward labels look in a
-  themed vault.** The harness stylesheet is a reduction of Obsidian's.
+## Recorded, not fixed
 
-## Recorded, not fixed (for a later round)
+- **Calibrate step 36 (a `suite` row) now contradicts the rewritten 36a in the same file**: it says the
+  clearance scales with Edit dimensions on a traced, uncalibrated asset, which 36a's pinning test shows it
+  does not. It sat outside the audited tiers. It needs a ruling or an AD18-R27-style rewrite.
+- **Test-hygiene items from the whole-round review** (`final-review-round6.md` in the gitignored ledger
+  lists them all): `assetDesignerWalkReload.e2e.ts`'s toggle loop is shaped to dodge a fallow clone and
+  wants a shared `togglePlugin` helper; test-to-test clones (`pressRow`/`showClearance`, the use-plan
+  picker rig) belong in `tests/helpers/`; the active-designer selector and `FIXTURE_PNG` are copied across
+  e2e files; two `assetTileMarkEdge.test.ts` cases duplicate `assetTileStyles.test.ts`; a `?? '{}'`
+  calibration check in the reload walk passes on a missing key; round-transient prose ("owned by a
+  different task this round", the workflow's "this round adds up to ~36 cases") should be reworded.
+- **One unexplained red**: `assetDesigner.e2e.ts` *keeps every shape…* failed once in three runs under an
+  unrelated mutation. Watch it as a possible flake.
+- Still open from earlier rounds: `unrecoveredWrite` is drawn on no designer surface; the browser
+  harness never calls `activateNotices()`; `arcArc`'s residual cusp class; the held-drag ceiling.
 
-- **The browser harness never calls `activateNotices()`**, so no notice of any kind appears there. This
-  session measured notices by importing the page's own `notify.ts` URL (with its `?t=` stamp, or it is a
-  second module instance) and calling `activateNotices()`, then reading the mock's `Notice.shown`.
-- **No test pins the shared chevron rule**; a `stylesheetRules` pin is a cheap candidate.
-- **`arcArc`'s residual cusp class** (AD18-R25): two arcs meeting at a zero-angle cusp on nearly identical
-  circles. A few true crossings are accepted and a few valid cusps refused, both fewer than before; only a
-  hand-edited sidecar reaches it.
-- **The held-drag retry's ceiling** (AD18-R25): an outline nobody has found whose held result validation
-  still refuses falls back to the plain scale, and its held side can move (undoable). On the pre-fix
-  geometry that was 38 shrub moves.
-- Test-helper prose in `designerComposition.ts`'s header (the fallow rationale and a "the one shape"
-  sentence) is inaccurate; fix it the next time either helper is touched. The whole-round review's
-  triage table lists the rest.
+## CI, e2e, and this machine
 
-## CI, the browser, and this machine
-
-Every task was pushed and read **by run id**, and every run this session was green on the first attempt.
-**Only fallow's `Failed:` line and its `N above threshold` count are the gate.** A local `npx fallow`
-without a coverage file cannot run its health half. The Windows leg on
-`tests/gates/network-boundary.test.ts` (a 5000 ms timeout) remains a known flake: `gh run rerun <id> --failed`.
-
-**The pinned Chromium (build 1234) is installed** under `D:\dev-cache\playwright`, and `scripts/chromium.mjs`
-resolves it with no override. Measurement scripts are in `.superpowers/sdd/measure/` (gitignored); `pw.mjs`
-opens the harness (port from `RP_PORT`, default 5173) and hands you the Pinia stores. **Instrument lessons,
-all paid for again this session:**
-- **Parallel implementers dirty the shared tree, and the harness serves the dirty tree.** One task's
-  temporary `node:fs` instrumentation blanked the harness page. This session measured from a detached
-  worktree at the committed sha instead (`.worktrees/measure`, which resolves `node_modules` from its
-  parent), served on port 5174. Junctions do not work on this volume.
-- **Read drags in WORLD coordinates, or keep the pointer's whole path clear of the 40 px edge band.** Two
-  of this session's drags entered it and read as a 41 px "held side move" that was the camera panning.
-- Measure the selections a reviewer will probe: every handle, several presets, both schemes, German.
-
-7.8 GB RAM, **shared**. Prefix every node-spawning command with `export TEMP=D:/tmp-claude TMP=D:/tmp-claude`.
-**Never `git stash`.** When agents share this worktree, each stages **by explicit path only**.
+- **`npm run test:e2e` runs locally** on this Windows machine (about two minutes per file, one Obsidian
+  at a time). **This worktree has its own `node_modules`** — an install here touches no other checkout.
+- **Windows and Linux differ, and CI is Linux.** Fonts are wider there and timings differ: never pin a
+  pixel width, a wrap, or a host timing measured on one platform. `herbstluftwm` must keep its floating
+  rule, or every sized case fails.
+- **Parallel agents need two lock files** in the gitignored ledger (`mutation.lock`, `e2e.lock`): an e2e
+  build compiles `src/`, so a neighbour's temporary mutation lands in it. Two runs were lost to exactly
+  that before the locks existed. Waits are single bounded commands, never background loops.
+- **An account usage limit stopped every running agent at once** mid-round; agents resumed with their
+  context intact. Stagger dispatches.
+- Only fallow's `Failed:` line and its `N above threshold` gate. A lone red Windows leg on
+  `tests/gates/network-boundary.test.ts` is a known flake: `gh run rerun <id> --failed`.
+- Seven shell loops from ANOTHER session were polling `/d/tmp-rp/s21-final2/m2.log` on this machine and
+  were left alone; that log had stopped changing.
 
 ## The rule this session paid for
 
-**A premise in a hand-off is a claim, not a fact.** Two of this session's inputs were false, and each was
-caught only because it was checked at source before a task was written: the clone "predating the branch"
-was one `git merge-base --is-ancestor` away from false, and the tree's "validity island" turned out to be a
-false refusal every round shape in the product could hit. The brief that followed carried a third, a Shift
-corner case that could never discriminate, which its implementer proved analytically.
+**A hand-off's numbers are claims too, including the ones this session wrote about itself.** The pasted
+brief said no e2e case opened the designer (W24-A had built 144); the audit's own first pass claimed zero
+over-claims in two tables that had seven between them; a task brief's verification command (`vitest list
+--shard`) could not see sharding; and the whole-round review had to cut this session's own summary from
+"about 200 clauses, each gated" to what was true. Each was caught only because somebody re-read the
+source instead of the summary.

@@ -18,8 +18,7 @@ own report.
 
 **Scope.** Task 1 sharded the E2E workflow's desktop legs and touched no product clause, so it has
 no mutation table. Tasks 9–11 (the tier definition, the case rewrites, the count) are retag and
-prose work over the clauses Tasks 2–8 closed; their own citations are what [[I3]] in
-`final-review-round6.md` asked this file to replace, not a second source of mutations.
+prose work over the clauses Tasks 2–8 closed; their own citations point here, and are not a second source of mutations.
 
 ---
 

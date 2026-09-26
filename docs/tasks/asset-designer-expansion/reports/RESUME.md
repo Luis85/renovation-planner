@@ -123,6 +123,10 @@ case rows to say so). They are recorded, not fixed:
   context intact. Stagger dispatches.
 - Only fallow's `Failed:` line and its `N above threshold` gate. A lone red Windows leg on
   `tests/gates/network-boundary.test.ts` is a known flake: `gh run rerun <id> --failed`.
+- **A second known flake, in E2E:** `assetHandoffMore.e2e.ts` *shows no plan scope until Duplicate…*
+  timed out once in its setup (the armed Plan Editor banner never appeared) on the 1.13.7 desktop
+  shard 2/2, on a docs-only commit (E2E run 36273510691, attempt 1), and passed on the re-run. Every
+  earlier run this session passed it. Re-run once; twice in a row is a defect to investigate.
 - Seven shell loops from ANOTHER session were polling `/d/tmp-rp/s21-final2/m2.log` on this machine and
   were left alone; that log had stopped changing.
 

@@ -392,9 +392,10 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 
 	/**
 	 * The BACKGROUND adapter's own version of the note half: a peer note write between execute
-	 * and undo refuses the restore with an ordinary revision conflict, exactly as the height
-	 * adapter's does. The sidecar is untouched by this peer, so this alone does not reach the
-	 * compensate path below — that needs a peer on the OTHER resource.
+	 * and undo refuses the restore — as `undo.superseded` rather than the store's revision
+	 * conflict, because a racing change is not a save error (owner ruling 17). The sidecar is
+	 * untouched by this peer, so this alone does not reach the compensate path below — that
+	 * needs a peer on the OTHER resource.
 	 */
 	it('refuses a background undo rather than overwriting a NOTE write this history did not make', async () => {
 		const { reversible, assetId, plain, height } = await seeded();
@@ -403,7 +404,7 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 
 		expect(expectOk(await plain.setHeight.execute({ assetId, height: 1200 }))).toBe('wrote');
 
-		expect(expectErr(await command.undo()).code).toBe('asset.revision-conflict');
+		expect(expectErr(await command.undo()).code).toBe('undo.superseded');
 		expect(await height()).toBe(1200);
 	});
 
@@ -417,6 +418,8 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 	 * uncalibrated asset. Since owner ruling 13's first step the undo puts the note back the way
 	 * it found it, so the refusal is CLEAN: no stamp, the note as the gesture left it, the sidecar
 	 * as the peer left it, and nothing announced, because nothing of the undo is left to redraw.
+	 * And since owner ruling 17 the store's conflict reads as what it is, a racing change:
+	 * `undo.superseded`, the same refusal the pre-flight read gives an earlier peer.
 	 */
 	it('refuses cleanly, with the note put back, when a peer writes the sidecar between the undo\'s pre-flight read and its restore', async () => {
 		const peer: { run: () => Promise<unknown> } = { run: () => Promise.resolve() };
@@ -436,7 +439,7 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 		};
 
 		const result = await command.undo();
-		expect(expectErr(result).code).toBe('asset-geometry.revision-conflict');
+		expect(expectErr(result).code).toBe('undo.superseded');
 		expect(isErr(result) && leftWritesBehind(result.error)).toBe(false);
 		// The note restore was compensated — the reference is the one this gesture set.
 		expect(expectOk(await stack.assets.getById(assetId))?.entity.background?.path).toBe('Specs/other.png');

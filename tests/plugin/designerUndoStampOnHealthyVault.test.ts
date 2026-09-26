@@ -1,3 +1,9 @@
+/**
+ * @vitest-environment jsdom
+ *
+ * jsdom for the notice queue alone: owner ruling 17 is about what the USER sees — the toast
+ * `notifyIfRefused` raises and the save badge — and the queue's live regions live on `document.body`.
+ */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { TFile } from 'obsidian';
@@ -13,6 +19,11 @@ import { useSaveStateStore } from '../../src/presentation/editor/save-state/save
 import { withSaveStateTracking } from '../../src/presentation/editor/save-state/with-save-state-tracking';
 import { createAssetDesignerCommands } from '../../src/presentation/designer/designerCommands';
 import { guardAssetDesign, VAULT_EXCEPTION_MAPPER } from '../../src/plugin/guardedServices';
+import { notifyIfRefused } from '../../src/presentation/editor/report-failure';
+import { activateNotices } from '../../src/presentation/notices/notify';
+import { t } from '../../src/presentation/i18n/strings';
+import { Notice } from '../helpers/obsidian-mock';
+import { installObsidianDom } from '../helpers/dom';
 import { seeded, drawn } from '../helpers/assetDesignHarness';
 import { expectDefined, expectOk, injectedPersistenceError } from '../helpers/domain';
 import { recorder } from '../helpers/logger';
@@ -36,8 +47,16 @@ import { installQuietWriteIncidents } from '../helpers/writeIncidents';
  * second step: a recorded stamp is a durable write block that survives restarts (ADR-0034, D-08).
  */
 
+installObsidianDom();
+
 /** Every dispatch of the five wrote, none was refused, and nothing opened an incident. */
 const HEALTHY = { refusals: [], outcomes: ['wrote', 'wrote', 'wrote', 'wrote', 'wrote'], recorded: false };
+
+/**
+ * What the user sees of an undo a racing change refused (owner ruling 17): the existing
+ * "undo superseded" toast, and the save badge left where the gesture put it.
+ */
+const SUPERSEDED = { toasts: [t('en', 'undo.superseded')], state: 'saved' };
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -47,6 +66,7 @@ afterEach(() => {
 /** The designer's chain as `runtime.ts` composes it: raw ports for the inverse, the REAL guarded bundle for the forward door, and the leaf's save-state tracking. */
 async function designerRig(calibrated: boolean) {
 	const registry = installQuietWriteIncidents();
+	activateNotices();
 	setActivePinia(createPinia());
 	const saveState = useSaveStateStore();
 	const harness = await seeded();
@@ -63,9 +83,13 @@ async function designerRig(calibrated: boolean) {
 	const history = withSaveStateTracking(raw, saveState);
 	const seen: { step: string; code: string; stamped: boolean; named?: readonly AffectedEntity[] }[] = [];
 	const outcomes: string[] = [];
-	/** One dispatch through the history, recording any refusal, whether it carried the stamp, and what the stamp named. */
+	const toasts: string[] = [];
+	/** One dispatch through the history, recording any refusal, whether it carried the stamp, and what the stamp named — and, through the designer's own `notifyIfRefused` door, any toast it raised. */
 	async function dispatch(step: string, result: Promise<DispatchResult>): Promise<void> {
 		const settled = await result;
+		const shown = Notice.shown.length;
+		await notifyIfRefused(Promise.resolve(settled));
+		toasts.push(...Notice.shown.slice(shown));
 		outcomes.push(settled.ok ? settled.value : 'refused');
 		if (settled.ok) return;
 		const stamped = leftWritesBehind(settled.error);
@@ -105,7 +129,9 @@ async function designerRig(calibrated: boolean) {
 			return written;
 		});
 	}
-	return { registry, saveState, harness, guarded, leaf, raw, history, seen, outcomes, dispatch, setBackground, state, afterNextNoteSave, afterSidecarRefusal };
+	/** The toast and the save badge, which is all of an undo's refusal the user sees. */
+	const surface = () => ({ toasts, state: saveState.state });
+	return { registry, saveState, harness, guarded, leaf, raw, history, seen, outcomes, dispatch, setBackground, state, afterNextNoteSave, afterSidecarRefusal, surface };
 }
 
 type Rig = Awaited<ReturnType<typeof designerRig>>;
@@ -142,9 +168,26 @@ describe('ReversibleAssetBackgroundEdit.undo — the Asset designer undo', () =>
 		await r.dispatch('undo', r.history.undo());
 		expect(r.seen).toEqual([{ step: 'undo', code: 'test.injected-failure', stamped: true, named: [{ entityKind: 'asset', entityId: r.harness.assetId }] }]);
 		expect(r.saveState.unrecoveredWrite).toBe(true);
+		expect(r.surface()).toEqual({ toasts: [], state: 'save-error' });
 		expect(r.registry.anyOpen()).toBe(true);
 		// The gesture's own announcement, then the stamped undo's: its note restore stands, so every leaf has to redraw.
 		expect(r.harness.designChanges).toHaveLength(2);
+	});
+
+	// A GENUINE write fault on either restore is not a racing change, so owner ruling 17 leaves it
+	// where it was: the save badge, no toast, and — the note put back or never written — no stamp.
+	for (const port of ['sidecar', 'note'] as const) it(`a write fault on the ${port} restore still reads as a save error, unstamped`, async () => {
+		const r = await designerRig(true);
+		await r.dispatch('run', r.history.run(r.setBackground()));
+		const assets: AssetRepository = r.harness.stack.assets;
+		if (port === 'sidecar') vi.spyOn(r.harness.sidecar, 'write').mockResolvedValueOnce(err(injectedPersistenceError()));
+		else vi.spyOn(assets, 'save').mockResolvedValueOnce(err(injectedPersistenceError()));
+		await r.dispatch('undo', r.history.undo());
+		expect({ seen: r.seen, unrecovered: r.saveState.unrecoveredWrite, surface: r.surface() }).toEqual({
+			seen: [{ step: 'undo', code: 'test.injected-failure', stamped: false }],
+			unrecovered: false,
+			surface: { toasts: [], state: 'save-error' },
+		});
 	});
 });
 
@@ -159,10 +202,9 @@ describe('ReversibleAssetBackgroundEdit.undo — the Asset designer undo', () =>
  * fact `runtime.ts`'s `canUndo`/`canRedo` disable Undo and Redo on.
  */
 describe('#17 — a peer write inside the undo\'s read-to-write window leaves no stamp', () => {
-	const PEERS: readonly { name: string; code: string; write: (r: Rig) => Promise<void> }[] = [
+	const PEERS: readonly { name: string; write: (r: Rig) => Promise<void> }[] = [
 		{
 			name: 'a second designer leaf of the same asset, through its own history',
-			code: 'asset-geometry.revision-conflict',
 			write: async (r) => {
 				const peer = r.leaf();
 				expect(expectOk(await peer.history.run(peer.edits.setFacing({ assetId: r.harness.assetId, facing: 1.2 })))).toBe('wrote');
@@ -170,14 +212,12 @@ describe('#17 — a peer write inside the undo\'s read-to-write window leaves no
 		},
 		{
 			name: 'the Asset library\'s setAssetFootprintFromDimensions',
-			code: 'asset-geometry.revision-conflict',
 			write: async (r) => {
 				expectOk(await r.guarded.setFootprintFromDimensions.execute({ assetId: r.harness.assetId, width: 1200, depth: 800 }));
 			},
 		},
 		{
 			name: 'a byte-only rewrite of the .rpgeo (semantically identical JSON)',
-			code: 'asset-geometry.external-modification',
 			write: (r) => {
 				const { entries } = r.harness.stack.vault;
 				const path = expectDefined([...entries.keys()].find((key) => key.endsWith('.rpgeo')), 'the sidecar');
@@ -200,14 +240,31 @@ describe('#17 — a peer write inside the undo\'s read-to-write window leaves no
 				});
 				await r.dispatch('undo', r.history.undo());
 				expect({ seen: r.seen, state: await r.state() }).toEqual({
-					seen: [{ step: 'undo', code: peer.code, stamped: false }],
+					seen: [{ step: 'undo', code: 'undo.superseded', stamped: false }],
 					state: { note: afterRun.note, sidecar: afterPeer },
 				});
+				expect(r.surface()).toEqual(SUPERSEDED);
 				expect({ unrecovered: r.saveState.unrecoveredWrite, canUndo: r.raw.canUndo }).toEqual({ unrecovered: false, canUndo: true });
 			});
 		}
 
-		it(`the asset deleted inside the window: the undo refuses cleanly and the asset stays gone (calibrated: ${String(calibrated)})`, async () => {
+		// Before the window: a peer's note write between the gesture and its undo refuses the note
+		// restore itself, the first write the undo makes.
+		it(`a peer note write before the undo: the note restore refuses as superseded (calibrated: ${String(calibrated)})`, async () => {
+			const r = await designerRig(calibrated);
+			await r.dispatch('run', r.history.run(r.setBackground()));
+			const peer = r.leaf();
+			expect(expectOk(await peer.history.run(peer.edits.setHeight({ assetId: r.harness.assetId, height: 900 })))).toBe('wrote');
+			await r.dispatch('undo', r.history.undo());
+			const { note } = await r.state();
+			expect({ seen: r.seen, height: note === 'absent' ? note : note.height, surface: r.surface() }).toEqual({
+				seen: [{ step: 'undo', code: 'undo.superseded', stamped: false }],
+				height: 900,
+				surface: SUPERSEDED,
+			});
+		});
+
+		it(`the asset deleted inside the window:the undo refuses cleanly and the asset stays gone (calibrated: ${String(calibrated)})`, async () => {
 			const r = await designerRig(calibrated);
 			await r.dispatch('run', r.history.run(r.setBackground()));
 			r.afterNextNoteSave(async () => {
@@ -216,9 +273,10 @@ describe('#17 — a peer write inside the undo\'s read-to-write window leaves no
 			});
 			await r.dispatch('undo', r.history.undo());
 			expect({ seen: r.seen, note: (await r.state()).note }).toEqual({
-				seen: [{ step: 'undo', code: 'asset-geometry.revision-conflict', stamped: false }],
+				seen: [{ step: 'undo', code: 'undo.superseded', stamped: false }],
 				note: 'absent',
 			});
+			expect(r.surface()).toEqual(SUPERSEDED);
 			expect(r.saveState.unrecoveredWrite).toBe(false);
 		});
 	}
@@ -251,7 +309,8 @@ describe('#17 — a note peer between the refused sidecar restore and the put-ba
 			const { note, sidecar } = await r.state();
 			expect(note === 'absent' ? note : { background: note.background, height: note.height }).toEqual({ background: null, height: 900 });
 			expect(typeof sidecar === 'string' ? sidecar : sidecar.calibration).toBeNull();
-			expect(r.seen).toEqual([{ step: 'undo', code: 'asset-geometry.revision-conflict', stamped: false }]);
+			expect(r.seen).toEqual([{ step: 'undo', code: 'undo.superseded', stamped: false }]);
+			expect(r.surface()).toEqual(SUPERSEDED);
 			expect(r.saveState.unrecoveredWrite).toBe(false);
 		});
 	}
@@ -279,9 +338,10 @@ describe("#17 — a peer background gesture inside the undo's window", () => {
 				background: note === 'absent' ? note : note.background,
 				calibration: typeof sidecar === 'string' ? sidecar : sidecar.calibration,
 			}).toEqual({ background: { path: 'Specs/a.png', kind: 'image', page: null }, calibration: null });
-			expect({ seen: r.seen, unrecovered: r.saveState.unrecoveredWrite }).toEqual({
-				seen: [{ step: 'undo', code: 'asset-geometry.revision-conflict', stamped: false }],
+			expect({ seen: r.seen, unrecovered: r.saveState.unrecoveredWrite, surface: r.surface() }).toEqual({
+				seen: [{ step: 'undo', code: 'undo.superseded', stamped: false }],
 				unrecovered: false,
+				surface: SUPERSEDED,
 			});
 		});
 	}
@@ -329,9 +389,10 @@ describe("#17 — a sync writing both files inside the undo's window", () => {
 				r.harness.stack.metadataCache.catchUp();
 				r.afterNextNoteSave(() => remoteBackground(r, noticed));
 				await r.dispatch('undo', r.history.undo());
-				expect({ seen: r.seen, unrecovered: r.saveState.unrecoveredWrite }).toEqual({
-					seen: [{ step: 'undo', code: 'asset-geometry.revision-conflict', stamped: false }],
+				expect({ seen: r.seen, unrecovered: r.saveState.unrecoveredWrite, surface: r.surface() }).toEqual({
+					seen: [{ step: 'undo', code: 'undo.superseded', stamped: false }],
 					unrecovered: false,
+					surface: SUPERSEDED,
 				});
 				vi.restoreAllMocks();
 				r.harness.stack.metadataCache.catchUp();

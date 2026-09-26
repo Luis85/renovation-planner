@@ -10,8 +10,9 @@
  * (`showDiagnosticsReport.ts`'s composition, and `RenovationPlannerPlugin`'s own ledger field —
  * this is not a fixture built to look content-free, it is the real ledger a real read populates).
  * `stack.assets.listAll()` is run too, matching the vault-wide scan the asset library performs
- * after such a delete and the ONE place that already calls `ledger.record('asset', id, …)`
- * (`ObsidianAssetRepository.list`) — so this exercises the real path that WOULD have recorded
+ * after such a delete, over the path that already calls `ledger.record('asset', id, …)`
+ * (`ObsidianAssetRepository.list` records a failed read on this path) — so this exercises the
+ * real path that WOULD have recorded
  * this asset had the index still listed it, and confirms it does not, because by the time a
  * user reaches the state step 30 describes the index has already dropped the id
  * (`stack.rebuildIndex()` stands in for the scan `VaultChangeAdapter` schedules 500 ms after a
@@ -60,8 +61,8 @@ describe('recover.md step 30 — no diagnostic names the orphaned sidecar', () =
 		expect(stack.vault.entries.has(sidecarPath)).toBe(true);
 
 		// The real trigger a user would hit next: opening the asset library re-lists every asset
-		// the index still knows about, and `ObsidianAssetRepository.list` is the one place in
-		// `src/` that already records a failed read to the ledger.
+		// the index still knows about, and `ObsidianAssetRepository.list` records a failed read
+		// on this path.
 		expectOk(await stack.assets.listAll());
 
 		const snapshot = await new GetDiagnosticsSnapshotQuery({

@@ -77,7 +77,9 @@ describe('step 121: Ctrl+Z with nothing left to undo', () => {
 		expect(await detailIds(rig)).toEqual(['detail-1', 'detail-2']);
 		expect(rig.toolbarButton(t('en', 'designer.toolbar.undo')).disabled).toBe(true);
 		const before = await rig.document();
-		// Where Obsidian's own hotkeys listen: a bubble-phase keydown on the document.
+		// A bubble-phase listener on the document, which a stopped event never reaches — jsdom cannot
+		// say whether Obsidian's own hotkeys listen there; the host half is measured separately by
+		// `assetDesignerWalkKeys.e2e.ts` step 121.
 		const host = vi.fn<(event: KeyboardEvent) => void>();
 		document.addEventListener('keydown', host);
 

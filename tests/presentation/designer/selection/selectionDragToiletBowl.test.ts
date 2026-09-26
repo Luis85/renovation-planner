@@ -62,7 +62,10 @@ describe('a corner drag of the toilet bowl', () => {
 			expect(Math.abs(point.x - want.x)).toBeLessThan(1);
 			expect(Math.abs(point.y - want.y)).toBeLessThan(1);
 		});
-		(outline(dragged).bulges ?? []).forEach((bulge, index) => expect(bulge).toBeCloseTo(outline(typed).bulges?.[index] ?? 0, 2));
+		const draggedBulges = expectDefined(outline(dragged).bulges, "the dragged outline's bulges");
+		const typedBulges = expectDefined(outline(typed).bulges, "the typed outline's bulges");
+		expect(draggedBulges.length).toEqual(typedBulges.length);
+		draggedBulges.forEach((bulge, index) => expect(bulge).toBeCloseTo(typedBulges[index], 2));
 		expect(got.centre.x - got.width / 2).toBeCloseTo(TOP_LEFT.x, 6);
 		expect(got.centre.y - got.depth / 2).toBeCloseTo(TOP_LEFT.y, 6);
 	});

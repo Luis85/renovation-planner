@@ -59,6 +59,7 @@ describe('a drag pressed and held behind the last drag’s write', () => {
 		held(rig, 'pointermove', FURTHER, 1);
 
 		expect({ selection: store.selection, preview: store.preview }).toEqual(released);
+		expect(released.preview).not.toBeNull();
 		expect(store.preview).toBe(released.preview);
 		expect(released.selection).toEqual({ kind: 'detail', id: 'detail-2' });
 		await nextTick();

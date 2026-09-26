@@ -65,7 +65,7 @@ describe('Browse the asset library, where the rail and the sidebar land, in the 
 		expect([...rungs].toSorted()).toEqual(['240', '280', 'pane']);
 	});
 
-	// Step 26, "as an overlay over the grid". CONTRARY: the case row claims an overlay; this pins the build's push-aside, pending AD18-R27's row rewrite.
+	// Step 26, "as an overlay over the grid". CONTRARY: the case row claimed an overlay; this pins the build's push-aside, and the row was rewritten under AD18-R27.
 	desktop('lays the funnel\'s sidebar beside the grid at a sidebar\'s width, narrowing the grid rather than covering it', async ({
 		native: { browser, page, ui },
 	}) => {

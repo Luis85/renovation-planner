@@ -127,7 +127,7 @@ so an honest "not drivable, here is what happened" is a valid outcome), and the 
 only instrument in the gate is a real renderer: Design 70 (every dimension number has a point where
 `document.elementFromPoint` returns it, at the vanity's All dimensions state), Browse 11 (the library's
 category rail appears at 35rem and widens 240→280 px at 45rem), Browse 26 (the sidebar overlays the
-grid rather than pushing it — read the two boxes). Size leaves through `@electron/remote` as
+grid rather than pushing it — read the two boxes). Added mid-round from Task 7's review: **Calibrate 32** (Tab traversal in the real host reaches the "Mark clearance as reviewed" button — press Tab from the Inspector's preceding control and read `document.activeElement`; the suite only proves the button is in the focus order). Size leaves through `@electron/remote` as
 `designerParity.ts`'s `setLeafWidth` does.
 
 ## Task 5: Design an Asset — the suite gaps (D)

@@ -1768,6 +1768,55 @@ round, every one as recommended:
 field, a new runtime dependency or devDependency, AD17 or roadmap work, or any element of CLAUDE.md's
 *Deliberately absent* list.
 
+**AD18-R26 to AD18-R29 delivered 2026-09-26.** Session twenty started from a hand-off that was itself
+out of date: the pasted brief said no e2e case opened the designer, and W24-A had built 144. The
+branch's E2E had been red on Linux since W24-A. `herbstluftwm` tiled the window and ignored every
+resize, and a floating rule fixed 17 of 21 cases. Of the other four, three were Windows-only pins and
+one was a real defect: the Placement point group's `Custom` split mid-word in Linux's wider font. The
+group now wraps as a grid instead of breaking the word.
+
+**The audit** ([`MANUAL-PASS-audit.md`](../reports/MANUAL-PASS-audit.md)) used eight read-only auditors
+and one independent review. The review ran 29 mutations, 13 of them in a real Obsidian. Seven stayed
+green, and each of those moved a row that had read as covered. 177 of 241 steps were fully discharged
+before anything was built.
+
+**Eleven tasks followed the rulings**, run subagent-driven and each independently reviewed:
+- Task 1 sharded the E2E desktop legs.
+- Tasks 2–8 wrote tests for the 36 host and 37 suite clauses the audit had left open.
+- Tasks 9–11 rewrote the seven cases and the index.
+
+Four tasks needed a fix round (2, 3, 6 and one Calibrate rewrite). The other build tasks passed review
+first time, or with minor fixes applied before push. Four more reviewers re-read all 193 retags against
+their test bodies and found none wrong. The whole-round review found no Critical issue and four
+Important ones, all in documentation, and one fix wave closed them.
+
+**What is claimed, narrowly:**
+- **The manual pass is 26 human steps, from 241.** Per case: 11 / 1 / 0 / 2 / 5 / 1 / 6.
+- **215 steps were retagged `e2e` or `suite`** under AD18-R28: 208 `e2e` and 7 `suite`.
+- **Every clause built this round was watched red under a mutation of that clause.**
+  [`AD18-walk-automation-evidence.md`](../reports/AD18-walk-automation-evidence.md) lists them.
+- **Clauses already discharged before this round were checked by reading the test body, not by
+  mutation.** A retagged step is one whose every clause a named test asserts. It is not a step whose
+  every clause was gated.
+- **Contradicted and disputed rows were rewritten to what the build does** under AD18-R27: the audit's
+  21 CONTRARY and 2 RULING clauses, and four more that this round's tests found (Browse 26, Two
+  designers 1, Recover 23 and 37). Each now cites its pinning test. They are recorded in RESUME as
+  known behaviour, not fixed.
+- **Three of the evidence file's 77 rows record no red**, and each says why: left open, or pinned as the
+  build's behaviour.
+
+**Not closed by this round:**
+- Calibrate step 36, a `suite` row, now contradicts the rewritten 36a in the same file. It needs a
+  ruling.
+- Recover 2, and Recover 6 and 8's host half, cannot be pinned honestly.
+- Design 89 needs a macOS leg.
+- Browse 31 cannot fail until Obsidian records leaf history for the library view.
+- The test-hygiene items the whole-round review recorded are listed in RESUME.
+
+**CI 36271701133 and E2E 36271701150 are GREEN on `06ae0ac05`**, which carries all the round's code and
+the final fix wave: `verify` ×4 plus `audit`, and five E2E jobs (two sharded desktop versions plus
+mobile emulation). Both were read by run id. PR #230 stays a draft.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

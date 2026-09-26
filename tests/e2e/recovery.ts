@@ -264,3 +264,67 @@ export const fileExplorer = (browser: NativeBrowser, from: string, to: string | 
 		from,
 		to,
 	);
+
+/** The host's `modify` times for one sidecar, and each time the active designer's stale notice came or went. */
+interface HostLog {
+	modify: number[];
+	notice: [boolean, number][];
+}
+
+const hostLog = (browser: NativeBrowser) => browser.execute(() => (window as unknown as { rpHostLog: HostLog }).rpHostLog);
+
+/** Start the log `noticeAfterEdit` reads: install once per case, after the designer is open. */
+export const recordHostAndNotice = (browser: NativeBrowser, assetId: string) =>
+	browser.executeObsidian(
+		({ app }, target, host) => {
+			const log: HostLog = { modify: [], notice: [] };
+			(window as unknown as { rpHostLog: HostLog }).rpHostLog = log;
+			app.vault.on('modify', (file) => {
+				if (file.path === target) log.modify.push(Date.now());
+			});
+			let shown = document.querySelector(`${host} .rp-designer-notice`) !== null;
+			new MutationObserver(() => {
+				const now = document.querySelector(`${host} .rp-designer-notice`) !== null;
+				if (now !== shown) log.notice.push([now, Date.now()]);
+				shown = now;
+			}).observe(document.body, { childList: true, subtree: true });
+		},
+		vaultSidecar(assetId),
+		ACTIVE_DESIGNER,
+	);
+
+/**
+ * An edit outside Obsidian, reaching the plugin the way the sibling cases take it: the host's own
+ * reconcile when it comes within `patience`, the watcher's call made by hand when it does not. What
+ * this returns separates the two halves: `hostMs` is how long the HOST took to raise `modify` (null
+ * when it never did — data, not a verdict), and `pluginMs` is how long the PLUGIN took from that
+ * `modify` to the stale notice reaching `shown`.
+ */
+export const noticeAfterEdit = async (
+	designer: DesignerPage,
+	browser: NativeBrowser,
+	assetId: string,
+	edit: (text: string) => string,
+	shown: boolean,
+	patience = 5000,
+): Promise<{ hostMs: number | null; pluginMs: number }> => {
+	const seen = (await hostLog(browser)).modify.length;
+	const edited = Date.now();
+	designer.editSidecar(assetId, edit);
+	const unprompted = await browser
+		.waitUntil(async () => (await hostLog(browser)).modify.length > seen, { timeout: patience })
+		.then(() => true, () => false);
+	if (!unprompted) await designer.reconcile(vaultSidecar(assetId));
+	let answer: { hostMs: number | null; pluginMs: number } | null = null;
+	await expect
+		.poll(async () => {
+			const log = await hostLog(browser);
+			const modified = log.modify[seen];
+			const changed = log.notice.find(([state, at]) => state === shown && modified !== undefined && at >= modified);
+			if (modified !== undefined && changed) answer = { hostMs: unprompted ? modified - edited : null, pluginMs: changed[1] - modified };
+			return answer !== null;
+		})
+		.toBe(true);
+	if (answer === null) throw new Error('The notice never changed.');
+	return answer;
+};

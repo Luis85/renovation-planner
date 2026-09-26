@@ -37,7 +37,7 @@ import { settle } from '../../helpers/editor';
 import { designerRig, held, type DesignerRig } from '../../helpers/designerRig';
 import { TOILET, detailOutline, justInsideBottom } from '../../helpers/designerSelection';
 import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
-import { assetDesign } from '../../helpers/assetDesign';
+import { assetDesign, VAULT_FAILED } from '../../helpers/assetDesign';
 import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
@@ -176,8 +176,7 @@ describe('recover.md step 7 — a kept-but-stale design keeps its position, its 
 
 		await store.hydrate(
 			{
-				getAssetDesign: () =>
-					Promise.resolve(err({ category: 'Persistence' as const, code: 'vault.unexpected-failure', message: 'x' })),
+				getAssetDesign: () => Promise.resolve(err(VAULT_FAILED)),
 				listPlansUsingAsset: unwiredPlanUsage,
 			},
 			ctx.assetId,

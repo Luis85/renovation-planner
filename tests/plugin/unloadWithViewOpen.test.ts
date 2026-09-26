@@ -38,6 +38,7 @@ import { createRepositoryStack } from '../helpers/vault';
 import { makePlan, makeProject } from '../helpers/entities';
 import { expectErr, expectOk } from '../helpers/domain';
 import { installEditorEnvironment, runtimeOfPluginView, settle, settleUntil, sizedShellRoot } from '../helpers/editor';
+import { slowGuardedSave } from '../helpers/writeIncidents';
 
 installEditorEnvironment();
 
@@ -156,6 +157,54 @@ describe('plugin unload with a view still mounted, over an unresolved write inci
 		const { plugin } = await pluginWithAnOpenEditor();
 
 		plugin.onunload();
+
+		expect(activeWriteIncidentRegistry()).toBeNull();
+	});
+});
+
+/**
+ * Owner ruling 16 (tracker L-21): the record is not released while a save is still running.
+ *
+ * The order is the MEASURED one (`tests/e2e/unloadWindow.e2e.ts`, Obsidian 1.13.7): the
+ * teardown's blur dispatches a field commit, then `onunload` runs, and the write happens after
+ * it returns. Here the dispatch and `onunload` share one synchronous turn, so the editor's two
+ * serial queues put the GUARD after `onunload` — the harder of the two orders, and the one
+ * nothing measured rules out. The save is a stand-in dispatched through the view's own tracked
+ * dispatcher, which is the door the Room Inspector's quantity field reaches synchronously.
+ */
+describe('plugin unload with a save still running from the open view', () => {
+	it('keeps the record for a save the teardown started, so its half-failure is gated and recorded', async () => {
+		const { plugin, view } = await pluginWithAnOpenEditor();
+		const runtime = runtimeOfPluginView(view);
+		const registry = activeWriteIncidentRegistry();
+		const save = slowGuardedSave();
+
+		const dispatched = runtime.dispatcher.run({ label: 'test.save', execute: save.execute, undo: save.execute } as never as UndoableCommand);
+		plugin.onunload();
+		await settleUntil(() => save.seen.length > 0, 'the save to reach its guard');
+
+		expect(save.seen).toEqual([registry]);
+		save.halfFail();
+		expect(expectErr(await dispatched).code).toBe('zone.write-uncompensated');
+		expect(activeWriteIncidentRegistry()).toBe(registry);
+		expect(registry?.anyOpen()).toBe(true);
+		const adapter = plugin.app.vault.adapter as unknown as { read(path: string): Promise<string> };
+		await expect.poll(() => adapter.read(registry?.report().path ?? '')).toContain('zone.write-uncompensated');
+	});
+
+	it('releases a clean record once the save running at unload settles', async () => {
+		const { plugin, view } = await pluginWithAnOpenEditor();
+		const runtime = runtimeOfPluginView(view);
+		const registry = activeWriteIncidentRegistry();
+		const save = slowGuardedSave();
+
+		const dispatched = runtime.dispatcher.run({ label: 'test.save', execute: save.execute, undo: save.execute } as never as UndoableCommand);
+		plugin.onunload();
+		await settleUntil(() => save.seen.length > 0, 'the save to reach its guard');
+		expect(activeWriteIncidentRegistry()).toBe(registry);
+
+		save.finish({ ok: true, value: 'wrote' });
+		expectOk(await dispatched);
 
 		expect(activeWriteIncidentRegistry()).toBeNull();
 	});

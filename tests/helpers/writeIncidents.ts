@@ -1,8 +1,14 @@
 import { persistenceError } from '../../src/application/errors';
 import {
+	activeWriteIncidentRegistry,
 	installWriteIncidentRegistry,
 	WriteIncidentRegistry,
 } from '../../src/application/incidents/WriteIncidentRegistry';
+import { guardCommand } from '../../src/application/errors/guardAgainstThrowing';
+import { createVaultExceptionMapper } from '../../src/application/errors/exceptionMapper';
+import { markUncompensated } from '../../src/application/commands/DispatchOutcome';
+import { err, type Result } from '../../src/core/result/Result';
+import type { AppError } from '../../src/core/errors/AppError';
 import { InMemoryWriteIncidentStore } from './InMemoryWriteIncidentStore';
 import { recorder } from './logger';
 
@@ -74,4 +80,30 @@ export async function installUnseededWriteIncidents(): Promise<WriteIncidentRegi
 	const restored = new WriteIncidentRegistry(store, recorder);
 	installWriteIncidentRegistry(restored);
 	return restored;
+}
+
+/**
+ * A GUARDED save whose body waits until the case finishes it — a write still running when
+ * `onunload` arrives, which is what owner ruling 16 keeps the record alive for.
+ *
+ * `seen` is which registry the body found installed when it ran: exactly what a stamp read at
+ * stamp time (the next task's `markUncompensated`) would record into, and — since the guard
+ * reads the same holder one line earlier — whether the save was gated at all.
+ */
+export function slowGuardedSave() {
+	let finish!: (result: Result<'wrote', AppError>) => void;
+	const outcome = new Promise<Result<'wrote', AppError>>((resolve) => { finish = resolve; });
+	const seen: (WriteIncidentRegistry | null)[] = [];
+	const guarded = guardCommand(
+		{ execute: () => { seen.push(activeWriteIncidentRegistry()); return outcome; } },
+		'command.test.failed',
+		recorder,
+		createVaultExceptionMapper('test'),
+	);
+	return {
+		execute: () => guarded.execute(undefined),
+		seen,
+		finish,
+		halfFail: () => finish(err(markUncompensated(persistenceError('zone.write-uncompensated', 'half-written'), []))),
+	};
 }

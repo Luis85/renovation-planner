@@ -3,6 +3,7 @@ import { SessionStores } from '../../src/plugin/sessionStores';
 import { activeWriteIncidentRegistry, installWriteIncidentRegistry } from '../../src/application/incidents/WriteIncidentRegistry';
 import type { TextFileAdapter } from '../../src/infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
 import { recorder, resetRecorder } from '../helpers/logger';
+import { slowGuardedSave } from '../helpers/writeIncidents';
 
 function fakeAdapter(): TextFileAdapter {
 	const files = new Map<string, string>();
@@ -105,5 +106,66 @@ describe('SessionStores', () => {
 
 		b.dispose();
 		expect(activeWriteIncidentRegistry()).toBeNull();
+	});
+
+	/**
+	 * Owner ruling 16 at the unit: a save RUNNING at dispose keeps the record installed until it
+	 * settles, so a half-failure landing after `dispose()` is still recorded and still shuts the
+	 * gate. Taken at the guard here — the door a direct dispatch reaches synchronously;
+	 * `tests/plugin/unloadWithViewOpen.test.ts` drives the queued editor door.
+	 */
+	it('keeps the registry installed while a save is in flight at dispose, and records its half-failure', async () => {
+		const adapter = fakeAdapter();
+		const stores = new SessionStores(adapter, 'plugins/renovation-planner', recorder);
+		const save = slowGuardedSave();
+		const running = save.execute();
+
+		stores.dispose();
+		expect(activeWriteIncidentRegistry()).toBe(stores.writeIncidents);
+
+		save.halfFail();
+		await running;
+
+		expect(activeWriteIncidentRegistry()).toBe(stores.writeIncidents);
+		expect(stores.writeIncidents.anyOpen()).toBe(true);
+		await expect.poll(() => adapter.read(stores.writeIncidents.report().path)).toContain('zone.write-uncompensated');
+	});
+
+	it('releases a clean registry once the save in flight at dispose settles', async () => {
+		const stores = new SessionStores(fakeAdapter(), 'plugins/renovation-planner', recorder);
+		const save = slowGuardedSave();
+		const running = save.execute();
+
+		stores.dispose();
+		expect(activeWriteIncidentRegistry()).toBe(stores.writeIncidents);
+
+		save.finish({ ok: true, value: 'wrote' });
+		await running;
+
+		expect(activeWriteIncidentRegistry()).toBeNull();
+	});
+
+	/**
+	 * A reload before the old save settles: TWO registries, ONE file. Pinned, not endorsed. The
+	 * old save was gated by the old session's registry, so its half-failure is recorded THERE and
+	 * written to the shared file; the new session stays installed, and its gate — seeded once, at
+	 * its own load — does not learn of that incident until the load after.
+	 */
+	it('pins a reload during an old save: the old record takes the stamp, the new one stays installed', async () => {
+		const adapter = fakeAdapter();
+		const a = new SessionStores(adapter, 'plugins/renovation-planner', recorder);
+		const save = slowGuardedSave();
+		const running = save.execute();
+		a.dispose();
+
+		const b = new SessionStores(adapter, 'plugins/renovation-planner', recorder);
+		await b.writeIncidents.seed();
+		save.halfFail();
+		await running;
+
+		expect(activeWriteIncidentRegistry()).toBe(b.writeIncidents);
+		expect(a.writeIncidents.anyOpen()).toBe(true);
+		expect(b.writeIncidents.anyOpen()).toBe(false);
+		await expect.poll(() => adapter.read(a.writeIncidents.report().path)).toContain('zone.write-uncompensated');
 	});
 });

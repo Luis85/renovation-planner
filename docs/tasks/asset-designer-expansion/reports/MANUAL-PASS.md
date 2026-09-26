@@ -23,12 +23,16 @@ overlooked.**
 round.** AD18-R26 to AD18-R29 (2026-09-26) audited every clause of every one of the 241 steps
 against the *Automated in Obsidian* tables, built what a vitest or a real host could still close,
 and retagged a step to a new `e2e` tier the moment none of its clauses is left open — needing
-Obsidian exactly as `obsidian` does, but pinned by `npm run test:e2e` rather than by a person. The
-counting command below has only ever matched `obsidian`, `desktop` and `judgement`, so an `e2e`
-step falls out of the total by construction rather than by anyone re-reading a table and deciding a
-row felt done. See "AD18-R26 to AD18-R29" further down for the per-case accounting and the new test
-files; the paragraphs between here and there are the history of how the count grew to 241 and are
-unchanged by this round.
+Obsidian exactly as `obsidian` does, but discharged by a named test (vitest or `npm run test:e2e`)
+per clause, with at least one clause needing the real host. **Not every clause behind that retag was
+watched red under a mutation**: a clause this round built or closed was; a clause already carried by
+a pre-existing test was audited by reading the test body, and only sampled by mutation — 29 clauses
+were mutated and 7 of those 29 did not go red, all seven since corrected. The counting command below
+has only ever matched `obsidian`, `desktop` and `judgement`, so an `e2e` step falls out of the total
+by construction rather than by anyone re-reading a table and deciding a row felt done. See
+"AD18-R26 to AD18-R29" further down for the per-case accounting and the new test files; the
+paragraphs between here and there are the history of how the count grew to 241 and are unchanged by
+this round.
 
 **241**, re-derived on 2026-09-25 against the finished AD18-R24 tree (a second follow-up round
 triaging the AD18-R23 follow-up round's own recorded items at source: a false-refusal fix in core
@@ -498,8 +502,11 @@ starts recording leaf history for this view, which it does not at 1.13.7. **A st
 open, or resting on a judgement no instrument can settle, keeps its `obsidian`, `desktop` or
 `judgement` tier; the row stays in its case, and its own *Automated* table says which test covers
 which clause. Every citation below was verified by the implementing task at the cited test's own
-body, not taken from a report's prose — each case's own `.superpowers/sdd/task-9-report.md` /
-`task-10-*-report.md` carries the full per-step accounting; this is the summary.
+body, not taken from a report's prose. `AD18-walk-automation-evidence.md`, committed alongside this
+file, carries the mutation that discharged each clause Tasks 2–8 built or closed (case, step,
+clause, test, mutation, outcome); each case's own `.superpowers/sdd/task-9-report.md` /
+`task-10-*-report.md` (gitignored, local-only) carries the fuller per-step accounting behind the
+retag itself; this section is the summary.
 
 - **[[Design an Asset]] (Task 9) moved from 111 to 11.** 99 steps retag to `e2e`; one (27, "place
   that toilet on a plan by snapping it to a wall") retags to `suite` — its three clauses are all
@@ -510,31 +517,38 @@ body, not taken from a report's prose — each case's own `.superpowers/sdd/task
   `assetDesignerInput.e2e.ts` (Task 4); and, closing D clauses with no host at all,
   `designerHeaderIconOrder.test.ts`, `designerScaleBarRulers.test.ts`,
   `presetThumbnailCanvas.test.ts`, `designerHeldPressSelection.test.ts`,
-  `designerRoundedRectMidDrag.test.ts`, `selectionDragToiletBowl.test.ts`,
-  `designerContextMenu.test.ts` and `designerHistoryKeysWalk.test.ts` (Task 5). Eight rows were
+  `designerRoundedRectMidDrag.test.ts`, `selectionDragToiletBowl.test.ts` and
+  `designerHistoryKeysWalk.test.ts` (Task 5), alongside the pre-existing
+  `designerContextMenu.test.ts` (a045c9fda), which the retag cites but this round did not touch.
+  Eight rows were
   rewritten CONTRARY (AD18-R27) — 76, 90a, 90b, 95, 102, 105, 120, 125 — each having described
   behaviour the build never had: Ctrl+G taken by Obsidian's own graph view under this vault's
   default bindings (90a, 90b, 95), the asset's own Edit dimensions REMOVING the Corner radius row
   rather than keeping it (102), no focus ring at all after a pointer click (105), a placed-but-
   released trace point not blocking Ctrl+Z (120), the basin's Width figure reachable only by
-  keyboard (125). **Kept human (11):** 7, 57, 88b, 92, 103, 104, 109 (legibility/"reads as"
-  residue with no instrument); 89 (Cmd+G on macOS — B, not built); 56, 70, 121 (each keeps its
+  keyboard (125). **Kept human (11):** 7, 57, 103, 104, 109 (legibility/"reads as" residue with no
+  instrument); 88b (screen reader — the header is not a live region, so nothing announces it); 92
+  (native host UI — Electron's own context menu is outside the DOM); 89 (Cmd+G on macOS — B, not
+  built); 56, 70, 121 (each keeps its
   `judgement` tier because one clause — 70's "readable" half, 121's comparative Ctrl+Z/Ctrl+G
   judgement — is bucket C, even though the rest of the row is now closed and cited).
 - **[[Compose an asset from parts]] (Task 10) moved from 23 to 0 — every clause in this case was
   already bucket A.** Five steps (7b, 40, 41, 42, 50) retag to `suite`, closed by
   `designerHiddenSelectionKeys.test.ts` and `designerGroupFromRest.test.ts`; the other eighteen
   (7c–7f, 8, 38, 39, 43–49, 49a, 51–53) retag to `e2e`, needing the existing `composeParts.e2e.ts`
-  and the new `composeGroupDoors.e2e.ts`. Five rows were rewritten CONTRARY: 7c (a duplicated or
+  and `composeGroupDoors.e2e.ts` (a58e51bd4, W24 — pre-existing, not new this round). Five rows
+  were rewritten CONTRARY: 7c (a duplicated or
   Undo-restored hidden part comes back SHOWN, not hidden); 43, 49, 51 and 48 (Obsidian's own
   `graph:open` takes Ctrl+G under the default vault, and focus after a row-menu Group lands on the
   ROW that opened the menu, never the canvas) — all pinned by `composeGroupDoors.e2e.ts`.
 - **[[Calibrate a sheet and reserve space]] (Task 10) moved from 27 to 2.** Twenty-four steps
   retag to `e2e` and one (21l) to `suite`, closed by the new `designerHiddenClearanceWalk.test.ts`
-  (Task 7), whose one jsdom test proves both of 21l's clauses need no host at all. Three more new
+  (Task 7), whose one jsdom test proves both of 21l's clauses need no host at all. Two more new
   Task 7 vitests (`designerCalibrationPendingLines.test.ts`, `designerClearanceReviewName.test.ts`)
-  plus Task 4's `assetDesignerInput.e2e.ts` closed the D and B clauses that let steps 9, 21f and 32
-  retag. One row was rewritten CONTRARY: 36a — the asset's own Edit dimensions REPLACES a traced
+  plus Task 4's `assetDesignerInput.e2e.ts` closed the D and B clauses that let steps 9 and 21f
+  retag, and closed 32's other clauses too — but a fix round in this same task then reverted 32
+  itself back to `obsidian`, since its screen-reader clause stayed open (see "Kept human" below).
+  One row was rewritten CONTRARY: 36a — the asset's own Edit dimensions REPLACES a traced
   footprint and never touches the clearance at all, so the clearance stays pending and hidden
   rather than scaling and re-showing as the row used to claim. **Kept human (2):** 29, unchanged
   (a pure `judgement` reading with no instrument); and 32, which a fix round in this same task
@@ -544,24 +558,24 @@ body, not taken from a report's prose — each case's own `.superpowers/sdd/task
 - **[[Recover an asset design rather than lose it]] (Task 10) moved from 33 to 5.** Twenty-eight
   steps retag to `e2e` — eighteen were already fully discharged before this round, and Task 2
   (host) and Task 6 (suite) closed the other ten this round, with the new
-  `designerRecoveryScreenState.test.ts` and `assetGeometryOrphanDiagnostics.test.ts` joining the
-  existing `assetDesignerRecoveryWalk.e2e.ts` and `assetDesignerRecoveryWalkRestore.e2e.ts`. Two
-  rows gained a corrected citation with no change in outcome: 37 (used to cite the wrong test for
+  `designerRecoveryScreenState.test.ts`, `assetGeometryOrphanDiagnostics.test.ts` and — also new
+  this round (Task 2) — `assetDesignerRecoveryWalk.e2e.ts` and `assetDesignerRecoveryWalkRestore.e2e.ts`.
+  Two rows gained a corrected citation with no change in outcome: 37 (used to cite the wrong test for
   its Try-again press) and 23 (now states its evidence is a renderer reload, not a full process
   quit). **Kept human (5):** 2, 6, 8, 20, 34 — see "What stays human" below; three of the five (2,
   6, 8) are host clauses the mutation gate itself cannot reach, not residue anyone forgot to test.
 - **[[Two designers on one asset]] (Task 10) moved from 8 to 1.** All seven non-`judgement` rows
-  retag to `e2e`, closed by the new `twoDesignersDrag.e2e.ts` (Task 4) and
-  `designerRecoveryScreenState.test.ts` / `designerRefresh.test.ts` (Task 6), alongside the
-  existing `twoDesigners.e2e.ts` and `twoDesignersMore.e2e.ts`. Two rows were rewritten CONTRARY:
+  retag to `e2e`, closed by the new `twoDesignersDrag.e2e.ts` (Task 4) and the new
+  `designerRecoveryScreenState.test.ts` (Task 6), alongside the pre-existing `designerRefresh.test.ts`,
+  `twoDesigners.e2e.ts` and `twoDesignersMore.e2e.ts`. Two rows were rewritten CONTRARY:
   step 1 (a tab DRAGGED into a new split MOVES the one designer leaf rather than duplicating it —
   only Split right/Split down duplicate) and step 8 (leaf B's held drag across a peer's write is
   abandoned with no account anywhere — no badge, no history entry, no toast — rather than reading
   Save error). **Kept human (1):** 10, a feel judgement about a silent-failure moment with no
   instrument, human or automated.
 - **[[Browse the asset library]] (Task 10) moved from 20 to 6.** Fourteen steps retag to `e2e`,
-  closed by the new `assetLibraryWalk.e2e.ts` (Task 4) and `assetTileMarkEdge.test.ts` /
-  `assetTileStyles.test.ts` (Task 8), alongside the existing `assetLibrary.e2e.ts`,
+  closed by the new `assetLibraryWalk.e2e.ts` (Task 4) and the new `assetTileMarkEdge.test.ts`
+  (Task 8), alongside the pre-existing `assetTileStyles.test.ts`, `assetLibrary.e2e.ts`,
   `assetLibraryNarrow.e2e.ts` and `assetLibraryState.e2e.ts`. Six rows were rewritten CONTRARY or
   RULING: 22 (the category vocabulary is CLOSED — every declared category lists whether the vault
   uses it or not); 26 (the funnel sidebar opens BESIDE the grid, narrowing it, never over it); 27

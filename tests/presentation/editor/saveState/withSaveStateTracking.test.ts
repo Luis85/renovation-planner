@@ -12,6 +12,8 @@ import {
 	WRITE_BOUNDARY_CODES,
 } from '../../../../src/application/ports/versioning';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
+import { installWriteIncidentRegistry } from '../../../../src/application/incidents/WriteIncidentRegistry';
+import { installQuietWriteIncidents } from '../../../helpers/writeIncidents';
 
 /**
  * Real-shaped, and NOT cast through `unknown`. An earlier draft built these with lowercase
@@ -410,5 +412,25 @@ describe('withSaveStateTracking', () => {
 
 		await withSaveStateTracking(history, save).run(command);
 		expect(order).toEqual(['begin', 'run', 'ok']);
+	});
+
+	/**
+	 * The hold is taken only once nothing before the `try` can throw: a `beginSaving` that threw
+	 * between the two used to leak a hold nothing released, so `SessionStores.dispose()` waited
+	 * for a save that was never going to end.
+	 */
+	it('takes no hold a throwing beginSaving could leak', async () => {
+		const registry = installQuietWriteIncidents();
+		try {
+			const save = { ...tracker(), beginSaving: (): void => { throw new Error('begin'); } };
+			await expect(withSaveStateTracking(historyResolving(ok('wrote')), save).run(command)).rejects.toThrow('begin');
+			const idle = vi.fn<() => void>();
+
+			registry.whenIdle(idle);
+
+			expect(idle).toHaveBeenCalledOnce();
+		} finally {
+			installWriteIncidentRegistry(null);
+		}
 	});
 });

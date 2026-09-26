@@ -4,6 +4,12 @@ import { activeWriteIncidentRegistry, installWriteIncidentRegistry } from '../..
 import type { TextFileAdapter } from '../../src/infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
 import { recorder, resetRecorder } from '../helpers/logger';
 import { slowGuardedSave } from '../helpers/writeIncidents';
+import { useFieldCommit } from '../../src/presentation/composables/use-field-commit';
+import { withSaveStateTracking } from '../../src/presentation/editor/save-state/with-save-state-tracking';
+import { ok } from '../../src/core/result/Result';
+import { createSerialQueue } from '../../src/presentation/editor/tools/serial-queue';
+
+const noop = (): void => undefined;
 
 function fakeAdapter(): TextFileAdapter {
 	const files = new Map<string, string>();
@@ -168,4 +174,90 @@ describe('SessionStores', () => {
 		expect(b.writeIncidents.anyOpen()).toBe(false);
 		await expect.poll(() => adapter.read(a.writeIncidents.report().path)).toContain('zone.write-uncompensated');
 	});
+
+	/**
+	 * A field commit QUEUED behind a save in flight at dispose — the teardown's blur landing while
+	 * an earlier commit of the same field is still writing. The queued value sits inside
+	 * `useFieldCommit`, outside both doors `hold()` names, so the first save settling used to
+	 * release a clean record and the continuation then dispatched ungated and unrecorded.
+	 */
+	it('keeps the registry for a field commit queued behind the save in flight at dispose', async () => {
+		const { stores, queued } = await queuedBehindDispose();
+
+		expect(queued.seen).toEqual([stores.writeIncidents]);
+		queued.halfFail();
+		await expect.poll(() => stores.writeIncidents.anyOpen()).toBe(true);
+		expect(activeWriteIncidentRegistry()).toBe(stores.writeIncidents);
+	});
+
+	it('releases a clean registry once that queued field commit settles', async () => {
+		const { queued } = await queuedBehindDispose();
+
+		queued.finish(ok('wrote'));
+		await expect.poll(() => activeWriteIncidentRegistry()).toBeNull();
+	});
+
+	/**
+	 * The designer's height field: its path QUEUES before its first door (`toolDispatcher` →
+	 * `chain.enqueue`, a `tail.then`), so even its FIRST commit reaches `withSaveStateTracking`
+	 * a microtask after the gesture — after a `dispose()` in the same turn.
+	 */
+	it('keeps the registry for a field commit whose path queues before reaching a door', async () => {
+		const stores = new SessionStores(fakeAdapter(), 'plugins/renovation-planner', recorder);
+		const save = slowGuardedSave();
+		const queue = createSerialQueue();
+		const tracked = trackedHistory();
+		const field = fieldOver({ run: (command) => queue(() => tracked.run(command)) }, () => save);
+		field.onInput(1);
+		void field.onCommit();
+
+		stores.dispose();
+		await expect.poll(() => save.seen.length).toBe(1);
+
+		expect(save.seen).toEqual([stores.writeIncidents]);
+		save.finish(ok('wrote'));
+		await expect.poll(() => activeWriteIncidentRegistry()).toBeNull();
+	});
 });
+
+function trackedHistory() {
+	return withSaveStateTracking(
+		{ run: (command) => command.execute(), undo: () => Promise.resolve(ok('wrote')), redo: () => Promise.resolve(ok('wrote')) },
+		{ beginSaving: noop, resolveOk: noop, resolveErr: noop, resolveNeutral: noop, markUnrecovered: noop, markVaultPaused: noop },
+	);
+}
+
+function fieldOver(history: Pick<ReturnType<typeof trackedHistory>, 'run'>, saveFor: (value: number) => ReturnType<typeof slowGuardedSave>) {
+	return useFieldCommit<number, { readonly quantity: number }>({
+		canonicalValue: 0,
+		buildCommand: (value) => ({ execute: saveFor(value).execute, undo: saveFor(value).execute }),
+		history,
+		errorMap: {},
+		field: 'quantity',
+		toUserMessage: (error) => error.code,
+		notify: noop,
+		logger: recorder,
+	});
+}
+
+/**
+ * One field: a first commit in flight, a second value queued behind it (twice — two blurs), then
+ * `dispose()` and the first save settling. Resolves once the queued value has reached its guard.
+ */
+async function queuedBehindDispose() {
+	const stores = new SessionStores(fakeAdapter(), 'plugins/renovation-planner', recorder);
+	const inFlight = slowGuardedSave();
+	const queued = slowGuardedSave();
+	const field = fieldOver(trackedHistory(), (value) => (value === 1 ? inFlight : queued));
+	field.onInput(1);
+	const first = field.onCommit();
+	field.onInput(2);
+	void field.onCommit();
+	void field.onCommit();
+
+	stores.dispose();
+	inFlight.finish(ok('wrote'));
+	await first;
+	await expect.poll(() => queued.seen.length).toBe(1);
+	return { stores, queued };
+}

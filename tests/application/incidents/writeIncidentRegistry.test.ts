@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { err, ok } from '../../../src/core/result/Result';
 import type { PersistenceError } from '../../../src/core/errors/AppError';
 import { persistenceError } from '../../../src/application/errors';
@@ -144,5 +144,25 @@ describe('WriteIncidentRegistry', () => {
 
 		expect(registry.anyOpen()).toBe(true);
 		expect(lines.map((l) => l.event)).toContain('incident.seed-failed');
+	});
+
+	/**
+	 * A release is ONE-SHOT. `whenIdle` tests `held === 0` exactly, so a release called twice
+	 * used to count a save that was still running as ended — and let `SessionStores.dispose()`
+	 * release the record under it.
+	 */
+	it('counts a release called twice once, so a save still running keeps it busy', () => {
+		const registry = new WriteIncidentRegistry(new InMemoryWriteIncidentStore(), recorder);
+		const first = registry.hold();
+		const second = registry.hold();
+		first();
+		first();
+		const idle = vi.fn<() => void>();
+
+		registry.whenIdle(idle);
+		expect(idle).not.toHaveBeenCalled();
+
+		second();
+		expect(idle).toHaveBeenCalledOnce();
 	});
 });

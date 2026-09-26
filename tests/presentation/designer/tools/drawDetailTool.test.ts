@@ -15,11 +15,14 @@ import {
 	circleOutline,
 	DrawDetailTool,
 	rectOutline,
+	roundedRectOutline,
 	type DrawDetailToolDeps,
 } from '../../../../src/presentation/designer/tools/draw-detail-tool';
 import type { Point } from '../../../../src/core/geometry/Point';
+import type { AssetDetail } from '../../../../src/domain/asset/AssetDetail';
 import type { AssetId } from '../../../../src/domain/asset/AssetId';
 import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
+import { cornerRadiusOf } from '../../../../src/domain/asset/cornerRadius';
 import type { ReversibleAssetDesignCommands } from '../../../../src/application/editor/asset/ReversibleAssetDesignCommands';
 import { registerDesignerTools } from '../../../../src/presentation/designer/tools/registerDesignerTools';
 import { ToolManager } from '../../../../src/presentation/editor/tools/tool-manager';
@@ -95,6 +98,25 @@ describe('the outlines a drag describes', () => {
 
 	it('describes no circle when the rim is the centre', () => {
 		expect(circleOutline({ x: 300, y: 300 }, { x: 300, y: 300 })).toBeNull();
+	});
+
+	/**
+	 * Final-fix-wave item 12: `roundedRectOutline` was never tied to the domain's own detector —
+	 * `cornerRadius.test.ts` only ever drove `cornerRadiusOf` against `roundedRect` fixtures built
+	 * directly, not against what this tool actually hands the sidecar for a real drag. Off-origin
+	 * and non-integer on both corners, so an axis-aligned or whole-number coincidence could not be
+	 * hiding a mismatch between the two.
+	 */
+	it('draws an outline whose corner radius the domain reads back exactly', () => {
+		const from: Point = { x: 137.5, y: 42.25 };
+		const to: Point = { x: 861.75, y: 338.125 };
+		const outline = roundedRectOutline(from, to);
+		if (outline === null) throw new Error('expected an outline');
+		const detail: AssetDetail = { id: 'detail-1', name: 'rectangle', line: 'solid', pending: false, outline };
+
+		const width = Math.abs(to.x - from.x);
+		const depth = Math.abs(to.y - from.y);
+		expect(cornerRadiusOf(detail)).toBeCloseTo(Math.min(width, depth) / 4, 9);
 	});
 });
 
@@ -304,6 +326,7 @@ function traceRig(shape: AssetShape | null) {
 			selection: () => null,
 			mode: () => 'transform',
 			select: () => undefined,
+			extend: () => undefined,
 			setPreview: () => undefined,
 			createCommand: () => COMMAND,
 			reportRejected: (error) => rejected.push(error),

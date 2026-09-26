@@ -33,7 +33,39 @@ export function useEditorArrival(context: PlanEditorContext, runtime: EditorRunt
   const renovation = project.plan?.renovation;
   return origin.costId ? renovation?.depth?.costs.find(item => item.id === origin.costId) : renovation?.work.find(item => item.id === origin.workId);
  }
- function reveal(origin: ProjectOrigin): boolean {
+ /**
+  * Two arms answering two different questions, and the asset one must not fall through to the
+  * other. An origin carrying an `assetId` is the designer's "Use in plan" hand-off: it names no
+  * room, work item or cost, so `revealRecord`'s `recordFor` would answer `undefined`, its
+  * `target` would stay unset, and it would warn about a return record nobody asked for.
+  * `assetId` wins over a record id in the same origin: nothing in `src/` builds an origin
+  * carrying both, and one stated rule is cheaper than a combination nobody can produce.
+  *
+  * `runtime.elementTask.assets.arm` rather than a new member on `EditorRuntime`: that path is
+  * already how this task is reached from outside itself — `grep -rn "elementTask\.assets" src/`
+  * printed SEVEN lines before this change, across `AddMenu.vue`, `AssetLayer.vue`,
+  * `AssetPlacementDetails.vue` and `AssetPlacementForm.vue`. It prints nine after it, and one of
+  * those nine is this very sentence: a count taken over a file whose own prose names the call
+  * answers one more than the calls, which is the shape CLAUDE.md already records for
+  * `grep -c "registerView"`. So the hand-off arms the placement tool through the same door the
+  * Add menu's picker arms it through, and there is no second arming path to keep in step
+  * (CLAUDE.md, "one action, every input").
+  *
+  * The return type is a UNION rather than `Promise<boolean>` because only the asset arm is
+  * asynchronous: marking the whole function `async` would put the record arms behind a microtask
+  * they never needed, and `require-await` refuses an `async` with nothing to await anyway.
+  * `navigateToRecord` above is `async` and awaits whichever it gets.
+  *
+  * The record arm is a function of its own rather than the rest of this body, and that is the
+  * COMPLEXITY BUDGET rather than taste: `revealRecord` was already at 16 of the 16 `complexity`
+  * allows, so one more `if` here made the merged function 17 and failed `npm run lint`. Measured,
+  * not predicted — that is the error the gate printed.
+  */
+ function reveal(origin: ProjectOrigin): boolean | Promise<boolean> {
+  return origin.assetId === undefined ? revealRecord(origin) : runtime.elementTask.assets.arm(origin.assetId);
+ }
+ /** Unchanged by the hand-off: select the Room, Work item or cost the origin names, or warn that it is gone. */
+ function revealRecord(origin: ProjectOrigin): boolean {
   const record = recordFor(origin);
   const roomId = origin.roomId ?? record?.roomId, target = roomId ?? record?.targetId;
   if (!target || (roomId !== undefined && !project.zones.has(roomId)) || ((origin.costId || origin.workId) && !record)) {

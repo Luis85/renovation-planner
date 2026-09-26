@@ -628,7 +628,7 @@ export const en = {
 	'form.new-asset.unit': 'Unit',
 	'form.new-asset.unit-cost': 'Unit cost',
 	'form.new-asset.currency': 'Currency',
-	// The width, depth and footprint/outline copy is `newAssetFootprintEn`, spread in above —
+	// The width, depth, height and footprint/outline copy is `newAssetFootprintEn`, spread in above —
 	// see that module's header for why it is a separate file.
 	// One label per `AssetCategory`, so the control never shows the raw union member
 	// (`building-element`). `ASSET_CATEGORY_LABELS` is the `Record` that makes a missing one
@@ -707,11 +707,11 @@ export const en = {
 	// so `content.test.ts` asserts both actions rather than assuming either.
 	'empty.asset.no-shape.headline': 'No footprint yet',
 	'empty.asset.no-shape.body':
-		'An asset gets its footprint from typed dimensions or from an outline traced over a spec sheet. Either one makes it something a plan can hold.',
+		'An asset gets its footprint from a preset shape, from typed dimensions, or from an outline traced over a spec sheet. Any of the three makes it something a plan can hold.',
 	'empty.asset.no-shape.action': 'Set dimensions',
 	'empty.asset.no-background.headline': 'No spec sheet yet',
 	'empty.asset.no-background.body':
-		'Set a photograph, drawing or datasheet as this asset’s background, then calibrate it so a traced outline comes out in real units.',
+		'Set a photograph, drawing or datasheet as this asset’s background, then calibrate it so a traced outline comes out in real units. A preset or typed dimensions need no background at all.',
 	'empty.asset.no-background.action': 'Choose a background',
 	// The designer's own shell. `designer.asset-failed.headline` is the counterpart of
 	// `editor.plan-failed.headline`: the BODY under it is `trError(error)`, so an unreadable
@@ -738,6 +738,14 @@ export const en = {
 	'designer.toolbar.set-anchor': 'Set anchor',
 	'designer.toolbar.set-facing': 'Set facing',
 	'designer.toolbar.calibrate': 'Calibrate',
+	// AD18 item 1's zoom cluster (ruling AD18-R16, Task 1). Two more designer-owned keys for the
+	// same note-33 reason the three above are: the group name and the fit button are chrome this
+	// surface owns, not a share of the Plan Editor's `editor.view.*` namespace. The cluster's
+	// zoom-out, zoom-in and readout DO borrow that namespace (`editor.view.zoom-out`/`-in`,
+	// `editor.zoom`), because those three already say the right thing about a camera's scale on
+	// either surface.
+	'designer.toolbar.zoom': 'Zoom',
+	'designer.toolbar.zoom-fit': 'Fit design',
 	// The asset's own recalibration warning. NOT `editor.calibrate.recalibrate.*`, which names
 	// zones and a plan — and the two questions differ in more than the noun: a plan's
 	// calibration rescales every coordinate it owns, while an asset's converts only the
@@ -785,8 +793,11 @@ export const en = {
 	// The same gesture named for what it DOES in the state it is offered from: with no shape
 	// there is nothing to edit, and this is the one control that creates one.
 	'designer.inspector.set-dimensions': 'Set dimensions',
-	'designer.inspector.height': 'Height in millimetres',
-	'designer.inspector.height.unparseable': 'Enter a height as a number, or clear it.',
+	// `designer.inspector.height` and its two siblings moved to `en/assetSymbols.ts` (AD18-R16
+	// Task 5's follow-up) rather than growing here: this file was already over its 400-line
+	// `max-lines` cap before that edit (402, pre-existing and unrelated to this task — every
+	// other `designer.inspector.*` key already lives in that module), and one more inline key
+	// would have made a real violation worse instead of leaving it exactly where it was found.
 	// Task B8's dialog kind (`asset-dimensions`), reached from BOTH the no-shape empty state
 	// and this inspector's own Edit dimensions control — the same width/depth vocabulary
 	// `form.new-asset.width`/`.depth` already uses, minus their "(optional)" suffix: both
@@ -863,8 +874,11 @@ export const en = {
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',
 	'save-state.save-error': 'Save error',
-	// Derived, not a fifth state: `saved` AND `ProjectStore.stale`. The middle dot is the
-	// component library's own spelling of this label.
+	// Derived, not a fifth state: `saved` AND a staleness — `ProjectStore.stale`,
+	// `usePlanningReadState().failed`, or the `stale` prop a surface with neither store hands in
+	// (the Asset Designer, which mounts its own Pinia and imports neither). This comment named
+	// only the first for as long as it existed, and was one short before the prop as well. The
+	// middle dot is the component library's own spelling of this label.
 	'save-state.saved-refresh-needed': 'Saved · refresh needed',
 	// I00 reserves the captions consumed by the mode-header packet. The existing
 	// `renovation.plan`/`.renovate`/`.review` keys remain the short radio labels.

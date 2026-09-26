@@ -30,6 +30,11 @@ export interface SetAssetClearanceInput {
  */
 function sameClearance(current: AssetShape, next: AssetShape): boolean {
 	if (current.clearancePending !== next.clearancePending) return false;
+	// `clearanceNeedsReview` for the SAME reason, one step further along: a boundary re-traced at
+	// the identical coordinates by a user answering the review notice really HAS changed, and a
+	// comparison over coordinates alone would decline the write and leave it flagged forever
+	// (AD14-R1 — a write whose subject is the clearance IS the review).
+	if ((current.clearanceNeedsReview === true) !== (next.clearanceNeedsReview === true)) return false;
 	if (current.clearance === null || next.clearance === null) {
 		return current.clearance === next.clearance;
 	}
@@ -82,12 +87,16 @@ export class SetAssetClearanceCommand implements Command<SetAssetClearanceInput,
 				const shape = requireShape(current);
 				if (isErr(shape)) return shape;
 				if (input.points === null) {
-					return ok({ ...shape.value, clearance: null, clearancePending: false });
+					return ok({ ...shape.value, clearance: null, clearancePending: false, clearanceNeedsReview: false });
 				}
 				return ok({
 					...shape.value,
 					clearance: { points: input.points },
 					clearancePending: awaitsScale,
+					// Both arms clear the review flag, because both are writes whose SUBJECT is the
+					// clearance (AD14-R1). The removal arm additionally MUST: validation refuses
+					// either flag on an absent clearance, exactly as it does the pending one above.
+					clearanceNeedsReview: false,
 				});
 			},
 			sameClearance,

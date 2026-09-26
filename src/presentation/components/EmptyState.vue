@@ -91,6 +91,16 @@ const headingTag = computed<'h2' | 'h3'>(() => (props.headingLevel === 3 ? 'h3' 
 			>
 				{{ actionLabel }}
 			</button>
+			<!--
+				AD07's second and third entry paths. A BARE slot with no wrapper element, so a
+				caller that passes nothing renders exactly the panel it rendered before — which is
+				the condition this component was leased under, and what
+				`assetEntryPaths.test.ts`'s two `EmptyState` cases assert by counting the panel's
+				children. It sits after the action rather than before it because the caller that
+				fills it (`AssetDesignerRoot`) puts the SELECTOR's ranked path in `actionLabel`,
+				and the alternatives are alternatives.
+			-->
+			<slot name="actions" />
 		</div>
 	</div>
 </template>

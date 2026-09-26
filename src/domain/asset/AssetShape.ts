@@ -25,11 +25,86 @@ export interface AssetShape {
 	readonly clearancePending: boolean;
 	readonly anchorPending: boolean;
 	readonly clearance: CurvedPolygon | null;
+	/**
+	 * **A MEASURED clearance this object was resized around, kept at the size its author drew
+	 * and flagged instead of scaled** (AD14-R1, ADR-0034). Set in `scaleDesign` and nowhere else;
+	 * cleared by any write whose SUBJECT is the clearance itself, because a gesture aimed at the
+	 * boundary IS the review.
+	 *
+	 * **NOT a fourth pending flag, despite sitting beside three.** `clearancePending` means
+	 * *these coordinates are background pixels*; this one means *these millimetres are the ones
+	 * you drew, and the object around them is no longer the object you drew them for*. A
+	 * calibration clears the first and deliberately leaves this one alone — `CalibrateAsset`'s
+	 * `rescaled` spreads the shape and names neither, which is what makes that true without a
+	 * line of its own.
+	 *
+	 * **OPTIONAL in the type, unlike those three, and that is measured rather than stylistic.**
+	 * `grep -rn "clearancePending:" src/ tests/` prints 66 lines across 43 files — most of them
+	 * constructions, the rest this interface's own field, the Zod schema and `StoredShape`. The
+	 * first version of this sentence said 61 across 41 and called them all construction sites: the
+	 * number was measured before this card's own files were written, which is the shape CLAUDE.md
+	 * names for a count that includes its own change,
+	 * most of them in suites this card does not own; a required field would make every one of
+	 * them a compile error for a flag that reads `false` at all of them. That is `groups`' own
+	 * argument one field up, and it costs the same thing: a reader asks `=== true` rather than
+	 * reading a definite boolean.
+	 *
+	 * **Six reads carry that `=== true`, counted by `grep -rn "clearanceNeedsReview" src/` in this
+	 * edit rather than remembered**: `validatePlacement` and the normalisation below, `scaleDesign`,
+	 * `sameClearance` in `SetAssetClearance`, `shapeToPersistence` in the sidecar mapper, and
+	 * `DesignerClearanceReview.vue`'s predicate. (The first draft of this sentence said "two", which
+	 * is what the grep exists to stop.) Six two-word comparisons is not a case for an
+	 * `assetGroups`-style accessor — that one exists because its callers each carried a FALLBACK ARM
+	 * the validator can never take, and `=== true` has no arm at all.
+	 *
+	 * The SIDECAR still stores it as a definite boolean — `.default(false)` at schema v4, so an
+	 * absent key is an older file and a present malformed one fails the read.
+	 */
+	readonly clearanceNeedsReview?: boolean;
 	readonly anchor: Point;
 	/** Radians, measured anticlockwise from +x, normalised to [0, 2π). */
 	readonly facing: number;
 	/** Interior linework, drawn in this order over the footprint (symbols spec, Decisions 1 and 4). */
 	readonly details: readonly AssetDetail[];
+	/**
+	 * Shallow groups of graphic ids (AD04 §4). EDITING METADATA and nothing more: a group carries
+	 * no coordinates and no z-order, so `details` above stays the one canonical draw order and a
+	 * group's members remain visually interleaved with everything else until somebody reorders
+	 * them deliberately (C06).
+	 *
+	 * Optional in the TYPE so every existing construction site stays valid and reads as no groups;
+	 * `validateAssetShape` answers `[]` for an absent one, so a validated shape always has the
+	 * array.
+	 */
+	readonly groups?: readonly AssetGroup[];
+}
+
+/**
+ * One shallow group. `members` are detail ids — never the footprint, the clearance, the anchor,
+ * the facing or another group (C05, C06). `label` is the renovator's own name for it, optional
+ * because a group is useful before it is named.
+ */
+export interface AssetGroup {
+	readonly id: string;
+	readonly label?: string;
+	readonly members: readonly string[];
+}
+
+/**
+ * This shape's groups, which is `[]` for a shape that has none.
+ *
+ * **One function because `groups` is OPTIONAL in the type and always present after validation**, and
+ * those two facts together had produced nine copies of `shape.groups ?? []` across the domain, the
+ * Parts panel and the sidecar. Every one of them carried a fallback arm that `validateAssetShape`
+ * can never take — it writes `groups: []` onto every shape it returns — so the arms were reachable
+ * only from a hand-built literal, and each cost a branch it could not pay back.
+ *
+ * The optionality itself is deliberate and stays: it is what lets every construction site written
+ * before groups existed go on compiling and read as no groups (AD04). What changes is that the
+ * question is asked once.
+ */
+export function assetGroups(shape: AssetShape): readonly AssetGroup[] {
+	return shape.groups ?? [];
 }
 
 export interface Dimensions {
@@ -154,16 +229,66 @@ export function normaliseFacing(radians: number): number {
  * through, so a shape that has been through this function has one spelling per direction
  * and no caller has to remember to fold it.
  *
- * It also refuses the two states the per-attribute pending model makes incoherent: a
- * typed footprint marked pending, and a pending flag on an absent clearance. Both are
- * REFUSALS rather than repairs, for the same reason a two-vertex polygon is refused — no
- * command can produce either, so one in a sidecar is a hand edit, and quietly clearing
- * the flag would suppress the unscaled warning over placeholder-space geometry.
+ * It also refuses the three states the per-attribute flag model makes incoherent: a
+ * typed footprint marked pending, a pending flag on an absent clearance, and (AD14) a review
+ * flag on an absent clearance. All three are REFUSALS rather than repairs, for the same reason
+ * a two-vertex polygon is refused — no command can produce any of them, so one in a sidecar is
+ * a hand edit, and quietly clearing the flag would suppress the unscaled warning over
+ * placeholder-space geometry or report an unreviewed boundary as reviewed.
  *
  * Curved edges are checked for self-intersection only when an edge actually curves
  * (`validateCurvedBoundary`), so a straight outline gets exactly the validation it had
  * before curves existed.
  */
+/**
+ * The clearance's own half of `validateAssetShape`, split out for the complexity budget rather
+ * than for taste: the shape validator answers eight questions and adding groups put its cognitive
+ * score over the gate's threshold. Same rules, same two error codes, one caller.
+ */
+function validateClearance(clearance: CurvedPolygon | null): Result<CurvedPolygon | null, ValidationError> {
+	if (clearance === null) return ok(null);
+	const validated = createCurvedPolygon(clearance);
+	if (isErr(validated)) return err(assetError('invalid-clearance', validated.error.message));
+	return enclosesArea(validated.value)
+		? ok(validated.value)
+		: err(assetError('degenerate-clearance', 'A clearance must enclose an area; these vertices are collinear.'));
+}
+
+/**
+ * The anchor, the facing and the three flag coherences — the questions that are about the
+ * shape's own fields rather than about a polygon. Split from `validateAssetShape` for the
+ * complexity budget the group check pushed it over.
+ *
+ * The count is three since AD14, and the third is `clearanceNeedsReview`'s: the two clearance
+ * rules share a single `clearance !== null` early return rather than re-asking it, which is what
+ * keeps the split's original complexity argument true.
+ */
+function validatePlacement(shape: AssetShape): Result<void, ValidationError> {
+	if (!Number.isFinite(shape.anchor.x) || !Number.isFinite(shape.anchor.y)) {
+		return err(assetError('invalid-anchor', 'An anchor must have finite coordinates.'));
+	}
+	if (!Number.isFinite(shape.facing)) {
+		return err(assetError('invalid-facing', 'A facing must be a finite angle in radians.'));
+	}
+	if (shape.footprintOrigin === 'typed' && shape.footprintPending) {
+		return err(assetError('typed-footprint-cannot-be-pending', 'A typed footprint is authored in millimetres and never awaits a scale.'));
+	}
+	if (shape.clearance !== null) return ok(undefined);
+	if (shape.clearancePending) {
+		return err(assetError('absent-clearance-cannot-be-pending', 'A shape with no clearance has no clearance coordinates awaiting a scale.'));
+	}
+	// The same refusal, the same argument and the same site as the one above (AD14-R1): no command
+	// can produce it, so one in a sidecar is a hand edit, and quietly clearing the flag would
+	// report a boundary nobody has reviewed as reviewed. A refusal, never a repair.
+	//
+	// **`clearancePending && clearanceNeedsReview` gets NO guard of its own, deliberately.** A
+	// capture replaces the clearance and a calibration converts it, so the combination is
+	// unreachable — and an unreachable guard costs a branch it can never pay back.
+	return shape.clearanceNeedsReview === true
+		? err(assetError('absent-clearance-cannot-need-review', 'A shape with no clearance has no boundary to review.'))
+		: ok(undefined);
+}
+
 export function validateAssetShape(shape: AssetShape): Result<AssetShape, ValidationError> {
 	const footprint = createCurvedPolygon(shape.footprint);
 	if (isErr(footprint)) return err(assetError('invalid-footprint', footprint.error.message));
@@ -175,52 +300,90 @@ export function validateAssetShape(shape: AssetShape): Result<AssetShape, Valida
 			),
 		);
 	}
-	let clearance: CurvedPolygon | null = null;
-	if (shape.clearance !== null) {
-		const validated = createCurvedPolygon(shape.clearance);
-		if (isErr(validated)) return err(assetError('invalid-clearance', validated.error.message));
-		if (!enclosesArea(validated.value)) {
-			return err(
-				assetError(
-					'degenerate-clearance',
-					'A clearance must enclose an area; these vertices are collinear.',
-				),
-			);
-		}
-		clearance = validated.value;
-	}
-	if (!Number.isFinite(shape.anchor.x) || !Number.isFinite(shape.anchor.y)) {
-		return err(assetError('invalid-anchor', 'An anchor must have finite coordinates.'));
-	}
-	if (!Number.isFinite(shape.facing)) {
-		return err(assetError('invalid-facing', 'A facing must be a finite angle in radians.'));
-	}
-	if (shape.footprintOrigin === 'typed' && shape.footprintPending) {
-		return err(
-			assetError(
-				'typed-footprint-cannot-be-pending',
-				'A typed footprint is authored in millimetres and never awaits a scale.',
-			),
-		);
-	}
-	if (shape.clearance === null && shape.clearancePending) {
-		return err(
-			assetError(
-				'absent-clearance-cannot-be-pending',
-				'A shape with no clearance has no clearance coordinates awaiting a scale.',
-			),
-		);
-	}
+	const clearanceResult = validateClearance(shape.clearance);
+	if (isErr(clearanceResult)) return clearanceResult;
+	const clearance = clearanceResult.value;
+	const placement = validatePlacement(shape);
+	if (isErr(placement)) return placement;
 	const details = validateDetails(shape.details);
 	if (isErr(details)) return details;
+	const groups = validateGroups(shape.groups, details.value);
+	if (isErr(groups)) return groups;
 	return ok({
 		...shape,
 		footprint: footprint.value,
 		clearance,
+		// NORMALISED here for `groups` reason one field over: the type is optional so that 61
+		// existing construction sites stay valid, and a shape that has been through this function
+		// always carries the definite boolean anyway — which is what lets the sidecar's round trip
+		// compare a written shape against the one it reads back.
+		clearanceNeedsReview: shape.clearanceNeedsReview === true,
 		anchor: { x: shape.anchor.x, y: shape.anchor.y },
 		facing: normaliseFacing(shape.facing),
 		details: details.value,
+		groups: groups.value,
 	});
+}
+
+/**
+ * Shallow groups of GRAPHIC ids (C06, AD04 §4), checked against the details that survived
+ * validation rather than against the raw input, so a group cannot come out pointing at a detail
+ * the step above refused.
+ *
+ * **Every fault is a refusal and not a repair.** Dropping a dangling member or de-duplicating a
+ * membership would leave the file saying one thing and the loaded shape another, which is the
+ * direction C06 names: *reject dangling, duplicated or cyclic membership rather than repairing
+ * it silently.* Cycles and nesting need no check of their own — a group holds detail ids and a
+ * group id is not one, so neither state is representable.
+ *
+ * What a group may NOT hold is as load-bearing as what it may: the footprint, the clearance, the
+ * anchor and the facing are the shape's own special parts, and a bulk grouping that absorbed one
+ * would make "select the whole object" and "select this group" the same act (C05).
+ */
+function validateGroups(
+	groups: readonly AssetGroup[] | undefined,
+	details: readonly AssetDetail[],
+): Result<AssetGroup[], ValidationError> {
+	if (groups === undefined) return ok([]);
+	const known = new Set(details.map((detail) => detail.id));
+	const seenGroups = new Set<string>();
+	const claimed = new Set<string>();
+	const validated: AssetGroup[] = [];
+	for (const group of groups) {
+		if (group.id === '' || seenGroups.has(group.id)) {
+			return err(assetError('invalid-group-id', `Every group needs its own non-empty id; got "${group.id}".`));
+		}
+		seenGroups.add(group.id);
+		const members = validateMembers(group, known, claimed);
+		if (isErr(members)) return members;
+		validated.push({ id: group.id, ...(group.label === undefined ? {} : { label: group.label }), members: members.value });
+	}
+	return ok(validated);
+}
+
+/**
+ * One group's membership, against the graphics that exist and the ones already claimed. Split from
+ * the loop above for the complexity budget; `claimed` is mutated as it goes, which is what makes
+ * "a graphic belongs to at most one group" a check across the whole list rather than within one.
+ */
+function validateMembers(
+	group: AssetGroup,
+	known: ReadonlySet<string>,
+	claimed: Set<string>,
+): Result<string[], ValidationError> {
+	if (group.members.length === 0) {
+		return err(assetError('empty-group', `Group "${group.id}" has no members; delete it rather than keeping it empty.`));
+	}
+	for (const member of group.members) {
+		if (!known.has(member)) {
+			return err(assetError('dangling-group-member', `Group "${group.id}" names "${member}", which is not a graphic on this shape.`));
+		}
+		if (claimed.has(member)) {
+			return err(assetError('overlapping-groups', `"${member}" is already in another group; a graphic belongs to at most one.`));
+		}
+		claimed.add(member);
+	}
+	return ok([...group.members]);
 }
 
 /**

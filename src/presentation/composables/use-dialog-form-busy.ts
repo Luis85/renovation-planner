@@ -35,10 +35,10 @@ import { watchEffect, type Ref } from 'vue';
  * a lie about state rather than a refusal of it.
  *
  * **`submitting` is ONE producer of that state and deliberately not the gate.** It was, for
- * three slices, while it was the only one; `NewAssetForm` then froze its five catalogue fields
+ * three slices, while it was the only one; `NewAssetForm` then froze its catalogue fields
  * once the asset exists — a second inoperative state, per-FIELD rather than form-wide, that
  * flips WHILE the dialog is open — and a refusal still keyed on `submitting` alone would have
- * left those five genuinely editable, which is the live-control-that-does-nothing this
+ * left every one of them genuinely editable, which is the live-control-that-does-nothing this
  * repository refuses everywhere else. It would have been strictly worse than the `:disabled`
  * it replaced.
  *

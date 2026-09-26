@@ -11,6 +11,7 @@ import type { newAssetFootprintEn } from '../en/newAssetFootprint';
 export const newAssetFootprintDe: Record<keyof typeof newAssetFootprintEn, string> = {
 	'form.new-asset.width': 'Breite in Millimetern (optional)',
 	'form.new-asset.depth': 'Tiefe in Millimetern (optional)',
+	'form.new-asset.height': 'Höhe in Millimetern (optional)',
 	'form.new-asset.already-created':
 		'Das Objekt ist gespeichert. Seine Angaben lassen sich im Katalog bearbeiten; nur die Maße unten stehen noch aus.',
 	'form.new-asset.outline': 'Grundfläche: der Umriss des Gegenstands, {width} × {depth} mm',

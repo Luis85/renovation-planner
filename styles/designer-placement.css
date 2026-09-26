@@ -1,0 +1,75 @@
+/*
+ * The front-direction picker, its mini preview and the read-only Source & scale block (AD18-R17).
+ * Created empty by the integrator so that each task in the second parity round owns one partial
+ * and no two tasks edit the same stylesheet.
+ */
+
+/*
+ * The Front direction picker, then its mini preview BELOW it at the full content width, as board 01
+ * draws it. At 40px beside the select (the first version) an 800 x 450 outline drew about 33 x 19px
+ * with an arrow a few pixels long, which the integrator measured as unreadable. `min-width: 0` lets
+ * the select shrink inside a narrow rail.
+ */
+.rp-designer-front {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+
+.rp-designer-front__field select {
+	width: 100%;
+	min-width: 0;
+}
+
+/*
+ * A framed box as wide as the Inspector's content and 112px tall. `frontPreview`'s `viewBox` fits
+ * the outline and the arrow together, and the SVG's default `meet` scales that to fit and centres it.
+ * Outline only, in the muted text colour, as the asset card's thumbnail is (`designer-object.css`).
+ * Every stroke is in SCREEN pixels through `vector-effect`, so a metre-wide `viewBox` does not thin
+ * them. The arrow takes the accent, the colour the canvas draws it in.
+ */
+.rp-designer-front-preview {
+	display: block;
+	width: 100%;
+	height: 112px;
+	padding: var(--size-4-2);
+	box-sizing: border-box;
+	color: var(--text-muted);
+	background-color: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+}
+
+.rp-designer-front-preview__footprint {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+	stroke-linejoin: round;
+	vector-effect: non-scaling-stroke;
+}
+
+.rp-designer-front-preview__shaft {
+	fill: none;
+	stroke: var(--interactive-accent);
+	stroke-width: 2;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
+}
+
+.rp-designer-front-preview__head {
+	fill: var(--interactive-accent);
+	stroke: var(--interactive-accent);
+	stroke-width: 1;
+	stroke-linejoin: round;
+	vector-effect: non-scaling-stroke;
+}
+
+/* The read-only Source & scale block: spaced as its placement and clearance siblings are. */
+.rp-designer-source {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	margin: var(--size-4-4) 0 0;
+	padding-top: var(--size-4-2);
+	border-top: 1px solid var(--background-modifier-border);
+}

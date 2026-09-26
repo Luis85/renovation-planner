@@ -1,0 +1,391 @@
+/*
+ * The Asset library's Grid view (AD18-R18): the toolbar's funnel and `Grid | List` switch, the
+ * category sidebar, the tiles and the `Create your own` card.
+ * The List's own partials (`asset-library.css`, `asset-shelf.css`, `asset-row.css`) are untouched,
+ * so the List draws exactly as it did.
+ *
+ * Every button here meets Obsidian's own `button:not(.clickable-icon)` (0,1,1), which sets
+ * `height: var(--input-height)`, `white-space: nowrap`, a background, a border and a shadow. So
+ * every selector is scoped under its block to reach (0,2,0) or more
+ * (`tests/gates/buttonSpecificity.test.ts`), and every control that flattens that look gives its
+ * focus ring back (`tests/gates/buttonFocusRing.test.ts`).
+ *
+ * No colour literal anywhere: host variables only, so a themed vault stays themed (SDD §84).
+ */
+
+/* ---- The funnel ---------------------------------------------------------------------------- */
+
+.rp-al-toolbar .rp-al-filter {
+	display: inline-flex;
+	flex: 0 0 auto;
+	align-items: center;
+	gap: var(--size-2-2);
+}
+
+/* An active filter names itself in words (the category) and takes the accent as a second
+   channel, never the only one. */
+.rp-al-toolbar .rp-al-filter--on {
+	color: var(--text-accent);
+}
+
+.rp-al-toolbar .rp-al-filter:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.rp-al-filter .rp-al-filter__category {
+	max-width: 8rem;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* ---- The Grid | List switch -------------------------------------------------------------- */
+
+.rp-al-layout {
+	display: flex;
+	flex: 0 0 auto;
+}
+
+/* Two joined segments. Only the outer corners are rounded, and the pressed one is FILLED and
+   heavier. The fill is not the only channel, because `aria-pressed` carries the state for
+   assistive technology and the weight carries it for an eye that cannot tell the accent apart. */
+.rp-al-layout .rp-al-layout__option {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	border-radius: 0;
+}
+
+.rp-al-layout .rp-al-layout__option:first-child {
+	border-start-start-radius: var(--radius-s);
+	border-end-start-radius: var(--radius-s);
+}
+
+.rp-al-layout .rp-al-layout__option:last-child {
+	border-start-end-radius: var(--radius-s);
+	border-end-end-radius: var(--radius-s);
+}
+
+.rp-al-layout .rp-al-layout__option[aria-pressed='true'] {
+	background-color: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-weight: var(--font-semibold);
+}
+
+/* `position` and `z-index` lift the ring over the joined neighbour, which would paint over half
+   of it otherwise. */
+.rp-al-layout .rp-al-layout__option:focus-visible {
+	position: relative;
+	z-index: 1;
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+/* ---- The category sidebar ---------------------------------------------------------------- */
+
+/*
+ * A fixed column on the leading side of `.rp-al-main`'s row, before the shelves and the rail.
+ * 10rem holds `Building element` on one line at the UI's small size; a longer category a vault
+ * writes by hand wraps rather than being cut, since the label is the whole of the choice.
+ */
+.rp-al-categories {
+	display: flex;
+	flex: 0 0 10rem;
+	flex-direction: column;
+	gap: var(--size-2-1);
+	min-height: 0;
+	margin: 0;
+	padding: var(--size-4-2) var(--size-2-2);
+	overflow-y: auto;
+	border-inline-end: 1px solid var(--background-modifier-border);
+	list-style: none;
+}
+
+/* A flattened row, like the shelves' own rows: no box, no shadow, and `height: auto` with
+   `white-space: normal` so a wrapped label grows the row rather than overflowing Obsidian's 30px.
+   `justify-content` too, because Obsidian's `button` centres its content and board 01 draws the
+   icon and label LEFT-aligned down a list (measured centred at 521bf09b2). */
+.rp-al-categories .rp-al-category {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: var(--size-4-2);
+	width: 100%;
+	height: auto;
+	min-height: var(--size-4-6);
+	padding: var(--size-2-2) var(--size-4-2);
+	border: none;
+	border-radius: var(--radius-s);
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	text-align: start;
+	white-space: normal;
+	cursor: pointer;
+}
+
+.rp-al-categories .rp-al-category:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* Negative offset: the column scrolls, and an outside ring would be clipped by it. */
+.rp-al-categories .rp-al-category:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+/* The chosen category, by §3.3's rule: a printed leading rule and a heavier name, with the
+   tint as the third channel. */
+.rp-al-categories .rp-al-category[aria-pressed='true'] {
+	background-color: var(--background-modifier-active-hover);
+	box-shadow: inset 2px 0 0 0 var(--interactive-accent);
+	color: var(--text-normal);
+	font-weight: var(--font-medium);
+}
+
+.rp-al-categories .rp-al-category[aria-pressed='true']:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.rp-al-categories .rp-al-category__label {
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+/* ---- The tiles ----------------------------------------------------------------------------- */
+
+/*
+ * `auto-fill` over an 8rem floor. The browser resolves the column count from the box, and
+ * `shelfFocus.moveFocusByRow` reads the resolved track list back to know how far `↑`/`↓` go.
+ * One list, one rule, and no breakpoint in between.
+ */
+.rp-al-tiles {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+	gap: var(--size-4-2);
+	margin: 0;
+	padding: 0 var(--size-4-3) var(--size-4-3);
+	list-style: none;
+}
+
+/* A grid item's automatic minimum is its min-content width, so a long unbroken name would widen
+   its track past `1fr` without this. */
+.rp-al-tiles .rp-al-tiles__item {
+	min-width: 0;
+}
+
+/*
+ * A CARD in a button, so Obsidian's label-shaped `button` rule is neutralised on purpose rather
+ * than left to clip it (`tests/gates/buttonBoxNeutralised.test.ts` records what that costs):
+ * `height: 100%` fills the stretched grid cell, which both undoes the fixed 30px and keeps every
+ * tile in a row the same height, and `white-space: normal` undoes `nowrap`.
+ *
+ * `align-items: stretch` undoes the OTHER half of that base rule (`align-items: center`, AD18-R20):
+ * left unset, a one-line name shrinks to its own content width and that shrunk box centres in the
+ * column, while a two-line name is laid out at the tile's full width and only ITS OWN
+ * `text-align: start` was ever visible — so the same rule read as two different alignments
+ * depending on how long the name was. Stretching every child to the tile's width makes
+ * `text-align: start` decide both cases alike. The mark's own `align-self: center` below
+ * overrides this for that one child, so it alone stays centred.
+ */
+.rp-al-tiles .rp-al-tile {
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: var(--size-2-2);
+	width: 100%;
+	min-width: 0;
+	height: 100%;
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-primary);
+	box-shadow: none;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	text-align: start;
+	white-space: normal;
+	cursor: pointer;
+}
+
+.rp-al-tiles .rp-al-tile:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-al-tiles .rp-al-tile:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+/* §3.3's rule on a tile: a printed mark first (a second ring of the accent inside the border, so
+   the selected tile's edge is twice as heavy), `aria-current` in the markup, and the tint as the
+   third channel, never the only one. */
+.rp-al-tiles .rp-al-tile--on {
+	border-color: var(--interactive-accent);
+	box-shadow: inset 0 0 0 1px var(--interactive-accent);
+	background-color: var(--background-modifier-active-hover);
+}
+
+/* The ring is an OUTLINE, which the selection's `box-shadow` cannot replace, so a selected tile
+   that is also focused shows both. Stated on the selected state as well because
+   `buttonFocusRing.test.ts` asks every rule that sets a button's `box-shadow` for a focus rule of
+   its own. */
+.rp-al-tiles .rp-al-tile--on:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+/*
+ * §3.4's mark at tile size: the SAME 20-unit drawing scaled by its box, not a second drawing.
+ * The stroke is held at 1.5 screen pixels with `vector-effect`, because a 1-unit hairline scaled
+ * 3.2 times would draw 3.2px lines and read as a heavier, different mark.
+ */
+.rp-al-tiles .rp-al-tile .rp-al-mark {
+	align-self: center;
+	width: 4rem;
+	height: 4rem;
+	stroke-width: 1.5px;
+}
+
+.rp-al-tiles .rp-al-tile .rp-al-mark > * {
+	vector-effect: non-scaling-stroke;
+}
+
+/*
+ * AD18-R21's category placeholder, drawn instead of the mark when the asset has none (fix round
+ * 2, integrator measurement in Chromium). The SLOT stays the mark's own 4rem box (`--icon-size`,
+ * which `.rp-host-icon` reads), so the tile's height and the name/size position below it are
+ * unaffected — `align-self: center` is unchanged for the reason it was added (`align-items:
+ * stretch` above would otherwise stretch this child too).
+ *
+ * The ICON drawn inside that box is not: at the full box, `.rp-host-icon svg`'s default
+ * 1.75-unit stroke (`editor-icons.css`) scaled up to about 4.7 rendered pixels and the
+ * placeholder read HEAVIER than a real design (the mark's own 1.5 SCREEN-pixel stroke, above). A
+ * placeholder that names a category rather than the asset's own shape has to read quieter, not
+ * louder, so it draws at half the slot — `.rp-host-icon`'s own `align-items: center;
+ * justify-content: center` (its span is a flex container) is what centres the smaller svg inside
+ * the still-4rem span, so no extra centring rule is needed here — at `--text-faint` rather than
+ * `--text-muted`, and at the mark's own held-stroke technique: `--icon-stroke` overrides the
+ * 1.75 default to 1.5, and `vector-effect: non-scaling-stroke` on the icon's own paths (below)
+ * is what keeps that value in SCREEN pixels rather than letting the halved box scale it again.
+ */
+.rp-al-tiles .rp-al-tile .rp-al-tile__category-icon {
+	--icon-size: 4rem;
+	--icon-stroke: 1.5;
+	align-self: center;
+	color: var(--text-faint);
+}
+
+.rp-al-tiles .rp-al-tile .rp-al-tile__category-icon svg {
+	width: 50%;
+	height: 50%;
+}
+
+.rp-al-tiles .rp-al-tile .rp-al-tile__category-icon svg > * {
+	vector-effect: non-scaling-stroke;
+}
+
+/*
+ * Up to TWO lines, then an ellipsis. The tile inherits Obsidian's `button { white-space: nowrap }`,
+ * and at 460px three names in the harness fixture ran 2 to 10px past a 134px tile (measured at
+ * 521bf09b2). So `white-space` is released here, a word longer than the tile may break
+ * anywhere, and the line clamp is what still bounds the height.
+ */
+.rp-al-tiles .rp-al-tile__name {
+	display: -webkit-box;
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	overflow: hidden;
+	overflow-wrap: anywhere;
+	white-space: normal;
+}
+
+/* `min-height` holds one line for a tile with no size to print, so its name sits where every
+   other tile's name sits. It wraps rather than overflowing, for the name's reason. */
+.rp-al-tiles .rp-al-tile__size {
+	min-height: 1.5em;
+	overflow-wrap: anywhere;
+	white-space: normal;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+}
+
+/* ---- The Create your own card ---------------------------------------------------------- */
+
+/* The full row under the last tiles, as board 01 draws it: an invitation rather than a tile. */
+.rp-al-tiles .rp-al-create-card {
+	display: flex;
+	grid-column: 1 / -1;
+	align-items: flex-start;
+	gap: var(--size-4-3);
+	padding: var(--size-4-3);
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+}
+
+.rp-al-create-card > .rp-host-icon {
+	--icon-size: 2rem;
+	color: var(--text-muted);
+}
+
+.rp-al-create-card .rp-al-create-card__body {
+	min-width: 0;
+}
+
+.rp-al-create-card .rp-al-create-card__title {
+	margin: 0;
+	font-weight: var(--font-semibold);
+}
+
+.rp-al-create-card .rp-al-create-card__hint {
+	margin: var(--size-2-1) 0 var(--size-4-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.rp-al-create-card .rp-al-create-card__action {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-2);
+}
+
+.rp-al-create-card .rp-al-create-card__action:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+/* ---- §7, below 35rem ----------------------------------------------------------------------- */
+
+/* The switch's words leave the layout, so a sidebar-width pane keeps room for the search field.
+   Each button's `aria-label` is its word, so the name and Obsidian's tooltip stay, and the icons
+   still say which is which. */
+@container rp-al (width < 35rem) {
+	/* A selection gives the pane to the inspector (asset-library.css), and the sidebar leaves
+	   with the shelves it filters. */
+	.renovation-asset-library[data-selected-asset-id]:not([data-selected-asset-id='']) .rp-al-categories {
+		display: none;
+	}
+
+	/* While the inspector owns the pane, a funnel would open a sidebar that the rule above keeps
+	   hidden, so it leaves with it rather than pressing into nothing. */
+	.renovation-asset-library[data-selected-asset-id]:not([data-selected-asset-id='']) .rp-al-filter {
+		display: none;
+	}
+
+	/* A 10rem column is a third of a 460px sidebar leaf, so below this rung the sidebar waits to be
+	   asked for: withdrawn until the funnel is pressed (`--auto`), and shown in full once it is.
+	   `useCategorySidebar.ts` asks the DOM whether it is laid out, so the funnel's
+	   `aria-expanded` follows this rule without repeating its width. */
+	.rp-al-categories--auto {
+		display: none;
+	}
+
+	.rp-al-layout .rp-al-layout__word {
+		display: none;
+	}
+}

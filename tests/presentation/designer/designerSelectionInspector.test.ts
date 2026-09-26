@@ -19,7 +19,7 @@ import { err, ok, type Result } from '../../../src/core/result/Result';
 import type { ValidationError } from '../../../src/core/errors/AppError';
 import type { Point } from '../../../src/core/geometry/Point';
 import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
-import type { AssetShape } from '../../../src/domain/asset/AssetShape';
+import { validateAssetShape, type AssetShape } from '../../../src/domain/asset/AssetShape';
 import {
 	deleteDetail,
 	fitFootprintToDetails,
@@ -28,19 +28,27 @@ import {
 } from '../../../src/domain/asset/detailEdits';
 import { moveAnchor, removeClearance, setFacing } from '../../../src/domain/asset/shapeEdits';
 import { sameSelection, type DesignerSelection } from '../../../src/presentation/designer/selection/designerSelection';
+import type { EditShape } from '../../../src/presentation/designer/selection/editShape';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { t } from '../../../src/presentation/i18n/strings';
-import { assetDesign } from '../../helpers/assetDesign';
-import { toiletShape } from '../../helpers/assetShapes';
+import { assetDesign, handed } from '../../helpers/assetDesign';
+import { openGraphic, shapeWithOpenGraphic, shapeWithRoundedRect, toiletShape } from '../../helpers/assetShapes';
 import { expectOk } from '../../helpers/domain';
 import { settle, settleUntil } from '../../helpers/editor';
 import { designerRig } from '../../helpers/designerRig';
 
-type ShapeEdit = (shape: AssetShape) => Result<AssetShape, ValidationError>;
-
 const TOILET = toiletShape();
 
 const BOWL: DesignerSelection = { kind: 'detail', id: 'detail-2' };
+
+/** A line with no depth at all: `shapeWithOpenGraphic`'s third graphic replaced by a flat run. */
+function flatLine(): AssetShape {
+	const base = shapeWithOpenGraphic();
+	return expectOk(validateAssetShape({
+		...base,
+		details: [...base.details.filter((detail) => detail.id !== 'detail-3'), openGraphic('detail-3', [{ x: -300, y: 0 }, { x: 300, y: 0 }])],
+	}));
+}
 
 /**
  * `advances`: the fake's LIVE shape takes each edit that lands while the props stay on the first read —
@@ -50,8 +58,8 @@ function mountFor(selection: DesignerSelection, shape: AssetShape | null = TOILE
 	const applied: Result<AssetShape, ValidationError>[] = [];
 	// Only read for a mounted section, which exists only over a shape.
 	let live = shape as AssetShape;
-	const editShape = vi.fn<(edit: ShapeEdit) => Promise<DispatchResult>>((edit) => {
-		const result = edit(live);
+	const editShape = vi.fn<EditShape>((edit) => {
+		const result = handed(edit(live));
 		applied.push(result);
 		if (advances && result.ok) live = result.value;
 		return Promise.resolve(answer ?? (result.ok ? ok('wrote') : err(result.error)));
@@ -147,7 +155,7 @@ describe('what the inspector offers for each kind of part', () => {
 	it('offers no Width or Depth for a footprint whose numbers are not measurements yet', () => {
 		const mountWith = (dimensionsUnscaled: boolean) =>
 			mount(DesignerSelectionInspector, {
-				props: { design: assetDesign({ shape: TOILET, dimensionsUnscaled }), selection: { kind: 'footprint' }, editShape: vi.fn<(edit: ShapeEdit) => Promise<DispatchResult>>(), select: vi.fn<(next: DesignerSelection | null) => void>() },
+				props: { design: assetDesign({ shape: TOILET, dimensionsUnscaled }), selection: { kind: 'footprint' }, editShape: vi.fn<EditShape>(), select: vi.fn<(next: DesignerSelection | null) => void>() },
 			});
 
 		expect(numberFields(mountWith(true))).toEqual({});
@@ -164,6 +172,38 @@ describe('what the inspector offers for each kind of part', () => {
 	it('draws the anchor’s position and the facing’s angle in whole degrees', () => {
 		expect(numberFields(mountFor({ kind: 'anchor' }).wrapper)).toEqual({ 'position-x': '0', 'position-y': '0' });
 		expect(numberFields(mountFor({ kind: 'facing' }).wrapper)).toEqual({ angle: '90' });
+	});
+
+	/**
+	 * AD18-R16 Task 5 review (Important finding): branch coverage cannot see a transposed
+	 * short-label key or a dropped `unit` literal — `centre-x.short`/`centre-y.short` swapped,
+	 * or `width`'s `mm` missing, would ship silently. This pins every field's short visible
+	 * label, its unit suffix and its full accessible name BY NAME, in
+	 * `designerReferencePanels.test.ts`'s own table-driven shape (the clearance helper).
+	 */
+	it('pins every field’s short label, unit suffix and full accessible name', () => {
+		const detail = mountFor(BOWL).wrapper;
+		const anchor = mountFor({ kind: 'anchor' }).wrapper;
+		const facing = mountFor({ kind: 'facing' }).wrapper;
+		const rounded = mountFor({ kind: 'detail', id: 'detail-3' }, shapeWithRoundedRect()).wrapper;
+
+		([
+			[detail, 'width', 'designer.preset.field.width.short', 'designer.preset.field.width', 'mm'],
+			[detail, 'depth', 'designer.preset.field.depth.short', 'designer.preset.field.depth', 'mm'],
+			[detail, 'centre-x', 'designer.selection.fields.centre-x.short', 'designer.selection.fields.centre-x', 'mm'],
+			[detail, 'centre-y', 'designer.selection.fields.centre-y.short', 'designer.selection.fields.centre-y', 'mm'],
+			[detail, 'rotate-by', 'designer.selection.rotate-by.short', 'designer.selection.rotate-by', '°'],
+			[rounded, 'corner-radius', 'designer.selection.corner-radius.short', 'designer.selection.corner-radius', 'mm'],
+			[anchor, 'position-x', 'designer.selection.fields.position-x.short', 'designer.selection.fields.position-x', 'mm'],
+			[anchor, 'position-y', 'designer.selection.fields.position-y.short', 'designer.selection.fields.position-y', 'mm'],
+			[facing, 'angle', 'designer.selection.angle.short', 'designer.selection.angle', '°'],
+		] as const).forEach(([wrapper, name, shortKey, labelKey, unit]) => {
+			const input = wrapper.get(`[name="${name}"]`).element as HTMLInputElement;
+			const row = input.closest('.rp-designer-field-row') as HTMLElement;
+			expect(row.querySelector('.rp-designer-field-row__label')?.textContent).toBe(t('en', shortKey));
+			expect(input.getAttribute('aria-label')).toBe(t('en', labelKey));
+			expect(row.querySelector('.rp-designer-field-row__unit')?.textContent).toBe(unit);
+		});
 	});
 
 	/** PBI extension 2a: no control for a part the asset does not carry. */
@@ -236,7 +276,7 @@ describe('what the inspector offers for each kind of part', () => {
 			props: {
 				design: assetDesign({ shape: { ...TOILET, footprintOrigin: 'traced', footprintPending: true }, dimensionsUnscaled: true }),
 				selection: { kind: 'footprint' },
-				editShape: vi.fn<(edit: ShapeEdit) => Promise<DispatchResult>>(),
+				editShape: vi.fn<EditShape>(),
 				select: vi.fn<(next: DesignerSelection | null) => void>(),
 			},
 		});
@@ -511,5 +551,102 @@ describe('the inspector in the mounted designer', () => {
 		} finally {
 			rig.unmount();
 		}
+	});
+});
+
+/**
+ * An OPEN graphic is a part that EXISTS (`selectionExists`), so this section mounts for one.
+ *
+ * **AD09 withheld its geometry fields and AD11 gives them back**, which is the change these cases
+ * are written against: `partMeasure` measures a path through the domain's own `detailBox`, and
+ * `moveOutline`/`rotateOutline`/`resizeBox` go through `mapPartOutline`, which keeps a graphic's
+ * kind. So centre, size and rotate-by mean for a line what they mean for a ring — the box its
+ * geometry reaches.
+ *
+ * What is NOT given back is a fill: the Line control is drawn and works, and one sentence says that
+ * for a line it is a dash pattern and nothing else (C10).
+ *
+ * `shapeWithOpenGraphic`'s path runs (-300,-200) → (0,-200) → (0,100), so its box is 300 x 300
+ * centred on (-150,-50) — both extents positive, which is what makes it the ORDINARY case and why
+ * the flat line below is built separately.
+ */
+describe('an open graphic', () => {
+	const OPEN: DesignerSelection = { kind: 'detail', id: 'detail-3' };
+
+	it('draws its name, its line and its ordering actions', () => {
+		const { wrapper } = mountFor(OPEN, shapeWithOpenGraphic());
+
+		expect(wrapper.find('[name="detail-name"]').exists()).toBe(true);
+		expect(wrapper.find('[name="detail-line"]').exists()).toBe(true);
+		expect(wrapper.findAll('.rp-designer-selection-button').map((button) => button.attributes('name'))).toEqual([
+			'bring-forward',
+			'send-backward',
+			'duplicate',
+			'delete',
+		]);
+	});
+
+	it('measures the box its geometry reaches, in the same five fields a closed graphic has', () => {
+		const { wrapper } = mountFor(OPEN, shapeWithOpenGraphic());
+
+		expect(wrapper.findAll('input[type="number"]').map((input) => input.attributes('name'))).toEqual([
+			'centre-x',
+			'centre-y',
+			'width',
+			'depth',
+			'rotate-by',
+		]);
+		expect(numberFields(wrapper)).toMatchObject({ 'centre-x': '-150', 'centre-y': '-50', width: '300', depth: '300' });
+	});
+
+	it('says that solid and dashed are a line’s pattern and never a fill', () => {
+		const { wrapper } = mountFor(OPEN, shapeWithOpenGraphic());
+
+		expect(wrapper.find('.rp-designer-open-graphic').text()).toBe(t('en', 'designer.selection.open-graphic'));
+		expect(mountFor(BOWL).wrapper.find('.rp-designer-open-graphic').exists()).toBe(false);
+	});
+
+	it('moves the whole path when a centre is typed, keeping it open', async () => {
+		const { wrapper, applied } = mountFor(OPEN, shapeWithOpenGraphic());
+
+		await change(wrapper, 'centre-x', '0');
+
+		const moved = expectOk(applied[0]).details.find((detail) => detail.id === 'detail-3');
+		expect(moved?.kind).toBe('open');
+		expect(moved?.outline.points).toEqual([{ x: -150, y: -200 }, { x: 150, y: -200 }, { x: 150, y: 100 }]);
+	});
+
+	it('resizes it to the typed extent about its own box centre', async () => {
+		const { wrapper, applied } = mountFor(OPEN, shapeWithOpenGraphic());
+
+		await change(wrapper, 'width', '600');
+
+		const resized = expectOk(applied[0]).details.find((detail) => detail.id === 'detail-3');
+		expect(resized?.outline.points).toEqual([{ x: -450, y: -200 }, { x: 150, y: -200 }, { x: 150, y: 100 }]);
+	});
+
+	/**
+	 * A FLAT line is the one case a size field cannot answer, and it is reachable only here: a closed
+	 * graphic must enclose an area, so both of its extents are positive. A scale about the box centre
+	 * multiplies the distance from it, and every point of a horizontal line is zero from it along y —
+	 * so the field says why rather than appearing to do nothing, which is C12's rule.
+	 */
+	it('refuses a depth for a flat line, and says why, rather than solving forever', async () => {
+		const { wrapper, applied } = mountFor(OPEN, flatLine());
+
+		expect(numberFields(wrapper).depth).toBe('0');
+		await change(wrapper, 'depth', '400');
+
+		expect(applied[0].ok).toBe(false);
+		expect(wrapper.find('[role="alert"]').text()).toBe(t('en', 'asset.extent-not-scalable'));
+	});
+
+	it('still stretches the axis it does have', async () => {
+		const { wrapper, applied } = mountFor(OPEN, flatLine());
+
+		await change(wrapper, 'width', '1200');
+
+		const resized = expectOk(applied[0]).details.find((detail) => detail.id === 'detail-3');
+		expect(resized?.outline.points).toEqual([{ x: -600, y: 0 }, { x: 600, y: 0 }]);
 	});
 });

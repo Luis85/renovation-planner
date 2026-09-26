@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   e2e:
-    name: Obsidian ${{ matrix.version }} / ${{ matrix.ui }}
+    name: Obsidian ${{ matrix.version }} / ${{ matrix.ui }}${{ matrix.shardIndex && format(' (shard {0}/{1})', matrix.shardIndex, matrix.shardCount) || '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -23,11 +23,25 @@ jobs:
       matrix:
         include:
           # 1.13.7 is the earliest PUBLIC build at `minAppVersion` (1.13.0 was Insiders-only).
+          # Desktop legs are sharded in two: this round adds up to ~36 cases and the unsharded
+          # leg ran 10-12 min under the 20-min timeout.
           - version: "1.13.7"
             ui: desktop
+            shardIndex: 1
+            shardCount: 2
+          - version: "1.13.7"
+            ui: desktop
+            shardIndex: 2
+            shardCount: 2
           - version: latest
             ui: desktop
-          # Desktop Obsidian with mobile emulation — NOT a device test.
+            shardIndex: 1
+            shardCount: 2
+          - version: latest
+            ui: desktop
+            shardIndex: 2
+            shardCount: 2
+          # Desktop Obsidian with mobile emulation — NOT a device test. Unsharded: it ran 1.5 min.
           - version: "1.13.7"
             ui: mobile-emulation
     steps:
@@ -50,8 +64,11 @@ jobs:
       - name: Install virtual display
         run: sudo apt-get update -q && sudo apt-get install -y xvfb herbstluftwm x11-xserver-utils libnss3 libasound2t64 libgbm1
 
+      # herbstluftwm TILES by default: the window fills the screen and a resize the suite asks for
+      # is ignored, so every case measured at Obsidian's own 1024 x 800 window fails here and
+      # nowhere else. A floating rule gives the window the size it asks for, as a desktop does.
       - name: Run e2e in a disposable vault
-        run: xvfb-run -a --server-args='-screen 0 1280x1024x24' sh -c 'herbstluftwm & npm run test:e2e'
+        run: xvfb-run -a --server-args='-screen 0 1280x1024x24' sh -c 'herbstluftwm & sleep 1 && herbstclient rule floating=on && npm run test:e2e${{ matrix.shardIndex && format(' -- --shard={0}/{1}', matrix.shardIndex, matrix.shardCount) || '' }}'
         env:
           OBSIDIAN_VERSION: ${{ matrix.version }}
           OBSIDIAN_UI: ${{ matrix.ui }}
@@ -60,7 +77,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v7
         with:
-          name: e2e-${{ matrix.version }}-${{ matrix.ui }}-${{ github.run_attempt }}
+          name: e2e-${{ matrix.version }}-${{ matrix.ui }}${{ matrix.shardIndex && format('-shard{0}', matrix.shardIndex) || '' }}-${{ github.run_attempt }}
           path: e2e-results/
           if-no-files-found: warn
           retention-days: 14

@@ -62,6 +62,28 @@ inventing a channel:
 *Unsaved Changes* being a mark rather than an absence is the row worth defending. An indicator
 that shows nothing when there is unsaved work is indistinguishable from one that has crashed.
 
+**Saved carries a relative time once this session has saved** (AD18-R19, on both surfaces that
+mount the indicator — the Plan Editor's status bar and the Asset designer's header). It is a
+qualifier on the Saved word, not a fifth state:
+
+| Since the last save this session | Reads |
+| --- | --- |
+| No save yet | `Saved` — an earlier save's time is not known |
+| Under a minute | `Saved just now` |
+| 1 to 59 minutes | `Saved N min ago` |
+| An hour or more, same local calendar day | `Saved at HH:MM`, in the host language's own clock format |
+| An hour or more, an earlier local calendar day | `Saved {date} at {time}` (EN) / `Am {date} um {time} gespeichert` (DE) |
+
+The time is counted from a `savedAt` the save-state store stamps when a write lands, on a minute
+tick that starts at that save (so *just now* lasts the first minute, or up to a second less: the
+reading tolerates that much clock jitter at a tick) and only once there is one. The dated tier's
+`{date}` is the host language's `Intl` month-short-plus-day-numeric format, and the day check runs
+only once a save is already over an hour old, so a save under an hour old still reads in minutes
+even just past local midnight. An indicator left open across midnight moves to the dated form on
+the same minute tick that carries the hour switch, with no save of its own and no second interval.
+**Saved · refresh needed** keeps precedence and carries no time: a stale canvas must never
+read as freshly saved (contract C08).
+
 ## Contract
 
 **Given** the save state. **Emits**, in the Save Error case only, a retry request.
@@ -73,7 +95,8 @@ triggers, and this indicator is where a user learns it held.
 
 ## Where it appears
 
-[[Status bar]], third region, per SDD §60. It has no other home today — and if the bar turns out
+[[Status bar]], third region, per SDD §60, in the Plan Editor — and the Asset designer's header
+(`DesignerHeader.vue`), since AD18 moved it there. Those are its two homes — and if the bar turns out
 not to exist in project mode, this component needs one, because autosave does not stop when the
 mode changes.
 
@@ -86,6 +109,14 @@ word precisely so that this component cannot be built as three coloured dots.
 It is also a live region, and unlike [[Status bar]] as a whole its changes are all meaningful:
 four discrete transitions, none of them continuous. *Saving* is the exception worth care — a
 fast save that flickers through Saving to Saved announces twice for one event.
+
+**The relative time is never announced.** A minute tick is not an event, and in the Plan Editor
+the indicator sits inside the status bar's `role="status"` region, where any text change is read
+out. So while a relative time shows, the visible phrase (`Saved just now`) is `aria-hidden` and a
+visually-hidden copy of the plain state word (`Saved`) stands beside it: that word is what a
+screen reader has, and what the Saving → Saved transition announces. The designer's header is not
+live and gets the same markup, one indicator with one spelling. The cost, accepted: a screen reader
+never hears the time on either surface.
 
 ## Open
 

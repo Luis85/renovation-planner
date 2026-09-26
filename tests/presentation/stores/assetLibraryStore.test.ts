@@ -104,6 +104,9 @@ function queriesAnswering(
 		// REJECTS for its siblings' reason: no case in this file drives the delete flow, so a
 		// door answering here would let a build reading it from this store pass silently.
 		listReassignmentTargets: () => Promise.reject(new Error('not exercised')),
+		// Same rule: the usage scope belongs to the inspector's duplicate panel, never to this
+		// store, so an answering door would hide a build that started reading it here.
+		listPlansUsingAsset: () => Promise.reject(new Error('not exercised')),
 		listReferencing: () => Promise.reject(new Error('not exercised')),
 		listOverridingProjects: () => Promise.reject(new Error('not exercised')),
 		...overrides,

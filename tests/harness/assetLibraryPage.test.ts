@@ -35,6 +35,7 @@
 import { describe, expect, it } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
 import { mountAssetLibraryHarness } from './assetLibrary';
+import { tr } from '../../src/presentation/i18n/strings';
 
 describe('the browser harness, asset library', () => {
 	it('mounts the real asset library inside the same leaf frame', async () => {
@@ -66,5 +67,33 @@ describe('the browser harness, asset library', () => {
 		expect(view.contentEl.querySelector('.rp-al-inspector__name')?.textContent?.trim()).toBe(
 			'Base cabinet, 600',
 		);
+	});
+
+	/**
+	 * `&layout=grid` (Task 11, AD18-R18): a URL nothing reached before this task, since
+	 * `mountAssetLibraryHarness` took no layout knob at all — Task 10's Grid view had no capture
+	 * and no harness mount to draw it. `.rp-al-tile` is the List branch's opposite number
+	 * (`.rp-al-row`), so this proves the Grid branch actually drew rather than merely that the
+	 * knob was accepted; `.rp-al-categories` is the sidebar the funnel controls, shown by default
+	 * in Grid (`useCategorySidebar.ts`'s `wanted`).
+	 */
+	it('opens on the Grid layout when the page asks for it, tiles and its sidebar included', async () => {
+		const { view } = mountAssetLibraryHarness(document.body, null, false, 'grid');
+		await flushPromises();
+
+		expect(view.contentEl.querySelector('.rp-al-tile')).not.toBeNull();
+		expect(view.contentEl.querySelector('.rp-al-row')).toBeNull();
+		expect(view.contentEl.querySelector('.rp-al-categories')).not.toBeNull();
+		const pressed = view.contentEl.querySelector('.rp-al-layout__option[aria-pressed="true"]');
+		expect(pressed?.querySelector('.rp-al-layout__word')?.textContent?.trim()).toBe(tr('view.asset-library.layout.grid'));
+	});
+
+	it('opens on the List layout when the page names no layout at all, exactly as it always has', async () => {
+		const { view } = mountAssetLibraryHarness(document.body, null);
+		await flushPromises();
+
+		expect(view.contentEl.querySelector('.rp-al-tile')).toBeNull();
+		const pressed = view.contentEl.querySelector('.rp-al-layout__option[aria-pressed="true"]');
+		expect(pressed?.querySelector('.rp-al-layout__word')?.textContent?.trim()).toBe(tr('view.asset-library.layout.list'));
 	});
 });

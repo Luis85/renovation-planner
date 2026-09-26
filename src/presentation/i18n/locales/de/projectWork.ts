@@ -28,7 +28,7 @@ export const projectWorkDe = {
   "schedule.rooms-incomplete": "Einige Raumnotizen konnten nicht gelesen werden. Nicht aufgelöste Raumkennungen bleiben sichtbar.",
   "schedule.floor": "Geschoss",
   "schedule.all-floors": "Alle Geschosse",
-  "schedule.empty": "Keine Arbeiten in dieser Ansicht. Erstelle Arbeiten aus einem geplanten Ergebnis im Geschosseditor.",
+  "schedule.empty": "Keine Arbeiten in dieser Ansicht. Erstellen Sie Arbeiten aus einem geplanten Ergebnis im Geschosseditor.",
   "schedule.room-missing": "Nicht aufgelöster Raum: {id}",
   "schedule.unscheduled": "Nicht festgelegt",
   "schedule.no-blockers": "Keine unerledigten Arbeitsabhängigkeiten",

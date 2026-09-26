@@ -21,7 +21,7 @@ import { shapeFromDimensions } from '../../../src/domain/asset/AssetShape';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { expectOk } from '../../helpers/domain';
 import { settle } from '../../helpers/editor';
-import { designerRig, drag, tracePolygon, type DesignerRig } from '../../helpers/designerRig';
+import { designerRig, drag, held, tracePolygon, type DesignerRig } from '../../helpers/designerRig';
 
 const SQUARE = expectOk(shapeFromDimensions(2000, 2000));
 const QUARTER = Math.tan(Math.PI / 8);
@@ -64,23 +64,27 @@ describe('drawing a rectangle detail', () => {
 	 * The preview is DRAWN, by `DesignerGestureLayer`, while the button is still held — asked of the
 	 * stage mid-drag, since `drag()` releases in the same tick and no render lands between its move
 	 * and its release. The release still comes: a press is never left without one.
+	 *
+	 * `held` is `designerRig`'s own export — the one helper there that can send a press without its
+	 * release, which is exactly what asserting mid-drag needs. It takes WORLD points and asks the
+	 * live camera for the pixel, so `world` below is what the events carry and `corners` is the same
+	 * four points through the same `rig.at`, held for the assertion the preview is measured against.
 	 */
 	it('draws the box being dragged at its corners while the button is held, and nothing once released', async () => {
 		const rig = await designerRig({ shape: SQUARE });
 		await press(rig, 'designer.toolbar.draw-rect');
-		const corners = [{ x: 200, y: 200 }, { x: 600, y: 200 }, { x: 600, y: 500 }, { x: 200, y: 500 }].map((corner) => rig.at(corner));
-		const held = (type: string, at: { x: number; y: number }, buttons: number) =>
-			rig.canvasEl.dispatchEvent(new PointerEvent(type, { button: 0, buttons, pointerId: 1, clientX: at.x, clientY: at.y, bubbles: true }));
+		const world = [{ x: 200, y: 200 }, { x: 600, y: 200 }, { x: 600, y: 500 }, { x: 200, y: 500 }];
+		const corners = world.map((corner) => rig.at(corner));
 
-		held('pointerdown', corners[0], 1);
-		held('pointermove', corners[2], 1);
+		held(rig, 'pointerdown', world[0], 1);
+		held(rig, 'pointermove', world[2], 1);
 		await settle();
 
 		const drawn: number[] = rig.stage.findOne('.detail-preview')?.getAttr('points') ?? [];
 		expect(drawn).toHaveLength(8);
 		corners.flatMap((corner) => [corner.x, corner.y]).forEach((value, index) => expect(drawn[index]).toBeCloseTo(value, 6));
 
-		held('pointerup', corners[2], 0);
+		held(rig, 'pointerup', world[2], 0);
 		await settle();
 		expect(rig.stage.findOne('.detail-preview')).toBeUndefined();
 		rig.unmount();

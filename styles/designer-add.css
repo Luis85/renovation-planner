@@ -1,0 +1,340 @@
+/*
+ * AD18 item 5 — the `Add` section of the left rail, and what the toolbar loses to it.
+ *
+ * **Created by the integrator before wave 11 was dispatched, and empty on purpose.** The rules are
+ * card W11-A's to write; the FILE and its `@import` line in `styles/index.css` are the
+ * integrator's, because `scripts/styles-assemble.mjs` refuses a partial no entry file imports — so
+ * a partial and its import are one action and cannot be leased apart. Wave 9 learned that after a
+ * card had already edited `index.css` outside its table, and wave 10 applied it beforehand; this
+ * is the same application, for a wave that happens to have one card. It is done anyway, because
+ * the reason is the assembler's rule rather than the number of cards.
+ *
+ * Its own partial rather than more of a sibling: `styles/designer.css` sits a handful of lines
+ * under the assembler's 400-line cap and has moved three times in this wave alone, so read
+ * `wc -l styles/designer.css` — FIVE partials have carried a figure for that file and every one of
+ * them was falsified by somebody adding a comment to it. `designer-parts.css`
+ * describes the panel the Add section sits
+ * ABOVE rather than the section itself, and `designer-presets.css` describes the modal gallery,
+ * which this card does not move.
+ *
+ * Imported above `designer-narrow.css`, which stays last so the stacking overrides still win.
+ */
+
+/*
+ * The section itself: a block above `DesignerPartsPanel`, inside the one `.rp-designer-parts`
+ * region div that `designer-parts.css` already gives the rail's width, padding, background and
+ * scroll. Nothing here sets a width or a flex share, deliberately — `designer-narrow.css` stacks
+ * that div and `designer-toolbar.css` caps it, and a second opinion here would compete with both.
+ *
+ * A rule on the leading edge of the Parts panel below it rather than a border here, for the reason
+ * `designer.css` gives the unscaled warning: the two panels are one column, and a border under the
+ * last thing in the first panel is the same line as a border over the first thing in the second.
+ * It is written here because this is the element that knows it has a sibling under it.
+ *
+ * **`container-type`/`container-name` is Task 3's addition, one query container of its own.**
+ * Named `rp-designer-add` rather than reusing the outer `rp-designer` container
+ * `designer-narrow.css` and `designer-toolbar.css` already query: those measure the whole LEAF,
+ * and "the rail is narrow" (the tile grid below) is a fact about THIS element's own width, which
+ * is not a fixed fraction of the leaf's — it is `min(11rem, 22cqi)` above 35rem and `auto`, near
+ * the full stacked leaf, below it. `inline-size` only, matching `designer-narrow.css`'s own
+ * container, so nothing here claims block-axis sizing it does not own.
+ */
+.rp-designer-add {
+	container-type: inline-size;
+	container-name: rp-designer-add;
+	margin-block-end: var(--size-4-3);
+	padding-block-end: var(--size-4-3);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * The `Basic shapes` sub-heading (Task 3) — visible now, where wave 10's group carried the same
+ * string invisibly on `aria-label`. `DesignerAddPanel.vue` points the group's `aria-labelledby` at
+ * this element's id, so the two are one string read twice rather than two copies that could drift.
+ * Sized and coloured like `designer.css`'s `.rp-designer-panel-title`, one step down, because it
+ * names a group inside the section rather than the section itself.
+ */
+.rp-designer-shapes-heading {
+	margin: 0 0 var(--size-4-1);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+	line-height: var(--line-height-tight);
+}
+
+/*
+ * THE TILE GRID (Task 3) — board 01 draws a grid, not the flex-wrap row wave 11 shipped for an
+ * icon-only rail. Two columns is the default; the `@container` below degrades to one once the
+ * rail itself cannot hold two. 9rem is the one number this rule invents: it sits between the two
+ * rail widths this card's report predicts a tile column count for — 176px (the 11rem cap) and
+ * 123px (22cqi at the 35rem boundary) — each minus `.rp-designer-parts`'s 2×8px padding, so 160px
+ * stays two columns and 107px does not. Unverified here: jsdom resolves no container query, so
+ * which side of that line a real leaf lands on is the browser's question and the report's.
+ *
+ * **`minmax(0, 1fr)`, not bare `1fr` — the fix-round's root cause.** `repeat(2, 1fr)` is
+ * `repeat(2, minmax(auto, 1fr))`, and an `auto` minimum is each column's own min-content
+ * contribution — the width of its longest UNBREAKABLE run. Combined with the button's inherited
+ * `white-space: nowrap` (below), that run was the whole label ("Draw rounded rectangle"), so the
+ * rendered rail measured [8,146,98] / [110,146,146] at a 176px leaf: two unequal columns summing
+ * to 244px in a ~160px content box, scrolling horizontally. `minmax(0, 1fr)` removes the content
+ * floor, so both tracks split the container's own width exactly in half regardless of what is
+ * inside them, and the label wraps within that fixed width instead of forcing it wider.
+ *
+ * **No `align-items` override (final-fix-wave item 5, reverting the previous round's `start`).**
+ * That round set `align-items: start` so a one-line "Circle" tile would not stretch to a two-line
+ * "Rounded rectangle" tile's height — and the integrator's capture found the opposite defect it
+ * traded in for: two tiles in the SAME row (58px and 73px) reading as uneven, loose buttons rather
+ * than one grid. Grid's own default `stretch` gives every tile in a row the row's own height, the
+ * same fix `.rp-designer-placement-modes` already carries in `designer-selection.css` for the
+ * identical shape — that file's own comment is the fuller account of the trade.
+ *
+ * **`grid-auto-rows: 1fr` (Task 6, AD18-R20/R21, fix round) is EVERY Add-rail tile the same
+ * height — the tallest across the WHOLE grid — rather than the two heights the integrator first
+ * measured in English: 73px for row 1 (the two-line "Rounded rectangle" tile) and 58px for row 2.**
+ * `align-items: stretch` above only equalises tiles that already share a ROW; it cannot reach
+ * across rows, which an auto-sized grid otherwise sizes independently by their own content. `1fr`
+ * on every implicit row does reach across them: on an auto-height grid a flexible track is sized
+ * to the larger of its own content and an equal share of the space the content-sized rows already
+ * claim, so giving every row the SAME flex factor makes them claim an equal share of each
+ * other's content-driven height too — which is what stretches a shorter row up to the tallest
+ * tile in ANY row, not merely its own. (Plain `auto` rows would size each row only to ITS OWN
+ * tallest tile, leaving row 2 at 58px beside row 1's 73px — the defect this rule exists to fix.)
+ * Preferred over a `min-height` pinned to one English pixel measurement: a fixed floor is correct
+ * only for the label and font that produced it, and a longer label in another language or a
+ * larger host font would either fall short of a floor sized for English or sit inside needless
+ * empty space once English no longer measures the tallest tile. `1fr` needs no number and cannot
+ * fall out of date. Applies to this grid only — `.rp-designer-placement-modes
+ * .rp-designer-selection-button`'s three-column row is single-row already, so `align-items:
+ * stretch` alone equalises it and this rule's claim does not reach it.
+ */
+.rp-designer-add-shapes {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	grid-auto-rows: 1fr;
+	gap: var(--size-4-1);
+}
+
+@container rp-designer-add (width < 9rem) {
+	.rp-designer-add-shapes {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+/*
+ * TILES NOW, WHICH IS TASK 3'S WHOLE CHANGE — board 01 draws an icon above a VISIBLE label, not
+ * the icon-only treatment wave 11 shipped.
+ *
+ * `styles/designer-toolbar.css` hides `.rp-designer-tool-label` at every width (AD18-R17 Task 2),
+ * unqualified beyond `.renovation-asset-designer` — so that rule reaches this class too, at equal
+ * specificity, and the two disagree at every width unless this one wins. It wins the way wave 11's
+ * `display: none` did: unconditional, so it is never inside the toolbar's `@container`, and later
+ * in `styles/index.css`'s import order (`designer-add.css` after `designer-toolbar.css`), so equal
+ * specificity resolves to source order rather than to which one is a superset of the other.
+ *
+ * Sized down from the button's own text and centred, because a tile's label sits under a small
+ * glyph rather than beside a full-height one. `overflow-wrap: anywhere` (fix round) is the second
+ * half of the grid fix: `minmax(0, 1fr)` fixes the TRACK width, and this is what stops a single
+ * long word from overflowing that fixed width once the button's own `white-space: normal` (below)
+ * lets the label wrap at all.
+ */
+.rp-designer-add .rp-designer-tool-label {
+	display: block;
+	overflow-wrap: anywhere;
+	font-size: var(--font-ui-smaller);
+	text-align: center;
+	line-height: var(--line-height-tight);
+}
+
+/*
+ * The tile itself: icon above label rather than beside it, which is the row-to-column flip that
+ * turns `DesignerToolButton`'s markup into a tile. `designer-toolbar.css`'s equivalent is
+ * qualified with `.rp-designer-tools` and so reaches nothing here; ELEMENT-qualified for that
+ * file's stated reason — a `<summary>` carrying this class exists in the toolbar, and keeping both
+ * spellings the same shape is what lets a reader move between them.
+ *
+ * **`height: auto` and `white-space: normal` are the fix round's other root cause, and both
+ * override Obsidian's OWN base `button` rule** (`tests/harness/obsidian.css`:
+ * `height: var(--input-height); white-space: nowrap;`), which reaches every button in this rail at
+ * lower specificity than the element-qualified selector here. `nowrap` is what forced each label
+ * onto one unbreakable line in the first place — the direct cause of the grid overflow above.
+ * `var(--input-height)` is sized for a single line of text beside an icon, not an icon ABOVE a
+ * wrapped one- or two-line label; kept, a tile's content painted past its own fixed-height box and
+ * OVER the tile below it in the grid, which is what the integrator's 460px stacked-leaf capture
+ * showed — "Draw rectangle" drawn over the circle tile's icon in the row underneath. `auto` lets
+ * each button's box grow to whatever its own icon-plus-label needs, which is what the grid's own
+ * default `stretch` then equalises across a row (final-fix-wave item 5, above) — a fixed height
+ * here would fight that either way.
+ *
+ * **Shared with the Inspector's Placement point group since AD18-R16 Task 8's fix round** — the
+ * identical icon-above-label fix for the identical cause (Obsidian's base `button` rule), so the
+ * second occurrence is this selector EXTENDED rather than a second copy of the six declarations
+ * in `styles/designer-selection.css`. `.rp-designer-placement-modes` gives its OWN three-column
+ * grid around this shared tile shape and now takes the SAME `align-items` answer this rule's
+ * neighbour above does — no override, so both stretch — since final-fix-wave item 5 dropped the
+ * two grids' one disagreement; nothing here reaches `.rp-designer-add`'s two-column grid, since
+ * the two container rules are separate and only this per-tile rule is shared.
+ */
+.rp-designer-add button.rp-designer-tool-button,
+.rp-designer-placement-modes .rp-designer-selection-button {
+	display: inline-flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--size-4-1);
+	height: auto;
+	white-space: normal;
+}
+
+/*
+ * AD18 second parity round, task 1: the integrator's browser measurement found `Custom` — one
+ * word, with no space for `designer-selection.css`'s `overflow-wrap: anywhere` (on the label
+ * span, that file's own rule) to prefer over a mid-word break — splitting `Custo` / `m` inside a
+ * 61px-wide, three-column segment at a 1280 leaf. This is a SECOND, SEPARATE rule rather than a
+ * change to the shared tile shape above, for the reason `designerStyles.test.ts`'s own
+ * "reuses the Add rail's tile layout" case asserts: that block's declared values must stay
+ * identical to `.rp-designer-add button.rp-designer-tool-button`'s, and the Add rail's own
+ * two-column tiles are not this squeeze — they already get their extra room from a wider
+ * grid track. `.rp-designer-add .rp-designer-tool-label` narrows an Add-rail tile's VISIBLE
+ * label the identical way, for the identical reason (a small glyph above it, not a line of text
+ * beside it); this reaches the button rather than a label span because
+ * `DesignerReferencePlacement.vue`'s `<span>` here carries no class of its own for a
+ * font-size rule to hang off, and `font-size` inherits down to it regardless.
+ *
+ * Two independent levers, since neither alone is verified here (no browser in this task): the
+ * label drops from `--font-ui-small` (13px) to `--font-ui-smaller` (12px), and the inline padding
+ * halves from `--size-4-2` (8px a side) to `--size-4-1` (4px a side) — content width for the
+ * label goes from about 45px to about 53px at this measured 61px column. `designer-selection.css`
+ * owns the column width itself (Task 4), so it is not a lever available here. A PREDICTION, not a
+ * measurement: the integrator's capture is the check.
+ */
+.rp-designer-placement-modes .rp-designer-selection-button {
+	padding-inline: var(--size-4-1);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * THE GLYPH, LARGER THAN THE TOOLBAR'S (fix round) — board 01 draws roughly 24–32px icons, and
+ * `.rp-host-icon`'s own default (`editor-icons.css`) is 18px, sized for sitting beside a line of
+ * text rather than reading as a tile's own picture. 28px matches the size this codebase already
+ * uses for a comparably prominent icon-above-text button
+ * (`.rp-floor-start > button > .rp-host-icon` in `editor-reference.css`). Scoped to the rail's own
+ * tool buttons via the `--icon-size` custom property `.rp-host-icon` already reads, rather than a
+ * new rule in `HostIcon.vue` — the same convention every other per-surface icon size in this
+ * codebase follows, so the toolbar's own 18px is untouched.
+ */
+.rp-designer-add .rp-designer-tool-button .rp-host-icon {
+	--icon-size: 28px;
+}
+
+/*
+ * REVIEWED CLONE of `designer.css`'s `.rp-designer-tools .rp-designer-tool-button`: this project's
+ * flat button is written once per COMPONENT and cannot be written once for all of them. That
+ * file's own paragraph is the canonical argument — a shared `.rp-flat-button` scores (0,1,0) and
+ * loses outright to Obsidian's `button:not(.clickable-icon)` at (0,1,1), so each rule must be a
+ * two-class compound naming its own component's class, and a selector list gathering them across
+ * PARTIALS would put each component's `:hover`/`:focus-visible` overrides at the mercy of
+ * `styles/index.css`'s import order.
+ */
+.rp-designer-add .rp-designer-tool-button {
+	/*
+	 * INSIDE the block, above the declaration the clone starts at, because
+	 * `fallow-ignore-next-line` means the next line LITERALLY and the SELECTOR line sits
+	 * between a directive above it and the first declaration. Placed above the selector this
+	 * suppressed nothing, which is measured rather than reasoned: CI at `1343cf4e5` reported
+	 * this very block as a clone instance one line below where the directive was.
+	 */
+	/* fallow-ignore-next-line code-duplication */
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+/*
+ * THE FOCUS RING, restored explicitly. The rule above sets `box-shadow: none`, which outranks
+ * Obsidian's `button:focus-visible`, and Obsidian's global `:focus { outline: none }` has already
+ * taken the outline — so without this a keyboard user would have no indicator at all. The accent
+ * rather than Obsidian's own, for the contrast measurement `designer.css` records against the 3:1
+ * WCAG 2.2 (1.4.11) floor.
+ */
+.rp-designer-add .rp-designer-tool-button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-designer-add .rp-designer-tool-button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/*
+ * The active tool wears the accent as an OUTLINE and not a fill, for `designer.css`'s measured
+ * reason: `--text-on-accent` is white and `--interactive-accent` measures under the 4.5:1 AA floor
+ * against it, so a filled accent button here could not carry a readable glyph. Three channels rather
+ * than the toolbar's four — the tint, the accent border and `aria-pressed`, without the toolbar's
+ * bold `font-weight` on the label. Task 3 gives the rail a visible label the bold weight could now
+ * reach, but adding a fourth channel here is not this card's change and is left to whichever one
+ * reviews the active state on purpose.
+ */
+.rp-designer-add .rp-designer-tool-active,
+.rp-designer-add .rp-designer-tool-active:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-active-hover);
+	border-color: var(--interactive-accent);
+}
+
+/*
+ * The preset door (AD18-R6), which the Inspector drew until this card. It keeps the bordered
+ * full-width treatment it had there — the same control, moved — so a user who knew it in the
+ * inspector recognises it in the rail.
+ *
+ * REVIEWED CLONE of `designer.css`'s `.rp-designer-inspector .rp-designer-edit-dimensions`, which
+ * is the rule this one used to share a selector list WITH. It is a separate rule now for the same
+ * reason the flat button is: the two live in different partials, and a list spanning them would
+ * make each one's `:hover` and `:focus-visible` depend on import order.
+ */
+.rp-designer-add .rp-designer-start-preset {
+	width: 100%;
+	margin: 0;
+	/*
+	 * ONE directive, and it sits HERE rather than above the selector, because
+	 * `fallow-ignore-next-line` means the next line LITERALLY and this block has two
+	 * component-specific declarations before the clone starts — CLAUDE.md's own gotcha, recorded
+	 * as having been made twice already, and `designer-header.css` states the same split at
+	 * length.
+	 *
+	 * **ONE rather than the TWO `designer.css`'s `.rp-designer-edit-dimensions` carries**, and the
+	 * difference is the `margin` value rather than a judgement about tidiness. That block's first
+	 * directive suppresses a family whose shared run starts at `margin: 0 0 var(--size-4-4)`; this
+	 * one declares `margin: 0`, which is a different declaration, so it cannot join that run. No
+	 * other block in `styles/` puts `margin: 0` directly after `width: 100%` either — measured in
+	 * this edit, and it is the only such pair in the directory — so the only family this rule can
+	 * enter is the flat button's, whose run starts at `padding`.
+	 *
+	 * That reasoning is not verified here: `npm run analyze` is the integrator's, so if it turns
+	 * out wrong fallow reports THIS directive as stale while going on counting a `margin`-family
+	 * finding — the good failure mode, and the one CLAUDE.md credits with catching both previous
+	 * instances. A second directive above `margin:` is the fix if that happens.
+	 */
+	/* fallow-ignore-next-line code-duplication */
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-designer-add .rp-designer-start-preset:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* The ring, for the reason the tool button's own `:focus-visible` comment gives above. */
+.rp-designer-add .rp-designer-start-preset:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}

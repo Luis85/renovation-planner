@@ -255,15 +255,25 @@ describe('the German locale', () => {
 	 * `Überprüfen Sie` today, whose du-forms are exactly `Öffne` and `Überprüfe`. The trailing
 	 * guard is what keeps the Sie-forms out: `Öffnen` fails `(?!\p{L})` at its own `n`.
 	 *
-	 * **What stays a LIST is stated rather than quietly widened.** These ten are the du-forms of
-	 * verbs this locale actually uses; a dozen more Sie-forms in it (`Vergrößern`, `Löschen`,
-	 * `Verwerfen`, `Erstellen`, …) have du-forms nothing here refuses, so a register slip in one
-	 * of those is invisible. Closing that is a judgement about which verbs to enumerate, which is
-	 * a different question from the boundary this edit fixes, and the honest answer is that it is
-	 * open rather than covered.
+	 * **What stays a LIST is stated rather than quietly widened, and the list has now been widened
+	 * once, by evidence.** It held ten verbs and that was too few: the asset designer's expansion
+	 * added SEVEN du-form strings across three tables and this case caught exactly ONE of them
+	 * (`Zeichne`). The other six used `Entsperre`, `Hebe`, `nimm`, `Kalibriere`, `Zieh`, `setze`,
+	 * `Drehe`, `verschiebe` and the possessive `deine` — none enumerated, so all invisible. Worse
+	 * than invisible: a later author read those neighbours, concluded the repository had no house
+	 * register, and deliberately matched the du-form to be consistent with them. **A rule with a
+	 * partial instrument does not merely miss a violation, it teaches the next author the violation
+	 * is allowed.**
+	 *
+	 * So the list carries the du-forms of the verbs this locale actually uses, including the ones
+	 * that arrived with that expansion, plus the du-form possessives `dein`/`deine`/`deinen`/`deiner`
+	 * and the pronouns `dir`/`dich`, which no Sie-form sentence can contain. It is still a LIST and
+	 * still incomplete — a du-form of a verb nobody has written yet is not refused — and the honest
+	 * statement is that it is better rather than closed. Every addition below reported nothing on the
+	 * tree at the time it was added, which is how a floor is raised here.
 	 */
 	const INFORMAL_IMPERATIVE =
-		/(?<!\p{L})(Gib|Wähle|Setze|Lege|Zeichne|Tippe|Klicke|Ziehe|Öffne|Überprüfe)(?!\p{L})/u;
+		/(?<!\p{L})(Gib|Wähle|Setze|setze|Lege|Zeichne|Tippe|Klicke|Ziehe|Zieh|Öffne|Überprüfe|Entsperre|Hebe|nimm|Nimm|Kalibriere|Drehe|drehe|Verschiebe|verschiebe|Lösche|Erstelle|Verwirf|dein|deine|deinen|deiner|deinem|dir|dich)(?!\p{L})/u;
 
 	it('addresses the user formally throughout: no du-form imperative anywhere in de.ts', () => {
 		const offenders = Object.entries(de)
@@ -447,10 +457,30 @@ describe('interpolation', () => {
 	 * 78 → 87: §6.3's Plan pattern inspector field (ADR-0031) added nine keys —
 	 * `view.asset-library.plan-pattern` and eight `view.asset-library.pattern.*` values (`none`
 	 * plus the seven patterns) — a deliberate spec amendment, not a gap.
+	 *
+	 * 87 → 100: AD13's duplicate and usage-scope half added thirteen —
+	 * `view.asset-library.duplicate` plus six `view.asset-library.duplicate.*`, and six
+	 * `view.asset-library.used-in-plans*` for the plan-placement scope drawn before a duplicate.
+	 * They live in `{en,de}/assetDuplicate.ts` rather than in `{en,de}-assetLibrary.ts`, which is
+	 * the integrator-owned per-card split that wave's leases are built on, and they carry this
+	 * surface's own `view.asset-library.` prefix precisely so that they reach this pin: a key
+	 * named to dodge it would be a second naming convention for one surface's strings, bought to
+	 * avoid the one instrument that makes an addition deliberate. **The §8 amendment this pin
+	 * cannot check is OWED and not made** — `asset-library-overview-DESIGN-SPEC.md` is outside
+	 * AD13's lease, and the pin's own paragraph above records that the guarantee here is *the
+	 * count cannot move silently*, never *the spec was amended*.
+	 *
+	 * 100 → 113: AD18-R18's Grid view added thirteen — the toolbar's `Grid | List` switch
+	 * (`view.asset-library.layout.label`, `.layout.grid`, `.layout.list`), the category sidebar and
+	 * its funnel (`view.asset-library.filter`, `.filter.active`, `.categories`, `.category.all`),
+	 * the grid's `Create your own` card (`view.asset-library.create-card.title`, `.create-card.hint`)
+	 * and the filtered-to-nothing empty state (`view.asset-library.filtered.no-matches`, `.none`,
+	 * `.body`, `.action`). The ruling amends §3.1 ("no view switcher … no filter menu"), and the
+	 * spec's Amendment 7 records it and this count.
 	 */
-	it('pins the Asset library inventory at 87 keys in both locales', () => {
-		expect(assetLibraryKeys(en)).toHaveLength(87);
-		expect(assetLibraryKeys(de)).toHaveLength(87);
+	it('pins the Asset library inventory at 113 keys in both locales', () => {
+		expect(assetLibraryKeys(en)).toHaveLength(113);
+		expect(assetLibraryKeys(de)).toHaveLength(113);
 	});
 });
 

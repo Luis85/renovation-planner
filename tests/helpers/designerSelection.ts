@@ -16,7 +16,7 @@ import type { DesignerSelection, SelectionMode } from '../../src/presentation/de
 import { designerSnapCandidates } from '../../src/presentation/designer/selection/snapCandidates';
 import { DesignerSelectTool } from '../../src/presentation/designer/tools/designer-select-tool';
 import { expectDefined, observationToken } from './domain';
-import { toiletShape } from './assetShapes';
+import { closedOutlineOf, toiletShape } from './assetShapes';
 import { toolContext, type ToolContextHarness, type ToolContextOptions } from './tool-context';
 
 /** The toilet at its default size: a round-fronted footprint, a front clearance, `detail-1` the tank, `detail-2` the bowl. */
@@ -24,7 +24,7 @@ export const TOILET: AssetShape = toiletShape(); // Task 3's fixture, one defini
 
 /** A detail of `TOILET`'s outline by id, so a case names the part rather than an array index. */
 export function detailOutline(id: string): CurvedPolygon {
-	return expectDefined(TOILET.details.find((detail) => detail.id === id), `detail ${id}`).outline;
+	return closedOutlineOf(expectDefined(TOILET.details.find((detail) => detail.id === id), `detail ${id}`));
 }
 
 /**
@@ -44,11 +44,33 @@ export interface SelectToolRigOptions {
 	/** Default `TOILET`; `null` is an asset nobody has drawn on. */
 	readonly shape?: AssetShape | null;
 	readonly selection?: DesignerSelection | null;
+	/**
+	 * The whole selection SET, as `assetDesignStore.selected` holds it (AD08). Default: undefined,
+	 * which is the dep left unwired — the shape a leaf whose `selectToolDeps` has not been given it
+	 * sees, and the arm `DesignerSelectTool.selectionSet` falls back on.
+	 *
+	 * A stub the CASE names rather than a set this rig evolves: the rig records `select`/`extend`
+	 * calls instead of holding a store, so a set it tried to maintain would be a second answer to
+	 * the store's own composition rule. What a set built by real gestures does is
+	 * `designerMarqueeCanvas.test.ts`'s subject, where the store is real.
+	 */
+	readonly selected?: () => readonly DesignerSelection[];
 	readonly mode?: SelectionMode;
 	readonly context?: ToolContextOptions;
 	/** The leaf's write chain as the tool asks it (`createWriteChain`). Default: nothing ever queued. */
 	readonly writing?: () => boolean;
 	readonly settled?: () => Promise<void>;
+	/** The sticky select-multiple mode the tool asks per press (AD08). Default: off. */
+	readonly multiSelectionMode?: () => boolean;
+	/** Graphics the Parts panel has locked against editing (AD09). Default: none. */
+	readonly locked?: () => ReadonlySet<string>;
+	/**
+	 * Graphics the Parts panel has hidden, which no press can land on (AD09). Default: the dep left
+	 * UNWIRED rather than a function answering an empty set — the two are the same to every rule that
+	 * reads it, and only the unwired shape reaches `DesignerSelectTool`'s own `hidden === undefined`
+	 * arm, which nothing in the tree had ever reached.
+	 */
+	readonly hidden?: () => ReadonlySet<string>;
 }
 
 export interface SelectToolRig {
@@ -56,6 +78,8 @@ export interface SelectToolRig {
 	readonly harness: ToolContextHarness;
 	/** Every `select` call, in order. */
 	readonly selected: (DesignerSelection | null)[];
+	/** Every `extend` call, in order — the additive route (AD08). */
+	readonly extended: DesignerSelection[];
 	/** Every `setPreview` call, in order. */
 	readonly previews: (AssetShape | null)[];
 	/** Every write built, with the version it was made conditional on. */
@@ -82,10 +106,19 @@ export function selectToolRig(options: SelectToolRigOptions = {}): SelectToolRig
 		snapCandidates: (exclude) => designerSnapCandidates(shape, exclude ?? []),
 		...options.context,
 	});
+	const extended: DesignerSelection[] = [];
 	const tool = new DesignerSelectTool({
 		design: () => (shape === null ? null : { shape, geometryVersion: DESIGN_VERSION }),
 		selection: () => selection,
+		...(options.selected === undefined ? {} : { selected: options.selected }),
 		mode: () => mode,
+		multiSelectionMode: options.multiSelectionMode ?? (() => false),
+		locked: options.locked ?? ((): ReadonlySet<string> => new Set()),
+		...(options.hidden === undefined ? {} : { hidden: options.hidden }),
+		extend: (next) => {
+			extended.push(next);
+			selection = next;
+		},
 		select: (next) => {
 			selected.push(next);
 			selection = next;
@@ -109,5 +142,5 @@ export function selectToolRig(options: SelectToolRigOptions = {}): SelectToolRig
 		writing: options.writing ?? (() => false),
 		settled: options.settled ?? (() => Promise.resolve()),
 	});
-	return { tool, harness, selected, previews, written, rejected, invalid };
+	return { tool, harness, selected, extended, previews, written, rejected, invalid };
 }

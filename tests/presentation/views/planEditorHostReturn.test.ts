@@ -37,6 +37,28 @@ it('refuses a peer-deleted return target without changing host history, the prev
   expect(view.contentEl.querySelector('canvas')).toBe(canvas); expect([...rig.stack.vault.entries]).toEqual(bytes);
  } finally { await dispose(); }
 });
+/**
+ * AD13's asset hand-off is ONE-SHOT, and both doors it could leak through are asked about here.
+ *
+ * `getState` persists `this.origin` into Obsidian's workspace layout, so an `assetId` left in it
+ * would arm the placement tool again on a restart weeks later; `rebind` unmounts and remounts with
+ * `initialNavigation`, so one left in the FIELD would arm it again on a settings save. The
+ * arrival's own refusal is the observable: `asset-01NOTHERE` is in no catalogue, so each arm of
+ * the hand-off produces exactly one `editor.asset.unreadable` warning and a second arrival would
+ * be a second one. `consumeAssetHandoff` is what makes both counts one.
+ */
+it('consumes a designer asset hand-off once, leaving neither the layout nor a rebind able to re-arm it', async () => {
+ const { rig, view, deps, dispose } = await setup();
+ try {
+  const warn = vi.spyOn(notices, 'notifyWarning').mockImplementation(() => undefined);
+  await view.setState({ planId: rig.plan.id, origin: { planId: rig.plan.id, assetId: 'asset-01NOTHERE' } }, {} as never);
+  await view.onOpen(); sizedShellRoot(view.contentEl); await settle();
+  expect(view.getState()).toEqual({ planId: rig.plan.id }); expect(warn).toHaveBeenCalledOnce();
+  view.rebind(deps); sizedShellRoot(view.contentEl); await settle();
+  expect(view.getState()).toEqual({ planId: rig.plan.id }); expect(warn).toHaveBeenCalledOnce();
+  expect(view.contentEl.querySelector('canvas')).not.toBeNull();
+ } finally { await dispose(); }
+});
 it('accepts a dependency rebind before a Plan is selected and discards a foreign-floor origin from restored host state', async () => {
  const { rig, view, deps, origin, dispose } = await setup();
  try {

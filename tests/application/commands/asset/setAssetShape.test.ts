@@ -46,7 +46,9 @@ describe('SetAssetShapeCommand', () => {
 	it('refuses a shape the domain refuses, and writes nothing', async () => {
 		const h = await seeded();
 		const collinear = { points: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }] };
-		const degenerate = { ...symbol(), details: [{ ...symbol().details[0], outline: collinear }] };
+		// `kind` spelled out because the spread is over the `AssetDetail` UNION: without it the literal
+		// is assignable to neither arm, and the case means the closed one.
+		const degenerate = { ...symbol(), details: [{ ...symbol().details[0], kind: 'closed' as const, outline: collinear }] };
 
 		expect(expectErr(await h.command.execute({ assetId: h.assetId, shape: degenerate })).code).toBe('asset.degenerate-detail');
 		expect((await h.read()).version.revision).toBe(0);

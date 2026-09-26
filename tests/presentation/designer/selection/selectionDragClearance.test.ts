@@ -1,0 +1,150 @@
+import { describe, expect, it } from 'vitest';
+import { boxResize } from '../../../../src/core/geometry/boxHandles';
+import { boundingBoxOf } from '../../../../src/core/geometry/operations';
+import type { Point } from '../../../../src/core/geometry/Point';
+import { unwrap } from '../../../../src/core/result/Result';
+import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
+import { validateAssetShape } from '../../../../src/domain/asset/AssetShape';
+import { ASSET_PRESETS } from '../../../../src/domain/asset/presets/catalogue';
+import { defaultValues } from '../../../../src/domain/asset/presets/presetGeometry';
+import { outlineOf, resizeBox, type OutlinePart } from '../../../../src/domain/asset/shapeEdits';
+import { partMeasure, resizeToExtent, type PartBox } from '../../../../src/presentation/designer/selection/partExtent';
+import { draggedShape, type DragOptions } from '../../../../src/presentation/designer/selection/selectionDrag';
+import { selectToolRig } from '../../../helpers/designerSelection';
+import { expectDefined, expectOk } from '../../../helpers/domain';
+import { flushGesture, pointerAt } from '../../../helpers/tool-context';
+
+/**
+ * AD18-R23: a box-handle drag on a CURVED CLEARANCE solves its extent as every other curved part does
+ * (`fittedResize`), withdrawing Task 13's clearance exclusion — so the side or corner opposite the handle stays
+ * put and the curve-aware box lands what the typed Width/Depth path (`resizeToExtent`) lands.
+ *
+ * The two presets at their defaults, as the integrator measured them: the round table's clearance is a circle
+ * of diameter 2100 about the origin (curve box ±1050), the oval table's a stadium 3000 x 2200 whose half-circle
+ * ends of radius 1100 sit on the vertical chords at x ±400. The measured drag — the right handle dragged 40 px
+ * at zoom ~0.293, taking the plain scale's right vertex from 1050 to 1186.4 — drives the corner and Shift cases
+ * below. The side case reverses it to 913.6: outward, to 1186.4, every arc's x-extreme already sits on a vertex,
+ * so the plain scale already lands the right width and cannot be discriminated from the solve.
+ */
+const CLEARANCE: OutlinePart = { kind: 'clearance' };
+const FREE: DragOptions = { shift: false, snapRotation: (radians) => radians };
+/**
+ * `scaleSolve.ts` stops within its `TOLERANCE_MM` of 1e-6, and `toBeCloseTo`'s 6 decimals means 5e-7, which the
+ * round table's inward drag misses by 2.8e-7 (it lands 1963.6000008). 5 decimals is 5e-6: still far under every
+ * miss the plain scale makes here, the smallest of which is 0.43 mm.
+ */
+const MM = 5;
+
+function preset(id: string): AssetShape {
+	const found = expectDefined(ASSET_PRESETS.find((each) => each.id === id), id);
+	return expectOk(found.build(defaultValues(found)));
+}
+
+const ROUND = preset('round-table');
+const OVAL = preset('oval-table');
+
+function drag(shape: AssetShape, index: number, from: Point, to: Point, options: DragOptions = FREE) {
+	return draggedShape({ shape, selection: CLEARANCE, role: { kind: 'box', index }, from }, to, options);
+}
+
+const box = (shape: AssetShape): PartBox => expectDefined(partMeasure(shape, CLEARANCE), 'clearance');
+const minX = (measured: PartBox) => measured.centre.x - measured.width / 2;
+const minY = (measured: PartBox) => measured.centre.y - measured.depth / 2;
+
+/** What a box drag wrote before AD18-R23: the clearance's points scaled by the plain ratio over its curve-aware box. */
+function plainScale(shape: AssetShape, index: number, to: Point, shift: boolean) {
+	const { factors, origin } = boxResize(unwrap(boundingBoxOf(expectDefined(outlineOf(shape, CLEARANCE), 'clearance'))), index, to, shift);
+	return expectOk(resizeBox(shape, CLEARANCE, factors, origin));
+}
+
+/** The typed path for a corner: Width, Depth, Width, in `scaleDesignToDimensions`' order. */
+function typedCorner(shape: AssetShape, width: number, depth: number): PartBox {
+	const once = expectOk(resizeToExtent(shape, CLEARANCE, 'width', width));
+	const twice = expectOk(resizeToExtent(once, CLEARANCE, 'depth', depth));
+	return box(expectOk(resizeToExtent(twice, CLEARANCE, 'width', width)));
+}
+
+describe('a box-handle drag on a curved clearance', () => {
+	it.each([
+		// The integrator's drag reversed, 2100 -> 1963.6. Outward (to 1186.4) the plain scale's width was already right,
+		// since every arc's x-extreme stays at a vertex while it widens; inward the right-hand arcs overshoot the pointer.
+		['round table', ROUND, { x: 1050, y: 0 }, { x: 913.6, y: 0 }, 1963.6, -1050],
+		// The ends keep their 2200 of reach under an x-scale, so the plain scale lands short AND moves the left side.
+		['oval table', OVAL, { x: 1500, y: 0 }, { x: 1640, y: 0 }, 3140, -1500],
+	])('lands the typed Width on the %s and keeps its left side from a right-side drag', (_, shape, from, to, width, left) => {
+		const resized = box(expectOk(drag(shape, 3, from, to)));
+		const typed = box(expectOk(resizeToExtent(shape, CLEARANCE, 'width', width)));
+		expect(resized.width).toBeCloseTo(width, MM);
+		expect(resized.width).toBeCloseTo(typed.width, MM);
+		expect(resized.depth).toBeCloseTo(typed.depth, MM);
+		expect(minX(resized)).toBeCloseTo(left, MM);
+	});
+
+	it.each([
+		['round table', ROUND, { x: 1050, y: 1050 }, { x: 1186.4, y: 1100 }, 2236.4, 2150, -1050, -1050],
+		['oval table', OVAL, { x: 1500, y: 1100 }, { x: 1640, y: 1200 }, 3140, 2300, -1500, -1100],
+	])('lands the typed Width and Depth on the %s and keeps its opposite corner from a corner drag', (_, shape, from, to, width, depth, left, top) => {
+		const resized = box(expectOk(drag(shape, 4, from, to)));
+		const typed = typedCorner(shape, width, depth);
+		expect(resized.width).toBeCloseTo(width, MM);
+		expect(resized.depth).toBeCloseTo(depth, MM);
+		expect(resized.width).toBeCloseTo(typed.width, MM);
+		expect(resized.depth).toBeCloseTo(typed.depth, MM);
+		expect(minX(resized)).toBeCloseTo(left, MM);
+		expect(minY(resized)).toBeCloseTo(top, MM);
+	});
+
+	/**
+	 * AD18-R24 T5-M1: a CORNER handle under Shift forces a uniform, aspect-preserving target (`boxResize`), and
+	 * both presets' clearances are shapes whose bulge-preserving arcs reconstruct exactly under any uniform
+	 * scale — so `fittedResize`'s width/depth/width solve and the plain scale land the SAME box for a corner,
+	 * to within `scaleSolve.ts`'s own `TOLERANCE_MM`. Measured directly (the Shift gate below temporarily
+	 * removed, every corner index, a scale factor swept 0.0001x to 1000x on both presets): the largest gap
+	 * found was 8.3e-7 mm, on the round table — no corner input discriminates this gate at any useful scale, so
+	 * a corner case is not used here. A SIDE handle does: `fittedResize`'s pass list for a side handle
+	 * (`!moves.y ? [width] : …`) never resizes the axis the handle doesn't move, so a side handle whose Shift
+	 * check is bypassed comes back with that axis unscaled, against the plain scale's uniform resize of both —
+	 * measured (same removed gate): 68.2 mm on the round table, 72.6 mm on the oval.
+	 */
+	it.each([
+		['round table', ROUND, 3, { x: 1050, y: 0 }, { x: 1186.4, y: 0 }, 2236.4, -1050],
+		['oval table', OVAL, 3, { x: 1500, y: 0 }, { x: 1640, y: 0 }, 3140, -1500],
+	])('keeps the uniform scale under Shift from a side handle on the %s', (_, shape, index, from, to, width, left) => {
+		const shift = { ...FREE, shift: true };
+		const dragged = expectOk(drag(shape, index, from, to, shift));
+		const resized = box(dragged);
+		// Independent of `plainScale`: the pointer lands the width and the side it holds stays at the origin.
+		expect(resized.width).toBeCloseTo(width, MM);
+		expect(minX(resized)).toBeCloseTo(left, MM);
+		expect(dragged).toEqual(plainScale(shape, index, to, true));
+	});
+
+	// The flags are not this module's to decide: both paths write through `resizeBox`, whose `mapPartOutline` carries
+	// `clearancePending` and clears the review flag (AD14-R1). This pins that the solve reaches the same door, using
+	// the oval side drag (the discriminating input above) rather than the round table's outward drag, where solve
+	// and plain scale coincide and a reinstated exclusion would leave this case green.
+	it('treats clearancePending and the review flag as the typed Width does', () => {
+		const flagged = expectOk(validateAssetShape({ ...OVAL, clearancePending: true, clearanceNeedsReview: true }));
+		const dragged = expectOk(drag(flagged, 3, { x: 1500, y: 0 }, { x: 1640, y: 0 }));
+		const typed = expectOk(resizeToExtent(flagged, CLEARANCE, 'width', 3140));
+		expect([dragged.clearancePending, dragged.clearanceNeedsReview]).toEqual([true, false]);
+		expect([typed.clearancePending, typed.clearanceNeedsReview]).toEqual([true, false]);
+	});
+});
+
+/** Pins that the select tool's own entry holds the clearance handle's opposite side in WORLD coordinates, immune to the edge-scroll pan that reading it in screen pixels would show as drift. */
+describe('the select tool dragging the oval table’s clearance handle', () => {
+	it('holds the left side in the world and lands the pointer’s width', async () => {
+		const rig = selectToolRig({ shape: OVAL, selection: CLEARANCE });
+		rig.tool.activate(rig.harness.context);
+
+		rig.tool.pointerDown(pointerAt(1500, 0));
+		for (const x of [1540, 1580, 1620, 1653]) rig.tool.pointerMove(pointerAt(x, 0));
+		rig.tool.pointerUp(pointerAt(1653, 0));
+		await flushGesture();
+
+		const committed = box(expectDefined(rig.written[0], 'write').shape);
+		expect(minX(committed)).toBeCloseTo(-1500, MM);
+		expect(committed.width).toBeCloseTo(3153, MM);
+	});
+});

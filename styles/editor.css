@@ -126,8 +126,9 @@
    class loses to Obsidian's own `button:not(.clickable-icon)` at (0,1,1). */
 /* REVIEWED CLONE: the bordered variant, `.rp-layer-list__action` — the flat button is per-component by
    necessity; the argument is on `.rp-designer-tool-button` in `styles/designer.css`. */
-/* fallow-ignore-next-line code-duplication */
 .rp-layer-list .rp-layer-list__action {
+	/* Above the DECLARATION, never the selector; `styles/designer-add.css` carries the measurement. */
+	/* fallow-ignore-next-line code-duplication */
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);

@@ -128,8 +128,9 @@ describe('what onload registers', () => {
 			// and both reach `openDiagnosticsReport`. Pinned here as an id like the rest,
 			// because a user's hotkey binds to this string.
 			'show-diagnostics-report',
-			// §2's fourth registration's own command: a plain callback, never gated on the
-			// active note, exactly like every other command in this list.
+			// §2's fourth registration's own command. A `checkCallback` since AD13's mobile gate,
+			// and still never gated on the active NOTE — the precondition is the device, which no
+			// vault can change, so it is absent from a mobile palette and present everywhere else.
 			'open-asset-library',
 			// Task 9, §5's region 7 and the locked `Mod+N` decision: a real command rather than
 			// a pane-local key, so Obsidian owns the binding and the palette can find it.
@@ -205,8 +206,11 @@ describe('both ways in', () => {
 	});
 
 	/**
-	 * §2's own command, with no ribbon beside it: a plain callback exactly like the other two
-	 * above, driven through `plugin.commands` the same way — `openAssetLibrary`'s own
+	 * §2's own command, with no ribbon beside it. Driven through `checkCallback?.(false)` rather
+	 * than `callback?.()`, because its only precondition is the DEVICE: `Platform.isMobile` has to
+	 * answer `false`, which nothing in a vault can change. `false` is the not-checking arm, so this
+	 * case asks it to ACT; `assetLibraryCommandGate.test.ts` drives both arms on both platforms.
+	 * Otherwise driven through `plugin.commands` the same way — `openAssetLibrary`'s own
 	 * `revealView` call, composed directly on the plugin rather than through
 	 * `RenovationProjectDeps.openAssetLibrary`, which `renovationProjectOpenSeams.test.ts` and
 	 * `renovationProjectWiring.test.ts` already drive for the other door.
@@ -214,7 +218,7 @@ describe('both ways in', () => {
 	it('opens the asset library from its own command', async () => {
 		const command = plugin.commands.find((c) => c.id === 'open-asset-library');
 
-		command?.callback?.();
+		command?.checkCallback?.(false);
 		await settle();
 
 		expect(workspace.getLeavesOfType(ASSET_LIBRARY_VIEW)).toHaveLength(1);
@@ -233,7 +237,7 @@ describe('both ways in', () => {
 		});
 		const command = plugin.commands.find((c) => c.id === 'open-asset-library');
 
-		command?.callback?.();
+		command?.checkCallback?.(false);
 		await settle();
 
 		const logged = lines.find((line) => line.event === 'view.asset-library.reveal-failed');

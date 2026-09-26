@@ -40,6 +40,7 @@ import { unavailableAssetDesignerCommands } from '../../../src/presentation/desi
 import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 /**
  * The canvas region holds a real Konva stage since Task B4, so this file mounts one: jsdom has
@@ -70,7 +71,7 @@ let closeRequests = 0;
 function context(overrides: Partial<AssetDesignerContext> = {}): AssetDesignerContext {
 	return {
 		assetId: ASSET_ID,
-		queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign())) },
+		queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign())), listPlansUsingAsset: unwiredPlanUsage },
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		// This file is about the shell's regions and the shape/failure states, not the
@@ -116,10 +117,17 @@ async function mounted(ctx: AssetDesignerContext = context()) {
  * fails here by name rather than as an anonymous missing selector.
  */
 const REGIONS = [
+	['.rp-designer-header', 'AD18 mounts DesignerHeader into it'],
 	['.rp-designer-toolbar', 'Task B5 mounts the designer toolbar into it'],
+	['.rp-designer-parts', 'AD09 mounts DesignerPartsPanel into it'],
+	// The `Add` half of the rail (AD18 item 5). It is a section INSIDE the rail div above rather
+	// than a fourth body column — AD18-R5 stacks the two — so it appears here as its own entry for
+	// the reason every entry is here: the list is what notices a region going missing, and
+	// `.rp-designer-parts` would go on existing with the Add panel silently unmounted.
+	['.rp-designer-add', 'AD18 item 5 mounts DesignerAddPanel into it'],
 	['.rp-designer-canvas', 'Task B4 mounts DesignerCanvas into it'],
 	['.rp-designer-inspector', 'Task B8 mounts DesignerInspector into it'],
-	['.rp-designer-status', 'the save-state indicator draws in it, from this task'],
+	['.rp-designer-status', 'the Shift hint and the grid step draw in it'],
 ] as const;
 
 describe('the designer shell', () => {
@@ -153,11 +161,50 @@ describe('the designer shell', () => {
 	/**
 	 * Slice 13's indicator, in THIS shell too — one per designer leaf, because it reads the
 	 * leaf's own Pinia store and two open designers must indicate independently.
+	 *
+	 * **In the HEADER region since AD18**, which is where AD06 implementation item 1 asks for it.
+	 * The second half of this case is the half that matters: it is not drawn in both places, and a
+	 * case that only found it in its new home would stay green on the day somebody leaves a copy
+	 * behind. `designerHeader.test.ts` makes the same count over the whole mounted tree.
 	 */
-	it('draws the save-state indicator in its status region', async () => {
+	it('draws the save-state indicator in its header region, and not in the status one', async () => {
 		const { wrapper } = await mounted();
 
-		expect(wrapper.find('.rp-designer-status .rp-save-state-label').exists()).toBe(true);
+		expect(wrapper.find('.rp-designer-header .rp-save-state-label').exists()).toBe(true);
+		expect(wrapper.find('.rp-designer-status .rp-save-state-label').exists()).toBe(false);
+	});
+
+	/**
+	 * **AD18 item 1's readout MOVED here from the status region at AD18-R16's Task 1**, into the
+	 * toolbar's own zoom cluster beside undo/redo — `designerToolbar.test.ts` is where the moved
+	 * behaviour (it follows the camera, whole percent, absent without a design) is asserted now.
+	 * What survives here is the negative half: the status region states no scale any more, and
+	 * two standing answers to one question is exactly what this case refuses.
+	 */
+	it('states no scale in the status region, which is the toolbar cluster’s alone now', async () => {
+		const { wrapper } = await mounted();
+
+		expect(wrapper.find('.rp-designer-status .rp-designer-zoom').exists()).toBe(false);
+	});
+
+	/**
+	 * **A scale over a leaf with no design is a fact about nothing**, which is unchanged by the
+	 * move: the STATUS REGION itself survives a refused read either way (`keeps every region when
+	 * the read refuses` above is the assertion for that), and it still states no scale.
+	 *
+	 * **The toolbar's own cluster takes the same gate**, asserted here rather than in
+	 * `designerToolbar.test.ts`: that file's rig has no door onto a refused READ (only onto a
+	 * refused command bundle), where this file's `unavailableAssetDesignerQueries()` is exactly
+	 * that door — the cluster survives (it is not gated on `design`, only its readout is) and
+	 * states nothing.
+	 */
+	it('states no scale when the read refuses, while keeping the region', async () => {
+		const { wrapper } = await mounted(context({ queries: unavailableAssetDesignerQueries() }));
+
+		expect(wrapper.find('.rp-designer-status').exists()).toBe(true);
+		expect(wrapper.find('.rp-designer-status .rp-designer-zoom').exists()).toBe(false);
+		expect(wrapper.find('.rp-designer-zoom').exists()).toBe(true);
+		expect(wrapper.find('.rp-designer-zoom output').exists()).toBe(false);
 	});
 
 	/**
@@ -190,7 +237,9 @@ describe('what the designer draws inside its canvas region', () => {
 	 */
 	it('overlays the no-shape empty state inside the canvas, never in place of it', async () => {
 		const { wrapper } = await mounted(
-			context({ queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))) } }),
+			context({
+				queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))), listPlansUsingAsset: unwiredPlanUsage },
+			}),
 		);
 
 		const overlay = wrapper.find('.rp-designer-canvas .rp-empty-state');
@@ -207,7 +256,9 @@ describe('what the designer draws inside its canvas region', () => {
 	 */
 	it('draws an action button on the no-shape state, because Task B8 built what it hands off to', async () => {
 		const { wrapper } = await mounted(
-			context({ queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))) } }),
+			context({
+				queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))), listPlansUsingAsset: unwiredPlanUsage },
+			}),
 		);
 
 		expect(wrapper.find('.rp-empty-state__action').exists()).toBe(true);
@@ -230,7 +281,9 @@ describe('what the designer draws inside its canvas region', () => {
 	 */
 	it('yields the overlay to an active tool, keeping the canvas it floats over', async () => {
 		const { wrapper } = await mounted(
-			context({ queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))) } }),
+			context({
+				queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))), listPlansUsingAsset: unwiredPlanUsage },
+			}),
 		);
 		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
 
@@ -249,7 +302,9 @@ describe('what the designer draws inside its canvas region', () => {
 	 */
 	it('brings the overlay back when the user returns to camera mode', async () => {
 		const { wrapper } = await mounted(
-			context({ queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))) } }),
+			context({
+				queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))), listPlansUsingAsset: unwiredPlanUsage },
+			}),
 		);
 
 		toolButton(wrapper, 'designer.toolbar.trace-footprint').click();
@@ -275,7 +330,8 @@ describe('what the designer draws inside its canvas region', () => {
 		const { wrapper } = await mounted(
 			context({
 				queries: {
-					getAssetDesign: () =>
+					listPlansUsingAsset: unwiredPlanUsage,
+					getAssetDesign:() =>
 						Promise.resolve(err({ category: 'Persistence' as const, code: 'vault.unexpected-failure', message: 'x' })),
 				},
 			}),
@@ -295,7 +351,8 @@ describe('what the designer draws inside its canvas region', () => {
 		const { wrapper } = await mounted(
 			context({
 				queries: {
-					getAssetDesign: () => {
+					listPlansUsingAsset: unwiredPlanUsage,
+					getAssetDesign:() => {
 						attempt += 1;
 						return attempt === 1
 							? Promise.resolve(err({ category: 'Persistence' as const, code: 'vault.unexpected-failure', message: 'x' }))
@@ -339,7 +396,8 @@ describe('what the designer draws inside its canvas region', () => {
 		const { wrapper } = await mounted(
 			context({
 				queries: {
-					getAssetDesign: () =>
+					listPlansUsingAsset: unwiredPlanUsage,
+					getAssetDesign:() =>
 					Promise.resolve(err({ category: 'Reference' as const, code: 'asset.not-found', message: 'gone' })),
 				},
 			}),
@@ -359,7 +417,8 @@ describe('what the designer draws inside its canvas region', () => {
 		const { wrapper } = await mounted(
 			context({
 				queries: {
-					getAssetDesign: () => {
+					listPlansUsingAsset: unwiredPlanUsage,
+					getAssetDesign:() => {
 						attempts += 1;
 						return Promise.resolve(err({ category: 'Reference' as const, code: 'asset.not-found', message: 'gone' }));
 					},
@@ -383,7 +442,8 @@ describe('what the designer draws inside its canvas region', () => {
 		const { wrapper } = await mounted(
 			context({
 				queries: {
-					getAssetDesign: () => {
+					listPlansUsingAsset: unwiredPlanUsage,
+					getAssetDesign:() => {
 						attempts += 1;
 						return Promise.resolve(err({ category: 'Persistence' as const, code: 'vault.unexpected-failure', message: 'x' }));
 					},
@@ -418,6 +478,7 @@ describe('a design the canvas can no longer confirm', () => {
 			{
 				getAssetDesign: () =>
 					Promise.resolve(err({ category: 'Persistence' as const, code: 'vault.unexpected-failure', message: 'x' })),
+				listPlansUsingAsset: unwiredPlanUsage,
 			},
 			ASSET_ID,
 			{ indexScanCompleted: true, keepPreviousOnFailure: true },

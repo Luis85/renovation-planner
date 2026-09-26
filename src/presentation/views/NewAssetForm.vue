@@ -73,6 +73,7 @@ import { tr } from '../i18n/strings';
 import FieldError from '../components/FieldError.vue';
 import FormBanner from '../components/FormBanner.vue';
 import SimilarNameHint from './SimilarNameHint.vue';
+import NumericField from './NumericField.vue';
 
 const props = defineProps<{
 	createAsset: (input: CreateAssetInput) => Promise<Result<Asset, AppError>>;
@@ -121,6 +122,12 @@ const emit = defineEmits<{
  * `shapeFromDimensions` correctly refuses as non-positive — so a form that parsed
  * eagerly would refuse the perfectly ordinary case of creating a catalogue entry with no
  * geometry yet. Blank-versus-typed is decided on the raw text, once, in `parseDimensions`.
+ *
+ * `height` is a string for the same reason and a SHARPER one: unlike a dimension, a zero height
+ * is VALID — `checkHeight` accepts it, because a flat thing is a real answer and refusing it
+ * would invent a rule nobody asked for. So an eagerly parsed blank would not be refused
+ * anywhere; it would silently record every asset created through this form as nought
+ * millimetres tall. `parseHeight` decides blank-versus-typed on the raw text.
  */
 interface NewAssetValues {
 	name: string;
@@ -128,6 +135,7 @@ interface NewAssetValues {
 	unit: CreateAssetInput['unit'];
 	unitCostAmount: string;
 	currency: string;
+	height: string;
 	width: string;
 	depth: string;
 }
@@ -170,11 +178,27 @@ function dimensionsIncomplete(): ValidationError {
  * from `footprintFromDimensions` to `shapeFromDimensions`; before that it could arrive from the
  * COMMAND, after a write, which is the defect that move closed.
  *
+ * **`asset.negative-height` is `Asset.create`'s `checkHeight`, and it arrives with the vault
+ * untouched** — not because this form preflights it (it does not; `footprintPreflight` is
+ * about the rectangle alone), but because `CreateAssetCommand.execute` runs `Asset.create`
+ * before `this.assets.save`. That is a property of the COMMAND, so it is checked in
+ * `tests/application/commands/asset/assetCommands.test.ts` rather than here. Its field is not
+ * a footprint one and does not want to be: a height is a NOTE field, which is why its control
+ * survives outline mode and why this entry is absent from
+ * `NEW_ASSET_ERRORS_FOR_OUTLINE`'s omission list below.
+ *
+ * **`asset.negative-height`'s TWIN is deliberately absent, and the reason is measured rather
+ * than reasoned.** `asset.invalid-height` cannot arise from this form at all: the height is a
+ * `type="number"` control, and the HTML value-sanitization algorithm empties one whose content
+ * is not a finite floating-point number — so `1e999` reaches `parseHeight` as `''` and is sent
+ * as `null`, never as `Infinity`. `newAssetFormHeight.test.ts` drives exactly that rather than
+ * asserting the absence, because an absence asserted is green on the day it stops being true.
+ * Routing it anyway would be a map entry no press of this form can reach.
+ *
  * **What is deliberately ABSENT**, so the gaps read as decisions rather than omissions. The
  * other codes `AssetShape.ts` mints — the clearance, anchor, facing and pending-flag
  * refusals, and `asset.no-footprint` — are about attributes this form does not render and
- * cannot send; `asset.invalid-height` and `asset.negative-height` likewise, height being
- * `SetAssetHeightCommand`'s field. `asset.not-found` cannot arise from a form that has just
+ * cannot send. `asset.not-found` cannot arise from a form that has just
  * created the asset it is writing to, except through a deletion racing the sidecar write, and
  * there is no field that would be about. Each of those still has COPY in `en.ts`/`de.ts` —
  * absence from this map routes to the banner, which is where they belong, and an absent
@@ -186,6 +210,7 @@ const NEW_ASSET_ERRORS: FieldErrorMap<NewAssetValues> = {
 	'asset.negative-unit-cost': 'unitCostAmount',
 	'money.invalid-amount': 'unitCostAmount',
 	'money.invalid-currency': 'currency',
+	'asset.negative-height': 'height',
 	'asset.dimensions-incomplete': ['width', 'depth'],
 	'asset.non-positive-dimension': ['width', 'depth'],
 	'asset.dimension-underflow': ['width', 'depth'],
@@ -210,10 +235,17 @@ const {
 /**
  * `wasteFactorDefault`, `supplier`, `sku` and `notes` are all optional on
  * `CreateAssetInput` and this form sends none: they are catalogue detail rather than
- * identity, and `UpdateAssetCommand` is what edits them. The five fields below are exactly
- * the ones the command REQUIRES, which is why every one of them is rendered rather than
- * defaulted — inventing a currency in particular would price an asset in a currency nobody
- * chose, and `Money` refuses to add two of them.
+ * identity, and `UpdateAssetCommand` is what edits them. The first five fields below are
+ * exactly the ones the command REQUIRES, which is why every one of them is rendered rather
+ * than defaulted — inventing a currency in particular would price an asset in a currency
+ * nobody chose, and `Money` refuses to add two of them.
+ *
+ * **`height` is the one OPTIONAL `CreateAssetInput` field this form does send**, which is AD07
+ * implementation item 3 and not an inconsistency with the paragraph above. It is here rather
+ * than left to the designer's `SetAssetHeightCommand` because the item asks for a height *at
+ * creation time*; it is sent rather than defaulted because a blank one means "says nothing
+ * about how tall it is", which is `null` and not a number. It stays DESCRIPTIVE (ADR-0014,
+ * contract C07) — nothing in this form or below it feeds it to a clash check.
  */
 const INITIAL: NewAssetValues = {
 	name: '',
@@ -221,9 +253,32 @@ const INITIAL: NewAssetValues = {
 	unit: 'piece',
 	unitCostAmount: '',
 	currency: '',
+	height: '',
 	width: '',
 	depth: '',
 };
+
+/**
+ * The height's own blank-versus-typed decision, made once, on the raw text — `null` for a
+ * blank, and whatever `Number` makes of anything else. Deliberately NOT a refusal: `1e999`
+ * parses to `Infinity` and `-5` to a negative, and `checkHeight` inside `Asset.create` is the
+ * one rule about both. Routing its two codes is this form's whole job there, which is the
+ * difference between this and `parseDimensions` — that one MINTS a code no command would.
+ *
+ * **Where the control sits, since the template says it in one line.** It is OUTSIDE the
+ * outline-or-dimensions pair, so it renders in BOTH modes: a height is a note field rather
+ * than sidecar geometry, so an item outline decides the footprint and says nothing about how
+ * tall the thing is, and hiding the field in outline mode would be a question this dialog
+ * never gets to ask again. And it is bound `:readonly="catalogueInoperative"` where width and
+ * depth take `form.submitting` alone, because `createAsset` is what carries a height: a retry
+ * skips that call, so a height edited after the freeze would be accepted by the input and
+ * discarded by the code behind it — the same defect the `catalogueFrozen` docblock records for
+ * the other five. `NumericField` makes `readonly` a REQUIRED prop for exactly this reason.
+ */
+function parseHeight(values: NewAssetValues): number | null {
+	const height = values.height.trim();
+	return height === '' ? null : Number(height);
+}
 
 /** The blank-versus-typed decision, made once, on the raw text. */
 function parseDimensions(
@@ -245,14 +300,16 @@ function parseDimensions(
 const createdAssetId = ref<AssetId | null>(null);
 
 /**
- * The five CATALOGUE fields are frozen once the note exists, and the two dimensions are not.
+ * The SIX catalogue fields are frozen once the note exists, and the two dimensions are not.
+ * Six counted from the `createAsset` call in `createAssetAndFootprint` rather than remembered:
+ * `name`, `category`, `unit`, `unitCostAmount`, `currency` and — since AD07 Amendment 1 —
+ * `height`. The dimensions are absent from that call, which is exactly what leaves them live.
  *
  * This is the cost of rule 2 above rather than an independent decision: keeping the created
  * id is what stops a retry making a second entry, and it also means every later submit skips
- * `createAsset` — so an edit to the name, the category, the unit, the cost or the currency was
- * accepted by the input, discarded by the code behind it, and the dialog then closed reporting
- * success over an asset still carrying the old values. An edit silently ignored is worse than
- * one refused.
+ * `createAsset` — so an edit to any of those six was accepted by the input, discarded by the
+ * code behind it, and the dialog then closed reporting success over an asset still carrying
+ * the old values. An edit silently ignored is worse than one refused.
  *
  * **Frozen rather than persisted**, which is the choice the other remedy would have taken.
  * Sending them again means `UpdateAssetCommand` — a second dependency, a second write in a
@@ -379,6 +436,7 @@ async function createAssetAndFootprint(
 			unit: values.unit,
 			unitCostAmount,
 			currency: values.currency,
+			height: parseHeight(values),
 		});
 		if (isErr(created)) return created;
 		assetId = created.value.id;
@@ -398,7 +456,7 @@ const form = useFormCommit<NewAssetValues, { readonly assetId: AssetId }>({
 
 const refuseWhileSubmitting = useDialogFormBusy(form.submitting, props.busy);
 /**
- * The five catalogue controls' rendered state, stated once rather than five times. `submitting`
+ * The six catalogue controls' rendered state, stated once rather than six times. `submitting`
  * is the form-wide half every dialog form has; `catalogueFrozen` is this form's own, and the
  * footprint control below deliberately takes the first alone — in dimensions mode that is the
  * two width/depth fields, exactly what a retry re-dispatches, so freezing them would leave the
@@ -433,9 +491,9 @@ function showExisting(assetId: AssetId): void {
 }
 
 /**
- * ONE handler over a key for all seven fields — every one is a string on the wire, including
- * the two selects — and `useFieldInput`'s docblock carries the `:value` + `@input` rule and why
- * a field needing a conversion is not this shape.
+ * ONE handler over a key for all eight fields of `NewAssetValues` — every one is a string on
+ * the wire, including the two selects — and `useFieldInput`'s docblock carries the `:value` +
+ * `@input` rule and why a field needing a conversion is not this shape.
  */
 const onFieldInput = useFieldInput(form, refuseWhileSubmitting);
 
@@ -630,51 +688,32 @@ async function onSubmit(): Promise<void> {
 			{{ tr('form.new-asset.outline', outlineSize) }}
 		</p>
 		<template v-else>
-			<FieldError
-				v-slot="{ inputId, aria }"
+			<NumericField
+				label-key="form.new-asset.width"
+				field="width"
 				:message="form.fieldErrors.value.get('width') ?? null"
-			>
-				<label
-					class="rp-dialog-field"
-					:for="inputId"
-				>
-					{{ tr('form.new-asset.width') }}
-					<input
-						:id="inputId"
-						v-bind="aria"
-						type="number"
-						min="0"
-						step="any"
-						data-field="width"
-						:value="form.values.value.width"
-						:readonly="form.submitting.value"
-						@input="onFieldInput('width', $event)"
-					>
-				</label>
-			</FieldError>
-			<FieldError
-				v-slot="{ inputId, aria }"
+				:value="form.values.value.width"
+				:readonly="form.submitting.value"
+				@input="onFieldInput('width', $event)"
+			/>
+			<NumericField
+				label-key="form.new-asset.depth"
+				field="depth"
 				:message="form.fieldErrors.value.get('depth') ?? null"
-			>
-				<label
-					class="rp-dialog-field"
-					:for="inputId"
-				>
-					{{ tr('form.new-asset.depth') }}
-					<input
-						:id="inputId"
-						v-bind="aria"
-						type="number"
-						min="0"
-						step="any"
-						data-field="depth"
-						:value="form.values.value.depth"
-						:readonly="form.submitting.value"
-						@input="onFieldInput('depth', $event)"
-					>
-				</label>
-			</FieldError>
+				:value="form.values.value.depth"
+				:readonly="form.submitting.value"
+				@input="onFieldInput('depth', $event)"
+			/>
 		</template>
+		<!-- Outside the pair above, and `catalogueInoperative` unlike them: `parseHeight`'s docblock has both. -->
+		<NumericField
+			label-key="form.new-asset.height"
+			field="height"
+			:message="form.fieldErrors.value.get('height') ?? null"
+			:value="form.values.value.height"
+			:readonly="catalogueInoperative"
+			@input="onFieldInput('height', $event)"
+		/>
 		<FormSubmitRow :submitting="form.submitting.value" />
 	</form>
 </template>

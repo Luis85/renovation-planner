@@ -5,7 +5,10 @@ import { rect } from '../../../../src/domain/asset/presets/presetGeometry';
 import { facingTip } from '../../../../src/presentation/designer/layers/anchorLayer';
 import type { DesignerSelection, SelectionMode } from '../../../../src/presentation/designer/selection/designerSelection';
 import { hitDesign, type DesignerHit } from '../../../../src/presentation/designer/selection/hitTest';
-import { toiletShape } from '../../../helpers/assetShapes';
+import { selectionHandles } from '../../../../src/presentation/designer/selection/handles';
+import { editableShape, openGraphic, shapeWithOpenGraphic, toiletShape } from '../../../helpers/assetShapes';
+import { validateAssetShape } from '../../../../src/domain/asset/AssetShape';
+import { expectOk } from '../../../helpers/domain';
 
 /**
  * Spec 2026-09-13 Decision 10's hit order, as a table over one toilet at one millimetre per screen
@@ -57,5 +60,110 @@ describe('hitDesign', () => {
 
 	it('finds the facing tip where the arrow draws it', () => {
 		expect(facingTip(TOILET, 2)).toEqual({ x: expect.closeTo(0, 9), y: expect.closeTo(88, 9) });
+	});
+});
+
+/**
+ * AD05: an open graphic has no interior, so it is hit by its STROKE. Asking `curvedContains` of one
+ * answers about a ring the object has not got — nothing selectable where the user clicked, and the
+ * occasional hit inside an implied area that is not drawn.
+ *
+ * `shapeWithOpenGraphic` puts a two-segment line at (-300,-200)→(0,-200)→(0,100), well clear of
+ * `editableShape`'s other parts, at one millimetre per screen pixel — an 8 mm grab radius.
+ */
+describe('hitting an open graphic', () => {
+	const shape = shapeWithOpenGraphic();
+	const hit = (point: Point): DesignerHit => hitDesign(shape, point, { selection: null, mode: 'transform', worldPerPixel: 1 });
+
+	it('takes a press on the line itself', () => {
+		expect(hit({ x: -150, y: -200 })).toEqual({ kind: 'part', selection: { kind: 'detail', id: 'detail-3' } });
+	});
+
+	it('takes a press just beside the line, within the grab radius', () => {
+		expect(hit({ x: -150, y: -195 })).toEqual({ kind: 'part', selection: { kind: 'detail', id: 'detail-3' } });
+	});
+
+	/** On the second segment and clear of the anchor at the origin, which is asked before any graphic. */
+	it('takes a press on the far segment too, not only the first', () => {
+		expect(hit({ x: 0, y: 80 })).toEqual({ kind: 'part', selection: { kind: 'detail', id: 'detail-3' } });
+	});
+
+	/**
+	 * The point that decides it. (-100, -150) is INSIDE the triangle the three vertices would
+	 * enclose if anything closed them — checked by hand: the hypotenuse runs (-300,-200)→(0,100),
+	 * which is at y = 0 where x = -100, and the interior is below it — and it is 50 mm, 100 mm and
+	 * 106 mm from the three segments, so far outside the 8 mm grab radius. A closed reading selects
+	 * the graphic here; the open reading must not.
+	 *
+	 * Its first version used (-250, -100), which is OUTSIDE that triangle, so it passed under both
+	 * readings and proved nothing. The revert check is what caught it.
+	 */
+	it('does not take a press inside the area its points would enclose if it closed', () => {
+		expect(hit({ x: -100, y: -150 })).not.toEqual({ kind: 'part', selection: { kind: 'detail', id: 'detail-3' } });
+	});
+});
+
+/**
+ * A doubled vertex is a zero-length segment, and `createCurvedPath` admits one deliberately — a
+ * trace produces them routinely. The distance rule has to answer about the POINT there rather than
+ * dividing by a length of nothing.
+ */
+it('hits an open graphic that carries a doubled vertex', () => {
+	const shape = expectOk(validateAssetShape({ ...editableShape(), details: [openGraphic('detail-9', [{ x: -400, y: -250 }, { x: -400, y: -250 }, { x: -200, y: -250 }])] }));
+	const hit = hitDesign(shape, { x: -400, y: -250 }, { selection: null, mode: 'transform', worldPerPixel: 1 });
+	expect(hit).toEqual({ kind: 'part', selection: { kind: 'detail', id: 'detail-9' } });
+});
+
+/**
+ * AD09: a hidden graphic is not on screen, so a press cannot land on it — and the press falls
+ * through to whatever really is drawn beneath, rather than selecting nothing.
+ *
+ * Asked HERE and not in the tool, because this function owns the hit ORDER: a tool-level guard would
+ * have had to re-decide what the press would otherwise have hit.
+ */
+describe('a hidden graphic', () => {
+	const inBowl = { x: 0, y: 200 };
+
+	it('takes the press while it is drawn', () => {
+		expect(hitDesign(TOILET, inBowl, { selection: null, mode: 'transform', worldPerPixel: 1 })).toEqual(part({ kind: 'detail', id: 'detail-2' }));
+	});
+
+	it('lets a press on the clearance band fall through to nothing while Show clearance is off (AD18-R17)', () => {
+		const band = { x: 300, y: 0 };
+		expect(hitDesign(TOILET, band, { selection: null, mode: 'transform', worldPerPixel: 1, clearanceHidden: true })).toBeNull();
+		expect(hitDesign(TOILET, { x: 150, y: 0 }, { selection: null, mode: 'transform', worldPerPixel: 1, clearanceHidden: true })).toEqual(part(FOOTPRINT));
+	});
+
+	/**
+	 * AD18-R20: a SELECTED part that is not drawn keeps its selection, and its handles went on being
+	 * hit — `nearestHandle` ran before either hidden check, so a drag where a handle would be reshaped
+	 * a part nobody could see. Every handle is swept, and each is first proven hit while drawn, so the
+	 * hidden half cannot pass by reaching points that were never handles.
+	 */
+	const UNDRAWN = [
+		['the clearance while Show clearance is off', CLEARANCE, { clearanceHidden: true }],
+		['a graphic the Parts panel has hidden', BOWL, { hidden: new Set(['detail-2']) }],
+	] as const;
+
+	it.each(UNDRAWN)('hits no handle of %s, though it stays selected (AD18-R20)', (_label, selection, view) => {
+		const handles = selectionHandles(TOILET, selection, 'transform', 1);
+		expect(handles.length).toBeGreaterThan(0);
+		for (const { at } of handles) {
+			expect(hitDesign(TOILET, at, { selection, mode: 'transform', worldPerPixel: 1 })?.kind).toBe('handle');
+			expect(hitDesign(TOILET, at, { selection, mode: 'transform', worldPerPixel: 1, ...view })?.kind).not.toBe('handle');
+		}
+	});
+
+	it.each(UNDRAWN)('still hits another selected part’s handle beside %s', (_label, _selection, view) => {
+		expect(hitDesign(TOILET, { x: 190, y: 352 }, { selection: FOOTPRINT, mode: 'transform', worldPerPixel: 1, ...view })).toEqual({
+			kind: 'handle',
+			role: { kind: 'box', index: 4 },
+		});
+	});
+
+	it('lets the press fall through to the footprint beneath it once it is hidden', () => {
+		expect(hitDesign(TOILET, inBowl, { selection: null, mode: 'transform', worldPerPixel: 1, hidden: new Set(['detail-2']) })).toEqual(
+			part({ kind: 'footprint' }),
+		);
 	});
 });

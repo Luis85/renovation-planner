@@ -80,6 +80,116 @@ describe('the designer’s warnings, toolbar and selection actions', () => {
 	});
 });
 
+/**
+ * AD18-R16 Task 8's fix round: the integrator's browser measurement of the first version — a
+ * `flex-wrap` row, `.rp-designer-selection-actions`'s own shape — found three segments wrapping
+ * unevenly (Centre 80px and Back centre 108px on one row, Custom alone at 192px on a second, all
+ * 49px tall), which read as three loose buttons rather than a segmented control.
+ */
+describe('the placement point group’s three equal segments', () => {
+	/**
+	 * `minmax(0, 1fr)` rather than bare `1fr`, for `designer-add.css`'s own measured reason on its
+	 * two-column grid: an `auto` column minimum is each column's own min-content contribution — the
+	 * width of its longest unbreakable run — which is what forced the uneven split this fix answers.
+	 */
+	it('lays the group out as a grid of equal-width segments, each wide enough for a one-word label', () => {
+		const rules = partial('designer-selection.css');
+
+		expect(declared(rules, '.rp-designer-placement-modes', 'display')).toEqual(parsed('display', 'grid'));
+		// A fixed `repeat(3, minmax(0, 1fr))` split `Custo` / `m` in a real Obsidian on Linux (the
+		// e2e's step 15c); the column minimum is sized in the label's own `em` and the grid wraps.
+		expect(declared(rules, '.rp-designer-placement-modes', 'grid-template-columns')).toEqual(
+			parsed('grid-template-columns', 'repeat(auto-fit, minmax(min(100%, calc(4em + 2 * var(--size-4-1) + 2px)), 1fr))'),
+		);
+		expect(declared(rules, '.rp-designer-placement-modes', 'font-size')).toEqual(parsed('font-size', 'var(--font-ui-smaller)'));
+	});
+
+	/**
+	 * No `align-items` here — the SAME answer `designer-add.css`'s own grid now gives, since that
+	 * file's final-fix-wave item 5 dropped the `align-items: start` it briefly carried. Grid's
+	 * default `stretch` is what gives "Centre" and "Custom" the same height as a two-line "Back
+	 * centre" rather than leaving them visibly shorter — three different heights would still read
+	 * as three buttons rather than one control.
+	 */
+	it('sets no align-items on the group, so its segments stretch to an equal height', () => {
+		expect(declared(partial('designer-selection.css'), '.rp-designer-placement-modes', 'align-items')).toEqual([]);
+	});
+
+	/**
+	 * The icon-above-label shape is SHARED with `designer-add.css`'s `Add`-rail tile rule rather
+	 * than duplicated — the fix round's own second finding. Read from `designer-add.css`, not
+	 * `designer-selection.css`, because that is where the (now two-selector) rule actually lives;
+	 * a case reading the wrong partial would pass on an accidental empty result rather than on the
+	 * declared value, so `height` is asserted too as the instrument-reaches-something floor.
+	 */
+	it('reuses the Add rail’s tile layout for each segment rather than a second copy of it', () => {
+		const rules = partial('designer-add.css');
+		const selector = '.rp-designer-placement-modes .rp-designer-selection-button';
+
+		expect(declared(rules, selector, 'flex-direction')).toEqual(parsed('flex-direction', 'column'));
+		expect(declared(rules, selector, 'height')).toEqual(parsed('height', 'auto'));
+		expect(declared(rules, selector, 'white-space')).toEqual(parsed('white-space', 'normal'));
+		// The declared values must be the SAME as the Add rail's own tile, not merely equal by
+		// coincidence — read off the shared selector list rather than retyped, so the two cannot
+		// silently drift into two different tile shapes that happen to agree today.
+		const tile = '.rp-designer-add button.rp-designer-tool-button';
+		for (const property of ['display', 'flex-direction', 'align-items', 'gap', 'height', 'white-space']) {
+			expect(declared(rules, selector, property)).toEqual(declared(rules, tile, property));
+		}
+	});
+
+	/** A two-word segment ("Back centre") may wrap; the label span carries the fix, not the button. */
+	it('lets a segment’s label wrap anywhere', () => {
+		const rules = partial('designer-selection.css');
+
+		expect(declared(rules, '.rp-designer-placement-modes .rp-designer-selection-button span', 'overflow-wrap')).toEqual(
+			parsed('overflow-wrap', 'anywhere'),
+		);
+	});
+
+	/**
+	 * AD18 second parity round, task 1: the integrator measured `Custom` — one word, so
+	 * `overflow-wrap: anywhere` above had no space to prefer over a mid-word break — splitting
+	 * `Custo` / `m` inside the 61px column. A SEPARATE rule in `designer-add.css` from the shared
+	 * tile shape above (the previous case's own selector list stays untouched), narrowing this
+	 * segment's own text the same way `.rp-designer-add .rp-designer-tool-label` narrows an
+	 * Add-rail tile's. jsdom resolves no layout, so this asserts the declared values exist in the
+	 * assembled sheet; whether they are enough is the integrator's measurement.
+	 */
+	it('narrows the segment’s own text and padding, so a one-word label has room not to split', () => {
+		const rules = partial('designer-add.css');
+		const selector = '.rp-designer-placement-modes .rp-designer-selection-button';
+
+		expect(declared(rules, selector, 'font-size')).toEqual(parsed('font-size', 'var(--font-ui-smaller)'));
+		expect(declared(rules, selector, 'padding-inline')).toEqual(parsed('padding-inline', 'var(--size-4-1)'));
+	});
+});
+
+/**
+ * AD18 second parity round, task 1: the card's `stroke-width: 1.5px` used to sit on the `<svg>`
+ * itself, read in `preview.viewBox`'s own millimetre units — for the vanity preset's
+ * `-440 -265 880 530` box drawn into a 40px picture, that measured 0.07px on screen. jsdom draws
+ * nothing, so what this suite can check is that the declared fix exists in the assembled sheet,
+ * not that it is visible; the integrator's capture is that check.
+ */
+describe('the asset card’s thumbnail strokes', () => {
+	const rules = partial('designer-object.css');
+
+	it('reads stroke-width in screen pixels rather than viewBox units, on both the footprint and a detail', () => {
+		for (const selector of ['.rp-designer-inspector .rp-designer-asset-thumbnail__footprint', '.rp-designer-inspector .rp-designer-asset-thumbnail__detail']) {
+			expect(declared(rules, selector, 'vector-effect')).toEqual(parsed('vector-effect', 'non-scaling-stroke'));
+			expect(declared(rules, selector, 'stroke-width')).toEqual(parsed('stroke-width', '1.5'));
+		}
+	});
+
+	it('dashes only a detail carrying the dashed modifier class', () => {
+		expect(declared(rules, '.rp-designer-inspector .rp-designer-asset-thumbnail__detail--dashed', 'stroke-dasharray')).toEqual(
+			parsed('stroke-dasharray', '4 3'),
+		);
+		expect(declared(rules, '.rp-designer-inspector .rp-designer-asset-thumbnail__footprint', 'stroke-dasharray')).toEqual([]);
+	});
+});
+
 describe('the inspector’s headings, hint and unavailable actions', () => {
 	/** Critique finding 4: the "Inspector" `<h2>` and the section `<h3>`s were styled alike, so a section added no hierarchy. */
 	it('sets the section headings in normal text at semibold, under the muted panel title', () => {
@@ -104,6 +214,25 @@ describe('the inspector’s headings, hint and unavailable actions', () => {
 	/** Critique finding 25: the facing angle's direction hint reads quieter than its label. */
 	it('draws a field hint in muted text', () => {
 		expect(declared(partial('designer-selection.css'), '.rp-designer-field-hint', 'color')).toEqual(parsed('color', 'var(--text-muted)'));
+	});
+
+	/**
+	 * AD18-R16 Task 6 review (Important finding): the integrator measured the transform and
+	 * repeat folds' `<summary>` at 17px tall, under WCAG 2.5.8's 24px target minimum. The
+	 * borrowed precedent, `.rp-project-list__completed > summary`, carries
+	 * `min-height: var(--size-4-6); padding-inline: var(--size-4-2);` for exactly this reason,
+	 * and the new rule had dropped both. Pinned against the SAME declared values on the
+	 * precedent selector, so the two cannot quietly drift apart the way this one already did.
+	 */
+	it('gives the transform and repeat folds’ summary the same 24px hit target the completed-projects disclosure wears', () => {
+		const rules = partial('designer-selection.css');
+		const precedent = declared(partial('project-list.css'), '.rp-project-list__completed > summary', 'min-height');
+
+		expect(precedent).toEqual(parsed('min-height', 'var(--size-4-6)'));
+		expect(declared(rules, '.rp-designer-collapsible > summary', 'min-height')).toEqual(precedent);
+		expect(declared(rules, '.rp-designer-collapsible > summary', 'padding-inline')).toEqual(
+			declared(partial('project-list.css'), '.rp-project-list__completed > summary', 'padding-inline'),
+		);
 	});
 });
 
@@ -133,5 +262,90 @@ describe('the designer at a sidebar leaf’s width', () => {
 		expect(declared(rules, '.renovation-asset-designer .rp-designer-inspector', 'width', narrow())).toEqual(parsed('width', 'auto'));
 		expect(declared(rules, '.renovation-asset-designer .rp-designer-inspector', 'border-left', narrow())).toEqual(parsed('border-left', 'none'));
 		expect(declared(rules, '.renovation-asset-designer .rp-designer-inspector', 'border-top', narrow())).toEqual(parsed('border-top', '1px solid var(--background-modifier-border)'));
+	});
+});
+
+/**
+ * AD18-R16 Task 2: the library door's label clips below the SAME 35rem the body above stacks at,
+ * rather than a width invented for this button alone — `designer-header.css`'s own comment argues
+ * why. The clip technique is `visually-hidden.css`'s, read off that partial rather than retyped, so
+ * a future edit to the utility and this rule cannot quietly drift apart.
+ */
+describe('the library door’s label below the header’s narrow width', () => {
+	const narrow = (): string => onlyRule('@container rp-designer (width < 35rem) { .reference { color: inherit; } }').condition;
+	const clipped = partial('visually-hidden.css');
+
+	it('clips the label rather than hiding it, so the text keeps naming the button', () => {
+		const rules = partial('designer-header.css');
+		const selector = '.rp-designer-title-bar .rp-designer-open-library-label';
+
+		expect(narrow()).not.toBe('');
+		for (const property of ['position', 'width', 'height', 'margin', 'padding', 'overflow', 'clip-path', 'white-space']) {
+			expect(declared(rules, selector, property, narrow())).toEqual(declared(clipped, '.rp-visually-hidden', property));
+		}
+	});
+});
+
+/**
+ * AD18-R16 Task 4's canvas legend. The swatches read the SAME two host variables the Konva layers
+ * resolve for the parts they stand for (`themeTokens.ts`): `--text-normal` (`tokens.zoneStroke`)
+ * for the footprint and details, `--interactive-accent` (`tokens.accent`) for the clearance, the
+ * placement point and the front direction. The clearance swatch alone carries a dashed border
+ * style, standing for `clearanceLayer.ts`'s own dash — not its exact `[8, 6]` screen-pixel
+ * spacing, which a swatch a few pixels wide has no room for.
+ */
+describe('the canvas legend’s swatches', () => {
+	const rules = partial('designer-legend.css');
+
+	it('takes no pointer at all, unlike its two neighbours which let a child opt back in', () => {
+		expect(declared(rules, '.rp-designer-legend', 'pointer-events')).toEqual(parsed('pointer-events', 'none'));
+	});
+
+	it('draws the footprint and details swatches in the same ink the layers draw them in', () => {
+		expect(declared(rules, '.rp-designer-legend__swatch', 'border-top')).toEqual(parsed('border-top', '2px solid var(--text-normal)'));
+		expect(declared(rules, '.rp-designer-legend__swatch--details', 'border-top-width')).toEqual(parsed('border-top-width', '1px'));
+	});
+
+	it('draws the clearance, placement point and front direction swatches in the accent colour', () => {
+		for (const selector of ['.rp-designer-legend__swatch--clearance', '.rp-designer-legend__swatch--facing']) {
+			expect(declared(rules, selector, 'border-top-color')).toEqual(parsed('border-top-color', 'var(--interactive-accent)'));
+		}
+		expect(declared(rules, '.rp-designer-legend__swatch--placement', 'background-color')).toEqual(parsed('background-color', 'var(--interactive-accent)'));
+	});
+
+	it('dashes only the clearance swatch', () => {
+		expect(declared(rules, '.rp-designer-legend__swatch--clearance', 'border-top-style')).toEqual(parsed('border-top-style', 'dashed'));
+		expect(declared(rules, '.rp-designer-legend__swatch--facing', 'border-top-style')).toEqual([]);
+	});
+});
+
+/** AD18-R16 Task 4: below 35rem the legend is hidden, on the same container `designer-narrow.css` declares. */
+describe('the legend below the designer’s narrow width', () => {
+	const narrow = (): string => onlyRule('@container rp-designer (width < 35rem) { .reference { color: inherit; } }').condition;
+
+	it('is not drawn below 35rem', () => {
+		const rules = partial('designer-legend.css');
+
+		expect(narrow()).not.toBe('');
+		expect(declared(rules, '.renovation-asset-designer .rp-designer-legend', 'display', narrow())).toEqual(parsed('display', 'none'));
+	});
+});
+
+/**
+ * AD18-R21 Task 7, fix round 1: the integrator's Chromium capture found the selected part's five
+ * icon buttons overflowing horizontally at a 580px leaf — `nowrap` (this row's first answer) had
+ * turned a rail too narrow for five 24px buttons into a 12px sideways scroll inside `.rp-designer-parts`
+ * rather than a second line. `wrap` only reflows a row that does not already fit — the 1280/760/460
+ * measurements stayed one line under it — so it is the fix rather than a weaker constraint. jsdom
+ * lays out nothing, so what this file can pin is the declared properties the layout rests on, not
+ * the reflow itself; the integrator's capture is that check.
+ */
+describe('the selected part’s action row wraps rather than scrolling', () => {
+	it('lets the row wrap, with each button still floored at 24×24px', () => {
+		const rules = partial('designer-parts.css');
+
+		expect(declared(rules, '.rp-designer-part-actions', 'flex-wrap')).toEqual(parsed('flex-wrap', 'wrap'));
+		expect(declared(rules, '.rp-designer-parts .rp-designer-part-action', 'min-width')).toEqual(parsed('min-width', '24px'));
+		expect(declared(rules, '.rp-designer-parts .rp-designer-part-action', 'min-height')).toEqual(parsed('min-height', '24px'));
 	});
 });

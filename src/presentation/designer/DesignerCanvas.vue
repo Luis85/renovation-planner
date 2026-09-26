@@ -65,7 +65,11 @@ import { detailOutlines, footprintEdge } from './layers/detailsLayer';
 import { anchorMark, facingArrow } from './layers/anchorLayer';
 import { selectionFrame, selectionMarks } from './layers/selectionLayer';
 import { isOutlineSelection } from './selection/designerSelection';
+import { drawnSelection } from './selection/hitTest';
 import DesignerGestureLayer from './layers/DesignerGestureLayer.vue';
+import DesignerRulers from './rulers/DesignerRulers.vue';
+import DesignerDimensions from './dimensions/DesignerDimensions.vue';
+import DesignerLegend from './legend/DesignerLegend.vue';
 import RotateArrowIcon from '../editor/elements/RotateArrowIcon.vue';
 import { selectionKeyActions } from './designerKeys';
 
@@ -101,13 +105,13 @@ const { tokens } = useThemeTokens(ref(null), context.onThemeChange);
 // The LEAF's manager, so the toolbar in the shell above and the gestures on this canvas drive
 // one object. A manager built here would be a second one nothing outside this component could
 // reach — the shape Task B4 shipped while there were no tools to reach.
-const { toolManager, renderState, setTool, editShape, activeToolId } = useDesignerRuntime();
+const { toolManager, renderState, setTool, editShape, activeToolId, partView, backgroundOpacity, showClearance } = useDesignerRuntime();
 /**
  * An arrow key nudges the designer's selection (symbols spec, Decision 10) by `EditorSurface`'s own
  * `arrowVector` — 10 mm a press, 100 mm with Shift — as one conditional shape write per press, under
  * Select only: an outline moves, the anchor moves, and a facing or no selection writes nothing.
  */
-const { nudgeSelection } = selectionKeyActions(designStore, editShape, activeToolId);
+const { nudgeSelection } = selectionKeyActions(designStore, editShape, { activeToolId, partView, showClearance });
 /** No area task exists in this surface, so Enter on its canvas finishes nothing. */
 const noArea = (): void => undefined;
 
@@ -141,16 +145,24 @@ const background = computed(() => design.value?.background ?? null);
 const pixelsPerWorldUnit = computed(() => design.value?.calibration?.pixelsPerWorldUnit ?? 1);
 
 const footprint = computed(() => footprintOutline(shape.value, tokens.value, worldPerPixel.value));
-const details = computed(() => detailOutlines(shape.value, tokens.value, worldPerPixel.value));
+// The Parts panel's leaf-local visibility (AD09). An editing aid, not output: it drops a graphic
+// from this frame and reaches nothing the vault holds, so the plan's placement and the library's
+// mark go on drawing every graphic the shape has.
+const details = computed(() => detailOutlines(shape.value, tokens.value, worldPerPixel.value, partView.hidden.value));
 const footprintEdgeLine = computed(() => footprintEdge(shape.value, tokens.value, worldPerPixel.value));
 /**
  * An outline's handles and rotate arrow only under Select, the one tool that grabs them: under another tool a drawn handle
  * is a control that does nothing. What stays is what SHOWS the selection — an outline's accent restroke,
  * and the anchor's or the facing's ring, which is that selection's only mark (follow-up A1). With nothing
  * selected `selectionMarks` draws nothing, so that case needs no arm here.
+ *
+ * A selected part that is not drawn — the clearance while `Show clearance` is off, a Parts-hidden
+ * graphic — draws no marks at all (AD18-R20, `drawnSelection`, the rule `hitDesign` asks too). `drawnPart`
+ * is this component's one reading, and the rulers' extent band and `Shift+2` below take it too (AD18-R23).
  */
+const drawnPart = computed(() => drawnSelection(selection.value, { hidden: partView.hidden.value, clearanceHidden: !showClearance.value }));
 const marks = computed(() => {
-	const drawn = selectionMarks(shape.value, selection.value, mode.value, tokens.value, worldPerPixel.value);
+	const drawn = selectionMarks(shape.value, drawnPart.value, mode.value, tokens.value, worldPerPixel.value);
 	return activeToolId.value === 'select' || !isOutlineSelection(selection.value) ? drawn : { outline: drawn.outline, handles: [], rotate: null };
 });
 const clearance = computed(() => clearanceOutline(shape.value, tokens.value, worldPerPixel.value));
@@ -162,9 +174,10 @@ const facing = computed(() => facingArrow(shape.value, tokens.value, worldPerPix
  * there is one, the clearance around it, since a clearance reaches outside the outline it
  * belongs to and a fit that cropped it would hide the thing being fitted.
  *
- * `Shift+2` frames the SELECTION — `selectionFrame`, `null` with nothing selected. A fit with nothing
- * to frame does nothing, which is `boundsOfZones`' own rule: a jump to nowhere costs the user the view
- * they had and says nothing about why.
+ * `Shift+2` frames the SELECTION as drawn — `selectionFrame` over `drawnPart`, `null` with nothing
+ * selected and for a selected part the canvas does not draw (AD18-R23). A fit with nothing to frame
+ * does nothing, which is `boundsOfZones`' own rule: a jump to nowhere costs the user the view they had
+ * and says nothing about why.
  *
  * The whole-design box is `designFrame` (`runtime.ts`), which Apply preset fits to as well, and the fit an
  * opened design takes below asks this very function — so none of the three frames a design differently.
@@ -172,7 +185,7 @@ const facing = computed(() => facingArrow(shape.value, tokens.value, worldPerPix
 function framedBounds(all: boolean): BoundingBox | null {
 	const current = shape.value;
 	if (current === null) return null;
-	return all ? designFrame(current) : selectionFrame(current, selection.value, worldPerPixel.value);
+	return all ? designFrame(current) : selectionFrame(current, drawnPart.value, worldPerPixel.value);
 }
 
 /**
@@ -241,6 +254,22 @@ onBeforeUnmount(() => stopPixelRatio());
 					— and `visible` is a literal because this surface has no layer-visibility
 					control to bind: layer visibility in the plan editor's `WorkspaceStore` is a
 					Plan Editor concern (its `gridVisible` is shared).
+
+					`opacity` is NOT a literal, and it is the one thing on this mount that is not:
+					`DesignerViewMenu`'s third row binds the leaf's own `backgroundOpacity` ref
+					(AD12-R1). It is a VIEW preference and reaches nothing the vault holds —
+					`runtime.ts` carries the whole account.
+
+					**It is a DECLARED prop of that component, and it had to become one.** The first
+					version of this binding relied on Vue's attribute FALLTHROUGH onto the root
+					`<VLayer>`: that does reach the Konva node — vue-konva's node factory builds
+					`{ ...attrs, ...props.config, ...listeners }` and applies it — but `props.config`
+					spreads AFTER `attrs`, so putting `opacity` in that component's config literal
+					would have silently won over this binding, and `inheritAttrs: false` or a second
+					root node there would have dropped it. Vue warned on every mount besides, since
+					`<VLayer>` renders no DOM element to inherit an attribute. `BackgroundLayer.vue`
+					declares `opacity?: number` defaulting to `1` now, so the plan editor's mount is
+					unchanged and `vue-tsc` holds this line.
 				-->
 				<BackgroundLayer
 					:name="BACKGROUND_LAYER"
@@ -248,6 +277,7 @@ onBeforeUnmount(() => stopPixelRatio());
 					:vault="context.vault"
 					:transform="transform"
 					:visible="true"
+					:opacity="backgroundOpacity"
 					:pixels-per-world-unit="pixelsPerWorldUnit"
 					:file-changes="context.onVaultFileChanged"
 					@status="(status) => emit('backgroundStatus', status)"
@@ -269,7 +299,7 @@ onBeforeUnmount(() => stopPixelRatio());
 						:config="{ ...footprintEdgeLine, name: 'asset-footprint-edge' }"
 					/>
 				</VLayer>
-				<VLayer :config="designerLayerConfig('asset-clearance', transform)">
+				<VLayer :config="{ ...designerLayerConfig('asset-clearance', transform), visible: showClearance }">
 					<VLine
 						v-if="clearance !== null"
 						:config="{ ...clearance, name: 'asset-clearance-outline' }"
@@ -332,7 +362,27 @@ onBeforeUnmount(() => stopPixelRatio());
 				:origin="grid.origin"
 			/>
 		</template>
+		<!--
+			The overlay slot: the rulers first, then the dimensions, then the key (AD18-R16
+			Task 4), then whatever the shell passed down — the empty state today — so a card
+			meant to be read sits OVER all three rather than under them. All four are
+			`position: absolute` against `.rp-plan-canvas`, and none of them takes any layout at
+			all, which is what holds AD18-R10's floor on the canvas's share of the shell.
+
+			The dimensions come SECOND, and it is the one ordering here that is not merely about
+			reading: they carry the only controls of the four — real buttons and a real form
+			(AD18-R11) — so they must paint over the rulers' strips. The key after them (the legend
+			over `DesignerScaleBar`) takes no press but is OPAQUE, and a camera can put a label in
+			its corner, so DOM order alone would bury that label: `z-index: 1` on a resting label,
+			in `designer-dimensions.css`, is what keeps it pressable. The empty state must still
+			paint over everything, since a surface with nothing drawn has nothing to measure — and
+			nothing to explain the vocabulary of, which is `legendRows.ts`'s own account of why
+			the legend draws no row at all over the same `null` shape that state answers.
+		-->
 		<template #overlay>
+			<DesignerRulers :selection="drawnPart" />
+			<DesignerDimensions />
+			<DesignerLegend />
 			<slot />
 		</template>
 	</EditorSurface>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	assetGroups,
 	dimensionsOf,
 	footprintFromDimensions,
 	normaliseFacing,
@@ -9,6 +10,7 @@ import {
 	type AssetShape,
 } from '../../../src/domain/asset/AssetShape';
 import { isErr, isOk } from '../../../src/core/result/Result';
+import { expectOk } from '../../helpers/domain';
 import { createPolygon } from '../../../src/core/geometry/Polygon';
 
 /**
@@ -153,6 +155,14 @@ describe('shapeFromDimensions', () => {
 			anchor: { x: 0, y: 0 },
 			facing: 0,
 			details: [],
+			// A validated shape always carries the array, even where the document it came from
+			// predates groups entirely (AD04 §4): the validator answers `[]` for an absent one.
+			groups: [],
+			// And the flag, for the identical reason at AD14: `clearanceNeedsReview` is OPTIONAL in
+			// the type so that 61 construction sites stay valid, and `validateAssetShape` normalises
+			// it — so a shape that has been through the validator always carries the definite
+			// boolean. This exhaustive pin is where that is stated rather than assumed.
+			clearanceNeedsReview: false,
 		});
 	});
 
@@ -196,6 +206,14 @@ describe('shapeFromOutline', () => {
 			anchor: { x: 0, y: 0 },
 			facing: 0,
 			details: [],
+			// A validated shape always carries the array, even where the document it came from
+			// predates groups entirely (AD04 §4): the validator answers `[]` for an absent one.
+			groups: [],
+			// And the flag, for the identical reason at AD14: `clearanceNeedsReview` is OPTIONAL in
+			// the type so that 61 construction sites stay valid, and `validateAssetShape` normalises
+			// it — so a shape that has been through the validator always carries the definite
+			// boolean. This exhaustive pin is where that is stated rather than assumed.
+			clearanceNeedsReview: false,
 		});
 	});
 
@@ -236,6 +254,32 @@ describe('validateAssetShape', () => {
 			clearancePending: true,
 		});
 		expect(isOk(result)).toBe(true);
+	});
+
+	/**
+	 * AD14's review flag, refused on the same argument and at the same site as the pending one
+	 * above: no command can produce it, so one in a sidecar is a hand edit, and quietly clearing
+	 * it would report a boundary nobody has reviewed as reviewed.
+	 */
+	it('refuses a review flag on a shape that has no clearance', () => {
+		const result = validateAssetShape({ ...typedShape, clearance: null, clearanceNeedsReview: true });
+		expect(isErr(result) && result.error.code).toBe('asset.absent-clearance-cannot-need-review');
+	});
+
+	it('accepts the review flag once there is a boundary to review', () => {
+		const result = validateAssetShape({ ...typedShape, clearance: { points: square }, clearanceNeedsReview: true });
+		expect(isOk(result)).toBe(true);
+	});
+
+	/**
+	 * The pending refusal is asked FIRST, so a shape carrying both flags over an absent clearance
+	 * answers that one. Pinned because the two live in one function behind a shared
+	 * `clearance !== null` early return, and a reordering would silently change which code a
+	 * hand-edited sidecar reports.
+	 */
+	it('reports the pending refusal first when a shape with no clearance carries both flags', () => {
+		const result = validateAssetShape({ ...typedShape, clearance: null, clearancePending: true, clearanceNeedsReview: true });
+		expect(isErr(result) && result.error.code).toBe('asset.absent-clearance-cannot-be-pending');
 	});
 
 	it('refuses a two-point footprint, which is not a polygon at all', () => {
@@ -383,5 +427,32 @@ describe('validateAssetShape', () => {
 		anchor.x = Number.NaN;
 
 		expect(result.value.anchor).toEqual({ x: 10, y: 20 });
+	});
+});
+
+describe("a shape's groups, asked once", () => {
+	/**
+	 * `groups` is optional in the TYPE and always present after validation, and those two facts
+	 * together had grown nine copies of `shape.groups ?? []` across the domain, the Parts panel and
+	 * the sidecar — nine fallback arms that `validateAssetShape` can never take. This is the one
+	 * place the question is asked now, so this is the one place both arms have to be driven.
+	 */
+	it('answers the validated array for a shape that has been through the validator', () => {
+		const shape = expectOk(shapeFromDimensions(1000, 600));
+		expect(assetGroups(shape)).toEqual([]);
+	});
+
+	it('answers an empty list for a hand-built shape whose groups property is absent', () => {
+		// Built by hand on purpose: the validator writes `groups: []` onto everything it returns, so
+		// a shape with the property genuinely missing is unreachable through any constructor and the
+		// arm exists only because the type permits it (AD04, so pre-group literals keep compiling).
+		const { groups: _absent, ...withoutGroups } = expectOk(shapeFromDimensions(1000, 600));
+		expect(assetGroups(withoutGroups)).toEqual([]);
+	});
+
+	it('answers the groups a shape carries', () => {
+		const base = expectOk(shapeFromDimensions(1000, 600));
+		const withGroup = { ...base, details: [], groups: [{ id: 'group-1', members: [] }] };
+		expect(assetGroups(withGroup).map((group) => group.id)).toEqual(['group-1']);
 	});
 });

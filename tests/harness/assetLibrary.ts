@@ -1,7 +1,9 @@
 import { ok } from '../../src/core/result/Result';
 import { currencyOf, type Currency } from '../../src/core/money/Money';
 import type { AssetId } from '../../src/domain/asset/AssetId';
+import { isAssetCategory } from '../../src/domain/asset/AssetCategory';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
+import type { PlanId } from '../../src/domain/plan/PlanId';
 import type { RequirementId } from '../../src/domain/requirement/RequirementId';
 import type { MeasurementUnit } from '../../src/core/units/MeasurementUnit';
 import type { Point } from '../../src/core/geometry/Point';
@@ -279,6 +281,11 @@ function designFor(assetId: AssetId): AssetDesignDto {
 	return {
 		assetId,
 		name: named?.name ?? '',
+		// `Seed.category` is a bare `string` because the library fixture deliberately includes an
+		// UNDECLARED one (`insulation`, §1a's eighth shelf) — a state `GetAssetDesign`'s real query
+		// can never answer, since `Asset.create`/`reconstitute` already refuse it. The guard is what
+		// keeps this fixture honest about that rather than casting past it.
+		category: isAssetCategory(named?.category) ? named.category : 'material',
 		height: named?.height ?? null,
 		background: named?.background ?? null,
 		calibration: null,
@@ -356,6 +363,29 @@ function harnessQueries(empty: boolean): AssetLibraryQueryServices {
 		// Nothing on this page can reach a reassignment: every write refuses before the flow gets
 		// that far. An empty list is what a catalogue with no other area-kind asset answers.
 		listReassignmentTargets: () => Promise.resolve(ok([])),
+		// A REAL scope rather than an empty one, because this is the page a capture photographs:
+		// the duplicate panel's *Used in plans* section is only worth a picture with rows in it,
+		// and an empty vault draws the *no plan places this asset* line instead. `unreadable` is
+		// non-zero on the non-empty page so the partial-scope caveat is drawn too.
+		listPlansUsingAsset: () =>
+			Promise.resolve(
+				ok(
+					empty
+						? { plans: [], unreadable: 0 }
+						: {
+								plans: [
+									{
+										planId: 'pln-ground' as PlanId,
+										planName: 'Ground floor',
+										projectId: 'prj-hamburg-b' as ProjectId,
+										projectName: 'Flat renovation',
+										placements: 2,
+									},
+								],
+								unreadable: 1,
+							},
+				),
+			),
 	};
 }
 
@@ -381,8 +411,13 @@ export interface MountedAssetLibrary {
  * `assetId` is `null` for the resting pane and an id for §7's selected compositions — the same
  * `''`-means-nothing-selected sentinel `AssetLibraryView.getState` writes, translated here at
  * the one place a URL meets it.
+ *
+ * `layout` is `page.ts`'s `&layout=grid` (Task 11, AD18-R18): the one word `libraryBrowse.ts`'s
+ * `browseFrom` reads as Grid, everything else read as List — the default this fixture drew before
+ * the Grid view existed. Read exactly as `AssetLibraryView.setState` reads a restored leaf's own
+ * `layout` field, so a knob and a real workspace layout agree on what the word means.
  */
-export function mountAssetLibraryHarness(root: HTMLElement, assetId: string | null, empty = false): MountedAssetLibrary {
+export function mountAssetLibraryHarness(root: HTMLElement, assetId: string | null, empty = false, layout?: 'grid'): MountedAssetLibrary {
 	// Obsidian's DOM prototype extensions. Installed first, because the mount below uses them.
 	installObsidianDom();
 	root.empty();
@@ -400,7 +435,10 @@ export function mountAssetLibraryHarness(root: HTMLElement, assetId: string | nu
 	// State first, then open — the restored-leaf order `mountPlanEditorHarness` and
 	// `mountAssetDesignerHarness` both use. `void` rather than awaited: the page entry cannot
 	// await, and both do their work synchronously before resolving.
-	void view.setState({ assetId: assetId ?? '', expanded: HARNESS_EXPANDED }, {} as never);
+	void view.setState(
+		{ assetId: assetId ?? '', expanded: HARNESS_EXPANDED, ...(layout === 'grid' ? { layout: 'grid' } : {}) },
+		{} as never,
+	);
 	void view.onOpen();
 
 	return { leafEl, view };

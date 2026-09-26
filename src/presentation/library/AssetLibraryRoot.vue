@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import { useLibraryDraftGuard } from './libraryDraftGuard';
 import DialogHost from '../dialogs/DialogHost.vue';
 import ViewFailure from '../components/ViewFailure.vue';
 import AssetInspector from './AssetInspector.vue';
 import AssetLibraryBody from './AssetLibraryBody.vue';
+import AssetLibraryBrowseControls from './AssetLibraryBrowseControls.vue';
+import AssetCategoryNav from './AssetCategoryNav.vue';
+import { shelvesOf } from './shelfList';
+import { useCategorySidebar } from './useCategorySidebar';
+import { DEFAULT_BROWSE, type LibraryBrowse, type LibraryLayout } from './libraryBrowse';
 import { useAssetLibraryContext } from './AssetLibraryContext';
 import { focusRowAt, focusWithin, rowPositionOf, shelvesWithdrawn } from './shelfFocus';
 import { deleteAssetWithReferences } from './deleteAssetFlow';
@@ -68,6 +73,23 @@ watch(context.expanded, (categories) => {
 	expandedCategories.value = new Set(categories);
 });
 
+// AD18-R18's layout and category filter, held here as `expanded` is: a bare mount supplies no `browse` ref and a
+// publish that does not write one back, and the switch still has to answer the press.
+const browseSource = context.browse ?? ref<LibraryBrowse>(DEFAULT_BROWSE);
+const layout = ref<LibraryLayout>(browseSource.value.layout);
+const categoryFilter = ref(browseSource.value.category);
+watch(browseSource, (browse) => {
+	layout.value = browse.layout;
+	categoryFilter.value = browse.category;
+});
+// The sidebar's list is the shelves' own derivation, over what the search leaves drawn.
+const categoryShelves = computed(() => shelvesOf(store.visibleEntries));
+// The filter as drawn: a category no shelf draws (a stale or hand-edited layout) reads as All, so
+// nothing is filtered to a category the sidebar cannot even show as pressed.
+const activeCategory = computed(() =>
+	categoryShelves.value.some((shelf) => shelf.category === categoryFilter.value) ? categoryFilter.value : '',
+);
+
 const showingSelection = ref(true);
 watch(
 	() => store.searching,
@@ -109,7 +131,7 @@ watch(paneAssetId, async (now, before) => {
 }, { flush: 'sync' });
 
 function publish(assetId: AssetId | null, expanded: ReadonlySet<string>): void {
-	context.publishViewState(assetId ?? '', [...expanded]);
+	context.publishViewState(assetId ?? '', [...expanded], { layout: layout.value, category: activeCategory.value });
 }
 
 async function focusAfterSwap(selector: string, swapped: () => boolean): Promise<void> {
@@ -128,6 +150,26 @@ function clearSearchField(): void {
 	store.query = '';
 	searchEl.value?.focus();
 }
+
+function setLayout(next: LibraryLayout): void {
+	layout.value = next;
+	publish(selectedId.value, expandedCategories.value);
+}
+
+function chooseCategory(next: string): void {
+	categoryFilter.value = next;
+	publish(selectedId.value, expandedCategories.value);
+}
+
+/** The filtered-to-nothing state's action removes the button pressed, so focus goes to `All`. */
+function onClearFilter(): void {
+	chooseCategory('');
+	void focusAfterSwap('.rp-al-category[aria-pressed="true"]', () => true);
+}
+
+// The funnel and the sidebar it shows — `useCategorySidebar.ts` carries the rules.
+const sidebar = useCategorySidebar(shellEl, layout, activeCategory);
+const sidebarId = useId();
 
 function toggleShelf(category: string): void {
 	const next = new Set(expandedCategories.value);
@@ -205,6 +247,9 @@ async function createAsset(): Promise<void> {
 		if (created !== null) {
 			store.query = '';
 			expandedCategories.value = new Set([...expandedCategories.value, created.category]);
+			// The same reason the query is cleared: the created asset is about to be selected, so a
+			// filter to another category would hide it.
+			if (categoryFilter.value !== created.category) categoryFilter.value = '';
 		}
 	}
 	performSelect(outcome.assetId);
@@ -265,6 +310,14 @@ watch(context.assetId, async (assetId) => {
 						×
 					</button>
 				</div>
+				<AssetLibraryBrowseControls
+					:layout="layout"
+					:category="activeCategory"
+					:sidebar-open="sidebar.shown.value"
+					:sidebar-id="sidebarId"
+					@layout="setLayout"
+					@toggle-filter="sidebar.toggle"
+				/>
 				<button
 					type="button"
 					class="rp-al-create"
@@ -281,14 +334,25 @@ watch(context.assetId, async (assetId) => {
 					<p>{{ tr('view.asset-library.loading') }}</p>
 				</div>
 				<template v-else>
+					<AssetCategoryNav
+						:id="sidebarId"
+						:open="sidebar.wanted.value"
+						:auto="sidebar.auto.value"
+						:shelves="categoryShelves"
+						:category="activeCategory"
+						@choose="chooseCategory"
+					/>
 					<AssetLibraryBody
 						ref="bodyRef"
 						:expanded="expandedCategories"
 						:selected-id="selectedId"
+						:layout="layout"
+						:category="activeCategory"
 						@toggle="toggleShelf"
 						@select="onSelect"
 						@create="onCreateAsset"
 						@clear-search="onClearSearch"
+						@clear-filter="onClearFilter"
 						@rehydrate="() => void hydrate()"
 					/>
 					<AssetInspector

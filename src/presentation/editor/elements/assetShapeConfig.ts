@@ -23,8 +23,10 @@ export function assetShapeConfig(element: NamedSpatialElement, shapeOf: ShapeLoo
 		footprint: { ...outline, name: shape ? 'asset-footprint' : 'asset-placeholder', fill, dash: shape ? [] : [6 / zoom, 4 / zoom] },
 		// Symbols spec, Decision 4: array order, lighter than the outline of record; solid covers, dashed does not.
 		// Details use zoneStroke at 1 px against the footprint's 2 px so the outline still reads as the object's edge.
-		details: details.map(detail => ({ name: 'asset-detail', points: flat(detail.points), closed: true, stroke: tokens.zoneStroke, strokeWidth: 1 / zoom, listening: false,
-			...(detail.line === 'solid' ? { fill } : { dash: [4 / zoom, 3 / zoom] }) })),
+		// An OPEN graphic is drawn unclosed and never filled (AD05): a fill needs an interior, and a
+		// closing edge would be a line the object has not got.
+		details: details.map(detail => ({ name: 'asset-detail', points: flat(detail.points), closed: detail.closed, stroke: tokens.zoneStroke, strokeWidth: 1 / zoom, listening: false,
+			...(detail.line === 'solid' ? (detail.closed ? { fill } : {}) : { dash: [4 / zoom, 3 / zoom] }) })),
 		// Drawn after the details: a solid detail's fill covers the inner half of the footprint's stroke, so the edge is restroked on top, unfilled.
 		edge: details.length > 0 ? { ...outline, name: 'asset-footprint-edge', listening: false } : null,
 		cross: shape ? null : [flat([footprint[0], footprint[2]]), flat([footprint[1], footprint[3]])],

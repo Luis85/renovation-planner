@@ -109,20 +109,12 @@
 }
 
 /*
- * THE DISCLOSURE, with P00's rotating chevron in place of the host's own triangle.
+ * THE DISCLOSURE, with P00's rotating chevron in place of the host's own triangle — the
+ * chevron itself is `disclosure-chevron.css`'s shared rule (AD18 second follow-up round, Task
+ * 3), not restated here.
  *
  * The NATIVE `<details>`/`<summary>` semantics are untouched — the state is still announced by
- * the host rather than reimplemented with ARIA. What changes is only the marker: the UA triangle
- * is removed and a `::before` chevron drawn in its place, rotated a quarter turn when the
- * element is open. `list-style: none` is what removes it in Firefox and the `::-webkit-details-marker`
- * rule is what removes it in Chromium, which is the browser this plugin actually ships into;
- * both are stated because a marker left behind beside the drawn one is two disclosure
- * indicators disagreeing.
- *
- * The chevron is CSS rather than a `HostIcon`, because a `<summary>` may not contain the
- * heading AND an icon without the icon becoming part of the summary's own announced content —
- * and `aria-hidden` on a child of the element whose name is being computed is not reliable
- * across screen readers. A border-drawn glyph is announced by nothing at all.
+ * the host rather than reimplemented with ARIA.
  *
  * The summary keeps the row's hit height so it clears WCAG 2.5.8's 24px floor like everything
  * else on this surface; the narrow sheet raises it to 44 with the rows.
@@ -135,25 +127,6 @@
 	padding-inline: var(--size-4-2);
 	list-style: none;
 	cursor: pointer;
-}
-
-.rp-project-list__completed > summary::-webkit-details-marker {
-	display: none;
-}
-
-.rp-project-list__completed > summary::before {
-	flex: 0 0 auto;
-	width: 6px;
-	height: 6px;
-	border-top: var(--border-width) solid var(--text-muted);
-	border-right: var(--border-width) solid var(--text-muted);
-	transform: rotate(45deg);
-	transition: transform 120ms ease;
-	content: "";
-}
-
-.rp-project-list__completed[open] > summary::before {
-	transform: rotate(135deg);
 }
 
 /*

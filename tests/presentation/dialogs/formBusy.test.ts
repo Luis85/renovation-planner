@@ -8,7 +8,7 @@
  *
  * And the framework invariant that window is held by: **no control inside an open dialog may
  * become `:disabled`.** `busy` is one thing that makes controls inoperative and it is not the
- * only one — `NewAssetForm` freezes its five catalogue fields the moment the asset exists,
+ * only one — `NewAssetForm` freezes its six catalogue fields the moment the asset exists,
  * which is a SECOND state that flips while the dialog is open. The second describe block below
  * is that state, driven through the same trap as the first, because a rule with two producers
  * and a case for one of them is a rule half checked.
@@ -370,7 +370,7 @@ describe('a form dialog whose fields freeze while it is open', () => {
 		pressKey(cancel, 'Tab');
 
 		// The frozen NAME input, not the width input three controls past it: `:disabled` would
-		// have taken all five catalogue controls out of `focusableWithin()` at once.
+		// have taken all six catalogue controls out of `focusableWithin()` at once.
 		expect(document.activeElement).toBe(harness.wrapper.get('[data-field="name"]').element);
 
 		harness.unmount();

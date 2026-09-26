@@ -1,3 +1,5 @@
+import type { Point } from './Point';
+import type { OPEN_PATH } from './openPathBrand';
 import type { Polygon } from './Polygon';
 import { createPolygon } from './Polygon';
 import type { GeometryError } from '../errors/AppError';
@@ -5,19 +7,40 @@ import { err, ok, type Result } from '../result/Result';
 import { arcRadius, type CircularEdge } from './circularArc';
 import { circularEdgeIntersections, curveTolerance } from './circularIntersections';
 
-/** Closed boundary: bulge i describes edge i→i+1, with implicit last→first closure. */
-export interface CurvedPolygon extends Polygon { readonly bulges?: readonly number[] }
+/**
+ * Closed boundary: bulge i describes edge i→i+1, with implicit last→first closure.
+ *
+ * `[OPEN_PATH]?: undefined` is the half of the open/closed discriminant that lives HERE, and it is
+ * load-bearing rather than decorative: a brand only `CurvedPath` declared left that type assignable
+ * to this one, since an extra property never blocks assignability. Optional and `undefined`, so
+ * every `{ points }` literal stays a valid polygon and nothing has to mention it — `Point.__brand`'s
+ * idiom, and `openPathBrand.ts` carries the whole account.
+ */
+export interface CurvedPolygon extends Polygon {
+	readonly bulges?: readonly number[];
+	readonly [OPEN_PATH]?: undefined;
+}
 export const hasCurves = (shape: CurvedPolygon): boolean => shape.bulges?.some(value => value !== 0) ?? false;
+/**
+ * One curved edge's own rules: within a semicircle, and over a chord with a representable
+ * radius. Shared with `CurvedPath` (AD04 §2) rather than copied — an open path's segments obey
+ * the identical arc vocabulary, and two spellings of it would be a clone family that drifts.
+ * Only the EDGE COUNT differs between the two types, which is why that check stays with each.
+ */
+export function validateBulgeEdge(start: Point, end: Point, bulge: number): Result<void, GeometryError> {
+	if (!Number.isFinite(bulge) || Math.abs(bulge) > 1) return err({ category: 'Geometry', code: 'curve-bulge-invalid', message: 'A curved edge supports at most a semicircle; split a larger arc into separate edges.' });
+	if (bulge === 0) return ok(undefined);
+	const radius = arcRadius({ start, end, bulge });
+	if (radius === null || !Number.isFinite(radius) || radius <= 0) return err({ category: 'Geometry', code: 'curve-chord-invalid', message: 'A curved edge needs distinct endpoints and a representable radius.' });
+	return ok(undefined);
+}
 export function validateBulges(shape: CurvedPolygon): Result<void, GeometryError> {
 	const bulges = shape.bulges;
 	if (bulges === undefined) return ok(undefined);
 	if (bulges.length !== shape.points.length) return err({ category: 'Geometry', code: 'curve-edge-count', message: 'Every boundary edge needs one curve value.' });
 	for (let index = 0; index < bulges.length; index++) {
-		const bulge = bulges[index];
-		if (!Number.isFinite(bulge) || Math.abs(bulge) > 1) return err({ category: 'Geometry', code: 'curve-bulge-invalid', message: 'A curved edge supports at most a semicircle; split a larger arc into separate edges.' });
-		if (bulge === 0) continue;
-		const radius = arcRadius({ start: shape.points[index], end: shape.points[(index + 1) % shape.points.length], bulge });
-		if (radius === null || !Number.isFinite(radius) || radius <= 0) return err({ category: 'Geometry', code: 'curve-chord-invalid', message: 'A curved edge needs distinct endpoints and a representable radius.' });
+		const edge = validateBulgeEdge(shape.points[index], shape.points[(index + 1) % shape.points.length], bulges[index]);
+		if (!edge.ok) return edge;
 	}
 	return ok(undefined);
 }

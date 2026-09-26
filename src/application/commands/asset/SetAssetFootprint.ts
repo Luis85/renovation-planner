@@ -33,21 +33,37 @@ export interface SetAssetFootprintInput {
  * the footprint, its provenance or its pending flag.
  *
  * Spelled as a `Pick` rather than as a whole shape with a placeholder footprint, so the
- * set is derived from `AssetShape`: a field added to the domain shape fails to compile in
+ * set is derived from `AssetShape`: a REQUIRED field added to the domain shape fails to compile in
  * `withFootprint` below until it is named here or set there. Setting a footprint must
- * never clear a clearance, an anchor or a facing, and it must not touch `clearancePending`
- * or `anchorPending`: those flags say when THOSE coordinate groups were captured, and a footprint capture is not an
- * event in their history.
+ * never clear a clearance, an anchor or a facing, and it must not touch `clearancePending`,
+ * `anchorPending` or `clearanceNeedsReview`: those flags say when THOSE coordinate groups were
+ * captured, or what has happened to them since, and a footprint capture is not an event in their
+ * history.
+ *
+ * **"Required" is the narrowing AD14 owes this sentence, and it is written here rather than left
+ * implied.** `clearanceNeedsReview` is OPTIONAL on `AssetShape` (that field's own docblock
+ * measures why), so an object omitting it still satisfies the return type and the compiler would
+ * NOT have caught its absence — the guarantee stops at required fields. It is named in the `Pick`
+ * deliberately instead, which is the only thing that makes the inheritance visible to a reader.
  */
 type InheritedShape = Pick<
 	AssetShape,
-	'clearance' | 'clearancePending' | 'anchorPending' | 'anchor' | 'facing' | 'details'
+	'clearance' | 'clearancePending' | 'clearanceNeedsReview' | 'anchorPending' | 'anchor' | 'facing' | 'details'
 >;
 
-/** What an asset nobody has drawn on yet inherits: nothing, centred, facing +x. */
+/**
+ * What an asset nobody has drawn on yet inherits: nothing, centred, facing +x.
+ *
+ * `clearanceNeedsReview` is named here for the same reason `clearancePending` is, and one more:
+ * `clearance` is `null`, and `validateAssetShape` refuses EITHER flag on an absent clearance. On an
+ * EXISTING shape the flag is inherited untouched — setting a footprint is not a write whose subject
+ * is the clearance, and an object whose outline has just been replaced around an authored boundary
+ * is if anything more in need of the review, not less (AD14-R1).
+ */
 const UNDESIGNED: InheritedShape = {
 	clearance: null,
 	clearancePending: false,
+	clearanceNeedsReview: false,
 	anchorPending: false,
 	anchor: { x: 0, y: 0 },
 	facing: 0,

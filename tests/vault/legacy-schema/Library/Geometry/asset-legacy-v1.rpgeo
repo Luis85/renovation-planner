@@ -1,0 +1,24 @@
+{
+	"schemaVersion": 1,
+	"assetId": "asset-legacy-v1",
+	"revision": 4,
+	"unit": "mm",
+	"calibration": null,
+	"shape": {
+		"footprint": {
+			"points": [
+				[-594.005, -400],
+				[600, -400],
+				[600, 400],
+				[-594.005, 400]
+			]
+		},
+		"footprintOrigin": "traced",
+		"clearance": null,
+		"anchor": {
+			"x": 0,
+			"y": 0
+		},
+		"facing": 0
+	}
+}

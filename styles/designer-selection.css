@@ -100,9 +100,62 @@
 /*
  * Each wrapped row of actions fills the column, as Edit dimensions and Start from preset below it do
  * (critique finding 22). Qualified with `.rp-designer-inspector` for the specificity reason above.
+ *
+ * **Does NOT reach the Placement point group any more** (AD18-R16 Task 8's fix round): that group
+ * dropped `.rp-designer-selection-actions` for its own `.rp-designer-placement-modes`, below — a
+ * `flex: 1 1 auto` this rule declares would be inert under `display: grid` in any case, but the
+ * class is gone rather than left wearing a rule that no longer does anything.
  */
 .rp-designer-inspector .rp-designer-selection-actions .rp-designer-selection-button {
 	flex: 1 1 auto;
+}
+
+/*
+ * The Placement point group's CONTAINER (AD18-R16 Task 8, fix round). The integrator's browser
+ * measurement of the first version — a flex-wrap row, the shape `.rp-designer-selection-actions`
+ * gives the panel's other button rows — found it wrapping at a 192px group width: Centre (80px)
+ * and Back centre (108px) on one row, Custom alone at 192px on a second, each 49px tall. Three
+ * segments that wrap unevenly read as loose buttons rather than one control.
+ *
+ * A grid with `minmax(0, 1fr)` columns is `designer-add.css`'s own fix for the identical
+ * overflow — its own comment: an `auto` minimum is each column's own min-content contribution,
+ * the width of its longest unbreakable run, which is what forced an uneven split there too.
+ * Three columns here for three segments rather than two.
+ *
+ * **No `align-items` override — SAME answer as `designer-add.css`'s grid since that file's own
+ * final-fix-wave item 5** (that round tried `align-items: start` there, then reverted it once the
+ * integrator's capture found it producing the identical defect this group was already written to
+ * avoid). Grid's own default `stretch` gives every segment the row's own height, so "Back centre"
+ * wrapping to two lines does not leave "Centre" and "Custom" visibly shorter next to it — three
+ * DIFFERENT heights would read as three buttons again, not one control.
+ *
+ * **Three columns only while `Custom` fits WHOLE in one** (e2e on Linux, 2026-09-26). A fixed
+ * three-column `minmax(0, 1fr)` split `Custo` / `m` at Obsidian's default 1024 x 800 window, where
+ * the inspector gives this group 160px and the three segments need about 170px — the smaller text
+ * and padding in `designer-add.css` were a prediction measured on Windows fonts only. So each
+ * column's minimum is the longest one-word label (about 3.8em in a wide face such as DejaVu Sans,
+ * 4em here) plus the segment's own padding and border, and `auto-fit` drops to two columns, then
+ * one, rather than breaking a word. The group's `font-size` is the segments' own, so that `em` is
+ * the label's. `min(100%, …)` keeps a single column from overflowing a narrower group still.
+ */
+.rp-designer-placement-modes {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(4em + 2 * var(--size-4-1) + 2px)), 1fr));
+	gap: var(--size-4-1);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * The label may wrap ("Back centre" is two words in an approximately 61px-wide column) —
+ * `overflow-wrap: anywhere` on the SPAN, element-selected rather than through a shared class,
+ * because `designer-add.css`'s own `.rp-designer-tool-label` (which already carries this
+ * declaration for the `Add` rail) is reached, unqualified beyond `.renovation-asset-designer`, by
+ * `designer-toolbar.css`'s `display: none` — at EVERY width since AD18-R17 Task 2, not only below
+ * the retired 80rem. Wearing that class here would hide these labels outright, which a segmented
+ * control with no icon-only fallback state must not do.
+ */
+.rp-designer-placement-modes .rp-designer-selection-button span {
+	overflow-wrap: anywhere;
 }
 
 /*
@@ -116,9 +169,220 @@
 	font-weight: var(--font-semibold);
 }
 
+/*
+ * The composition block (AD10): the same column and the same separating rule the selected part's
+ * section wears, because the two are siblings in the inspector rather than one nested in the other.
+ * The declarations are `.rp-designer-selection`'s and are written out rather than shared through a
+ * grouped selector, so the day one of the two blocks needs its own spacing the other does not move
+ * with it — the trade `designer.css`'s flat-button comment already argues for.
+ */
+.rp-designer-arrange {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	margin: 0 0 var(--size-4-4);
+	padding-bottom: var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * The Align and Distribute rows draw as icon-only buttons now (AD18-R16 Task 10), and each is a
+ * fixed GRID rather than `.rp-designer-selection-actions`'s flex-wrap — the shape
+ * `.rp-designer-placement-modes`'s own comment argues for an uneven wrap of near-square buttons.
+ * Align's six are two rows of three in `ALIGN_EDGES`'s own order (left/centre/right over
+ * top/centre/bottom); Distribute's four are two rows of two (centres over gaps). `minmax(0, 1fr)`
+ * is that same rule's fix for the identical overflow.
+ */
+.rp-designer-arrange-align {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--size-4-1);
+}
+
+.rp-designer-arrange-distribute {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: var(--size-4-1);
+}
+
+/*
+ * The icon-only button: centred on both axes, where a text button's content is already centred by
+ * its own text flow. `button.` and the `.rp-designer-inspector` prefix, for the specificity
+ * reason the base rule above already gives: Obsidian's own `button:not(.clickable-icon)` scores
+ * (0,1,1) and would otherwise decide `display` over a bare class.
+ */
+.rp-designer-inspector button.rp-designer-icon-button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
 /* The facing angle's direction hint (critique finding 25): a description under its field, quieter than the label. */
 .rp-designer-field-hint {
 	margin: 0;
 	font-size: var(--font-ui-smaller);
 	color: var(--text-muted);
+}
+
+/*
+ * `DesignerFieldRow`'s compact row (AD18-R16 Task 5, both concept boards' `Width [800 mm]`): a
+ * short label to the left, the input and its unit suffix to the right. Its own class rather than
+ * `designer.css`'s `.rp-designer-field`, which stays the stacked shape for whatever still draws
+ * through it directly. The clearance helper's four setbacks, the repeat form's fields and the
+ * asset's own Height all converged onto this PRESENTATION (`DesignerFieldRowShell`) since —
+ * `DesignerFieldRow.vue`'s own docblock says so — but not onto `DesignerFieldRow` itself, whose
+ * plain `@change` shape would round a raw draft on every keystroke, the exact corruption each of
+ * those three already refuses; that is the distinction still worth keeping, not a claim that
+ * nothing converged.
+ *
+ * **Stacks below the inspector's OWN resting width, not at a width of its own.** `50rem` (800px)
+ * is exactly where `designer-toolbar.css`'s `min(14rem, 28cqi)` cap starts binding — above it the
+ * rail holds its full 224px, below it the rail is narrower than that already. A label-left row is
+ * only ever drawn at the rail's full width; anywhere the rail is being compressed, the row reverts
+ * to the label-above-input shape `.rp-designer-field` already draws down to the rail's measured
+ * floor (`designer-toolbar.css`'s own comment: 224 / 157-224 / 123-176px across 560-800px leaf
+ * widths). Declared and unrendered here, like every `@container` rule in this suite: jsdom
+ * resolves no `cqi` and no container query, so this is a layout PREDICTION, not a measurement.
+ */
+.rp-designer-field-row {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	font-size: var(--font-ui-small);
+}
+
+.rp-designer-field-row__label {
+	flex: 1 1 auto;
+	min-width: 0;
+	color: var(--text-muted);
+}
+
+.rp-designer-field-row__control {
+	position: relative;
+	flex: 0 0 auto;
+	width: 5rem;
+}
+
+/*
+ * The suffix sits inside the input's trailing edge (`position: absolute` below), so the input
+ * needs room on its right not to draw digits under it, and the native spinner arrows — which
+ * would otherwise sit exactly where the suffix does — are turned off. Text is right-aligned so a
+ * short value reads next to its unit rather than off at the field's leading edge. The boards draw
+ * "800  mm" with a gap (AD18-R17): the unit sits 4px in and "mm" is ~21px, so 28px leaves ~4px before
+ * it; no left padding keeps "-1200" (~33px at 13px) inside a 65px paired field (65 - 2 - 28 = 35px).
+ */
+.rp-designer-field-row__control input {
+	width: 100%;
+	padding-right: calc(var(--size-4-6) + var(--size-4-1));
+	padding-left: 0;
+	text-align: right;
+	appearance: textfield;
+}
+
+.rp-designer-field-row__control input::-webkit-outer-spin-button,
+.rp-designer-field-row__control input::-webkit-inner-spin-button {
+	appearance: none;
+	margin: 0;
+}
+
+.rp-designer-field-row__unit {
+	position: absolute;
+	top: 50%;
+	right: var(--size-4-1);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	transform: translateY(-50%);
+	pointer-events: none;
+}
+
+@container rp-designer (width < 50rem) {
+	.rp-designer-field-row {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.rp-designer-field-row__control {
+		width: 100%;
+	}
+}
+
+/*
+ * AD12's three blocks — the reference's status, the placement point and the clearance helper —
+ * each a sibling of the composition block above and spaced the same way. Grouped into one rule
+ * where `.rp-designer-arrange` and `.rp-designer-selection` are written out separately, because
+ * these three arrived together with one spacing decision between them: the day one of them needs
+ * its own, it leaves the list rather than three copies having to be found.
+ */
+.rp-designer-reference,
+.rp-designer-placement,
+.rp-designer-clearance {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	margin: var(--size-4-4) 0 0;
+	padding-top: var(--size-4-2);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * The term/value readouts inside those blocks — the sheet and its scale, the placement point and the
+ * front direction. Its OWN class rather than `designer.css`'s `.rp-designer-inspector-fields`, which
+ * is the ASSET's derived dimensions and is addressed as such: `designerInspector.test.ts` asserts that
+ * a shapeless asset draws no list under that class, and sharing it would have made a reference readout
+ * answer a question about dimensions. Same grid, two subjects.
+ */
+.rp-designer-reference-fields {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: var(--size-4-1) var(--size-4-2);
+	margin: 0;
+	font-size: var(--font-ui-small);
+}
+
+.rp-designer-reference-fields dt {
+	color: var(--text-muted);
+}
+
+.rp-designer-reference-fields dd {
+	margin: 0;
+}
+
+/*
+ * The set-transform fold and the Repeat form's own fold (AD18-R16 Task 6): both are bare
+ * `<details>`/`<summary>` — `GroupControls.vue`'s shape for a disclosure inline in a panel, not
+ * `DesignerViewMenu`'s `.rp-view-menu`, which is a floating popover with Escape dismissal that
+ * nothing here needs. The chevron itself is `disclosure-chevron.css`'s shared rule (AD18 second
+ * follow-up round, Task 3), not restated here.
+ *
+ * **`min-height`/`padding-inline` are the SAME precedent's, not a fresh measurement** (review
+ * round: the first version of this rule shipped without them and measured 17px tall, under WCAG
+ * 2.5.8's 24px target). `.rp-project-list__completed > summary`'s own comment states the reason;
+ * `designerStyles.test.ts` pins both against that selector's declared values directly, so the two
+ * cannot drift apart unnoticed the way this one already did once.
+ */
+.rp-designer-collapsible > summary {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	min-height: var(--size-4-6);
+	padding-inline: var(--size-4-2);
+	list-style: none;
+	cursor: pointer;
+}
+
+/*
+ * The `<h3>` restored inside each summary (final-fix-wave item 8, heading navigation): it carries
+ * `.rp-designer-panel-title`'s own `margin: 0 0 var(--size-4-2)` unless this overrides it, and that
+ * bottom margin would grow the flex item's box past the row's own `min-height` above, pushing the
+ * text off-centre inside a taller hit target than the 24px one measured for. The same trade
+ * `.rp-project-list__completed > summary .rp-project-list__group-title`'s own comment states, for
+ * `padding` rather than `margin` there.
+ */
+.rp-designer-collapsible > summary .rp-designer-panel-title {
+	margin: 0;
+}
+
+.rp-designer-collapsible > summary:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
 }

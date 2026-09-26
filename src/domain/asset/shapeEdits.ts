@@ -1,10 +1,12 @@
 import type { CurvedPolygon } from '../../core/geometry/CurvedPolygon';
+import type { CurvedPath } from '../../core/geometry/CurvedPath';
 import type { Point } from '../../core/geometry/Point';
 import type { Vector } from '../../core/geometry/Vector';
 import { rotate, translate } from '../../core/geometry/operations';
 import type { ValidationError } from '../../core/errors/AppError';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import { assetError } from './Asset.errors';
+import { mapDetailOutline } from './AssetDetail';
 import { dimensionsOf, validateAssetShape, type AssetShape, type Dimensions } from './AssetShape';
 import { solveScale } from './scaleSolve';
 
@@ -28,6 +30,17 @@ import { solveScale } from './scaleSolve';
  * **Pending flags are carried, never re-decided**: an edit to a group captured in background pixels
  * leaves it in pixel space, and only the calibration that converts it clears the flag.
  * `removeClearance` writes one, because validation refuses a pending flag on an absent clearance.
+ *
+ * **`clearanceNeedsReview` is the one flag this module DECIDES** (AD14-R1). `scaleDesign` is the
+ * only function that sets it, and the edits whose subject is the clearance clear it —
+ * `mapPartOutline`'s and `withOutline`'s clearance arms and `removeClearance`, plus
+ * `markClearanceReviewed` below, which clears it as its whole PURPOSE rather than as a
+ * consequence of replacing the geometry. The first version of this sentence said "the three" and
+ * called them the whole of what the grep prints as a write; it was off by one at the moment it
+ * was written, because the fourth arrived in the same change. No count is kept here now — the
+ * grep is the list. The clears outside this module are in `SetAssetClearance` and
+ * `SetAssetFootprint`; `CalibrateAsset` deliberately touches it nowhere, because a calibration's
+ * subject is a coordinate space and not a boundary.
  */
 
 /** Which outline an edit names: the footprint, the clearance, or a detail by id. */
@@ -36,11 +49,57 @@ export type OutlinePart =
 	| { readonly kind: 'clearance' }
 	| { readonly kind: 'detail'; readonly id: string };
 
-/** The outline a part names, or null when the shape has no such part. */
+/**
+ * The CLOSED outline a part names, or null when the shape has no such part — **and null for an
+ * OPEN graphic**, which is the whole point of the function and did not change at AD11.
+ *
+ * A path has no interior and its bulge array is a segment shorter, so handing one to a routine
+ * that closes would draw a wrong picture rather than fail. What AD11 changed is that the
+ * point-wise transforms no longer come through here: `moveOutline`, `rotateOutline` and
+ * `resizeBox` go through `mapPartOutline` below, which keeps a graphic's kind. What is still
+ * closed-only is everything that needs the ring itself — `moveVertex` and `setBulge` here (a
+ * path's bulge array is indexed per SEGMENT, so `indexIn`'s point-count rule is the wrong question
+ * for one), plus, outside this module, **eight call sites in six files, which is what
+ * `grep -rn 'outlineOf(' src/` prints once this file and `AssetShelf.vue`'s same-named local are
+ * dropped.** The count is written down because both earlier versions of this paragraph got it
+ * wrong: the first said "four" and listed four, and the rewrite that caught that said "seven"
+ * while listing eight.
+ *
+ * - `partExtent.partMeasure` — reaches here for the footprint and the clearance only; a detail of
+ *   either kind now goes through `detailBox`.
+ * - `selectionDrag.boxOf` — so a vertex, box or rotate drag of a path answers `partNotFound`.
+ * - `handles.selectionHandles` — which is why a path is drawn with no handles at all, and in turn
+ *   why the two `dragSnap` sites and `designer-select-tool.beginBend` below cannot be reached on
+ *   one.
+ * - `selectionLayer.selectedRun` (footprint and clearance only, as `partMeasure`) and
+ *   `selectionLayer.selectionFrame` — the second is why Shift+2 frames nothing on a path.
+ * - `dragSnap`'s vertex and box-handle arms, and `designer-select-tool.beginBend` — all three cast
+ *   the answer to a `CurvedPolygon`, and all three are safe because `selectionHandles` draws no
+ *   handle on a path for a press to land on.
+ *
+ * So an open graphic today has no vertex handles, no bend, no box resize and nothing for Shift+2
+ * to frame. What it HAS is the Parts panel, the inspector's numeric fields, the arrow-key nudge and
+ * a body drag — the first three through the transforms below, the last through `partPoints`.
+ */
 export function outlineOf(shape: AssetShape, part: OutlinePart): CurvedPolygon | null {
 	if (part.kind === 'footprint') return shape.footprint;
 	if (part.kind === 'clearance') return shape.clearance;
-	return shape.details.find((detail) => detail.id === part.id)?.outline ?? null;
+	const detail = shape.details.find((found) => found.id === part.id);
+	return detail === undefined || detail.kind === 'open' ? null : detail.outline;
+}
+
+/**
+ * Every VERTEX of the part `part` names, whatever its kind, or null when the shape has no such
+ * part — the read for a caller that wants points and no interior (AD11).
+ *
+ * Its own function rather than a widened `outlineOf` because the two answer different questions
+ * and one of them has to keep refusing: `outlineOf` promises a ring, and every caller that asks
+ * for one goes on to close, fill or index it per point. `dragSnap.snapBody` is the caller this
+ * exists for — a body drag is a translation, so a path's vertices are the whole of what it needs.
+ */
+export function partPoints(shape: AssetShape, part: OutlinePart): readonly Point[] | null {
+	if (part.kind !== 'detail') return outlineOf(shape, part)?.points ?? null;
+	return shape.details.find((found) => found.id === part.id)?.outline.points ?? null;
 }
 
 /**
@@ -69,18 +128,53 @@ function scaleRefusal(sx: number, sy: number): ValidationError | null {
 }
 
 /** Each axis scaled about `origin` on its own; bulges are carried by the spread. */
-function scaled(outline: CurvedPolygon, sx: number, sy: number, origin: Point): CurvedPolygon {
+function scaled<T extends CurvedPolygon | CurvedPath>(outline: T, sx: number, sy: number, origin: Point): T {
 	return {
 		...outline,
 		points: outline.points.map((point) => ({ x: origin.x + (point.x - origin.x) * sx, y: origin.y + (point.y - origin.y) * sy })),
 	};
 }
 
+/**
+ * `map` applied to whichever part `part` names, KEEPING ITS KIND, then validated — the one path
+ * every point-wise transform of a part takes (AD11).
+ *
+ * `map` is generic exactly as `mapDetailOutline`'s callback is, so an open path comes back an open
+ * path with its brand intact and a ring comes back a ring: `translate`, `rotate` and `scaled` all
+ * have that shape already, which is why this is a re-pointing rather than a second implementation.
+ * `editOutline` beside it stays for the edits that genuinely need a closed ring.
+ */
+function mapPartOutline(
+	shape: AssetShape,
+	part: OutlinePart,
+	map: <T extends CurvedPolygon | CurvedPath>(outline: T) => T,
+): Result<AssetShape, ValidationError> {
+	if (part.kind === 'footprint') return validateAssetShape({ ...shape, footprint: map(shape.footprint) });
+	if (part.kind === 'clearance') {
+		// The review flag comes down because the SUBJECT of this write is the clearance — a
+		// gesture aimed at the boundary IS the review (AD14-R1). The same line sits in
+		// `withOutline` below, which is the other path a clearance edit can take.
+		return shape.clearance === null
+			? err(partNotFound(part))
+			: validateAssetShape({ ...shape, clearance: map(shape.clearance), clearanceNeedsReview: false });
+	}
+	if (!shape.details.some((detail) => detail.id === part.id)) return err(partNotFound(part));
+	return validateAssetShape({
+		...shape,
+		details: shape.details.map((detail) => (detail.id === part.id ? mapDetailOutline(detail, map) : detail)),
+	});
+}
+
 /** The shape with one part's outline replaced; a detail keeps its id, name, line and pending flag. */
 function withOutline(shape: AssetShape, part: OutlinePart, outline: CurvedPolygon): AssetShape {
 	if (part.kind === 'footprint') return { ...shape, footprint: outline };
-	if (part.kind === 'clearance') return { ...shape, clearance: outline };
-	return { ...shape, details: shape.details.map((detail) => (detail.id === part.id ? { ...detail, outline } : detail)) };
+	// `clearanceNeedsReview: false` for `mapPartOutline`'s reason above: a vertex moved or an edge
+	// bent on the clearance is a gesture aimed at the boundary, which IS the review (AD14-R1).
+	if (part.kind === 'clearance') return { ...shape, clearance: outline, clearanceNeedsReview: false };
+	// `detail.kind !== 'open'` and not a guard clause: `outlineOf` above has already answered null
+	// for an open graphic, so `editOutline` refused this part before reaching here. The condition is
+	// what makes that true at the type level as well — an open detail cannot be handed a polygon.
+	return { ...shape, details: shape.details.map((detail) => (detail.id === part.id && detail.kind !== 'open' ? { ...detail, outline } : detail)) };
 }
 
 /** Find the part, edit its outline, write it back and validate the whole shape: every outline edit's one path. */
@@ -96,8 +190,9 @@ function editOutline(
 	return validateAssetShape(withOutline(shape, part, edited.value));
 }
 
+/** Translation is kind-agnostic, so an open graphic moves here — the arrow-key nudge and the inspector's centre fields. */
 export function moveOutline(shape: AssetShape, part: OutlinePart, by: Vector): Result<AssetShape, ValidationError> {
-	return editOutline(shape, part, (outline) => ok(translate(outline, by)));
+	return mapPartOutline(shape, part, (outline) => translate(outline, by));
 }
 
 /**
@@ -130,11 +225,11 @@ export function resizeBox(
 ): Result<AssetShape, ValidationError> {
 	const refused = scaleRefusal(factors.sx, factors.sy);
 	if (refused !== null) return err(refused);
-	return editOutline(shape, part, (outline) => ok(scaled(outline, factors.sx, factors.sy, origin)));
+	return mapPartOutline(shape, part, (outline) => scaled(outline, factors.sx, factors.sy, origin));
 }
 
 export function rotateOutline(shape: AssetShape, part: OutlinePart, radians: number, origin: Point): Result<AssetShape, ValidationError> {
-	return editOutline(shape, part, (outline) => ok(rotate(outline, radians, origin)));
+	return mapPartOutline(shape, part, (outline) => rotate(outline, radians, origin));
 }
 
 export function moveAnchor(shape: AssetShape, to: Point): Result<AssetShape, ValidationError> {
@@ -146,27 +241,75 @@ export function setFacing(shape: AssetShape, radians: number): Result<AssetShape
 	return validateAssetShape({ ...shape, facing: radians });
 }
 
-/** The clearance removed with its pending flag. The footprint has no counterpart: without one there is no shape. */
+/**
+ * The clearance removed with BOTH its flags. The footprint has no counterpart: without one there
+ * is no shape.
+ *
+ * `clearanceNeedsReview` comes down here for `clearancePending`'s own reason and for one more:
+ * validation refuses either flag on an absent clearance, and a removal is the most complete write
+ * whose subject IS the clearance — there is nothing left to review (AD14-R1).
+ */
 export function removeClearance(shape: AssetShape): Result<AssetShape, ValidationError> {
 	if (shape.clearance === null) return err(partNotFound({ kind: 'clearance' }));
-	return validateAssetShape({ ...shape, clearance: null, clearancePending: false });
+	return validateAssetShape({ ...shape, clearance: null, clearancePending: false, clearanceNeedsReview: false });
+}
+
+/**
+ * The review answered: the flag comes down and not one coordinate moves (AD14-R1).
+ *
+ * **No guard, and that is deliberate rather than an omission.** A `null` clearance cannot carry the
+ * flag — `validateAssetShape` refuses that outright — and the inspector draws the control only
+ * while the flag is set, so both a `part-not-found` arm and a no-op arm would be branches nothing
+ * could ever drive. `removeClearance` above has a guard because its own `clearance: null` write is
+ * what would otherwise succeed against nothing.
+ *
+ * **Undo needs nothing here.** This flag rides on `AssetShape`, which the reversible design commands
+ * snapshot whole, so undoing a Reviewed press restores the flagged shape for free.
+ */
+export function markClearanceReviewed(shape: AssetShape): Result<AssetShape, ValidationError> {
+	return validateAssetShape({ ...shape, clearanceNeedsReview: false });
 }
 
 /**
  * Every outline scaled about the ANCHOR, so the point a plan positions the asset by stays where it
- * is, by one raw factor per axis. `scaleDesignToDimensions` below is the caller for the dimensions
- * gesture: it uses this as the per-axis `apply` a secant solve calls with successive factors, one
- * axis at a time, rather than calling it directly with a ratio.
+ * is, by one raw factor per axis — **except a MEASURED clearance, which is preserved and flagged**
+ * (AD14-R1, ADR-0034, superseding `2026-09-16-asset-designer-consolidate-design.md` §7's
+ * "every part — clearance and details included — is scaled about the anchor").
+ * `scaleDesignToDimensions` below is the caller for the dimensions gesture: it uses this as the
+ * per-axis `apply` a secant solve calls with successive factors, one axis at a time, rather than
+ * calling it directly with a ratio.
+ *
+ * **Why preserve rather than scale-and-flag.** A clearance is authored: somebody decided 600 mm in
+ * front of the oven. Scaling it fabricates a boundary nobody chose and then asks the user to check
+ * a number that looks chosen — at 600 becoming 500, a glance accepts it. Preserving leaves the
+ * authored 600 standing beside a smaller object, where it visibly no longer fits: **the wrongness
+ * is the notice**, and the flag is only what makes it survive a reopen.
+ *
+ * **A PENDING clearance goes on scaling with everything else** (contract revision `r1`, row 2).
+ * Its coordinates are background pixels, the whole capture shares one space, and scaling them
+ * weakens nothing that is yet a measurement — so the flag is never set on one either.
+ *
+ * **BOTH directions flag, and only a non-identity scale flags.** A user who typed 600 mm and then
+ * resized the object has a boundary they did not author at either size, so there is no *shrinking
+ * only* rule and no *down on one axis, up on the other* question left for somebody to answer
+ * differently later. An identity scale — which `scaleDesignToDimensions` really does apply, on the
+ * axis whose typed value equals the current one — sets nothing and, just as importantly, clears
+ * nothing: the `||` below is what stops re-typing the same size from answering a review.
+ *
+ * Rotation, reflection and translation set it nowhere: they are isometries and weaken no distance.
  */
 export function scaleDesign(shape: AssetShape, sx: number, sy: number): Result<AssetShape, ValidationError> {
 	const refused = scaleRefusal(sx, sy);
 	if (refused !== null) return err(refused);
-	const about = (outline: CurvedPolygon): CurvedPolygon => scaled(outline, sx, sy, shape.anchor);
+	const about = <T extends CurvedPolygon | CurvedPath>(outline: T): T => scaled(outline, sx, sy, shape.anchor);
+	const preserved = shape.clearance !== null && !shape.clearancePending;
+	const moved = sx !== 1 || sy !== 1;
 	return validateAssetShape({
 		...shape,
 		footprint: about(shape.footprint),
-		clearance: shape.clearance === null ? null : about(shape.clearance),
-		details: shape.details.map((detail) => ({ ...detail, outline: about(detail.outline) })),
+		clearance: shape.clearance === null || preserved ? shape.clearance : about(shape.clearance),
+		clearanceNeedsReview: shape.clearanceNeedsReview === true || (preserved && moved),
+		details: shape.details.map((detail) => mapDetailOutline(detail, (outline) => scaled(outline, sx, sy, shape.anchor))),
 	});
 }
 
@@ -178,9 +321,9 @@ interface Sized {
 
 /**
  * Maps `dimensionsOf`'s own overflow guard onto a design edit's refusal shape. Called both on the
- * shape a caller hands in AND, inside `scaleDesignToDimensions`'s loop, on every candidate a secant
- * step produces — `solveScale` clamps a factor only away from non-positive, never away from large,
- * so an internally-computed factor can stretch a footprint past what a double can represent, the
+ * shape a caller hands in AND, inside `scaleDesignToDimensions`'s loop, on every candidate the solve
+ * tries — `solveScale` hands `apply` no non-positive factor after the first but caps no large one, so
+ * a secant or a doubling can stretch a footprint past what a double can represent, the
  * same `-1e308`-to-`1e308` overflow `AssetShape.dimensionsOf` already refuses as `dimensions-overflow`.
  * Refused here rather than solved against, since `Infinity` is not a measurement a secant can use.
  */
@@ -209,7 +352,9 @@ function sized(shape: AssetShape): Result<Sized, ValidationError> {
  * check. A straight-sided design lands both axes exactly on the first pass and the later ones change
  * nothing.
  *
- * Its ceiling is `solveScale`'s: an unreachable extent lands near the typed value rather than on it.
+ * Its ceiling is `solveScale`'s: an extent the kept bulges cannot reach lands within its `REACH_MM`
+ * (0.01 mm) of the nearest one they can, not on the typed value — 1 x 1000 typed on the round table
+ * lands 207.1 wide, measured — as `scaleDesignReach.test.ts` holds for six curved preset footprints.
  */
 export function scaleDesignToDimensions(shape: AssetShape, width: number, depth: number): Result<AssetShape, ValidationError> {
 	const start = sized(shape);

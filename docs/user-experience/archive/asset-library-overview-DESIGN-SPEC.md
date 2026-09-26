@@ -1468,7 +1468,7 @@ Every gesture reachable without a pointer, per PRODUCT.md's binding WCAG 2.2 AA 
 
 | Key | Does |
 | --- | --- |
-| `Tab` | Moves through: search, `New asset`, each **collapsible** shelf header, each row of an expanded shelf, the inspector's fields and actions |
+| `Tab` | Moves through: search, the category funnel, `Grid` and `List`, `New asset`, each category in the sidebar while it shows, each **collapsible** shelf header, each row of an expanded shelf (in Grid: each tile, then the `Create your own` card's button), the inspector's fields and actions — Amendment 7 (§8) added the funnel, the switch, the sidebar and the tiles |
 | `Enter` / `Space` on a collapsible shelf header | Toggles the shelf |
 | `Enter` / `Space` on a row | Selects it into the inspector |
 | `↑` / `↓` within a shelf | Moves between rows, wrapping into the next **focusable** header at the ends — empty shelves are skipped, having no header to focus |
@@ -1642,6 +1642,32 @@ wording would have named an asset's footprint with the word this plugin uses for
 German-vocabulary drift CLAUDE.md records fixing twice already (`Material`/`Objekt`, and one noun
 given two genders across two keys). An instruction from the coordinator is a claim like any other,
 and this one was checkable against the file it was a claim about.
+
+**Correction to the sentence above, made while writing Amendment 6, because that amendment ships
+German using the word this one appears to forbid.** *"`Grundriss` is `de.ts`'s established word for
+a PLAN"* is TOO BROAD, and left standing it would make Amendment 6's `Plan`/`Pläne` read as the
+very drift this paragraph warns about. The two citations are correct — `view.plan-editor.name` and
+`command.open-plan-editor` are both `Grundriss-Editor` — but they are both the plan EDITOR, and the
+rule the repository actually holds is a SURFACE rule that `de.ts` states in its own comments rather
+than a whole-word reservation: *"`Pläne`, nicht `Grundrisse`: auf den Projektoberflächen ist ein
+Plan eine Planungseinheit und kein gezeichneter Grundriss. Das Wort `Grundriss` bleibt dem
+Plan-Editor vorbehalten"* (`de.ts`, above `empty.plan.*`), repeated fifty lines down as *"`Grundriss`
+bleibt das Wort des PLAN-EDITORS … Auf den Projektoberflächen heißt eine Planungseinheit `Plan`"*.
+So `Grundriss` is the DRAWING SURFACE and the drawn sheet, and `Plan` is the planning ENTITY.
+Measured rather than recalled, on the tree before Amendment 6's keys landed, comment lines
+excluded: `locales/de/` holds **23** `Grundriss*` against **55** standalone
+`Plan`/`Pläne`/`Plänen`, and `de.ts` holds **20** of each. Reading the hits is what settles it
+rather than the ratio — `Grundriss hochladen`, `Grundriss-Zeichenfläche`, `Grundriss wird geladen …`
+and `Die Hintergrunddatei dieses Grundrisses fehlt` against `Elemente im Plan`, `Ein Plan braucht
+einen Namen`, `Pläne ({count})` and *"zu welchen Plänen dieser Plan gehört"*. **One hit contradicts
+the split and is named rather than dropped:** `plan.none` reads *"In diesem Vault gibt es noch keine
+Grundrisse"*, which counts ENTITIES with the surface word. It is one line against the two comments
+that state the rule, so it reads as the exception to fix rather than as evidence the rule is
+different — but a correction that quietly omitted it would be the same shape of claim it is
+correcting.
+**Amendment 2's own conclusion is UNCHANGED and was right for a second reason this correction does
+not touch:** `Gemessener Umriss` beats `Gemessener Grundriss` because the other four shape keys all
+say `Umriss`, and an asset's footprint is not a sheet of any kind.
 **This amendment exists because a test caught it.** `tests/presentation/i18n/strings.test.ts` pins
 the inventory at an exact count in both locales, so a 60th key cannot be added quietly — it fails,
 somebody reads why, and the addition becomes a decision. That pin was written after the count went
@@ -1771,9 +1797,124 @@ not cosmetic to this surface alone. `view.asset-library.plan-pattern` is the fie
 keys name the patterns — nine keys, taking `tests/presentation/i18n/strings.test.ts`'s pin from 78
 to 87.
 
+**Amendment 6 (asset-designer-expansion, AD13 duplicate and usage-scope half): the Inspector gains
+a *Used in plans* section and a *Duplicate* action, and the inventory grows by thirteen keys — no
+ordinal assigned, per Amendment 4.** The pin moves **87 → 100**, in both locales. They live in
+`{en,de}/assetDuplicate.ts` rather than in `{en,de}-assetLibrary.ts`, which is that package's
+per-card locale split and not a second home for this surface's copy; they keep this surface's own
+`view.asset-library.` prefix precisely so they reach the pin, a key named to dodge it being a
+second naming convention bought to evade the one instrument that makes an addition deliberate.
+
+**Six `view.asset-library.used-in-plans*`:** the heading itself, plus `.loading`, `.failed`,
+`.none`, `.plan` (interpolated: `{name}`, `{project}`, `{count}` — `{project}` added 2026-09-22 by W19-B, so a plan row names the project that holds it) and `.unreadable` (interpolated: `{count}`).
+
+**The key COUNT is unmoved by that**, and the distinction is the one this inventory exists to make: W19-B added a hole to an existing key rather than a key, so the pin this section carries does not move and only the interpolation list above was stale.
+
+**Seven `view.asset-library.duplicate*`:** the action label itself, plus `.title`, `.explains`,
+`.name`, `.suggested` (interpolated: `{name}`), `.confirm` and `.cancel`.
+
+**Why a `used-in-plans` group and not an extension of `used-in`, which is the question this
+inventory's shape invites.** They have TWO DIFFERENT PRODUCERS answering two different questions:
+`used-in` groups by project the REQUIREMENTS that REFERENCE this asset, and `used-in-plans` names
+the PLANS whose geometry PLACES it. Neither list is a subset of the other — an asset can be placed
+on a plan with no requirement anywhere, and required with nothing placed — so one key family under
+one heading would be one heading over two claims, and the `.none` string in particular would be
+read as *nobody uses this* while meaning only *nobody of one kind*. That is the distinction §3.5
+already draws between its sections, applied to a second reader of the same asset.
+
+**`.failed` covers TWO states, which is a deliberate reuse and not an oversight.** It is drawn both
+when the listing REFUSES and when the index has not been SCANNED — `AssetUsageScope.vue`'s template
+draws it on `!scanned || status === 'failed'`, one arm. The sentence, *the plans that place this
+asset could not be read, so the scope below is unknown*, is true of both, and the only distinction
+that matters to a reader of a blast-radius panel is unknown-versus-none: *no plan places this asset*
+invites a change and *unknown* does not. The gate exists at all because `ListPlansUsingAsset`
+answers `ok` over a legitimately EMPTY index — both repositories it walks enumerate
+`index.getIdsByType` — so before the `onLayoutReady` scan the section would otherwise draw *no plan
+places this asset* over a vault full of plans that place it.
+
+**A FOURTEENTH key — a dedicated pre-scan sentence — was considered and REFUSED**, which is why
+this amendment records thirteen. The pre-scan state is unreachable through today's only mount path:
+`AssetUsageScope` is drawn only inside `AssetUsageDuplicate`, which `AssetInspector` draws only on a
+`ready` entry, which `AssetLibraryStore.hydrate` withholds until the scan has run. So a fourteenth
+key and its German line would buy a distinction no user can currently reach, in a section that
+already draws four states — more than any other inspector section. **The gate is kept even though
+the state is unreachable**, and that asymmetry is the point: the property is held today by a
+different file with nothing tying the two together, so the next caller of this query reintroduces
+the defect silently, whereas the extra string would only ever be dead copy.
+
 The longest German shelf label is `Benutzerdefiniert` (17 characters). Shelf headers are full-width,
 so they clip nothing — which is the second reason there is no column header row, where a translator
 would have no such room.
+
+**Amendment 7 (2026-09-24, asset-designer-expansion Task 10, ruling AD18-R18 in
+`docs/tasks/asset-designer-expansion/contracts/DECISIONS.md`): the library gains a GRID view
+beside its List, a category sidebar, a filter button and a `Create your own` card.** The user
+took this ruling, and it amends this document in the places listed here and nowhere else.
+
+- **§3.1 no longer says "nothing else" about the toolbar.** Two controls join it, and each carries
+  an `aria-label`, because Obsidian draws its hover tooltip from `aria-label` and from nothing
+  else:
+  - **The funnel** shows and hides the category sidebar (`aria-expanded`, and `aria-controls`
+    naming the sidebar). It is an icon while no filter holds, named *Filter by category*. While
+    a filter holds it also shows the category in words, and its name carries that same word —
+    *Filter by category, Fixture* — so the name contains the visible text (WCAG 2.5.3). Below
+    35rem, while the inspector owns the pane, the funnel leaves the toolbar with the sidebar it
+    would open.
+  - **A `Grid | List` switch**: two `aria-pressed` buttons in a named group. Each has an icon and
+    a word, with the word as its `aria-label`, so below 35rem the word leaves the layout and the
+    name and the tooltip stay.
+- **List is the default and draws exactly as §3.2–§3.4 specify.** Grid replaces the shelves with
+  one tile per asset:
+  - Each tile shows §3.4's mark at tile size, the name (up to two lines, then an ellipsis) and the
+    size in the row's wording.
+  - Tiles run in name order across categories, which is §6.1's order for a flat list.
+  - A tile selects into the same inspector a row does. It carries `aria-current` and §3.4's words
+    by `aria-describedby`, from outside the button.
+  - The keyboard is §6.2's one focus manager: `←`/`→` move one stop, and `↑`/`↓` move one row of
+    the grid's resolved column tracks. `↓` from a column with nothing below lands on the last
+    stop, and `↑` from the full-width card lands on the first tile of the last row.
+- **The sidebar lists `All` plus §3.2's derived shelf list**, from the same function. It covers
+  the declared vocabulary, empty categories included, and any undeclared category present, with
+  its icon. The sidebar FILTERS the shelves in both layouts and manages nothing.
+- **The sidebar's visibility is leaf-local and is not view state.**
+  - Until the funnel is pressed, the sidebar shows in Grid and whenever a filter holds, and not
+    over an unfiltered List.
+  - Below §7's 35rem rung, an unpressed sidebar is withdrawn: a 10rem column is a third of a
+    460px leaf, so the funnel reveals it.
+  - A selection hides the sidebar together with the shelves.
+  - The funnel's `aria-expanded` is asked of the DOM, as §6.2 asks about the narrow swap.
+- **The grid ends with a `Create your own` card**, whose button is §3.1's existing `New asset`
+  door. A create clears a filter that would hide the new asset, just as it clears the search.
+- **§4 gains a third empty state, for a filter that leaves nothing drawn.** The store's *No
+  assets* and *No matches* still decide first. When they do not apply and the chosen category
+  draws nothing, the pane says *No matches in Fixture* while searching and *No assets in Plant*
+  otherwise. Its action, *Show all categories*, clears the filter. Focus then goes to `All` while
+  the sidebar shows. While the sidebar is hidden (an unpressed List, closed by the funnel, or
+  withdrawn below 35rem), focus goes to the search field, `focusWithin`'s fallback. §6.1's
+  announced count is the count of what is drawn, meaning the matches in the chosen category.
+- **§6.3's view state gains two keys:**
+  - `layout`: `'grid'` or `'list'`, default `'list'`.
+  - `category`: a category, or `''` for All, which is the default.
+  - Each key is written only when it differs from its default. A leaf that never used either
+    keeps the `{ assetId, expanded }` shape it had before.
+  - Both keys are parsed leniently, as `expanded` is. A `category` that no shelf draws, from a
+    stale or hand-edited layout, reads as `All`: nothing is filtered to a category the sidebar
+    cannot show as pressed. **Neither is a navigation**:
+    `AssetLibraryView.setState` leaves `result.history` false for them, as it does for the other
+    two keys.
+- **§8's inventory grows by thirteen keys, with no ordinal assigned (per Amendment 4).** The pin in
+  `tests/presentation/i18n/strings.test.ts` moves **100 → 113** in both locales. The keys are:
+  - `view.asset-library.layout.label`, `.layout.grid` and `.layout.list`;
+  - `view.asset-library.filter`, `.filter.active` (interpolated: `{category}`), `.categories` and
+    `.category.all`;
+  - `view.asset-library.create-card.title` and `.create-card.hint`;
+  - `view.asset-library.filtered.no-matches` and `.filtered.none` (both interpolated:
+    `{category}`), `.filtered.body` and `.filtered.action`.
+  The card's button reuses `view.asset-library.new-asset`, because it is the same door.
+
+**§10's anti-goals stand unchanged.** The sidebar is a filter over the shelves' own axis, not a sort
+control. The Grid carries no totals, no bulk edit and no multi-select, and nothing on this surface
+places an asset.
 
 ---
 

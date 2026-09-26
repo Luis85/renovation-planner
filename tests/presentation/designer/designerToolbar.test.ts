@@ -24,7 +24,9 @@ import { DESIGNER_TOOL_LABELS } from '../../../src/presentation/designer/tools/r
 import { settle } from '../../helpers/editor';
 import { designerRig, tracePolygon, type DesignerRig } from '../../helpers/designerRig';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
-import { toiletShape } from '../../helpers/assetShapes';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { screenPoint } from '../../../src/presentation/editor/viewport/Viewport';
+import { editableShape, shapeWithOpenGraphic, toiletShape } from '../../helpers/assetShapes';
 
 /**
  * Every tool the toolbar offers, as `(id, label)` pairs read from the table the toolbar itself
@@ -39,6 +41,11 @@ const TOOLS = Object.entries(DESIGNER_TOOL_LABELS) as [string, StringKey][];
 function press(rig: DesignerRig, label: StringKey): Promise<void> {
 	rig.toolbarButton(t('en', label)).click();
 	return settle();
+}
+
+/** A zoom cluster button by its `data-rp-view` hook — the three are icon-only, so no label text finds them. */
+function zoomButton(rig: DesignerRig, which: 'zoom-out' | 'zoom-in' | 'zoom-fit'): HTMLButtonElement {
+	return rig.wrapper.get(`.rp-designer-zoom [data-rp-view="${which}"]`).element as HTMLButtonElement;
 }
 
 describe('every tool the toolbar offers', () => {
@@ -91,8 +98,15 @@ describe('every tool the toolbar offers', () => {
 		rig.unmount();
 	});
 
-	/** The detail tools make the same promise: a traced vertex, a box's corner and a circle's centre land where pressed. */
-	it.each(['draw-rect', 'draw-circle', 'trace-detail'] as const)('gives %s the precise cursor too', async (id) => {
+	/**
+	 * The detail tools make the same promise: a traced vertex, a box's corner, a circle's centre, a
+	 * line's vertex and a rounded rectangle's corner all land where pressed.
+	 *
+	 * `draw-line` and `draw-rounded-rect` were added at AD11's review: the second IS `DrawDetailTool`,
+	 * the same class `draw-rect` is, and the first places vertices by click exactly as `trace-detail`
+	 * does — so a designer drawing tool without a crosshair was the one thing that separated them.
+	 */
+	it.each(['draw-rect', 'draw-circle', 'trace-detail', 'draw-line', 'draw-rounded-rect'] as const)('gives %s the precise cursor too', async (id) => {
 		const rig = await designerRig();
 
 		await press(rig, DESIGNER_TOOL_LABELS[id]);
@@ -117,17 +131,29 @@ describe('every tool the toolbar offers', () => {
 	 * Select is back (symbols spec, Decision 10) — with its candidates (`hitDesign`) and its gesture
 	 * (`DesignerSelectTool`), the condition `registerDesignerTools.ts` set for returning it. This list
 	 * is updated deliberately with that change and stays EXACT.
+	 *
+	 * **The four drawing tools are NOT in it since AD18-R3**, and their absence here is half a
+	 * claim: this case says the toolbar does not draw them, and `designerAddRail.test.ts` says the
+	 * `Add` rail does, exactly once each. Deleting four names from a list is the shape of change
+	 * that can silently mean "these buttons are gone", which is why the other half is a case and
+	 * not this sentence.
+	 *
+	 * **The zoom cluster's three buttons are excluded from this query since AD18-R16's Task 1**,
+	 * deliberately rather than by accident: they are icon-only (empty `.text()`), so folding them
+	 * into this list would read as three blank rows nobody could tell apart. `the zoom cluster`
+	 * below is where their own labels (through `aria-label`, in `designerIconToolbar.test.ts`) and
+	 * their order (in this file's own markup case) are pinned.
 	 */
-	it('offers Pan, Select, every design tool, Undo and Redo, in that order', async () => {
+	it('offers Pan, Select, every non-drawing design tool, Undo and Redo, in that order', async () => {
 		const rig = await designerRig();
-		const labels = rig.wrapper.findAll('.rp-designer-tools button').map((button) => button.text());
+		const labels = rig.wrapper.findAll('.rp-designer-tools button')
+			.filter((button) => button.element.closest('.rp-designer-zoom') === null)
+			.map((button) => button.text());
 		expect(labels).toEqual([
 			t('en', 'designer.toolbar.pan'),
 			t('en', 'designer.toolbar.select'),
 			t('en', 'designer.toolbar.trace-footprint'),
 			t('en', 'designer.toolbar.trace-clearance'),
-			t('en', 'designer.toolbar.draw-rect'),
-			t('en', 'designer.toolbar.draw-circle'),
 			t('en', 'designer.toolbar.trace-detail'),
 			t('en', 'designer.toolbar.set-anchor'),
 			t('en', 'designer.toolbar.set-facing'),
@@ -143,14 +169,19 @@ describe('camera mode', () => {
 	/**
 	 * **"No active tool" and never one more `EditorTool`.** The camera is ephemeral UI (SDD §15)
 	 * and is never a command, so the Pan button clears the manager rather than activating
-	 * anything — and it is the state a freshly opened designer rests in, which is what the
-	 * second assertion pins.
+	 * anything. It was the state a freshly opened designer rested in until AD18-R20 made that
+	 * Select, so this case starts from the rest a leaf opens in and asks Pan to leave it.
 	 */
-	it('is what the designer opens in, with no tool active', async () => {
+	it('is what Pan reaches from the Select a designer opens in, with no tool active', async () => {
 		const rig = await designerRig();
+		const pan = rig.toolbarButton(t('en', 'designer.toolbar.pan'));
+		expect(rig.activeToolId()).toBe('select');
+		expect(pan.getAttribute('aria-pressed')).toBe('false');
+
+		await press(rig, 'designer.toolbar.pan');
 
 		expect(rig.activeToolId()).toBeNull();
-		expect(rig.toolbarButton(t('en', 'designer.toolbar.pan')).getAttribute('aria-pressed')).toBe('true');
+		expect(pan.getAttribute('aria-pressed')).toBe('true');
 		rig.unmount();
 	});
 
@@ -232,6 +263,25 @@ describe('the shift hint', () => {
 		rig.unmount();
 	});
 
+	/**
+	 * The two tools AD11 added answer this question DIFFERENTLY, which is why both are asserted here
+	 * rather than only the one that was missing. `DrawLineTool.landingPoint` calls
+	 * `constrainDrawingPoint` with `event.modifiers.shift`, so the line tool honours the constraint
+	 * and owes the hint; `draw-rounded-rect` IS `DrawDetailTool`, which constrains nothing — the same
+	 * answer `draw-rect` already gets, for the same reason `draw-room` is off that list.
+	 */
+	it('appears for the line tool, which honours Shift, and not for the rounded rectangle, which does not', async () => {
+		const rig = await designerRig();
+		const hint = () => rig.wrapper.find('.rp-designer-hint');
+
+		await press(rig, 'designer.toolbar.draw-line');
+		expect(hint().text()).toBe(t('en', 'editor.hint.constrain-angle'));
+
+		await press(rig, 'designer.toolbar.draw-rounded-rect');
+		expect(hint().exists()).toBe(false);
+		rig.unmount();
+	});
+
 	it('is absent in camera mode, where no key would do anything', async () => {
 		const rig = await designerRig();
 
@@ -276,6 +326,29 @@ describe('the shift hint', () => {
 		rig.unmount();
 	});
 
+	/**
+	 * An OPEN graphic is an outline selection under Transform, so it took the Shift hint the moment
+	 * the open-line tool made one selectable — and that sentence promises Shift keeps proportions and
+	 * snaps the rotation. A path has neither handle to act on: `selectionHandles` answers `[]` for
+	 * one, which is the same fact that keeps Edit points and Bend edges out of the mode group. One
+	 * predicate answers both, so the two surfaces cannot come to disagree about it.
+	 */
+	it('says nothing about Shift for an open graphic, which has no handle for it to act on', async () => {
+		const rig = await designerRig({ shape: shapeWithOpenGraphic() });
+		const store = useAssetDesignStore(rig.pinia);
+
+		await press(rig, 'designer.toolbar.select');
+		store.select({ kind: 'detail', id: 'detail-1' });
+		await settle();
+		// The closed sibling on the same shape still gets it, so this is about the KIND rather than
+		// about the shape or the tool.
+		expect(rig.wrapper.find('.rp-designer-hint').text()).toBe(t('en', 'designer.hint.shift-transform'));
+
+		store.select({ kind: 'detail', id: 'detail-3' });
+		await settle();
+		expect(rig.wrapper.find('.rp-designer-hint').exists()).toBe(false);
+	});
+
 	it('gives no Select hint under another tool, whatever is selected', async () => {
 		const rig = await designerRig({ shape: toiletShape() });
 		const hint = () => rig.wrapper.find('.rp-designer-hint');
@@ -311,6 +384,61 @@ describe('the selection mode buttons', () => {
 		]);
 		rig.unmount();
 	});
+
+	/**
+	 * An OPEN graphic is offered only the mode it actually has (AD11 review, finding 1). `selectionHandles`
+	 * opens with `outlineOf`, which answers `null` for a path, so Edit points drew no vertex handles and
+	 * Bend edges drew no edge handles — two enabled buttons that produced nothing, on the card's very first
+	 * gesture, since `completeDetail` returns to Select with the new line selected.
+	 *
+	 * **Dropped rather than disabled**, which is the shape AD10's review accepted for the Arrange panel and
+	 * `DesignerArrangePanel`'s own docblock states: *"Which parts a control needs is what decides whether it
+	 * is DRAWN, never a `:disabled`"*. Transform stays, because its gesture works — a body drag, and the
+	 * inspector's centre, size and rotate fields — but it draws no box or rotate handle either, so its
+	 * tooltip says the gesture it really offers instead of the one a closed part gets.
+	 *
+	 * **The closed assertion first is what makes this case able to fail.** A component rendering nothing at
+	 * all satisfies the open half trivially; only the three-button expectation above it can tell "correctly
+	 * narrowed" from "never drawn".
+	 */
+	it('offers an open graphic only Transform, and tells it what Transform can still do', async () => {
+		const rig = await designerRig({ shape: shapeWithOpenGraphic() });
+		const store = useAssetDesignStore(rig.pinia);
+		const modes = () => rig.wrapper.findAll('.rp-designer-selection-modes button').map((button) => [button.text(), button.attributes('title')]);
+		await press(rig, 'designer.toolbar.select');
+
+		store.select({ kind: 'detail', id: 'detail-1' });
+		await settle();
+		expect(modes()).toEqual([
+			[t('en', 'designer.selection.mode.transform'), t('en', 'designer.selection.mode.transform.tip')],
+			[t('en', 'designer.selection.mode.points'), t('en', 'designer.selection.mode.points.tip')],
+			[t('en', 'designer.selection.mode.bend'), t('en', 'designer.selection.mode.bend.tip')],
+		]);
+
+		store.select({ kind: 'detail', id: 'detail-3' });
+		await settle();
+		expect(modes()).toEqual([[t('en', 'designer.selection.mode.transform'), t('en', 'designer.selection.mode.transform.open')]]);
+		rig.unmount();
+	});
+
+	/**
+	 * The footprint and the clearance are `CurvedPolygon`s by TYPE, so neither can ever be the open case —
+	 * asserted rather than reasoned, because the narrowing reads the selected part out of `shape.details`
+	 * and a version of it that answered on "not found" would take these two with it.
+	 */
+	it('keeps all three for the footprint and the clearance, which cannot be open', async () => {
+		const rig = await designerRig({ shape: shapeWithOpenGraphic() });
+		const store = useAssetDesignStore(rig.pinia);
+		const labels = () => rig.wrapper.findAll('.rp-designer-selection-modes button').map((button) => button.text());
+		await press(rig, 'designer.toolbar.select');
+
+		for (const part of [{ kind: 'footprint' }, { kind: 'clearance' }] as const) {
+			store.select(part);
+			await settle();
+			expect(labels()).toEqual([t('en', 'designer.selection.mode.transform'), t('en', 'designer.selection.mode.points'), t('en', 'designer.selection.mode.bend')]);
+		}
+		rig.unmount();
+	});
 });
 
 /**
@@ -319,17 +447,179 @@ describe('the selection mode buttons', () => {
  * name. The mode buttons keep their describing tooltips, pinned in `the selection mode buttons` above.
  *
  * The View menu (snapping spec §5) mounts AFTER that group now, so it — not the history group — is the
- * toolbar's own last child; the history group's own position, right before it, is what is pinned here.
+ * toolbar's own last child; the history group's own position is pinned here too, and since AD18-R16's
+ * Task 1 it sits before the zoom cluster rather than directly before the View menu — the cluster is the
+ * new element between them.
  */
 describe('the toolbar’s own markup', () => {
-	it('groups Undo and Redo last before the View menu, and gives no button a tooltip repeating its label', async () => {
+	it('groups Undo and Redo before the zoom cluster and the View menu, and gives no button a tooltip repeating its label', async () => {
 		const rig = await designerRig();
 		const history = rig.wrapper.find('.rp-designer-tools > .rp-designer-history');
+		const zoomCluster = rig.wrapper.find('.rp-designer-tools > .rp-designer-zoom');
 
 		expect(history.findAll('button').map((button) => button.text())).toEqual([t('en', 'designer.toolbar.undo'), t('en', 'designer.toolbar.redo')]);
 		expect(rig.wrapper.find('.rp-designer-tools').element.lastElementChild).toBe(rig.wrapper.find('.rp-designer-tools > .rp-view-menu').element);
-		expect(history.element.nextElementSibling).toBe(rig.wrapper.find('.rp-designer-tools > .rp-view-menu').element);
+		expect(history.element.nextElementSibling).toBe(zoomCluster.element);
+		expect(zoomCluster.element.nextElementSibling).toBe(rig.wrapper.find('.rp-designer-tools > .rp-view-menu').element);
 		expect(rig.wrapper.findAll('.rp-designer-tools button').map((button) => button.attributes('title')).filter((title) => title !== undefined)).toEqual([]);
+		rig.unmount();
+	});
+});
+
+/**
+ * AD18 item 1's zoom cluster (ruling AD18-R16, Task 1): board 01's `− 100% +` beside undo/redo,
+ * with a fit button added since the toolbar has no `Shift+1` shortcut a mouse-only user can reach.
+ *
+ * Each button is found by its `data-rp-view` hook rather than by label text, because these three
+ * are icon-only — `designerIconToolbar.test.ts`'s "names every toolbar button..." case is where
+ * the accessible-name half of that claim (aria-label, one glyph, no tooltip) is pinned; this file
+ * is about what pressing them DOES, the same split the rest of this suite already keeps.
+ */
+describe('the zoom cluster', () => {
+	it('is a named group of its own, beside undo/redo and before the View menu', async () => {
+		const rig = await designerRig();
+		const group = rig.wrapper.find('.rp-designer-zoom');
+
+		expect(group.attributes('role')).toBe('group');
+		expect(group.attributes('aria-label')).toBe(t('en', 'designer.toolbar.zoom'));
+		rig.unmount();
+	});
+
+	it('zooms out and in by a factor of 1.25, about the stage centre', async () => {
+		const rig = await designerRig();
+		const editor = useEditorStore(rig.pinia);
+		const started = editor.viewport.zoom;
+
+		zoomButton(rig, 'zoom-out').click();
+		await settle();
+		expect(editor.viewport.zoom).toBeCloseTo(started / 1.25);
+
+		const afterOut = editor.viewport.zoom;
+		zoomButton(rig, 'zoom-in').click();
+		await settle();
+		expect(editor.viewport.zoom).toBeCloseTo(afterOut * 1.25);
+		rig.unmount();
+	});
+
+	/**
+	 * Refused while a pan is held — `blocked()`'s own reason: a camera move under a drag would
+	 * change what the drag lands on. The precedent for this shape is the Plan Editor's own
+	 * `EditorViewMenu` case (`tests/presentation/editor/editorView.test.ts`, "zooms about the
+	 * stage center and refuses camera or snap changes during a pan"): `editor.beginPan` starts a
+	 * gesture with no DOM event behind it, which is enough to set `dragState`, and the assertion
+	 * is referential (`toBe`, not `toBeCloseTo`) so a button that quietly reassigned the SAME
+	 * numbers back would still fail it.
+	 */
+	it('refuses to zoom while a pan is held', async () => {
+		const rig = await designerRig();
+		const editor = useEditorStore(rig.pinia);
+		editor.beginPan(screenPoint(1, 1), 1);
+		const held = editor.viewport;
+
+		zoomButton(rig, 'zoom-out').click();
+		await settle();
+		zoomButton(rig, 'zoom-in').click();
+		await settle();
+
+		expect(editor.viewport).toBe(held);
+		rig.unmount();
+	});
+
+	/**
+	 * The readout tracks the SAME `editorStore.viewport` the buttons write, whole percent —
+	 * `assetDesignerRoot.test.ts` used to pin this rounding over the status region; it is this
+	 * cluster's own claim now.
+	 */
+	it('shows the camera scale as a whole percent, and follows it', async () => {
+		const rig = await designerRig();
+		const editor = useEditorStore(rig.pinia);
+		const readout = () => rig.wrapper.get('.rp-designer-zoom output');
+
+		expect(readout().text()).toBe(`${Math.round(editor.viewport.zoom * 100)}%`);
+
+		editor.viewport = { ...editor.viewport, zoom: 0.425 };
+		await settle();
+
+		// Whole percent, `StatusBar`'s rule: 42.5 rounds rather than printing a jittering digit.
+		expect(readout().text()).toBe('43%');
+		rig.unmount();
+	});
+
+	/**
+	 * A scale over a leaf with no design is a fact about nothing, the same gate the status region
+	 * used to take before AD18-R16's Task 1 moved the readout here.
+	 *
+	 * **Asserted in `assetDesignerRoot.test.ts` and not here**, because `designerRig` has no door
+	 * onto a REFUSED read: `unrecoveredSettings` swaps the command bundle, not the query, so the
+	 * design still loads over it, and `faultNextGeometryRead` arms the NEXT read rather than the
+	 * mount's own. `assetDesignerRoot.test.ts` already builds a leaf over
+	 * `unavailableAssetDesignerQueries()` for its own "keeps every region when the read refuses"
+	 * case, and that is where "keeps the cluster, states no scale" is pinned too.
+	 */
+
+	/**
+	 * The SAME fit the designer opens framed to (`DesignerCanvas`'s own opening watch), reached a
+	 * third time rather than rewritten — `runtime.ts`'s `designFrame` docblock names this button as
+	 * its third caller. Zoomed away from that camera and back, so the case can tell "restores it"
+	 * from "never moved".
+	 */
+	it('fits the design back to the camera it opened at', async () => {
+		const rig = await designerRig({ shape: editableShape(), camera: 'opened' });
+		const editor = useEditorStore(rig.pinia);
+		const opened = editor.viewport;
+
+		zoomButton(rig, 'zoom-out').click();
+		await settle();
+		expect(editor.viewport.zoom).not.toBeCloseTo(opened.zoom);
+
+		zoomButton(rig, 'zoom-fit').click();
+		await settle();
+		expect(editor.viewport.zoom).toBeCloseTo(opened.zoom);
+		expect(editor.viewport.pan.x).toBeCloseTo(opened.pan.x);
+		expect(editor.viewport.pan.y).toBeCloseTo(opened.pan.y);
+		rig.unmount();
+	});
+
+	/**
+	 * A design with no shape has nothing to fit, so the button is a no-op rather than a jump to
+	 * the default camera — and says so, `aria-disabled`, the same house pattern
+	 * `DesignerActionButton.vue`'s own `ariaDisabled` uses, rather than a live control silently
+	 * doing nothing (final-fix-wave item 4).
+	 */
+	it('does nothing when there is no shape to fit, and marks the button aria-disabled', async () => {
+		const rig = await designerRig({ shape: null, camera: 'opened' });
+		const editor = useEditorStore(rig.pinia);
+		const before = editor.viewport;
+
+		const button = zoomButton(rig, 'zoom-fit');
+		expect(button.getAttribute('aria-disabled')).toBe('true');
+
+		button.click();
+		await settle();
+
+		expect(editor.viewport).toEqual(before);
+		rig.unmount();
+	});
+
+	/** The counterpart of the case above: a design that HAS a shape draws no `aria-disabled` at all. */
+	it('leaves the fit button off aria-disabled when there is a shape to fit', async () => {
+		const rig = await designerRig({ shape: editableShape(), camera: 'opened' });
+
+		expect(zoomButton(rig, 'zoom-fit').getAttribute('aria-disabled')).toBeNull();
+		rig.unmount();
+	});
+
+	/** The SAME guard the zoom buttons take, and for the same reason: a fit under a held pan would change what the drag lands on. */
+	it('refuses to fit while a pan is held', async () => {
+		const rig = await designerRig({ shape: editableShape(), camera: 'opened' });
+		const editor = useEditorStore(rig.pinia);
+		editor.beginPan(screenPoint(1, 1), 1);
+		const held = editor.viewport;
+
+		zoomButton(rig, 'zoom-fit').click();
+		await settle();
+
+		expect(editor.viewport).toBe(held);
 		rig.unmount();
 	});
 });

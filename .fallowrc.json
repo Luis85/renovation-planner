@@ -14,13 +14,13 @@
 	// background, and it imports nothing under `src/` or `tests/`. `scripts/chromium.mjs` deliberately does NOT: both of them import it, so fallow
 	// reaches it through the graph — and it having to be reachable is the point of it being
 	// one file rather than a copy in each.
-	// The eight `*.test-d.ts` files are a fourth kind, next to `scripts/lint-edited.mjs` above:
+	// The nine `*.test-d.ts` files are a fourth kind, next to `scripts/lint-edited.mjs` above:
 	// nothing imports them and no npm script runs them either — `vue-tsc -noEmit`
 	// type-checks them because `tsconfig.json`'s `include` is `src/**` plus `tests/**`, four
-	// globs that sweep these files in rather than eight entries naming each one, and
-	// compiling is the whole point. Naming all eight here rather than trusting that sweep is
+	// globs that sweep these files in rather than nine entries naming each one, and
+	// compiling is the whole point. Naming all nine here rather than trusting that sweep is
 	// deliberate for the OPPOSITE reason a narrower `include` would invert: a glob absorbs the
-	// next file and tells nobody, so a ninth `*.test-d.ts` dropped under `tests/**` would be
+	// next file and tells nobody, so a TENTH `*.test-d.ts` dropped under `tests/**` would be
 	// compiled by `vue-tsc` (the glob reaches it) and silently unaccounted for HERE, where
 	// fallow's entry list is what stops it reading as dead. `type-safety.test-d.ts` holds the screen/world brand
 	// separation and a `SelectionStore` assignability check; `diagnostics.test-d.ts` holds
@@ -37,20 +37,23 @@
 	// only way to hold one is to have gone through `parseCurrency` or `currencyOf`;
 	// `costPipelineInput.test-d.ts` holds `CostPipelineInput.expectedCurrency` being REQUIRED — a
 	// claim only the compiler can hold, since a runtime test cannot distinguish "omitted" from
-	// "omitted and defaulted"; `assetLibraryContext.test-d.ts` (Task 11 review) holds
+	// "omitted and defaulted"; `geometryBrands.test-d.ts` (AD05) holds the open/closed discriminant in both
+	// directions, and exists because the first version of that brand refused nothing at all — a brand
+	// only one type declares is an extra property, and an extra property never blocks assignability;
+	// `assetLibraryContext.test-d.ts` (Task 11 review) holds
 	// `AssetLibraryContext.assetId`/`.expanded` being `DeepReadonly<Ref<T>>` rather than a bare
 	// `Ref<T>` — a claim about what the injected TYPE refuses a consumer, which is identical at
 	// runtime either way (both are the same writable ref underneath, assigned with NO cast at
 	// the one `provide()` call — a writable `Ref<T>` is structurally assignable into a
-	// `DeepReadonly<Ref<T>>`-typed slot) and so has no runtime form. In all eight, an
+	// `DeepReadonly<Ref<T>>`-typed slot) and so has no runtime form. In all nine, an
 	// unsatisfied `@ts-expect-error` or assignment failure is itself a compile error, which is the
 	// mechanism. Named one at a time rather than
 	// globbed `tests/**/*.test-d.ts`, for the reason `dynamicallyLoaded`'s own comment gives:
-	// a glob absorbs the next file and tells nobody — and here it would absorb a ninth
+	// a glob absorbs the next file and tells nobody — and here it would absorb a TENTH
 	// `*.test-d.ts` that `vue-tsc` was already compiling regardless (tsconfig's own `include`
 	// is a glob, not a per-file list, so nothing about being compiled ever depends on this
 	// file), leaving it silently unaccounted for in the one place that names why each of the
-	// eight needs a compiler rather than a runtime test.
+	// nine needs a compiler rather than a runtime test.
 	// `src/prototypes/**/*.vue` is a fifth kind: the harness index reaches every one of them
 	// through `import.meta.glob`, which is a VITE feature resolved at build time and invisible
 	// to a static import graph — so fallow sees a tree nothing imports and reports every file
@@ -125,6 +128,7 @@
 		"tests/core/money/currency.test-d.ts",
 		"tests/domain/cost/costPipelineInput.test-d.ts",
 		"tests/presentation/library/assetLibraryContext.test-d.ts",
+		"tests/core/geometry/geometryBrands.test-d.ts",
 		"src/prototypes/**/*.vue",
 		"tests/fixtures/promotion/ZoneSummary.promoted.vue",
 		"tests/gates/fixtures/brokenFake.fixture.ts",
@@ -172,6 +176,23 @@
 	// and fails in a vault.
 	"ignoreDependencies": ["playwright-core", "@napi-rs/canvas", "konva"],
 	"duplicates": {
+		// **A duplication finding does NOT fail `npm run analyze`, and the `✗` beside it is a
+		// glyph rather than a gate.** `threshold` is fallow's "max duplication percentage" and its
+		// default is `0`, which that schema documents as NO LIMIT — not as zero tolerance, which is
+		// what it reads like. This block is left at the default deliberately: the clone groups below
+		// are worth SEEING on every run, and none of them is worth reddening a build over.
+		//
+		// Written here because two sessions in a row read a red `analyze` as a duplication failure
+		// and diagnosed the `ignoredClones` trap below instead of the real cause, which was a single
+		// `health` complexity breach both times. The evidence either could have used: `main`'s own
+		// green CI at `ed5c50b76` prints `● Duplicates (7 clone groups)` and
+		// `✗ 80 lines (0.1%) duplicated across 7 files`, and this branch's green CI at `c3527450b`
+		// prints `4 clone groups` and `✗ 101 lines`. **Read the `Failed:` line and the
+		// `N above threshold` count; a `✗` on the duplication summary is not one of them.**
+		//
+		// The `Failed:` line's own tail is the other half of that trap: it ends
+		// "start with <file>", naming the top of fallow's 53 REFACTORING TARGETS — a quick-win ROI
+		// ranking that fails nothing and is usually a file the branch never touched.
 		"ignore": ["tests/harness/obsidian.css"],
 		// The one clone group this repository WANTS: `src/prototypes/ZoneSummary.vue`'s
 		// `<template>` block and `tests/fixtures/promotion/ZoneSummary.promoted.vue`'s are

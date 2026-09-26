@@ -28,7 +28,9 @@ const PLUGIN_DIR = path.resolve('node_modules/.cache/e2e', PLUGIN_ID);
 export function createNativeSession(
 	afterReady: (browser: NativeBrowser) => Promise<void> = () => Promise.resolve(),
 ): SessionLifecycle<NativeBrowser> {
-	const capabilities: WebdriverIO.Capabilities = {
+	// An assertion rather than an annotation: `goog:loggingPrefs` is Chromedriver's, and
+	// WebdriverIO's `Capabilities` type does not declare it.
+	const capabilities = {
 		browserName: 'obsidian',
 		'wdio:obsidianOptions': {
 			appVersion: requestedVersion,
@@ -38,12 +40,14 @@ export function createNativeSession(
 			copy: true,
 			emulateMobile: mobileEmulation,
 		},
+		// The renderer's console, so a case can assert what a plugin unload leaves behind.
+		'goog:loggingPrefs': { browser: 'ALL' },
 		// English whatever the machine's locale, so a text assertion means the same thing everywhere.
 		'goog:chromeOptions': {
 			args: ['--lang=en'],
 			...(mobileEmulation ? { mobileEmulation: { deviceMetrics: { width: 390, height: 844, touch: false } } } : {}),
 		},
-	};
+	} as WebdriverIO.Capabilities;
 	// Under `node_modules/`, which every linter and walker in this repository already ignores:
 	// the cache holds whole Obsidian builds, and `eslint .` reads no `.gitignore`.
 	const config: SessionConfig = {

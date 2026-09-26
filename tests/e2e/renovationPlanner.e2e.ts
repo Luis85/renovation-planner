@@ -1,8 +1,7 @@
 import { describe, expect } from 'vitest';
-import { AxeBuilder } from '@axe-core/webdriverio';
 import { test } from './fixture';
 import { closePluginSettings, openPluginSettings, settingControl } from './helpers';
-import { writeEvidence } from './diagnostics';
+import { expectNoViolations } from './accessibility';
 import { mobileEmulation } from './session';
 
 // On mobile the plugin is view-only by design (`mobileRefusal.ts`), and the Plan Editor draws no
@@ -109,17 +108,7 @@ describe('Renovation Planner in the real Obsidian host', () => {
 				(app as unknown as { changeTheme(theme: string): void }).changeTheme(name);
 			}, theme);
 			await ui.openProjectView();
-			// Electron lacks window/new, so axe's legacy mode; there are no cross-origin frames here
-			// and no rule is disabled. Unlike jsdom, a real renderer lets axe grade colour contrast.
-			const result = await new AxeBuilder({ client: browser })
-				.include('.workspace-leaf-content[data-type="renovation-project"] .view-content')
-				.setLegacyMode()
-				.withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
-				.analyze();
-			await writeEvidence(directory, 'accessibility', result);
-			// An include that matched nothing would report no violations too.
-			expect(result.passes.map((rule) => rule.id)).toContain('color-contrast');
-			expect(result.violations.map((violation) => ({ id: violation.id, nodes: violation.nodes.map((node) => node.target) }))).toEqual([]);
+			await expectNoViolations(browser, directory, '.workspace-leaf-content[data-type="renovation-project"] .view-content', 'color-contrast');
 		},
 	);
 });

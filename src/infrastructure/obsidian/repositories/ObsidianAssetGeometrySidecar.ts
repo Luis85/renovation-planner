@@ -8,11 +8,13 @@ import type {
 	AssetGeometrySidecar,
 	AssetGeometrySnapshot,
 } from '../../../application/ports/AssetGeometrySidecar';
-import type { AssetShape } from '../../../domain/asset/AssetShape';
-import { validateAssetShape } from '../../../domain/asset/AssetShape';
+import { assetGroups, validateAssetShape, type AssetShape } from '../../../domain/asset/AssetShape';
 import type { Calibration } from '../../../domain/plan/Calibration';
 import { validateCalibration } from '../../../domain/plan/Calibration';
 import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
+import type { CurvedPath } from '../../../core/geometry/CurvedPath';
+import { createCurvedPath } from '../../../core/geometry/CurvedPath';
+import type { AssetDetail } from '../../../domain/asset/AssetDetail';
 import type { AssetGeometryDTO } from '../../persistence/dto/assetGeometry';
 import type { AssetGeometryStore, AssetSidecarContent } from './AssetGeometryStore';
 import {
@@ -32,10 +34,18 @@ const toOutline = (stored: StoredOutline): CurvedPolygon => ({
 });
 
 /** A straight outline is written with no `bulges` key, so it stays what a v1 reader would have written. */
-const toStoredOutline = (outline: CurvedPolygon): StoredOutline => ({
+const toStoredOutline = (outline: CurvedPolygon | CurvedPath): StoredOutline => ({
 	points: toTuples(outline.points),
 	...(outline.bulges === undefined ? {} : { bulges: [...outline.bulges] }),
 });
+
+/**
+ * What an unreadable OPEN path becomes on the way in: a path with no points, which
+ * `validateAssetShape` refuses. It exists because `toDomainDetail` has to answer a detail rather
+ * than a `Result` — the refusal it stands for is raised one step later, by the validator this
+ * whole read already owes, rather than by a second error channel through the mapper.
+ */
+const EMPTY_PATH = { points: [] } as unknown as CurvedPath;
 
 /**
  * A stored shape raised to the domain's, and then RUN THROUGH the domain's own validator.
@@ -60,17 +70,31 @@ function shapeFromPersistence(stored: StoredShape): Result<AssetShape, Repositor
 		footprintPending: stored.footprintPending,
 		clearancePending: stored.clearancePending,
 		anchorPending: stored.anchorPending,
+		clearanceNeedsReview: stored.clearanceNeedsReview,
 		clearance: stored.clearance === null ? null : toOutline(stored.clearance),
 		anchor: { x: stored.anchor.x, y: stored.anchor.y },
 		facing: stored.facing,
-		details: stored.details.map((detail) => ({
-			id: detail.id,
-			name: detail.name,
-			outline: toOutline(detail.outline),
-			line: detail.line,
-			pending: detail.pending,
-		})),
+		details: stored.details.map(toDomainDetail),
+		groups: stored.groups.map((group) => ({ id: group.id, ...(group.label === undefined ? {} : { label: group.label }), members: [...group.members] })),
 	});
+}
+
+/**
+ * One stored graphic raised to the domain's (AD04). An OPEN one goes through `createCurvedPath`,
+ * which is the only way to mint the brand that keeps a path out of every routine that closes —
+ * and, being the validator, it is also where a hand-edited two-point path with a polygon-shaped
+ * bulge array is refused. Its refusal is carried as an EMPTY path, which `validateAssetShape`
+ * then refuses by its own rules, so one damaged graphic refuses the document rather than being
+ * dropped out of the drawing.
+ */
+function toDomainDetail(detail: StoredShape['details'][number]): AssetDetail {
+	const base = { id: detail.id, name: detail.name, ...(detail.label === undefined ? {} : { label: detail.label }), line: detail.line, pending: detail.pending };
+	if (detail.kind !== 'open') return { ...base, kind: 'closed', outline: toOutline(detail.outline) };
+	const path = createCurvedPath({
+		points: detail.outline.points.map(([x, y]) => ({ x, y })),
+		...(detail.outline.bulges === undefined ? {} : { bulges: [...detail.outline.bulges] }),
+	});
+	return { ...base, kind: 'open', outline: path.ok ? path.value : EMPTY_PATH };
 }
 
 /**
@@ -121,16 +145,28 @@ const shapeToPersistence = (shape: AssetShape): StoredShape => ({
 	footprintPending: shape.footprintPending,
 	clearancePending: shape.clearancePending,
 	anchorPending: shape.anchorPending,
+	// `=== true` because the DOMAIN field is optional and the STORED one is not. A shape that has
+	// been through `validateAssetShape` always carries the definite boolean, so this is belt and
+	// braces for a hand-built one — written as a comparison rather than as `?? false` because a
+	// nullish arm no validated shape can take would be a branch nothing could ever cover.
+	clearanceNeedsReview: shape.clearanceNeedsReview === true,
 	clearance: shape.clearance === null ? null : toStoredOutline(shape.clearance),
 	anchor: { x: shape.anchor.x, y: shape.anchor.y },
 	facing: shape.facing,
 	details: shape.details.map((detail) => ({
 		id: detail.id,
 		name: detail.name,
+		...(detail.label === undefined ? {} : { label: detail.label }),
+		// Written for BOTH kinds rather than only the open one: a reader parses the union on this
+		// discriminant, and an omitted `kind` would only read as closed by the schema's default —
+		// which is a migration rule for documents written before the field, not a licence to keep
+		// writing without it.
+		kind: detail.kind === 'open' ? ('open' as const) : ('closed' as const),
 		outline: toStoredOutline(detail.outline),
 		line: detail.line,
 		pending: detail.pending,
 	})),
+	groups: assetGroups(shape).map((group) => ({ id: group.id, ...(group.label === undefined ? {} : { label: group.label }), members: [...group.members] })),
 });
 
 /**

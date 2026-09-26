@@ -1,5 +1,6 @@
 import { inject, type DeepReadonly, type InjectionKey, type Ref } from 'vue';
 import type { AssetLibraryDeps } from './AssetLibraryDeps';
+import type { LibraryBrowse } from './libraryBrowse';
 
 /**
  * Everything the Asset library's Vue tree needs from outside itself, provided ONCE by
@@ -43,6 +44,15 @@ export interface AssetLibraryContext extends AssetLibraryDeps {
 	/** The shelf categories currently expanded (§3.2), read LIVE. */
 	readonly expanded: DeepReadonly<Ref<readonly string[]>>;
 	/**
+	 * AD18-R18's layout and category filter, read LIVE from the same view state.
+	 *
+	 * OPTIONAL, and only because of a test harness: `tests/helpers/assetLibraryRootHarness.ts`
+	 * builds this context as an object literal and does not name the field. `AssetLibraryView`
+	 * always supplies it. `AssetLibraryRoot` falls back to its own ref when it is absent, the
+	 * way it already holds its own copy of `expanded`.
+	 */
+	readonly browse?: DeepReadonly<Ref<LibraryBrowse>>;
+	/**
 	 * The other half of §6.3, and the ONE door out of this tree into Obsidian's own view state.
 	 *
 	 * The two refs above are `DeepReadonly` precisely so no component can write them
@@ -52,7 +62,7 @@ export interface AssetLibraryContext extends AssetLibraryDeps {
 	 * obstacle: `AssetLibraryView` is the one writer, so it supplies the door and keeps the
 	 * writing.
 	 *
-	 * Takes BOTH values on every call rather than one door per field: the view publishes one
+	 * Takes EVERY value on every call rather than one door per field: the view publishes one
 	 * state object to Obsidian, so a call naming half of it would have to read the other half
 	 * back off the refs it is in the middle of replacing.
 	 *
@@ -67,7 +77,7 @@ export interface AssetLibraryContext extends AssetLibraryDeps {
 	 * nothing. `assetLibraryViewState.test.ts` asserts that rather than assuming it — a
 	 * publish that re-entered would be an infinite loop no type can see.
 	 */
-	readonly publishViewState: (assetId: string, expanded: readonly string[]) => void;
+	readonly publishViewState: (assetId: string, expanded: readonly string[], browse: LibraryBrowse) => void;
 }
 
 export const ASSET_LIBRARY_CONTEXT: InjectionKey<AssetLibraryContext> = Symbol(

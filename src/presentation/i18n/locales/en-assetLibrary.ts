@@ -204,4 +204,23 @@ export const enAssetLibrary = {
 	// reason as the rest of this file's `form.new-asset.*` rows.
 	'form.new-asset.similar.exists': 'An asset named “{name}” already exists.',
 	'form.new-asset.similar.show': 'Show it',
+	// AD18-R18's `Grid | List` switch in the toolbar, and the name of its group.
+	'view.asset-library.layout.label': 'View',
+	'view.asset-library.layout.grid': 'Grid',
+	'view.asset-library.layout.list': 'List',
+	// AD18-R18's category sidebar and the funnel that shows it. The funnel's name is its
+	// `aria-label` (Obsidian's tooltip reads nothing else); `All` is the sidebar's first choice.
+	'view.asset-library.filter': 'Filter by category',
+	'view.asset-library.categories': 'Categories',
+	'view.asset-library.category.all': 'All',
+	// AD18-R18's `Create your own` card at the end of the grid, over the `New asset` door.
+	'view.asset-library.create-card.title': 'Create your own',
+	'view.asset-library.create-card.hint': 'Cannot find what you need? Design your own asset.',
+	// The funnel's name while a filter holds, carrying the category word it shows (WCAG 2.5.3).
+	'view.asset-library.filter.active': 'Filter by category, {category}',
+	// AD18-R18's empty state for a category filter that leaves nothing drawn, searching or not.
+	'view.asset-library.filtered.no-matches': 'No matches in {category}',
+	'view.asset-library.filtered.none': 'No assets in {category}',
+	'view.asset-library.filtered.body': 'Other categories may hold what you are looking for.',
+	'view.asset-library.filtered.action': 'Show all categories',
 } as const;

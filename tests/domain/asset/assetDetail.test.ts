@@ -3,6 +3,8 @@ import type { CurvedPolygon } from '../../../src/core/geometry/CurvedPolygon';
 import type { AssetDetail } from '../../../src/domain/asset/AssetDetail';
 import { dimensionsOf, shapeFromDimensions, validateAssetShape, type AssetShape } from '../../../src/domain/asset/AssetShape';
 import { expectErr, expectOk } from '../../helpers/domain';
+import { scaleDesign } from '../../../src/domain/asset/shapeEdits';
+import { OPEN_POINTS, shapeWithOpenGraphic } from '../../helpers/assetShapes';
 
 /**
  * Spec 2026-09-13 Decisions 1–4: details are curved outlines, validated like a footprint, and the
@@ -63,5 +65,102 @@ describe('a curved footprint', () => {
 		expect(validateAssetShape({ ...base(), footprint: { points: bowTie } }).ok).toBe(true);
 		const curved = { points: bowTie, bulges: [0.2, 0, 0, 0] };
 		expect(expectErr(validateAssetShape({ ...base(), footprint: curved })).code).toBe('asset.invalid-footprint');
+	});
+});
+
+/**
+ * AD04's model extension, asked of the domain validator rather than of the schema: the two refuse
+ * different things and neither subsumes the other. The schema counts points and types fields; only
+ * this layer knows whether a group names a graphic that survived validation.
+ */
+const openDetail = (id: string, points: readonly { x: number; y: number }[], bulges?: readonly number[]): AssetDetail =>
+	({ id, name: id, kind: 'open', line: 'solid', pending: false, outline: { points, ...(bulges === undefined ? {} : { bulges }) } }) as AssetDetail;
+
+describe('open graphics, labels and groups (AD04)', () => {
+	it('accepts a two-point open graphic, which a closed one could never be', () => {
+		const shape = expectOk(validateAssetShape({ ...base(), details: [openDetail('swing', [{ x: 0, y: 0 }, { x: 300, y: 0 }])] }));
+		expect(shape.details[0]).toMatchObject({ kind: 'open', id: 'swing' });
+	});
+
+	/** The open analogue of the area rule: a path is judged on LENGTH, never on what it encloses. */
+	it('refuses an open graphic with no length, and does not ask it to enclose an area', () => {
+		const flat = validateAssetShape({ ...base(), details: [openDetail('swing', [{ x: 5, y: 5 }, { x: 5, y: 5 }])] });
+		expect(expectErr(flat).code).toBe('asset.invalid-detail');
+	});
+
+	it('refuses an open graphic whose bulge array is one per POINT, the closed shape-s arithmetic', () => {
+		const wrong = validateAssetShape({ ...base(), details: [openDetail('swing', [{ x: 0, y: 0 }, { x: 300, y: 0 }], [0.5, 0])] });
+		expect(expectErr(wrong).code).toBe('asset.invalid-detail');
+	});
+
+	/** A straight-sided open graphic is still open: nothing closes it on the way through. */
+	it('keeps an open graphic open through validation rather than closing it', () => {
+		const shape = expectOk(validateAssetShape({ ...base(), details: [openDetail('swing', [{ x: 0, y: 0 }, { x: 300, y: 0 }, { x: 300, y: 300 }])] }));
+		expect(shape.details[0].kind).toBe('open');
+	});
+
+	it('carries a user label beside the stable semantic name, and leaves the name alone', () => {
+		const labelled = { ...detail('bowl', circle(300)), label: 'Pan' };
+		const shape = expectOk(validateAssetShape({ ...base(), details: [labelled] }));
+		expect(shape.details[0]).toMatchObject({ name: 'bowl', label: 'Pan' });
+	});
+
+	it('omits the label entirely when there is none, rather than storing an empty one', () => {
+		const shape = expectOk(validateAssetShape({ ...base(), details: [detail('bowl', circle(300))] }));
+		expect(shape.details[0]).not.toHaveProperty('label');
+	});
+
+	const grouped = (groups: readonly { id: string; members: readonly string[] }[]): AssetShape =>
+		({ ...base(), details: [detail('a', circle(300)), detail('b', square(100))], groups }) as AssetShape;
+
+	it('accepts a group over graphics the shape really has', () => {
+		const shape = expectOk(validateAssetShape(grouped([{ id: 'group-1', members: ['a', 'b'] }])));
+		expect(shape.groups).toEqual([{ id: 'group-1', members: ['a', 'b'] }]);
+	});
+
+	it('answers an empty array for a shape with no groups at all', () => {
+		expect(expectOk(validateAssetShape(base())).groups).toEqual([]);
+	});
+
+	/**
+	 * Four refusals, one per way a membership can be wrong, and every one REFUSES rather than
+	 * repairs (C06): a dropped dangling member or a de-duplicated membership would leave the file
+	 * saying one thing and the loaded shape another.
+	 */
+	it.each([
+		['a member no graphic carries', [{ id: 'group-1', members: ['a', 'ghost'] }], 'asset.dangling-group-member'],
+		['a graphic in two groups', [{ id: 'group-1', members: ['a'] }, { id: 'group-2', members: ['a'] }], 'asset.overlapping-groups'],
+		['the same member twice in one group', [{ id: 'group-1', members: ['a', 'a'] }], 'asset.overlapping-groups'],
+		['two groups under one id', [{ id: 'group-1', members: ['a'] }, { id: 'group-1', members: ['b'] }], 'asset.invalid-group-id'],
+		['an empty id', [{ id: '', members: ['a'] }], 'asset.invalid-group-id'],
+		['no members at all', [{ id: 'group-1', members: [] }], 'asset.empty-group'],
+	])('refuses %s', (_label, groups, code) => {
+		expect(expectErr(validateAssetShape(grouped(groups))).code).toBe(code);
+	});
+
+	/** Membership is checked against the graphics that SURVIVED validation, never against the raw input. */
+	it('refuses a group naming a graphic whose own geometry was refused', () => {
+		const broken = { ...base(), details: [{ ...detail('a', { points: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }] }) }], groups: [{ id: 'group-1', members: ['a'] }] };
+		expect(expectErr(validateAssetShape(broken as AssetShape)).code).toBe('asset.degenerate-detail');
+	});
+});
+
+/**
+ * The arms AD04's and AD05's own helpers take for an OPEN graphic, which nothing else in the suite
+ * reaches: a whole-object scale, a bounding box over a path, and a label and a group surviving the
+ * domain validator.
+ */
+describe('an open graphic through the shape operations', () => {
+	it('scales with everything else, and stays open', () => {
+		const scaled = expectOk(scaleDesign(shapeWithOpenGraphic(), 2, 2));
+		const open = scaled.details[2];
+		expect(open.kind).toBe('open');
+		expect(open.outline.points).toEqual(OPEN_POINTS.map((point) => ({ x: point.x * 2, y: point.y * 2 })));
+	});
+
+	it('carries a label on a group as well as on a graphic', () => {
+		const withOpen = shapeWithOpenGraphic();
+		const grouped = expectOk(validateAssetShape({ ...withOpen, groups: [{ id: 'group-1', label: 'Front', members: ['detail-1', 'detail-3'] }] }));
+		expect(grouped.groups).toEqual([{ id: 'group-1', label: 'Front', members: ['detail-1', 'detail-3'] }]);
 	});
 });

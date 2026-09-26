@@ -9,8 +9,10 @@
  * `npm run build` and a fixture that casts is a fixture the compiler stops reading.
  */
 import { createAssetId, type AssetId } from '../../src/domain/asset/AssetId';
-import { footprintFromDimensions } from '../../src/domain/asset/AssetShape';
-import type { AssetDesignDto } from '../../src/application/queries/GetAssetDesign';
+import { footprintFromDimensions, type AssetShape } from '../../src/domain/asset/AssetShape';
+import type { AssetDesignDto, AssetDesignError } from '../../src/application/queries/GetAssetDesign';
+import type { Result } from '../../src/core/result/Result';
+import type { ValidationError } from '../../src/core/errors/AppError';
 import { expectOk, observationToken } from './domain';
 
 /**
@@ -25,11 +27,34 @@ import { expectOk, observationToken } from './domain';
  */
 const FIXTURE_FOOTPRINT = expectOk(footprintFromDimensions(1200, 800));
 
+/**
+ * The inspector's `editShape` is the leaf's own `EditShape` since AD18-R17, whose edit may answer `null`
+ * for "nothing to do" (a corner radius committed at the radius it has). A case that never commits one
+ * uses this to refuse it loudly rather than let a fake invent a result.
+ */
+export function handed(result: Result<AssetShape, ValidationError> | null): Result<AssetShape, ValidationError> {
+	if (result === null) throw new Error('an edit answered nothing to do; this fake does not model it');
+	return result;
+}
+
+/**
+ * A vault read that failed outright — the one `AssetDesignError` every designer-refresh fixture in
+ * this directory reaches for. `designerUsageScope.test.ts` keeps its OWN `VAULT_FAILED`: a different
+ * message and no explicit `AssetDesignError` type, so it is a different fixture and not a copy of
+ * this one.
+ */
+export const VAULT_FAILED: AssetDesignError = {
+	category: 'Persistence',
+	code: 'vault.unexpected-failure',
+	message: 'the vault could not be read',
+};
+
 export function assetDesign(overrides: Partial<AssetDesignDto> = {}): AssetDesignDto {
 	const assetId: AssetId = overrides.assetId ?? createAssetId();
 	return {
 		assetId,
 		name: 'Base cabinet 600',
+		category: 'furniture',
 		height: 900,
 		// A default this thing HAS, not the absence `noBackground` cases explicitly opt into:
 		// several existing fixtures at `assetDesign({ shape: null })` rely on the background

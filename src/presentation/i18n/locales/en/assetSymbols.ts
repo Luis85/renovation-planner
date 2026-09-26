@@ -23,6 +23,10 @@ export const assetSymbolsEn = {
 	'designer.preset.group.plants-beds': 'Plants and beds',
 	'designer.preset.field.width': 'Width in millimetres',
 	'designer.preset.field.depth': 'Depth in millimetres',
+	// The compact row's SHORT visible labels (AD18-R16 Task 5): `DesignerFieldRow` draws these
+	// beside the input and keeps the sentence above as the input's `aria-label`.
+	'designer.preset.field.width.short': 'Width',
+	'designer.preset.field.depth.short': 'Depth',
 	'designer.preset.field.diameter': 'Diameter in millimetres',
 	'designer.preset.field.length': 'Length in millimetres',
 	'designer.preset.field.radius': 'Outer radius in millimetres',
@@ -43,14 +47,14 @@ export const assetSymbolsEn = {
 	'designer.selection.line': 'Line',
 	'designer.selection.line.solid': 'Solid',
 	'designer.selection.line.dashed': 'Dashed',
-	// "Centre x in millimetres" and "Position x in millimetres" failed `sentence-case-locale-module`;
-	// the "Horizontal …" / "Vertical …" spellings pass.
-	'designer.selection.centre-x': 'Horizontal centre in millimetres',
-	'designer.selection.centre-y': 'Vertical centre in millimetres',
 	'designer.selection.rotate-by': 'Rotation to apply in degrees',
-	'designer.selection.position-x': 'Horizontal position in millimetres',
-	'designer.selection.position-y': 'Vertical position in millimetres',
 	'designer.selection.angle': 'Angle in degrees',
+	// The same compact-row split as the preset fields above, for the selection inspector's own
+	// fields and `DesignerSetTransform`'s "by" fields, which reuse `rotate-by`.
+	// "Rotation" rather than "Rotate by": WCAG 2.5.3 needs the visible short label inside the
+	// full sentence ("Rotation to apply in degrees"), and "Rotate by" is not a substring of it.
+	'designer.selection.rotate-by.short': 'Rotation',
+	'designer.selection.angle.short': 'Angle',
 	'designer.selection.bring-forward': 'Bring forward',
 	'designer.selection.send-backward': 'Send backward',
 	'designer.selection.duplicate': 'Duplicate',
@@ -62,6 +66,7 @@ export const assetSymbolsEn = {
 	'designer.detail.backrest': 'Backrest',
 	'designer.detail.basin': 'Basin',
 	'designer.detail.bowl': 'Bowl',
+	'designer.detail.cabinet': 'Cabinet',
 	'designer.detail.canopy': 'Canopy',
 	'designer.detail.circle': 'Circle',
 	'designer.detail.cushion': 'Cushion',
@@ -83,6 +88,7 @@ export const assetSymbolsEn = {
 	'preset.sofa': 'Sofa',
 	'preset.toilet': 'Toilet',
 	'preset.washbasin': 'Washbasin',
+	'preset.vanity': 'Vanity',
 	'preset.shower-tray': 'Shower tray',
 	'preset.bathtub': 'Bathtub',
 	'preset.tree': 'Tree',
@@ -104,8 +110,50 @@ export const assetSymbolsEn = {
 	'designer.selection.mode.bend.tip': 'Drag the handle in the middle of an edge to curve that edge',
 	// The asset-level block's own heading, so its Dimensions never read as the selected part's (critique finding 4).
 	'designer.inspector.asset': 'Asset',
+	// The header's landmark name (AD18 item 2). A `<header>` is a `banner` landmark and is NOT named
+	// by a heading inside it under HTML-AAM — and for a leaf whose read is in flight or refused there
+	// is no heading in it at all. `EditorContextBar` labels its own bar for the same reason.
+	'designer.header': 'Asset designer header',
+	// The library door's icon and accessible name (AD18-R16 Task 2, board 02's `← Back to library`).
+	// Replaces `designer.inspector.open-library`, dropped in the same edit: `grep -rln
+	// "designer.inspector.open-library" src/` printed only this table, its `de` twin and the
+	// component before this change, so nothing else held a second answer to lose.
+	'designer.header.back-to-library': 'Back to library',
+	// The Inspector's two tabs (AD18-R2). `Object` carries the thing being drawn, its placement and
+	// the space it needs kept free; `Reference` the sheet it is traced over and that sheet's scale.
+	// There is deliberately no third: the designer has no styling controls, and board 01's `Style`
+	// tab would ship empty.
+	'designer.inspector.tabs': 'Inspector sections',
+	'designer.inspector.tab.object': 'Object',
+	'designer.inspector.tab.reference': 'Reference',
+	// Moved from `en.ts` (AD18-R16 Task 5's follow-up): that file was already over its 400-line
+	// cap, and every other `designer.inspector.*` key already lives here. Height draws
+	// `DesignerFieldRowShell`'s compact row now, through `FieldError`'s slot, and keeps the
+	// full sentence as the input's `aria-label`; `.unparseable` is unchanged.
+	'designer.inspector.height': 'Height in millimetres',
+	'designer.inspector.height.short': 'Height',
+	'designer.inspector.height.unparseable': 'Enter a height as a number, or clear it.',
+	'designer.selection.toggle-mode': 'Select multiple parts',
+	'designer.selection.count': '{count} parts selected',
 	// Under the facing's angle field, as its description: `facingTip` adds the sine to y, and y grows DOWN the screen.
 	'designer.selection.angle.hint': 'An angle of 0 points right, and 90 points down',
 	// The status row while the grid is shown (snapping spec 2026-09-15 §2.6); withheld while the footprint is unscaled.
+	// The camera's scale used to sit beside it (`designer.status.zoom`) and moved into the toolbar's
+	// own zoom cluster at AD18-R16's Task 1 — see `DesignerToolbar.vue`'s `zoomPercent`.
 	'designer.status.grid': 'Grid {step} mm',
+	// AD09's Parts panel: the list itself, its empty line, and the row controls. `designer.selection.*`
+	// already names the footprint, the clearance, the anchor and the facing, so those are not repeated.
+	'designer.parts': 'Parts',
+	'designer.parts.empty': 'This asset has no parts yet. Set its dimensions or start from a preset.',
+	'designer.parts.reference': 'Reference sheet',
+	'designer.parts.group': 'Group',
+	'designer.parts.label': 'Label',
+	'designer.parts.hide': 'Hide',
+	'designer.parts.show': 'Show',
+	'designer.parts.lock': 'Lock',
+	'designer.parts.unlock': 'Unlock',
+	'designer.parts.isolate': 'Isolate',
+	'designer.parts.show-all': 'Show all parts',
+	'designer.parts.hidden': 'Hidden',
+	'designer.parts.locked': 'Locked',
 } as const;

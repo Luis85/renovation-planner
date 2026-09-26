@@ -19,32 +19,143 @@
  * field that has no reset button to walk past the guard: `useFieldCommit`'s own `submitted ===
  * null` check is the whole of what closes it).
  */
-import { computed } from 'vue';
+import { computed, ref, useId } from 'vue';
 import type { AssetDesignDto } from '../../../application/queries/GetAssetDesign';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { Logger } from '../../../application/ports/Logger';
 import { ok } from '../../../core/result/Result';
-import type { ShapeEdit } from '../selection/editShape';
+import type { EditShape } from '../selection/editShape';
 import { partKey, type DesignerSelection } from '../selection/designerSelection';
+import { rovingIndex } from '../../components/rovingIndex';
 import DesignerSelectionInspector from './DesignerSelectionInspector.vue';
+import DesignerArrangePanel from './DesignerArrangePanel.vue';
+import DesignerReferenceStatus from './DesignerReferenceStatus.vue';
+import DesignerReferencePlacement from './DesignerReferencePlacement.vue';
+import DesignerClearanceHelper from './DesignerClearanceHelper.vue';
+import DesignerClearanceReview from './DesignerClearanceReview.vue';
+import DesignerSourceScale from './DesignerSourceScale.vue';
+import DesignerUsageScope from './DesignerUsageScope.vue';
+import DesignerAssetCard from './DesignerAssetCard.vue';
 import { useFieldCommit } from '../../composables/use-field-commit';
 import type { FieldErrorMap } from '../../errors/route-error';
 import { trError } from '../../i18n/toUserMessage';
 import { reportDispatchFailure } from '../../editor/report-failure';
 import { tr } from '../../i18n/strings';
 import FieldError from '../../components/FieldError.vue';
+import DesignerFieldRowShell from './DesignerFieldRowShell.vue';
 
 const props = defineProps<{
 	design: AssetDesignDto;
 	setHeight: (height: number | null) => Promise<DispatchResult>;
+	/**
+	 * Take the reference sheet away (AD12-R2), passed straight through to `DesignerReferenceStatus`.
+	 *
+	 * **REQUIRED, and prop-drilled from `AssetDesignerRoot` rather than read off the runtime**, which
+	 * was the other shape on offer and is measured rather than argued: reading
+	 * `useDesignerRuntime()` here makes this component throw on any mount without a leaf's runtime
+	 * injected, and `designerReferencePanels.test.ts` deliberately mounts the real inspector bare to
+	 * prove the three blocks are BOUND. That case went red on the injection form with
+	 * *"The asset designer was mounted without a DesignerRuntime"*, which is the component becoming
+	 * un-mountable outside a leaf in exchange for saving one binding. Every other collaborator here
+	 * — `setHeight`, `editShape`, `lockedGraphics` — already arrives as a prop off the same runtime,
+	 * so this is the established shape and not a new one.
+	 */
+	removeBackground: () => Promise<void>;
 	editDimensions: () => Promise<void>;
-	startFromPreset: () => Promise<void>;
+	/**
+	 * Task 8's `Custom` placement segment, passed straight through to `DesignerReferencePlacement`
+	 * for the same reason `removeBackground` is above: that component is mounted bare in
+	 * `designerReferencePanels.test.ts`, so it takes this rather than reading `useDesignerRuntime()`.
+	 */
+	activateAnchorTool: () => void;
 	logger: Logger;
 	/** The part the canvas has selected, `null` for none; its section is keyed by part, so choosing another starts it fresh. */
 	selection: DesignerSelection | null;
-	editShape: (edit: ShapeEdit) => Promise<DispatchResult>;
+	/**
+	 * The leaf's one write door, at its OWN width rather than narrowed: an edit may answer `null` for
+	 * "nothing to do on the shape I was handed", which dispatches nothing and pushes no undo entry.
+	 * The composition block below needs that arm for contract C05's no-op rule; the selection
+	 * inspector takes the narrower `ShapeEdit` shape and this value still satisfies it.
+	 */
+	editShape: EditShape;
 	select: (next: DesignerSelection | null) => void;
+	/*
+	 * `openLibrary` and `usePlan` were declared here until AD18 moved both controls into
+	 * `DesignerHeader`, and they are DROPPED rather than kept as pass-throughs: a prop nothing
+	 * reads is a binding the next author keeps alive for a control that is not here.
+	 */
+	/** Every selected part, in selection order — the last is the one whose fields show (AD08). */
+	selected: readonly DesignerSelection[];
+	/**
+	 * The graphic ids this leaf has LOCKED (AD09's `PartView.locked`), which the Arrange block hands
+	 * the domain as `immovable` so a composition cannot move a part the user pinned.
+	 *
+	 * **REQUIRED, unlike an optional prop's absence would be, and the difference is what ABSENCE
+	 * would mean.** `openLibrary` left this component for `DesignerHeader` at AD18-R1, and
+	 * `setMultiSelectionMode` left it for `DesignerPartsPanel` at AD18-R16 Task 7 — both were
+	 * optional here because their absence said something true: no runtime behind this mount,
+	 * therefore no navigation (or no selection mode) to offer. Absence says nothing here —
+	 * "this leaf has no locks" and "nobody told me about the locks" are different states, and an
+	 * `?? new Set()` default collapses them into the permissive one. So a mount that forgot to bind
+	 * it would compose a locked part like any other, silently, with all four gates green and a
+	 * person the only thing that could ever notice.
+	 *
+	 * It shipped optional for exactly one commit and that is precisely what it did: `AssetDesignerRoot`
+	 * did not bind it, so C06's "locked elements must not move by implication" was live the whole
+	 * time the rule existed. Required costs four mount sites and makes the omission a build failure.
+	 */
+	lockedGraphics: ReadonlySet<string>;
 }>();
+
+/** The locks this panel passes on. Required above, so there is no default to write and none to hide behind. */
+const locked = computed(() => props.lockedGraphics);
+
+/**
+ * `showUnscaledDimensions` below is a computed rather than the expression it replaces in the
+ * template, and the reason is the GATE rather than taste. `fallow`'s `maxCognitive` is 15, and
+ * AD18-R2's two tabpanels already took this template to 17 — every boolean operator inside a
+ * `v-if` counts, which is the move this repository has taken at every other complexity finding
+ * it has met (`AssetInspectorActions.vue`, `UnreadableStrip.vue` and `DesignerUsagePlans.vue`
+ * each refuse the `fallow-ignore-next-line complexity` the report itself offers, and say so
+ * where they refuse it). It carries no operator of its own any more — the paragraph below says
+ * why — so naming it costs nothing against that budget; it stays a named computed regardless,
+ * because the name is where the reason for having no second term is written down, and that
+ * reason is what a reader who met a bare `v-if` in the template would otherwise re-derive
+ * wrongly and re-add.
+ *
+ * **`showMultiSelectToggle`, the sibling that DID carry an operator, moved to
+ * `DesignerPartsPanel` at AD18-R16 Task 7** along with the control it gated: the checkbox is a
+ * selection affordance rather than an asset fact, and AD08-R1 already blesses that panel as the
+ * selection surface. What is left here is the one condition below.
+ */
+
+/**
+ * The unscaled warning rides on `dimensionsUnscaled` ALONE, and a `dimensions !== null` beside
+ * it would be an arm nothing can reach rather than a defence.
+ *
+ * `GetAssetDesign` measures `dimensions` from the footprint whenever `shape !== null` — and
+ * returns an `err`, so no DTO at all, when that measurement refuses — while `dimensionsUnscaled`
+ * is `shape?.footprintPending ?? false`. On any DTO that query PRODUCES, therefore, a `true`
+ * flag implies a non-null `dimensions`, and the dropped conjunct could only ever have been
+ * `true`. "That query produces" and not "this component can be handed", because the last
+ * paragraph below is about the difference between the two.
+ *
+ * **That producing invariant is pinned in `tests/application/queries/getAssetDesign.test.ts`,
+ * in two cases, because it has two conjuncts and one case cannot reach both.** *answers null
+ * dimensions rather than zeros when there is no footprint* holds that a shapeless design is never
+ * flagged; *measures dimensions for a PENDING footprint too, so a flagged design always has
+ * numbers* holds that a flagged one always carries figures. Each was watched failing against its
+ * own break of the query: `?? false` to `?? true` reds the first, and narrowing the derivation's
+ * guard to `shape !== null && !shape.footprintPending` reds the second and nothing else in that
+ * file. The second case exists because that half had been resting on `dimensionsOf`'s return
+ * type — an argument rather than a check, which is the thing this repository converts.
+ *
+ * **What no check here reaches**: `AssetDesignDto` is a plain type, so a test may hand-build one
+ * carrying the flag with null dimensions, and this template will then draw the warning beside no
+ * figure. The guarantee belongs to the query, not to this component, and the sentence says so
+ * rather than claiming a component-level one.
+ */
+const showUnscaledDimensions = computed(() => props.design.dimensionsUnscaled);
 
 /**
  * Both codes are `SetAssetHeightCommand`'s own — `Asset.ts`'s `checkHeight`, through
@@ -98,6 +209,98 @@ const height = useFieldCommit<string, { height: number | null }>({
 const dimensionsLabel = computed(() =>
 	props.design.dimensions === null ? tr('designer.inspector.set-dimensions') : tr('designer.inspector.edit-dimensions'),
 );
+
+/**
+ * **The two tabs, and there are exactly two** — ruling AD18-R2, taken by the user because the
+ * concept boards contradict each other: board 01 draws `Object | Style | Reference` and board 02
+ * draws `Object | Properties`, so neither could be cited as the target. The split is against what
+ * this surface actually HAS rather than against either picture. The object, its placement and its
+ * clearance are one subject; the reference sheet and its calibration are another, and are the half
+ * a user is not looking at while drawing. There is no `Style`: the designer has no styling
+ * controls at all, and a tab that shipped empty is a promise the surface does not keep.
+ *
+ * The problem it solves is measured: with one part selected this panel was 887 px of content in a
+ * 625 px column, 42 % below the fold before any clearance or review block appeared, in a 224 px
+ * rail.
+ *
+ * **What AD18-R2 forbids, and where each refusal is kept:**
+ *
+ * - The Clearance block and the clearance-review notice stay TOGETHER, both in `object`. That
+ *   notice is a `role="status"` live region and step 29 of *Calibrate a sheet and reserve space*
+ *   records a real user reading it as belonging to the Clearance block above it — a tab between the
+ *   two would destroy the one judgement answer this package owns.
+ * - The tab control JOINS the keyboard model already here rather than competing with it. The Parts
+ *   panel and the preset gallery both roam a tabindex over their items with `rovingIndex`, and this
+ *   is that same function with the same clamping and the same one-tab-stop rule — one Tab reaches
+ *   the strip, the arrows and Home/End move within it. The `<aside>`'s own `tabindex="-1"` is
+ *   untouched: it is a focus TARGET for `DesignerSelectionInspector`'s delete hand-off, never a Tab
+ *   stop, and the strip does not take that role away.
+ *
+ * **Each PANEL carries `tabindex="0"`, which the APG asks for exactly when a panel may hold no
+ * focusable content — and this one may.** The attribute is still right and its ORIGINAL REASON IS
+ * DEAD, which is worth separating because the next reader who checks the old one will find it false
+ * and may take the attribute with it. That reason was that `DesignerReferenceStatus` drew nothing at
+ * all for an asset typed from dimensions with no sheet; since AD18 item 7 it draws a five-row trace
+ * checklist in exactly that state, so the panel is never empty any more.
+ *
+ * What keeps the attribute is the weaker but still sufficient claim: the checklist is an `<ol>` of
+ * `<li>`s and the facts block is a `<dl>` of text, so the Reference panel can hold no FOCUSABLE
+ * content even when it is full. Without `tabindex="0"` a keyboard user selects Reference and the
+ * next Tab leaves the Inspector entirely, with nothing focused and nothing announced in between.
+ * axe does not check this rule, so it is here on the APG's authority rather than a gate's. It costs
+ * one extra Tab stop per panel, which is the trade the APG already makes.
+ *
+ * **What `rovingIndex(…, horizontal: true)` COSTS, stated rather than waved past.** It consumes
+ * ArrowUp and ArrowDown as well as Left and Right, and `preventDefault`s them. The APG's horizontal
+ * tablist takes Left/Right/Home/End only, so this swallows two keys it should not — and on a rail
+ * whose whole problem is that it scrolls, that removes arrow-key scrolling while a TAB has focus.
+ * The scope is exactly that: the handler is on the tablist, so the keys still scroll from anywhere
+ * else in the panel, and Page Up/Down, Home/End on the panel and the wheel are untouched. The
+ * shared helper takes one boolean and has no third setting, so narrowing it to Left/Right would
+ * mean either a second parameter on a function two other callers share or a hand-rolled index here;
+ * both are a change to code this card does not own. Recorded as a cost rather than as "nothing".
+ * - The `design !== null` gate is `AssetDesignerRoot`'s and stays there, so
+ *   `.rp-designer-inspector` is still an EMPTY region for a loading or failed leaf rather than an
+ *   empty tab strip.
+ *
+ * **`v-show`, not `v-if`, on the panels, and the reason is STATE rather than arithmetic.**
+ * `DesignerUsageScope` reads its plan usage ONCE at setup with no watch, so unmounting it on every
+ * tab switch would re-run that query and re-flash its loading line; and the height field holds an
+ * uncommitted draft inside `useFieldCommit`, which an unmount would discard silently under a user
+ * who glanced at the sheet mid-edit. `display: none` takes a hidden panel out of the accessibility
+ * tree and out of the tab order exactly as `hidden` would.
+ *
+ * **It is NOT a branch saving, and the first version of this paragraph said it was.** Two `v-if`s
+ * would each add an arm, but any case that switches tabs exercises both arms of both, so the saving
+ * is zero. Counted rather than asserted: this template carried SIX `v-if`s at this card's base and
+ * carries FIVE now — only `openLibrary`'s left, with the control it gated — against which this
+ * strip adds the `:tabindex` ternary and `onTabKeydown`'s `next === undefined` guard. Net ONE more
+ * branch site in this file, every arm of it covered.
+ */
+const TABS = ['object', 'reference'] as const;
+const activeTab = ref<(typeof TABS)[number]>('object');
+const tablist = ref<HTMLElement | null>(null);
+/** One pair of ids per mounted inspector, so two open designers cannot point at each other's panels. */
+const tabId = { object: useId(), reference: useId() };
+const panelId = { object: useId(), reference: useId() };
+
+/**
+ * Left/Right/Home/End across the strip, ACTIVATING as it goes — the WAI-ARIA tabs pattern's
+ * automatic activation, which is its own recommendation wherever revealing a panel is cheap, and
+ * both of these are already rendered.
+ *
+ * `horizontal` is `true` because this strip is a row; that also admits Up and Down, which is the
+ * shared helper's shape rather than this component's choice and is NOT free — the header above
+ * carries what it costs. `from` can never be `-1` — `activeTab` is always a member of `TABS` —
+ * which is the precondition `rovingIndex`'s own header asks every caller to meet.
+ */
+function onTabKeydown(event: KeyboardEvent): void {
+	const next = TABS[rovingIndex(event.key, TABS.indexOf(activeTab.value), TABS.length, true)];
+	if (next === undefined) return;
+	event.preventDefault();
+	activeTab.value = next;
+	tablist.value?.querySelector<HTMLElement>(`[data-rp-tab="${next}"]`)?.focus();
+}
 </script>
 
 <template>
@@ -119,79 +322,264 @@ const dimensionsLabel = computed(() =>
 		<h2 class="rp-designer-panel-title">
 			{{ tr('designer.inspector') }}
 		</h2>
-		<DesignerSelectionInspector
-			v-if="selection !== null"
-			:key="partKey(selection)"
-			:design="design"
-			:selection="selection"
-			:edit-shape="editShape"
-			:select="select"
-		/>
 		<!--
-			The asset's own block gets a heading of its own, so its Dimensions never read as the size of the
-			part whose section sits right above them (selection polish critique, finding 4).
+			AD18-R2's two tabs. `data-rp-tab` is what the keyboard handler and the suites select on —
+			a class is for appearance and an action attribute is for identity, which is the rule
+			`DesignerUsePlan`'s own `data-rp-action` already states.
 		-->
-		<h3 class="rp-designer-panel-title rp-designer-section-title">
-			{{ tr('designer.inspector.asset') }}
-		</h3>
-		<!--
-			`design.dimensions` is `null` exactly when the asset has no footprint — the same field
-			`GetAssetDesign`'s own docblock says is "never `{ width: 0, depth: 0 }`" — so the block
-			and its warning disappear together rather than showing a rectangle of zeroes.
-		-->
-		<dl
-			v-if="design.dimensions !== null"
-			class="rp-designer-inspector-fields"
+		<div
+			ref="tablist"
+			class="rp-designer-tabs"
+			role="tablist"
+			:aria-label="tr('designer.inspector.tabs')"
+			@keydown="onTabKeydown"
 		>
-			<dt>{{ tr('designer.inspector.dimensions') }}</dt>
-			<!-- Whole millimetres: a curve's box is irrational, and no drawing is read finer than that. -->
-			<dd>{{ Math.round(design.dimensions.width) }} × {{ Math.round(design.dimensions.depth) }} mm</dd>
-		</dl>
-		<p
-			v-if="design.dimensions !== null && design.dimensionsUnscaled"
-			class="rp-designer-unscaled"
-		>
-			{{ tr('designer.inspector.dimensions.unscaled') }}
-		</p>
-		<button
-			type="button"
-			class="rp-designer-edit-dimensions"
-			@click="() => void editDimensions()"
-		>
-			{{ dimensionsLabel }}
-		</button>
-		<button
-			type="button"
-			class="rp-designer-start-preset"
-			@click="() => void startFromPreset()"
-		>
-			{{ tr('designer.inspector.start-preset') }}
-		</button>
-
-		<FieldError
-			v-slot="{ inputId, aria }"
-			:message="height.error.value"
-		>
-			<label
-				class="rp-designer-field"
-				:for="inputId"
+			<button
+				v-for="tab in TABS"
+				:id="tabId[tab]"
+				:key="tab"
+				type="button"
+				role="tab"
+				class="rp-designer-tab"
+				:data-rp-tab="tab"
+				:aria-selected="activeTab === tab"
+				:aria-controls="panelId[tab]"
+				:tabindex="activeTab === tab ? 0 : -1"
+				@click="activeTab = tab"
 			>
-				{{ tr('designer.inspector.height') }}
-				<input
-					:id="inputId"
-					v-bind="aria"
-					type="number"
-					name="height"
-					min="0"
-					step="any"
-					:aria-busy="height.pending.value"
-					:value="height.draft.value"
-					@input="height.onInput(($event.target as HTMLInputElement).value)"
-					@blur="height.onCommit()"
-					@keydown.enter="height.onCommit()"
-					@keydown.esc.stop="height.onCancel()"
+				{{ tr(`designer.inspector.tab.${tab}`) }}
+			</button>
+		</div>
+		<div
+			v-show="activeTab === 'object'"
+			:id="panelId.object"
+			class="rp-designer-tabpanel"
+			tabindex="0"
+			role="tabpanel"
+			:aria-labelledby="tabId.object"
+		>
+			<!--
+				**How many parts are selected** (AD08). Drawn only for a set of two or more: with one
+				selected the section below already says which part it is, and a count of "1" beside it
+				would be a second way of saying the same thing.
+			-->
+			<p
+				v-if="selected.length > 1"
+				class="rp-designer-selection-count"
+				role="status"
+			>
+				{{ tr('designer.selection.count', { count: String(selected.length) }) }}
+			</p>
+			<DesignerSelectionInspector
+				v-if="selection !== null"
+				:key="partKey(selection)"
+				:design="design"
+				:selection="selection"
+				:edit-shape="editShape"
+				:select="select"
+			/>
+			<!--
+				**The composition block** (AD10), a SIBLING of the section above rather than part of it:
+				that one acts on the focused part and this one on the whole selection, and a single
+				graphic can legitimately be in both (it can still be repeated, and its group can still be
+				moved to an end). It draws nothing when no graphic is selected, so it costs the other
+				selection kinds nothing.
+			-->
+			<DesignerArrangePanel
+				:design="design"
+				:selected="selected"
+				:edit-shape="editShape"
+				:locked="locked"
+			/>
+			<!--
+				**The asset card** (AD18-R16 Task 9, board 02): a decorative footprint thumbnail beside
+				the category chip, no name (AD18-R1). BEFORE the heading rather than after it, deliberately
+				— `DesignerAssetCard.vue`'s own header carries the full placement argument, and the short
+				form is that `designerUsageScope.test.ts` pins `DesignerUsageScope` as sitting directly
+				under this `<h3>` with nothing between, so a block placed AFTER the heading would break
+				that adjacency. Before it, the heading and the usage scope stay exactly as pinned, and
+				with nothing selected this card is still the true top of the tab.
+			-->
+			<DesignerAssetCard :design="design" />
+			<!--
+				The asset's own block gets a heading of its own, so its Dimensions never read as the size of the
+				part whose section sits right above them (selection polish critique, finding 4).
+			-->
+			<h3 class="rp-designer-panel-title rp-designer-section-title">
+				{{ tr('designer.inspector.asset') }}
+			</h3>
+			<!--
+				**The usage scope** (AD13-R1): which plans place this definition, stated where the user
+				can see it before they change it. Under the `Asset` heading directly above it and above
+				every control that rewrites the thing — Edit dimensions, Start from preset, and every
+				geometry command the canvas dispatches — because an impact scope drawn after the gesture
+				it is about is a receipt rather than a disclosure.
+
+				**The asset's NAME used to sit between the two and is now in the header** (AD18-R1),
+				which is the one thing that ruling asked the implementing card to check rather than
+				assume. It still reads as being about the asset: `<h3>Asset</h3>` is what sits directly
+				above it now, and this block's own `<h4>Used in plans</h4>` reads as a subsection of that
+				heading — which a paragraph of plain text never was. So no heading was added here, and no
+				second copy of the name. `designerUsageScope.test.ts` pins that adjacency, because the
+				argument above is about the TEMPLATE and nothing was asserting it.
+
+				It takes nothing from this panel: the query and the index gate are per-LEAF, so it
+				reads them off the designer context and decides on its own what it has to say. A mount
+				outside a leaf draws nothing rather than throwing, which is what keeps the FIVE suites
+				that mount this inspector bare mounting it — `grep -rl 'mount(DesignerInspector' tests/`
+				prints six files and `designerUsageScope.test.ts` is the one that provides a context, so
+				five is what is left. `DesignerUsageScope`'s own header carries why injecting is what
+				forced the question.
+			-->
+			<DesignerUsageScope />
+			<!--
+				`design.dimensions` is `null` exactly when the asset has no footprint — the same field
+				`GetAssetDesign`'s own docblock says is "never `{ width: 0, depth: 0 }`" — so the block
+				and its warning disappear together rather than showing a rectangle of zeroes.
+			-->
+			<dl
+				v-if="design.dimensions !== null"
+				class="rp-designer-inspector-fields"
+			>
+				<dt>{{ tr('designer.inspector.dimensions') }}</dt>
+				<!-- Whole millimetres: a curve's box is irrational, and no drawing is read finer than that. -->
+				<dd>{{ Math.round(design.dimensions.width) }} × {{ Math.round(design.dimensions.depth) }} mm</dd>
+			</dl>
+			<p
+				v-if="showUnscaledDimensions"
+				class="rp-designer-unscaled"
+			>
+				{{ tr('designer.inspector.dimensions.unscaled') }}
+			</p>
+			<!--
+				**Height sits directly with Dimensions now** (AD18-R16 Task 7): board 01 groups Width,
+				Depth and Height as one fact block, and used to draw here only once `Edit dimensions`
+				and the select-multiple checkbox sat between it and the W × D row above. The checkbox
+				moved out entirely, to the Parts panel's own region — a selection affordance rather
+				than an asset fact (AD08-R1) — and `Edit dimensions` stays where it was, as the control
+				that REWRITES the block this field is part of, drawn after the facts rather than
+				between two of them.
+			-->
+			<FieldError
+				v-slot="{ aria }"
+				:message="height.error.value"
+			>
+				<DesignerFieldRowShell
+					short="designer.inspector.height.short"
+					unit="mm"
 				>
-			</label>
-		</FieldError>
+					<input
+						v-bind="aria"
+						type="number"
+						name="height"
+						min="0"
+						step="any"
+						:aria-label="tr('designer.inspector.height')"
+						:aria-busy="height.pending.value"
+						:value="height.draft.value"
+						@input="height.onInput(($event.target as HTMLInputElement).value)"
+						@blur="height.onCommit()"
+						@keydown.enter="height.onCommit()"
+						@keydown.esc.stop="height.onCancel()"
+					>
+				</DesignerFieldRowShell>
+			</FieldError>
+			<button
+				type="button"
+				class="rp-designer-edit-dimensions"
+				@click="() => void editDimensions()"
+			>
+				{{ dimensionsLabel }}
+			</button>
+			<!--
+				**The way into a PRESET left this panel too (AD18-R6)** and is in the `Add` rail,
+				beside the shape buttons — one place answering "how do I start this object" instead
+				of two standing controls at opposite edges of the leaf. `startFromPreset` itself is
+				unchanged and still lives in `AssetDesignerRoot`; what moved is the button, and the
+				prop it needed went with it. `DesignerEntryPaths`'s copy of the same gesture stays,
+				because an empty state and a standing control are never both on screen for one asset
+				in one state — which is the distinction that makes AD18-R6 a rule rather than a
+				preference.
+			-->
+			<!--
+				**The way BACK and the way FORWARD both left this panel in AD18** and are in the header
+				(`DesignerHeader.vue`), which is where AD06 item 1 asks for them. They are still one pair
+				drawn side by side, for the reason they were a pair here: they are this surface's only
+				navigations, and a user looking for one looks where the other is.
+			-->
+			<!--
+				**Placement and reserved space** (AD12), siblings of the asset's own block rather than
+				rows inside it: each answers a different question — which point a plan positions this
+				object by, and what it needs kept free around it — and each decides on its own whether it
+				has anything to say. Both draw nothing until there is a shape.
+
+				After the height, deliberately: height is descriptive metadata on the asset itself
+				(ADR-0014) and stays where it was, and nothing below it is an input to any vertical
+				calculation — AD12 introduces no clash check and this ordering is not the start of one.
+
+				**The third of AD12's siblings, `DesignerReferenceStatus`, is in the OTHER tab** — where
+				the millimetres come from is a fact about the SHEET, which is the subject AD18-R2 split
+				out. Placement stays here despite its component's name: the anchor and the facing are the
+				object's, and that ruling puts "the object, its placement and its clearance" in one tab.
+			-->
+			<DesignerReferencePlacement
+				:design="design"
+				:edit-shape="editShape"
+				:activate-anchor-tool="activateAnchorTool"
+			/>
+			<DesignerClearanceHelper
+				:design="design"
+				:edit-shape="editShape"
+			/>
+			<!--
+				**The clearance review notice and its answer** (AD14), beneath the clearance block it is
+				about and LAST in this panel, because it is the only block here that appears and
+				disappears in response to an edit made elsewhere on this surface: nothing below it can be
+				pushed down when a resize sets the flag. Its notice and its button are one `<section>`,
+				so the two never separate. It draws nothing unless `clearanceNeedsReview` is set, which
+				leaves every other state of this panel exactly as it was.
+
+				**In the SAME tab as the Clearance block above it**, which is the sharpest of AD18-R2's
+				three refusals: this is a `role="status"` live region, and step 29 of the manual case
+				*Calibrate a sheet and reserve space* records a real user reading it as belonging to that
+				block. A tab between the two would destroy the one judgement answer this package owns.
+			-->
+			<DesignerClearanceReview
+				:design="design"
+				:edit-shape="editShape"
+			/>
+			<!-- Board 01's read-only `Source & scale` (AD18-R17): no control, so the review above can push it down harmlessly. -->
+			<DesignerSourceScale :design="design" />
+		</div>
+		<!--
+			The reference sheet and its scale — the half a user is not looking at while drawing, which
+			is what makes it a tab of its own rather than a section (AD18-R2).
+
+			**This panel used to be EMPTY for an asset typed from dimensions with no sheet, and it is
+			not any more** (AD18 item 7). `DesignerReferenceStatus` still decides on its own whether
+			its FACTS block has anything to say — and for that asset the answer is still nothing — but
+			the trace checklist is a SIBLING of that block rather than a child, so it draws in every
+			state. In the state that was blank it is the whole answer, with `Choose a sheet` marked
+			current.
+
+			The fix W9-A predicted here was "a line inside that component saying there is no sheet
+			yet". It is recorded as PREDICTED AND NOT TAKEN: a guided five-step sequence answers the
+			same question and also says what to do next, so no such line and no such key exists. The
+			prediction is left visible rather than deleted, because a card that names its own gap
+			precisely enough for the next card to close it is the mechanism working.
+		-->
+		<div
+			v-show="activeTab === 'reference'"
+			:id="panelId.reference"
+			class="rp-designer-tabpanel"
+			tabindex="0"
+			role="tabpanel"
+			:aria-labelledby="tabId.reference"
+		>
+			<DesignerReferenceStatus
+				:design="design"
+				:remove-background="removeBackground"
+			/>
+		</div>
 	</aside>
 </template>

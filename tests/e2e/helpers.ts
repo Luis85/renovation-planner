@@ -1,27 +1,61 @@
 import { expect } from 'vitest';
 import { PLUGIN_ID, type NativeBrowser } from './session';
 
+export type PlannerPage = ReturnType<typeof createPlannerPage>;
+
 /** The plugin's surfaces as a user reaches them: commands, the ribbon, the view's own controls. */
 export function createPlannerPage(browser: NativeBrowser) {
-	const projectView = () => browser.$('.workspace-leaf.mod-active .workspace-leaf-content[data-type="renovation-project"]');
+	/** The ACTIVE leaf of a view type — a hidden tab's controls exist and are not interactable. */
+	const leaf = (type: string) => browser.$(`.workspace-leaf.mod-active .workspace-leaf-content[data-type="${type}"]`);
+	const projectView = () => leaf('renovation-project');
+	/** Bring the n-th leaf of a type to the front and make it active, so `leaf()` resolves to it. */
+	const activate = async (type: string, index = 0): Promise<void> => {
+		await browser.executeObsidian(
+			({ app }, viewType, which) => {
+				const target = app.workspace.getLeavesOfType(viewType)[which];
+				if (!target) throw new Error(`No ${viewType} leaf to activate.`);
+				app.workspace.revealLeaf(target);
+				app.workspace.setActiveLeaf(target, { focus: true });
+			},
+			type,
+			index,
+		);
+		await expect.poll(() => leaf(type).isDisplayed()).toBe(true);
+	};
 	const dialog = () => browser.$('.rp-dialog-form');
 	const command = (id: string) => browser.executeObsidianCommand(`${PLUGIN_ID}:${id}`);
+	const openProjectView = async (): Promise<void> => {
+		await command('open-project');
+		await activate('renovation-project');
+	};
+	/** Fill and submit whichever create form is open, and wait for its dialog to close. */
+	const submitForm = async (name: string): Promise<void> => {
+		await expect.poll(() => dialog().isDisplayed()).toBe(true);
+		await dialog().$('[data-field="name"]').setValue(name);
+		await dialog().$('button[type="submit"]').click();
+		await expect.poll(() => dialog().isExisting()).toBe(false);
+	};
 	return {
+		leaf,
+		activate,
 		projectView,
 		dialog,
 		command,
+		openProjectView,
+		submitForm,
 		leafCount: (type: string) =>
 			browser.executeObsidian(({ app }, viewType) => app.workspace.getLeavesOfType(viewType).length, type),
-		async openProjectView(): Promise<void> {
-			await command('open-project');
-			await expect.poll(() => projectView().isDisplayed()).toBe(true);
-		},
-		/** Fill and submit whichever create form is open, and wait for its dialog to close. */
-		async submitForm(name: string): Promise<void> {
-			await expect.poll(() => dialog().isDisplayed()).toBe(true);
-			await dialog().$('[data-field="name"]').setValue(name);
-			await dialog().$('button[type="submit"]').click();
-			await expect.poll(() => dialog().isExisting()).toBe(false);
+		/** A project with one plan, made through the two real forms, and that plan's editor open and active. */
+		async createProjectWithPlan(project: string, plan: string): Promise<void> {
+			await openProjectView();
+			await projectView().$('.rp-empty-state__action').click();
+			await submitForm(project);
+			await expect.poll(() => projectView().$('.rp-project-detail__name').getText()).toBe(project);
+			await projectView().$('.rp-project-detail__entry-action--secondary').click();
+			await submitForm(plan);
+			await expect.poll(() => projectView().$('.rp-plan-list__row').isExisting()).toBe(true);
+			await projectView().$('.rp-plan-list__row').click();
+			await activate('renovation-plan-editor');
 		},
 		/** Every note in the vault whose frontmatter declares `type`, keyed by path. */
 		notesOfType: (type: string) =>

@@ -476,8 +476,8 @@ const SHOTS = [
 	// read, so a broken knob would still exit 0 with a picture of the resting editor under this
 	// shot's name. `DETAIL_ANCESTRY_CRUMB` (see its own comment) is the third selector that
 	// closes that gap: it exists only once the hierarchy read has landed. The locked shots wait
-	// on a pressed lock toggle in the floor Inspector, which only renders once the knob has
-	// locked a zone.
+	// on a lock toggle drawing the CLOSED padlock in the floor Inspector, which only renders once
+	// the knob has locked a zone.
 	{ name: 'plan-editor-detail', query: '?view=plan-editor&detail&theme=light', selector: '.rp-floor-inspector__guide' },
 	{ name: 'plan-editor-detail-dark', query: '?view=plan-editor&detail', selector: '.rp-floor-inspector__guide' },
 	{
@@ -486,8 +486,8 @@ const SHOTS = [
 		selector: [PLAN_CANVAS, '.rp-editor-shell[data-layout="constrained"] .rp-panel-rail', DETAIL_ANCESTRY_CRUMB],
 		width: 460,
 	},
-	{ name: 'plan-editor-locked', query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
-	{ name: 'plan-editor-locked-dark', query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
+	{ name: 'plan-editor-locked', query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: '.rp-floor-inspector .rp-editor-inspector-lock .lucide-lock' },
+	{ name: 'plan-editor-locked-dark', query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: '.rp-floor-inspector .rp-editor-inspector-lock .lucide-lock' },
 	// Property-tree polish (2026-09-12): the `?tree` knob's four-plan property, so the tree's
 	// THIRD level — the one no other knob reaches — can be looked at in both schemes and at a
 	// sidebar's width. Every shot waits on a level-3 treeitem, which exists only once the knob's
@@ -759,6 +759,15 @@ const SHOTS = [
 	// cannot prove the menu opened; `.rp-view-menu[open] .rp-view-menu__content` can only match once the
 	// native `open` attribute is set.
 	{ name: 'asset-designer-view-menu-narrow', query: '?view=asset-designer&preset=toilet&view-menu', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-view-menu[open] .rp-view-menu__content', '[data-rp-view="grid"]', '[data-rp-view="snap"]'], width: 460 },
+	// AD18-R13/R15's stale retry (Task 11): a re-read that fails NON-authoritatively over content
+	// already on screen, driven through the store's own real `hydrate` door by the `&stale` knob —
+	// the capture AD18-R15's own review found no fixture could reach, having measured the defect
+	// through an injected probe instead. Waits on the retry control itself
+	// (`[data-rp-action="retry"]`), which `AssetDesignerRoot.vue` renders only once `stale` is
+	// true, so a broken knob times out rather than photographing the resting designer under this
+	// name. Both schemes: AD18-R15's whole finding was about how the control LOOKS.
+	{ name: 'asset-designer-stale', query: '?view=asset-designer&preset=toilet&stale', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '[data-rp-action="retry"]'] },
+	{ name: 'asset-designer-stale-light', query: '?view=asset-designer&preset=toilet&stale&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '[data-rp-action="retry"]'] },
 	// THE ASSET LIBRARY (Task 17), and this is the surface with the largest gap between what was
 	// built and what has ever been looked at: sixteen tasks shipped the shelves, the rows, the
 	// marks, the inspector, the stylesheet, the keyboard and the narrow composition, and every
@@ -827,6 +836,14 @@ const SHOTS = [
 		selector: ASSET_LIBRARY_VIEW,
 		width: 460,
 	},
+	// AD18-R18's Grid view (Task 11): the tile layout with its category sidebar shown at rest, a
+	// URL nothing reached before this task — `mountAssetLibraryHarness` had no `&layout=` knob.
+	// `.rp-al-tile` is drawn by the Grid branch alone (`AssetLibraryBody.vue`'s `v-else`), so a
+	// knob that quietly stayed on List would time out rather than photograph the resting List
+	// under this name; `.rp-al-categories` is the sidebar the funnel controls, shown by default in
+	// Grid at this width (`useCategorySidebar.ts`'s `wanted`).
+	{ name: 'asset-library-grid', query: '?view=asset-library&layout=grid', selector: [ASSET_LIBRARY_VIEW, '.rp-al-tile', '.rp-al-categories'] },
+	{ name: 'asset-library-grid-light', query: '?view=asset-library&layout=grid&theme=light', selector: [ASSET_LIBRARY_VIEW, '.rp-al-tile', '.rp-al-categories'] },
 	// The harness's own index — the one surface here this command could not photograph. That is
 	// not a gap worth leaving in a tool whose whole argument is that a capture read by eye
 	// reaches defects no gate can: the index's own chrome went unlooked-at while it accumulated

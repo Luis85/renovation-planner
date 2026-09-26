@@ -46,6 +46,7 @@ import { installObsidianDom } from '../../helpers/dom';
 import { installResizeObserver, placeAt, resizeTo } from '../../helpers/layout';
 import { recorder } from '../../helpers/logger';
 import { settle, settleUntil } from '../../helpers/editor';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 installObsidianDom();
 installCanvas();
@@ -81,7 +82,7 @@ const fileListeners = new Set<(path: string) => void>();
 function context(design: AssetDesignDto, vault: BackgroundVault): AssetDesignerContext {
 	return {
 		assetId: String(design.assetId),
-		queries: { getAssetDesign: () => Promise.resolve(ok(design)) },
+		queries: { getAssetDesign: () => Promise.resolve(ok(design)), listPlansUsingAsset: unwiredPlanUsage },
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		picker: null,

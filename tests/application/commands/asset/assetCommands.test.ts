@@ -97,6 +97,85 @@ describe('CreateAssetCommand', () => {
 		if (error.ok) return;
 		expect((error as { error: { code: string } }).error.code).toBe('asset.negative-unit-cost');
 	});
+
+	/**
+	 * AD07 implementation item 3's optional descriptive height, which had nowhere to travel
+	 * until `CreateAssetInput` declared the field (Amendment 1: the binding constraint was a
+	 * lease, not a line budget). DESCRIPTIVE only — contract C07 reads "Height remains
+	 * stored/shown/exported but is not an input to vertical clash checks" — so these cases
+	 * assert that the number arrives and that `checkHeight` still owns what a height may be.
+	 * Nothing here computes with it, and nothing should.
+	 */
+	it('carries an optional descriptive height through to the created asset', async () => {
+		const w = await requirementFixture();
+		const command = new CreateAssetCommand(w.assets, w.events);
+		const result = await command.execute({
+			name: 'Wall unit',
+			category: 'material',
+			unit: 'piece',
+			unitCostAmount: '2.50',
+			currency: 'EUR',
+			height: 900,
+		});
+		expect(expectOk(result).height).toBe(900);
+		const stored = expectOk(await w.assets.getById(expectOk(result).id));
+		expect(stored?.entity.height).toBe(900);
+	});
+
+	it('creates an asset that says nothing about its height when none is given', async () => {
+		const w = await requirementFixture();
+		const command = new CreateAssetCommand(w.assets, w.events);
+		const result = await command.execute({
+			name: 'Grout',
+			category: 'material',
+			unit: 'piece',
+			unitCostAmount: '2.50',
+			currency: 'EUR',
+		});
+		expect(expectOk(result).height).toBeNull();
+	});
+
+	/**
+	 * `Asset.create` runs before `this.assets.save`, so a refused height leaves the vault
+	 * untouched — which is what lets `NewAssetForm` route the two height codes with no
+	 * preflight of its own. The list assertion is the half that would go quiet if the order
+	 * in `execute` ever changed.
+	 */
+	it('refuses a negative height before anything is written', async () => {
+		const w = await requirementFixture();
+		const before = expectOk(await w.assets.listAll()).loaded.length;
+		const command = new CreateAssetCommand(w.assets, w.events);
+		const error = expectErr(
+			await command.execute({
+				name: 'Impossible',
+				category: 'material',
+				unit: 'piece',
+				unitCostAmount: '2.50',
+				currency: 'EUR',
+				height: -5,
+			}),
+		);
+		expect(error.code).toBe('asset.negative-height');
+		expect(expectOk(await w.assets.listAll()).loaded).toHaveLength(before);
+	});
+
+	it('refuses a non-finite height under its own code, never the negative one', async () => {
+		const w = await requirementFixture();
+		const command = new CreateAssetCommand(w.assets, w.events);
+		const error = expectErr(
+			await command.execute({
+				name: 'Impossible',
+				category: 'material',
+				unit: 'piece',
+				unitCostAmount: '2.50',
+				currency: 'EUR',
+				height: Number.NaN,
+			}),
+		);
+		// `NaN < 0` is false, so a single sign gate would have let this through — `checkHeight`'s
+		// own docblock records that as the reason the two codes are separate.
+		expect(error.code).toBe('asset.invalid-height');
+	});
 });
 
 describe('DeleteRequirementCommand', () => {

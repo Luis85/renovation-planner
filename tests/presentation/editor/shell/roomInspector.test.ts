@@ -160,11 +160,13 @@ describe('the Room Inspector, through the real mounted editor', () => {
 	});
 
 	/**
-	 * `ZoneLockRow`'s badge branch and `ZoneLockToggle`'s pressed state, unit 3 of this fix
-	 * round's findings: neither had a direct Inspector-level assertion before, only coverage
-	 * inherited through `zoneLock.e2e.test.ts`'s single locked-then-undo path.
+	 * `ZoneLockRow`'s badge branch and `ZoneLockToggle`'s state, unit 3 of this fix round's
+	 * findings: neither had a direct Inspector-level assertion before, only coverage inherited
+	 * through `zoneLock.e2e.test.ts`'s single locked-then-undo path. The toggle carries its state
+	 * in its swapping NAME and its glyph and in no `aria-pressed` (AD18-R23): the pair announced a
+	 * locked zone as "Unlock Kitchen, toggle button, pressed".
 	 */
-	it('shows the Locked badge and a pressed toggle for a locked zone, and neither for an unlocked one', async () => {
+	it('shows the Locked badge and an Unlock toggle for a locked zone, and a Lock toggle for an unlocked one', async () => {
 		const locked: ZoneDto = { ...FIXTURE_ZONES[0], locked: true };
 		harness = await mountPlanEditorCanvas({ zones: [locked, FIXTURE_ZONES[1]] });
 
@@ -172,13 +174,19 @@ describe('the Room Inspector, through the real mounted editor', () => {
 		await settle();
 		const lockedRoom = harness.wrapper.find('.rp-room-inspector');
 		expect(lockedRoom.find('.rp-editor-inspector-locked').text()).toBe(t('en', 'editor.input.locked'));
-		expect(lockedRoom.get('[data-rp-lock="zone-kitchen"]').attributes('aria-pressed')).toBe('true');
+		const unlock = lockedRoom.get('[data-rp-lock="zone-kitchen"]');
+		expect(unlock.attributes('aria-label')).toBe(t('en', 'editor.input.unlock', { name: 'Kitchen' }));
+		expect(unlock.attributes()).not.toHaveProperty('aria-pressed');
+		expect(unlock.find('.lucide-lock').exists()).toBe(true);
 
 		useSelectionStore().select(['zone-terrace' as never]);
 		await settle();
 		const unlockedRoom = harness.wrapper.find('.rp-room-inspector');
 		expect(unlockedRoom.find('.rp-editor-inspector-locked').exists()).toBe(false);
-		expect(unlockedRoom.get('[data-rp-lock="zone-terrace"]').attributes('aria-pressed')).toBe('false');
+		const lock = unlockedRoom.get('[data-rp-lock="zone-terrace"]');
+		expect(lock.attributes('aria-label')).toBe(t('en', 'editor.input.lock', { name: 'Terrace' }));
+		expect(lock.attributes()).not.toHaveProperty('aria-pressed');
+		expect(lock.find('.lucide-lock-open').exists()).toBe(true);
 	});
 
 	/**

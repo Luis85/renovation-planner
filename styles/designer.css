@@ -93,9 +93,9 @@
  */
 /*
  * REVIEWED CLONE, and the canonical statement of why — every other instance points here.
- * `fallow-ignore-next-line code-duplication` below, at this and at four sibling rules
- * (`.rp-context-bar__button`, `.rp-primary-actions__button`, `.rp-layer-list__action`,
- * `.rp-unsupported-width__action`, `.rp-designer-edit-dimensions`).
+ * `fallow-ignore-next-line code-duplication` below — ELEVEN directives on TEN rules across seven
+ * partials, counted and not listed, because this sentence said "four" while spelling five and then
+ * predated two more. `grep -rn "fallow-ignore-next-line code-duplication" styles/` is the list.
  *
  * This project's flat button is written once per COMPONENT and cannot be written once for all
  * of them. A shared `.rp-flat-button` scores (0,1,0) and loses outright to Obsidian's own
@@ -115,8 +115,9 @@
  * paragraph to sever: `.rp-task-banner__cancel`/`__finish` in `editor-task-bar.css` and
  * `.rp-overlay-panel__close`/`.rp-inspector-drawer__close` in `editor-layout.css`.
  */
-/* fallow-ignore-next-line code-duplication */
 .rp-designer-tools .rp-designer-tool-button {
+	/* Above the DECLARATION, never the selector; `designer-add.css` carries the measurement. */
+	/* fallow-ignore-next-line code-duplication */
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);
@@ -206,8 +207,12 @@
 /*
  * Task B8's region. A width rather than a flex basis, and a border on the leading edge, so the
  * canvas keeps every pixel the inspector does not claim — the shape `editor.css` gives the plan
- * editor's own panels. Narrower than the Plan Editor's 17rem: this panel holds one field and a
- * two-line dimensions block rather than a Requirements list.
+ * editor's own panels. Narrower than the Plan Editor's 17rem — and the reason once given for
+ * that, "one field and a two-line dimensions block rather than a Requirements list", is stale:
+ * `DesignerInspector.vue` composes eight child panels now, counted from its own imports. What
+ * still justifies 14rem is that none of them is scanned horizontally, so the `overflow-y: auto`
+ * below absorbs the growth the width does not. Measured at 460px on a two-plan asset with no
+ * dimensions yet, the last action sits at the fold — a prominence cost, not a reachability one.
  */
 .rp-designer-inspector {
 	flex: 0 0 auto;
@@ -266,10 +271,19 @@
  * (0,1,1), which outranks a bare class at (0,1,0) regardless of source order — the exact defect
  * `.rp-editor-inspector-delete` shipped once and this file's own toolbar rules already avoid.
  */
+/*
+ * ONE of the original four selectors is left, and each of the three went to the panel that took
+ * its button: `.rp-designer-open-library` and `.rp-designer-use-plan` to the header
+ * (`DesignerHeader.vue`, `styles/designer-header.css`), and `.rp-designer-start-preset` to the
+ * `Add` rail (`DesignerAddPanel.vue`, `styles/designer-add.css`) at AD18-R6. Each is dropped
+ * here rather than left as a selector matching nothing — `grep -rn "rp-designer-start-preset"
+ * src/ styles/` prints six lines in this edit: the rail's button, the rail's three rules, and
+ * these two sentences. Nothing under `.rp-designer-inspector` is among them, which is the claim,
+ * and the prose lines are counted in rather than left out of the sentence describing the grep.
+ */
 /* REVIEWED CLONE: the bordered variant with a leading `width`/`margin` — the flat button is per-component by
    necessity; the argument is on `.rp-designer-tool-button`, above in this file. */
-.rp-designer-inspector .rp-designer-edit-dimensions,
-.rp-designer-inspector .rp-designer-start-preset {
+.rp-designer-inspector .rp-designer-edit-dimensions {
 	width: 100%;
 	/* The reviewed clone starts at margin; target the declaration rather than the selector. */
 	/* fallow-ignore-next-line code-duplication */
@@ -286,14 +300,12 @@
 	cursor: pointer;
 }
 
-.rp-designer-inspector .rp-designer-edit-dimensions:hover,
-.rp-designer-inspector .rp-designer-start-preset:hover {
+.rp-designer-inspector .rp-designer-edit-dimensions:hover {
 	background-color: var(--background-modifier-hover);
 }
 
 /* The ring, for the reason `editor.css`'s toolbar `:focus-visible` comment gives at length. */
-.rp-designer-inspector .rp-designer-edit-dimensions:focus-visible,
-.rp-designer-inspector .rp-designer-start-preset:focus-visible {
+.rp-designer-inspector .rp-designer-edit-dimensions:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 }
@@ -376,7 +388,13 @@
 	color: var(--text-muted);
 }
 
-/* The grid step: a standing fact about the view, muted like the hint beside it. */
+/*
+ * The grid step: a standing fact about the view, muted like the hint beside it.
+ *
+ * **`.rp-designer-zoom` left this rule at AD18-R16's Task 1**: that class named the status
+ * region's `Zoom NN%` span and now names the toolbar's zoom-cluster group instead, whose own
+ * layout lives in `styles/designer-toolbar.css` — left in, it reached that unrelated div.
+ */
 .rp-designer-grid-step {
 	color: var(--text-muted);
 }

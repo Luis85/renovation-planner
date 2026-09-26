@@ -1,0 +1,95 @@
+/*
+ * AD07's PRESET GALLERY — the grid of thumbnail buttons `AssetPresetForm.vue` draws inside the
+ * preset dialog, in place of the `<select>` it replaced.
+ *
+ * Its own partial rather than more of `styles/designer.css`, for three reasons and the first is
+ * the one that decides: `styles/` partitions by SURFACE, and a dialog-scoped gallery is not the
+ * designer shell. `designer.css` is also AD06's file in AD01 §2, lent to this wave rather than
+ * given; and it stood at EXACTLY the assembler's 400-line cap (`scripts/styles-assemble.mjs`,
+ * `MAX_LINES`) with these rules in it, so the next line anyone added to that partial failed
+ * `npm run build` rather than a test.
+ *
+ * Imported AFTER `designer.css`, which is load-bearing rather than incidental:
+ * `.rp-preset-gallery .rp-asset-preset-preview` below and `.rp-asset-preset-form
+ * .rp-asset-preset-preview` there both score (0,2,0) and both match a thumbnail, so the
+ * thumbnail's 48px beats the live preview's 160px by SOURCE ORDER alone. Moving this import
+ * above `designer.css` would give every thumbnail the full preview height and fail no gate.
+ */
+.rp-preset-gallery {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+	gap: var(--size-4-1);
+}
+
+/* One thumbnail button per preset, the chosen one ringed. */
+.rp-preset-gallery .rp-preset-choice[aria-pressed='true'] {
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+/*
+ * THE RING THE RULE ABOVE TAKES AWAY, given back (AD07 review, FIX 1).
+ *
+ * Obsidian's own focus ring for a button IS a `box-shadow`, at `button:focus-visible`, specificity
+ * (0,1,1) — its global `:focus { outline: none }` has already taken the outline. The pressed rule
+ * above scores (0,3,0) and sets `box-shadow` unconditionally, so on the one button in the gallery
+ * carrying `aria-pressed="true"` it REPLACES the host's ring: that button then looks identical at
+ * rest and when tabbed to, and a keyboard user cannot see where they are. It is the same defect
+ * `styles/asset-row.css` records for `.rp-al-row--on`, and `tests/gates/buttonFocusRing.test.ts`
+ * reported this file's own selector by name before this rule existed.
+ *
+ * An `outline` rather than a layered shadow, which is the spelling every other control in `styles/`
+ * uses: it is a DIFFERENT property, so it neither replaces the pressed ring nor is replaced by it,
+ * and at (0,2,0) it beats the host's `:focus` outline reset. Unscoped by the gallery on purpose —
+ * `.rp-preset-choice` is drawn nowhere else, and an unconditional ring covers the pressed site and
+ * every unpressed button alike.
+ */
+.rp-preset-choice:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+/*
+ * THE THUMBNAIL HAS TO FIT IN THE BUTTON, and until this rule existed it did not.
+ *
+ * Found by a user walking the live vault, reported as "the preview images for presets look strange
+ * as they are inside buttons and overlapping them", and reproduced against this stylesheet and the
+ * vendored `obsidian.css` in the browser harness before a line was changed. Obsidian's own `button`
+ * rule — not this project's — sets `height: var(--input-height)` (30px), `display: inline-flex`,
+ * `flex-direction: row` and `white-space: nowrap`, and `.rp-preset-choice` overrode none of them
+ * while putting a 48px picture and a label inside one.
+ *
+ * Measured, at a 300px form: the button computed 30px tall against a 48px thumbnail, so the picture
+ * hung NINE pixels out of it at the top and nine at the bottom, over the gallery's 4px grid gap and
+ * into the neighbouring row. The row direction did the rest — the thumbnail's `width: 100%` shrank
+ * against a `nowrap` label, to 43px on a short one, 62px on another and to exactly ZERO on
+ * "Peninsula worktop with return", whose label then overflowed the button by 16px. A thumbnail that
+ * is 48 by 0 is the "look strange" half and the overhang is the "overlapping" half; they are one
+ * cause.
+ *
+ * Three declarations, each answering one of those defaults, and none of them cosmetic. `height:
+ * auto` lets the button be as tall as what it holds; `column` stacks the picture over its label,
+ * which is also the reading order; `normal` lets a long label wrap instead of spilling. With them
+ * the same three buttons measure 77px, 77px and 94px tall with the thumbnail inside on all four
+ * sides and no text overflow — measured the same way, in the same session.
+ *
+ * **No gate here can see any of it**, which is why a user found it: jsdom computes no layout, so
+ * every `.rp-preset-choice` case in `tests/presentation/designer/assetPresetForm.test.ts` passes
+ * either way — that file's 20 tests are green with this rule and without it, measured.
+ * `tests/gates/buttonBoxNeutralised.test.ts` therefore checks the DECLARATIONS rather than the
+ * picture, and says so in its own header — it is a narrower claim than "the thumbnail fits" and is
+ * written as one. That file was watched failing on all three declarations with this rule reverted.
+ */
+.rp-preset-gallery .rp-preset-choice {
+	height: auto;
+	flex-direction: column;
+	white-space: normal;
+}
+
+/*
+ * `flex: none` because a column flex item with a fixed height is still shrinkable, and a
+ * `minmax(6rem, 1fr)` column plus a wrapped label is exactly the pressure that shrinks one.
+ */
+.rp-preset-gallery .rp-asset-preset-preview {
+	height: 48px;
+	flex: none;
+}

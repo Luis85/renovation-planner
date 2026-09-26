@@ -1,0 +1,737 @@
+# The deferred manual pass
+
+**Decision, 2026-09-21 (session eleven), taken by the user: every vault check in this package is
+deferred to ONE terminal pass.** No wave asks for a walk while agent-closable work remains. This
+file is the index of what that pass will be; it is deliberately **not** a copy of any step, because
+a second copy of a procedure is one that disagrees with the first.
+
+## Why batch them
+
+A walk costs user time and nothing else can buy it. Spending it mid-package pays for a picture of a
+tree that later waves then change — U04's walk on 2026-09-21 confirmed seven steps against a build
+three integration SHAs old, and every one of them has to be read as a fact about that build. Batched
+at the end, one walk grades a tree nobody is still editing.
+
+The cost of NOT batching is real too and is named here rather than glossed: a defect a walk would
+have found survives longer, and this repository's record is that its sharpest defects were fakes
+accepting what Obsidian refuses, with every gate green. **That trade was made deliberately, not
+overlooked.**
+
+## What the pass consists of
+
+**This pass now means the human steps only — 26 across seven cases, today. It was 241 before this
+round.** AD18-R26 to AD18-R29 (2026-09-26) audited every clause of every one of the 241 steps
+against the *Automated in Obsidian* tables, built what a vitest or a real host could still close,
+and retagged a step to a new `e2e` tier the moment none of its clauses is left open — needing
+Obsidian exactly as `obsidian` does, but discharged by a named test (vitest or `npm run test:e2e`)
+per clause, with at least one clause needing the real host. **Not every clause behind that retag was
+watched red under a mutation**: a clause this round built or closed was; a clause already carried by
+a pre-existing test was audited by reading the test body, and only sampled by mutation — 29 clauses
+were mutated and 7 of those 29 did not go red, all seven since corrected. The counting command below
+has only ever matched `obsidian`, `desktop` and `judgement`, so an `e2e` step falls out of the total
+by construction rather than by anyone re-reading a table and deciding a row felt done. See
+"AD18-R26 to AD18-R29" further down for the per-case accounting and the new test files; the
+paragraphs between here and there are the history of how the count grew to 241 and are unchanged by
+this round.
+
+**241**, re-derived on 2026-09-25 against the finished AD18-R24 tree (a second follow-up round
+triaging the AD18-R23 follow-up round's own recorded items at source: a false-refusal fix in core
+geometry, a warning for a typed size that lands away from what was typed, and one shared
+disclosure-chevron rule), was itself measured rather than remembered, with the command run verbatim
+as it is printed — **do not trust either number; run the command.** The full series: it has been
+84, then 90, then 109, then 145, then 179, then 182, then 205, then 206, then 215, then 232, then
+241, and now **26** — every earlier move on this list was a session that had just shipped a
+feature and grown the walk to match it (or, three times, corrected a wrong count); this is the
+first move the other way, because this round shipped no feature at all, only an audit and a retag:
+
+```bash
+for f in "Design an Asset" "Take an asset from the library into a plan" \
+         "Compose an asset from parts" "Calibrate a sheet and reserve space" \
+         "Recover an asset design rather than lose it" "Two designers on one asset" \
+         "Browse the asset library"; do
+  printf "%-46s %s\n" "$f" \
+    "$(grep -cE '^\| [0-9]+[a-z]? \| `(obsidian|desktop|judgement)` \|' "docs/tests/cases/$f.md")"
+done
+```
+
+**[[Browse the asset library]] joined the command and the table below in the AD18-R18 round.**
+That case's Grid view was the first user-visible change this package had made to it, and a case
+the command does not name is a case whose steps never reach this total — the same mistake naming a
+case here guards against for the other six.
+
+**The table below is the 2026-09-25 snapshot this pass carried before this round's retag** —
+111/19/23/27/33/8/20, summing to 241 — kept as the record of how the walk grew to that number.
+"AD18-R26 to AD18-R29", further down, has the current per-case numbers (11/1/0/2/5/1/6, summing to
+26) and is where a reader wants the count from today.
+
+| Case | Human steps (2026-09-25) | Of total | Discharges |
+|---|---|---|---|
+| [[Design an Asset]] | **111** | 157 | U01 (with the next row) |
+| [[Take an asset from the library into a plan]] | 19 | 28 | U01, T34 |
+| [[Compose an asset from parts]] | **23** | 64 | U02, U03 (its Repeat section) |
+| [[Calibrate a sheet and reserve space]] | **27** | 58 | U04 — **7 already confirmed**, see below |
+| [[Recover an asset design rather than lose it]] | 33 | 42 | U05 |
+| [[Two designers on one asset]] | 8 | 16 | T12 |
+| [[Browse the asset library]] | 20 | 37 | AD18-R18 (Grid view), AD18-R20/R21 Task 8 |
+
+**What session fourteen ADDED, and why the total moved from 90 to 109.** A session that ships a
+feature grows the walk, and saying so is part of shipping it. **Nineteen new steps**, in two
+sections, and the sections matter more than the number.
+
+- **Thirteen in [[Design an Asset]], for dimensions on canvas** — the approved 2026-09-15 spec's
+  **increment 2**, the last of that iteration's three and the headline of this session. **Nothing in
+  it has been seen in Obsidian.** It was drawn and measured in the browser harness, which applies
+  layout but is not a vault. **Two of the thirteen are regression guards rather than first
+  sightings**, and both cover defects a review caught before merge: step 63, that typing back the
+  number a field already shows writes nothing and pushes no undo entry (C03), and step 67, that
+  every dimension label disappears under a draw tool — without which a press on the footprint's top
+  or left edge, exactly where a user traces, is taken by a button and the gesture never starts.
+  **Step 70 is a `judgement` step over a known residual**: a browser pass measured 14 overlapping
+  pairs and **two of 26 labels with no clickable point at all**, and that step is where a person
+  says whether what is left matters.
+- **Six in [[Recover an asset design rather than lose it]], for the stale notice's `Try again`**
+  (**AD18-R13**). **This state cannot be reached by any instrument except a person in a vault** —
+  `tests/harness/page.ts` passes its `stale` knob to the PLAN EDITOR branch only, so no fixture and
+  no capture can draw it. Step 35 is the one to read first: it guards the defect the card blocked
+  itself on rather than shipping, where a retry wired to the blanking read would have replaced a
+  design the vault still holds with the failure panel. Step 34 is a `judgement` over **AD18-R15**,
+  because the button first rendered the full width of the leaf and a person is the only judge of
+  whether the fix reads as an action.
+
+**Three steps were REWRITTEN rather than added, and this is the half that will otherwise waste your
+time.** Steps 10 and 12 of [[Recover an asset design rather than lose it]] and its out-of-scope
+bullet all said the designer has no `Try again`. It has one now. **Step 10's old text would fail a
+passing build** — it read *"There are none"* — and step 12's expectation is UNCHANGED while only
+its reason was false: that notice still heals unprompted, and pressing the button to clear it would
+itself be a defect.
+
+**Two reductions apply and both are already recorded in the cases themselves.** U04's steps 3, 7, 9,
+12, 13, 14 and 34 were confirmed in a live vault on the `test-build` of `c69ec364d`, so only its
+step 32 (needs a screen reader) and its seven `browser` steps remain — and those seven are
+structurally unreachable while `tests/harness/assetDesigner.ts` sets `background: null`. And
+**[[Two designers on one asset]] step 11 is the same walk as [[Recover an asset design rather than
+lose it]] step 17** — walk one, not both.
+
+**What session fifteen ADDED, and why the total moved from 109 to 145.** Session fifteen's Task 13
+closed the AD18 parity round (AD18-R16, twelve source changes landed as one package), and every one
+of them is a first sighting — none has been seen in Obsidian. **Thirty-six new steps, all but two in
+[[Design an Asset]]'s own new section.**
+
+- **Thirty-four in [[Design an Asset]]'s new "the parity round (AD18-R16)" section (steps 72–104,
+  including 96a)**, covering all twelve tasks: the header's `← Back to library` door (72–73), the
+  Add rail's labelled tiles (74–76), the toolbar's zoom cluster (77–80), the canvas legend (81–85),
+  Height beside Dimensions (86), the Inspector's asset card (87–88), the canvas/Parts-row context
+  menu including the keyboard-only group shortcuts and the one row only a vault can answer — whether
+  an un-consumed Ctrl+G reaches Obsidian's own graph-view hotkey, from the canvas (96) and again from
+  a Parts row after closing the menu with Escape (96a) — (89–97), the rounded-rectangle Corner radius
+  field (98–102, with step 102 a `judgement` rather than a pass/fail: its outcome is known and
+  recorded, but whether it is the RIGHT outcome is a ruling still pending), and two `judgement` steps
+  over whether Tasks 5, 6, 7 and 9 together read as board 01's own inspector, and whether the Add
+  rail's and Arrange panel's new icons read as what they do without hovering (103–104).
+- **Two in [[Calibrate a sheet and reserve space]]**: step 15a, that the Placement group's `Custom`
+  segment hands off to the real `Set anchor` tool and becomes the pressed segment once the anchor
+  sits at neither preset; and step 15b, whether a KEYBOARD-only user can complete that same gesture
+  at all — `SetAnchorTool` commits on `pointerDown`, so this is the first time that question has been
+  asked of a keyboard rather than assumed answered by the numeric fields beside it.
+
+**Every OTHER row this round touched was REWRITTEN, not added — its step number is unchanged, and
+its own text says so. Read this before walking any of them, across three cases.**
+
+- **[[Calibrate a sheet and reserve space]] step 15**: the old two-row `<dl>` ("Placement point: …"
+  text plus two plain buttons) is gone, replaced by AD18-R16 Task 8's three-button `role="group"`
+  segmented control (Back centre, Centre, Custom); steps 20, 21 and 24 also lost their old field
+  labels ("In front", "Behind", "To its left", "To its right" as VISIBLE text) to Task 5's compact
+  rows — the full sentences are now each field's accessible name, and the "Behind" field's full
+  sentence itself changed too, to "At the back" (a concurrent fixer's own label-containment pass);
+  the visible short labels are Front, Back, Left, Right.
+- **[[Compose an asset from parts]] steps 12, 18, 19, 21, 24, 26, 27, 28, 29 and 31**: step 12's
+  "Select multiple parts" checkbox moved from the Inspector to the Parts panel (Task 7); steps 18,
+  19, 21, 28 and 29 lost their align/distribute buttons' visible text to Task 10's icon-only row —
+  each is found by its tooltip or accessible name now; steps 24 and 26 each gained an explicit
+  "open the disclosure first" action, since Task 6 folded the Transform and Repeat sections behind
+  closed-by-default `<details>`; step 27 notes the Repeat disclosure opened at step 26 stays open;
+  and step 31's toolbar tool list gained the zoom cluster between Undo/Redo and View (Task 1).
+- **[[Take an asset from the library into a plan]] step 12**: its 2026-09-20 amendment already
+  pointed at the header for both doors; this round only changes the library door's own text, to
+  "← Back to library" with an arrow-left icon, clipped below a sidebar width rather than removed.
+
+**What the second parity round (AD18-R17/R18/R19) ADDED, and why the total moved from 145 to
+182.** Task 12 of that round's own plan wrote these steps against the merged tree of 2026-09-23,
+Tasks 1–11, verified at source rather than from the plan alone, **then a review round added
+three more** (named at the end of this list) once it found this file's first draft understating
+one behaviour and inventing a mechanism that does not exist. **Thirty-seven new steps across
+four cases**, all `obsidian` except one already-`judgement` row this round turned deterministic
+(see below):
+
+- **[[Design an Asset]] gained ten**: `59a` (the overall width/depth labels sitting OUTSIDE the
+  footprint where there is room, AD18-R17 Task 8); `71a` and `71b` (the resting dimension-label
+  overlap floor re-measured at four leaf widths, and a label painting above the canvas key rather
+  than under it, both Task 8); `85a` (the legend's Clearance row following a live drag preview,
+  Task 6); `88a` and `88b` (the header's own "Saved just now" and the fact its region is NOT live,
+  so nothing here is ever announced, AD18-R19); `90a` and `90b` (Ctrl+G/Ctrl+Shift+G now working
+  from a focused Parts row too, and never while typing in its Label field, Task 3); `98a` (the
+  Corner radius slider committing on release, not on drag, Task 4); and `102a`, a NEW known-gap
+  row — a canvas HANDLE resize still drops the Corner radius, which Task 4's own fix does not
+  reach. **Step 102 itself changed KIND, not only text**: it was a `judgement` row in the AD18-R16
+  section because whether a rounded rectangle should survive a Width/Depth edit was a pending
+  ruling; AD18-R17 Task 4 closed that ruling, so 102 now states a deterministic pass condition and
+  102a carries the one door left open.
+- **[[Calibrate a sheet and reserve space]] gained nine**: `15c` (the Placement point group's
+  "Custom" label no longer breaking mid-word, a regression guard for a defect this same round
+  found and fixed); `21a` through `21e` (the new **Show clearance** switch — its default, what
+  turning it off hides, the three gestures that re-show it, and two NAMED known-gap rows: undo,
+  redo and a vault refresh can bring a clearance back still hidden, and switching it off mid-trace
+  keeps the eventual commit hidden); `21f`, from the review round (a hidden-but-SELECTED clearance
+  keeps its own selection outline and handles, and a handle drag still resizes it — `DesignerCanvas.vue`
+  gates the `asset-clearance` layer on `showClearance` but not the `asset-selection` layer beside
+  it, and `hitDesign` checks a handle before it checks `clearanceHidden`); and `37`/`38` (the
+  read-only **Source & scale** block, Task 5, read for a typed footprint and for a
+  traced-and-uncalibrated one).
+- **[[Compose an asset from parts]] gained one**: step 39, that a HIDDEN part which is deleted and
+  then undone comes back VISIBLE rather than hidden — a recorded, accepted residue of Task 3's
+  leaf-local pruning, not a defect.
+- **[[Browse the asset library]] is newly counted in the command for the first time — 17 rows,
+  not all of them new writing.** Only **12** of those 17 are steps WRITTEN this round: the
+  original ten (steps 19–20, 22–24, 26–31 — 19, 21 and 25 are `suite`/`browser` and do not count)
+  plus two the review round added, `24a`/`24b`. **The other five (steps 1, 3, 11, 16, 17) already
+  existed** and are counted here only because the case itself had never been listed in the command
+  before AD18-R18 gave it its first change. What the 12 written rows cover: AD18-R18's Grid view
+  end to end — the Grid/List toggle defaulting to List, a tile sharing the list row's own mark and
+  size wording, the category sidebar's open vocabulary and its icons, the funnel door and its
+  narrow-width auto-hide, the "Show all categories" empty-state action's own focus rule (the
+  pressed "All" button when the sidebar is showing, the search field when it is not — `24a`/`24b`),
+  the Create-your-own card, the filter reaching the search count and the empty state together, and
+  the chosen view and category surviving a close-and-reopen through Obsidian's own view state
+  without becoming a navigation. **One claim in the first draft named a mechanism that does not
+  exist and the review round removed it**: selecting a tile does not narrow the pane or hide the
+  sidebar on its own — the ONLY hide rule is the `@container rp-al (width < 35rem)` query on the
+  whole pane (`styles/asset-library-grid.css:324-335`; the container itself at
+  `styles/asset-library.css:48`), and step 27 now says so rather than describing a
+  selection-driven trigger that was never in the code.
+
+**Two rows were REWRITTEN rather than added, plus two whole sections' worth of "rows this round
+makes false" the previous round's own hand-off named directly.** [[Design an Asset]] steps 5 and
+23 (the toolbar's tool-list overview and its narrow-sidebar behaviour) no longer describe a
+wide-width text label at all — AD18-R17 Task 2 retired it, so both rows now describe an icon-only
+toolbar at every width. Step 77 keeps its shape and adds that the zoom icons are now magnifiers,
+not the previous round's bare circled minus/plus. Steps 29–31 and 39, and their own preceding
+preamble paragraph, are the promised fix for the hand-off naming them: "Horizontal centre" and
+"Vertical centre" were never the field names AD18-R17 Task 4 shipped — the paired rows read **X**
+and **Y** under a "Position" heading, and Width/Depth under a "Size" heading, with Line and
+Order folded shut beneath them. Steps 81–85 (the legend) each gained the parenthetical detail and
+the new scale bar Task 6 draws beside them, without changing what each row's own subject is.
+[[Calibrate a sheet and reserve space]] steps 15, 18 and 20 are the other three named directly:
+15 replaces the retired "Toward the …" sentence with the new Front-direction picker described
+above; 18 replaces the deleted "45° from …" fallback (and the test it cited) with the picker's
+Custom state and its preview's actual angle; 20 quotes the Clearance hint's CURRENT wording
+("What you enter here…", not "These four numbers…") and adds the All-sides field and the
+Advanced fold around the four it already named. [[Notices and save state]] rows 13a, 14, 17 and
+18 are the fourth: each expected a bare **"Saved"** immediately after a write, which AD18-R19
+replaces with **"Saved just now"** on the visible text (a screen reader still hears only "Saved",
+which is why the rows say so explicitly now, rather than leaving the two readings to be
+conflated) — 18 also drops the claim that "the other stays Saved" universally, since a second
+leaf that has already saved this session shows its OWN relative reading instead. Two further rows,
+18a and 18b, are new rather than rewritten: the minute tick advancing "just now" to "1 min ago" on
+its own, and a screen reader hearing nothing when that tick fires. **The review round corrected
+one more claim in row 13a**: its first draft said the second, idempotent write "returns to Saved
+just now too", which overstates the code — `settle()` only stamps `savedAt` when the batch held a
+real write (`save-state-store.ts:100-109`), so the neutral second assignment leaves the clock
+exactly where the first write set it rather than restarting it, and the row now says that.
+
+**What the AD18-R20/R21 polish round (Task 10) ADDED and REWROTE, and why the total moved from
+182 to 205.** This round fixed a defect the user hit in a real vault — grouping did nothing from
+the state the designer opens in — plus a batch of nine approved polish items, one declined
+(DECISIONS.md's own AD18-R20/AD18-R21 entries). **Twenty-three new HUMAN steps land inside the
+counted total, across the four of the seven cases this round touched** (Design an Asset,
+Compose an asset from parts, Calibrate a sheet and reserve space, Browse the asset library);
+[[Notices and save state]] gained two more `obsidian` rows of its own, outside the counted
+command's seven cases, so they move nothing above. A further six `suite`/`browser` rows were
+also added across those same four cases — real steps in their own files, just not counted toward
+this figure, the same convention every earlier round in this narrative follows. **Nine existing
+rows were REWRITTEN** because the round made their old text false.
+
+- **[[Compose an asset from parts]] gained eleven**, in a new "grouping from every door, and the
+  rest the designer opens in" section (steps 40–50): building a set from the Parts ROWS
+  themselves with Shift and with the "Select multiple parts" toggle (40–42, distinct from the
+  existing canvas-press steps 13–14); grouping from the state the designer now opens in with no
+  tool picked first (43, the reported defect's own reproduction); the Arrange panel's Group
+  button, the right-click menu on the canvas and on a Parts row, and Ctrl+G on the canvas and on a
+  Parts row, each confirmed reachable from **Pan** as well as from Select (44–49); focus landing on
+  the new group's own disclosure after a Group dispatched from a Parts row (48); and the
+  right-click menu refusing while a pan gesture is still in flight (50). One more, step 7a, guards
+  a generalised fix: a Parts-hidden (not only a clearance-hidden) selected graphic now draws no
+  outline or handles either, with the selection kept. Step 12a adds the "Select multiple parts"
+  checkbox's new focus ring and 24px row floor (Task 6). **Four rows were REWRITTEN**: steps 5, 6,
+  7 and 10, the Parts row's Hide/Show, Lock/Unlock, Isolate and Bring forward controls, are
+  icon-only now (AD18-R21 Task 7) — each row's old visible-text instruction ("press Hide") is
+  replaced with the icon, its tooltip and its accessible name, and two new rows (10a, 10b) cover
+  the row's own wrap at a narrow rail.
+- **[[Design an Asset]] gained eight**: 88c, a save from an earlier calendar day naming which day
+  on the designer's own header (AD18-R21 Task 9); 95a, Obsidian's own Ctrl+G recorded as NOT also
+  firing once the designer's own Ctrl+G had something to group (the companion case to the existing
+  step 96, which covers the opposite: nothing groupable, so the key passes through); 102b, the
+  Shift-held handle drag of a rounded rectangle scaling its radius WITH the box; and a new "the
+  polish round" section (105–109) covering the canvas's own focus ring (inset past the rulers,
+  Task 6's two fix rounds), the Add-rail's tiles now sharing one height across both rows (Task 6),
+  a curved detail's canvas-handle resize now solving like the Inspector's typed Width/Depth fields
+  rather than a plain scale (AD18-R20 Task 13), the small-drawing rule that rests only the overall
+  dimension pair below about 240px of footprint (AD18-R21 Task 5), and a `judgement` step
+  photographing an overall label slid past its own line's end on the toilet preset at a 1280px
+  leaf, against AD18-R14 (Task 5's last fix round). **Two rows were REWRITTEN**: 102a used to
+  record a known, accepted gap — a canvas handle drag of a rounded rectangle lost its radius — and
+  now states the fix (AD18-R21 Task 4 closes it, the identical clamp the typed path already used).
+  29d used to ask a walker to RECORD whether the Detail section's "Line" dropdown had themed
+  chrome or a bare browser default; Task 6 styled every designer `<select>`, so it is now a
+  deterministic pass condition rather than an open question.
+- **[[Calibrate a sheet and reserve space]] gained two, and rewrote three.** 21g is a NEW known-gap
+  row: a clearance REPLACED (not born from nothing) by an undo or redo while hidden still stays
+  hidden, which is the one case AD18-R20 Task 2's fix does not reach — the present-to-present blind
+  spot its own runtime docblock names. 21h adds the "Show clearance" switch's own focus ring and
+  row-height fix (Task 6). **Two rows FLIP from "known, accepted behaviour" to "now fixed", and one
+  stays a known gap with its reason corrected**: 21d (undo of a removal, or redo of a creation,
+  while hidden) used to say the clearance may come back still hidden — AD18-R20 Task 2's read-back
+  watch now re-shows it automatically, since that is a birth from nothing, not a replacement. 21f
+  (a hidden, selected clearance's own outline and handles) used to say they stayed drawn and
+  draggable — AD18-R20 Task 3 fixes this: nothing of the selection draws while it is hidden, and no
+  press reaches a handle. 21e (turning the switch off mid-trace, then finishing) is UNCHANGED in
+  outcome, but its citation is corrected to say why it is a replacement rather than a birth, which
+  is what keeps it different from 21d and 21g.
+- **[[Browse the asset library]] gained three**, in a new "the Grid view's polish round" section
+  (32–34): every tile's name and size now sharing the mark's own left edge, at one line and at two
+  (AD18-R20/R21 Task 8's alignment fix); a design-less tile's category-icon placeholder reading
+  quieter than a real design's mark (Task 8's own second fix round, after the integrator measured
+  the first version reading HEAVIER); and that placeholder matching its category's own sidebar
+  icon, from the one shared lookup both surfaces now read. One further `browser` row (35) is not
+  counted in the human total: a not-yet-read tile keeps drawing the pending-dots mark rather than
+  flashing the category icon.
+- **[[Notices and save state]] gained two, `obsidian` but outside the counted command's seven
+  cases** (this file's own command never named it, so neither addition moves the counted total):
+  18c, the same dated-save fix seen from the status bar rather than the designer header, and 18d,
+  the German word order for it ("Am 23. Sept. um 14:05 gespeichert").
+
+**Task 10's own review round then found one row wrong and corrected it, and a later fix wave
+(`3405aab95`) made three more rows' citations or claims false — the reason the total moved once
+more, from 205 to 206.** Every one of these is a CORRECTION to a row this same task wrote minutes
+earlier, not a new discovery about the shipped feature:
+
+- **[[Compose an asset from parts]] row 48 was CRITICAL-wrong.** It claimed focus after Group from
+  a Parts row's context menu lands on "the new Group row's own disclosure" — a target
+  `designerMenu.ts`'s `runAndRefocus` never hands focus to. Read at source, that function restores
+  focus to the row that opened the menu BEFORE running the action, and its only fallback once a
+  write drops that focus is the CANVAS (`.rp-plan-canvas`), because "the list itself is not a focus
+  target". The row is corrected to say canvas rather than invent a target the function does not
+  reach. A companion row, 49a, records the SEPARATE focus rule the Parts row's own Ctrl+G takes
+  (`DesignerPartsPanel.vue`'s `keepKeyboard`, a different function from the menu's), left as an
+  observe-and-record row since neither this task nor any test in the repository establishes
+  whether a just-grouped row's DOM node survives being re-nested (keeping focus) or is torn down
+  (dropping it to the nearest still-drawn row) — that is what pushed the count from 205 to 206.
+- **[[Design an Asset]] row 95a asserted a host behaviour no source here can establish**: that
+  Obsidian's own graph-view hotkey does NOT also fire once the designer's Ctrl+G has grouped
+  something. `designerShortcut`'s own docblock claims exactly that, but calling
+  `preventDefault()`/`stopPropagation()` on the Vue-observed DOM event is not proof of what
+  Obsidian's own hotkey manager does with the same keypress — the same reason step 96 was already
+  written as a recording rather than a pass condition, for the opposite precondition. Rewritten to
+  match.
+- **[[Design an Asset]] row 102b cited the wrong mechanism.** Read again at source, a Shift-held
+  handle drag never reaches `scaleRoundedRect` at all — `selectionDrag.ts`'s `draggedShape` takes
+  `options.shift ? null : keptCurves(...)`, so Shift falls straight through to the plain
+  `resizeBox`/`scaled` path in `shapeEdits.ts`, which happens to keep a rounded rectangle looking
+  round because a uniform scale carries its bulges' dimensionless ratio over proportionally — not
+  because of the domain "corner radius" concept at all. The row's pass condition was already true
+  (Task 4's own report names Shift as pre-existing, unchanged behaviour); only the citation was
+  wrong, and it is fixed in place.
+- **The fix wave `3405aab95` (landed after this task's own commit) made two more things false**:
+  it removed `aria-pressed` from the Parts row's Hide/Show and Lock/Unlock icon buttons (a review
+  finding that the swapping accessible name plus `aria-pressed` announced the SAME state twice with
+  OPPOSITE meanings — "Show, toggle button, pressed" reads as showing being ON), which rows 5, 6
+  and 7 of [[Compose an asset from parts]] had just documented as present; and it replaced the
+  Add-rail's `min-height: 73px` floor with `grid-auto-rows: 1fr` on the tiles' own grid, so every
+  row sizes to its own tallest tile's CONTENT rather than one English pixel measurement — [[Design
+  an Asset]] row 106 is corrected to match, and now asks a walker to compare across two languages
+  rather than just look at one fixed number.
+
+None of these five corrections added or removed a step from `docs/tests/cases/` on their own
+except 49a (new, to answer the coordinator's own follow-up request about the keyboard door) — the
+other four are citation and pass-condition fixes to rows this same task wrote, caught before the
+walk that would otherwise have found them wrong against a live vault instead.
+
+**AD18-R22 (Task 14) landed next, `ea7d3d6b4`, "a hidden but selected part refuses the selection
+keys and menu" — the reason the total moved once more, from 206 to 215.** It extends AD18-R20's
+undrawn-selection rule (row 7a's, and row 21f's, own subject: a selected part the canvas is not
+drawing keeps its selection but loses its outline and handles) from DRAWING to the KEYS and the
+MENU: while the FOCUSED selection is a hidden graphic or a clearance with Show clearance off, the
+arrows, Delete/Backspace, Ctrl+D and Ctrl+Shift+G do nothing and claim nothing (so the host may
+still act on the same keypress), and a right-click on the canvas or the part's own Parts row opens
+no menu. Group (Ctrl+G and the menu) refuses the moment ANY selected member is hidden, regardless
+of which one is focused — the one action that writes every member rather than the focused one
+alone. The Inspector's own Delete and Duplicate buttons are a deliberate carve-out: they call
+neither `selectionAbilities` nor the selection-key actions, so they keep acting on a part the
+canvas is not currently drawing.
+
+- **[[Compose an asset from parts]] gained seven**, all `obsidian`: 7b (every key and the menu
+  refusing on a hidden, selected graphic), 7c (the Inspector's Duplicate and Delete still acting on
+  it), 7d (Ctrl+D and Ctrl+Shift+G recorded as OBSERVE, since no source establishes whether
+  Obsidian's own bindings fire on an unclaimed key — the same treatment row 95a already took), 7e
+  (every door restored once the part is shown again), and 51-53 (the multi-selection split: Group
+  refuses over the whole set with any one member hidden, while Delete still acts on a visible
+  FOCUSED member even with a hidden one in the same selection, and refuses once the FOCUSED member
+  itself is the hidden one). **Row 39 was REWRITTEN**: it used to delete a hidden, selected part
+  with the Delete KEY, which is exactly the door AD18-R22 now refuses — it uses the Inspector's own
+  Delete button instead, and the outcome it was written to check (the part returns SHOWN, not
+  hidden, because hiding is pruned leaf-local state) is unchanged.
+- **[[Calibrate a sheet and reserve space]] gained two, both `obsidian`**: 21i (the same
+  keys-and-menu refusal for a hidden, selected clearance, restored once shown again — explicitly
+  NOT covering Ctrl+D/Ctrl+G/Ctrl+Shift+G, since the clearance never had those abilities in the
+  first place) and 21j (the Inspector's own Delete button still removing a hidden clearance). No
+  existing row in this case claimed a hidden clearance was reachable by a key, so nothing needed
+  rewriting here — row 21f already covered only the drawing half, which AD18-R22 does not touch.
+
+**AD18-R23 landed next — a follow-up round triaging the AD18-R21 polish round's own recorded
+items at source rather than fixing them on the spot — the reason the total moved once more, from
+215 to 232.** Four rulings (a clearance swap re-shows on any read-back that changes its GEOMETRY,
+not only on a birth from nothing; a 280–360 px canvas's overall label steps onto the drawing
+rather than sitting on an unreachable handle, in that one case only; a curved clearance's
+box-handle drag now solves like every other curved part; a `&writable` harness knob, test tooling
+only and given no vault step per its own brief) plus three defects fixed without a ruling because
+each broke a rule that already stood (the rulers' band and Shift+2 following a selected part the
+canvas is not drawing; the Plan Editor's zone lock toggle carrying the identical swapping-name-plus-
+`aria-pressed` contradiction the designer's own part controls had already dropped; `solveScale` not
+landing the nearest reachable extent at a curve's limit, found by Task 5's own review). **Seventeen
+new steps land inside the counted total, across three cases; two more, in [[Open a floor and select
+a room]], are outside the counted seven and move nothing above; and three existing rows were
+REWRITTEN, their step numbers unchanged.**
+
+- **[[Design an Asset]] gained thirteen**: 109a (the vanity preset's overall width label stepping
+  onto the drawing at a 280 × 300 canvas rather than sitting on the top-middle and rotate handles,
+  AD18-R23 Task 2 — modelled at exactly 205 of 77,964 frames before this round, 0 after); a new
+  "the follow-up round (AD18-R23)" section (110–121) covering a curved clearance's box-handle drag
+  solving like every other curved part on the oval- and round-table presets (110–111, Task 5), the
+  same drag stopping at its reach limit rather than jumping outward once dragged past it (112–113,
+  Task 11), and the designer's first Ctrl+Z/Ctrl+Shift+Z/Ctrl+Y binding — reaching every focusable
+  region of the leaf, refused mid-dialog and mid-gesture, claimed even with nothing to undo (unlike
+  Ctrl+G), and a recorded gap shared with the Plan Editor where a focused `<select>` or the Corner
+  radius slider swallows the chord (114–121, Task 10). **One row was REWRITTEN**: 107's own
+  citation ("the vanity basin narrowed below 270 mm lands at about 276") named the exact overshoot
+  AD18-R23 Task 11 fixed; it is corrected to say the solver now lands within 0.01 mm of the true
+  floor — 270, not 276.
+- **[[Compose an asset from parts]] gained one**: 7f, the rulers' band and Shift+2 following a
+  Parts-hidden selected detail exactly as the canvas outline and the selection keys already do
+  (AD18-R23's own defect list) — reusing 7a's own hidden-and-selected state rather than a new
+  precondition.
+- **[[Calibrate a sheet and reserve space]] gained three**: 21k (the same rulers-and-Shift+2 check
+  on a hidden, selected clearance, reusing 21f's state); 21l (an unrelated write — a footprint
+  nudge — leaving a hidden clearance hidden, the ruling's own negative example); and 36a (a
+  whole-design resize that scales a PENDING clearance while it is hidden re-shows it too, a
+  corollary Task 3's own report named but did not exercise against a live gesture — this is the
+  first time it is). **Two rows FLIP from "known, accepted gap" to "now fixed"**: 21e (turning
+  Show clearance off mid-trace, then finishing) and 21g (undoing a later replacement) both used to
+  say the clearance may come back still hidden; AD18-R23 widened the read-back rule from PRESENCE
+  to GEOMETRY, so both now re-show automatically — 21g's case is directly driven by
+  `designerClearanceBirth.test.ts`'s new AD18-R23 describe block, and 21e's is not separately
+  exercised by any test, per Task 3's own report. **Step 13's own citation gains a note, unchanged
+  in outcome**: it asked for Ctrl+Z in the designer before the designer bound any history key at
+  all, so it was untestable as written until this round's Task 10.
+- **[[Open a floor and select a room]] gained two, `obsidian`/`desktop` but outside the counted
+  command's seven cases** (this file's own command never named it, so neither addition moves the
+  counted total): 7a (the Layers sidebar's quiet unlocked padlock and the locked emphasis, both
+  re-keyed off `data-rp-locked` now that `ZoneLockToggle.vue` carries no `aria-pressed`) and 7b
+  (the screen reader hearing only the swapping accessible name — "Lock Kitchen" / "Unlock
+  Terrace" — never "pressed" or "not pressed").
+
+**Nothing added by the AD18-R23 round has been seen in Obsidian**, per Tasks 2, 3, 4, 5, 6, 10 and
+11's own reports: every one measured in the suite, in jsdom, or — for the curved-clearance drag and
+the label's screen position — predicted from the code and named as such.
+
+**AD18-R24 landed next — a second follow-up round triaging the AD18-R23 follow-up round's own
+recorded items at source — the reason the total moved once more, from 232 to 241.** Two rulings (a
+typed size that lands away from what was typed now warns, naming the size that landed, rather than
+landing silently; the designer's and the project list's byte-identical chevron rules become one
+shared rule) plus one defect fixed without a ruling because it broke a rule that already stood
+(`arcArc`'s phantom self-intersection about 1.1e-7 mm past `curveTolerance`, which refused a valid
+circle whose two adjacent arcs lie a few parts per million off one circle — the tree preset, the
+round table, the shrub and every other `circle()`/`lobed()` outline). **Nine new HUMAN steps land
+inside the counted total, across two cases; two more, one `browser` and one `obsidian` outside the
+counted seven, move nothing above.**
+
+- **[[Design an Asset]] gained eight**, in a new "the second follow-up round (AD18-R24)" section
+  (steps 122–129): the tree preset's own 2987 × 2987 (one of 109 whole-millimetre W = D sizes it
+  used to refuse) now landing exactly, and a stored 4500 × 4500 tree now rotating without the same
+  phantom refusing it 769 times in 2,000 rotations before the fix (122–123, Task 1); the vanity
+  basin's Inspector Width and its own canvas size label both warning when a typed 191 lands at its
+  270 mm floor, the round table's Set dimensions warning at its own floor, the toilet's overall
+  width landing exactly with no warning even though its coupled depth moves underneath it, a basin
+  handle DRAG to the same floor raising no warning, and a round table typed to a size it CAN reach
+  raising none either (124–129, Task 2). **No Plan Editor Zone step was added**: a Room zone's own
+  Bend edges reaches the identical `CurvedPolygon` validation (`curveTask.ts`'s `current()`), so the
+  fix does apply there too, but no draw-circle Zone tool exists and Task 1's own sweep characterised
+  the asset presets rather than an arbitrary bent Zone, so no concrete repro is in hand for one —
+  recorded here rather than guessed at in a step's pass condition.
+- **[[Calibrate a sheet and reserve space]] gained one**: 36b, the read-back rule's other named gap
+  — a hidden PENDING clearance a CALIBRATION rescales re-shows too, and so does its own Undo —
+  beside step 36a's whole-design-resize case, both corollaries AD18-R23 Task 3's own report named
+  but did not drive through a live gesture.
+- **[[Compose an asset from parts]] gained one `browser` row, outside the counted total**: 26a, a
+  regression guard that the designer's own disclosure chevron looks and turns exactly as before, in
+  both colour schemes, now that its rule is shared with the project list's.
+- **[[Find and resume a project]] gained one `obsidian` row, outside the counted command's seven
+  cases** (this file's own command never named it, so it moves nothing above): 2a, the same
+  regression guard for the project list's `Completed` group chevron, the other half of the shared
+  rule this round deduplicated.
+
+**Nothing added by this round has been seen in Obsidian** — Task 1 was verified by a geometry sweep
+(hundreds of thousands of synthetic arc pairs, plus every preset with an arc swept over whole sizes
+and rotations) and Task 2 by the suite; Task 3's CSS merge was verified by `fallow dupes` and the
+existing stylesheet gates. None of the three has been looked at in a vault.
+
+**AD18-R26 to AD18-R29 landed next — automating the manual walk after a clause audit — the reason
+the total moved once more, from 241 to 26.** This round shipped no `src/` feature: the 21 CONTRARY
+and 2 RULING clauses W24-A had left standing were rewritten to what the build does (AD18-R27), the
+E2E workflow's desktop legs were sharded so CI minutes roughly double while wall time stays near
+today's (AD18-R29), and every other change is a new test. Session twenty's clause audit
+([`MANUAL-PASS-audit.md`](MANUAL-PASS-audit.md)) read every one of the 241 steps' own clauses
+against the *Automated in Obsidian* tables W23-A/W24-A had written, corrected 25 OVERCLAIM and
+closed 35 UNRECORDED rows along the way, sampled and mutation-tested a slice of what the tables
+claimed (29 mutations, 13 in a real Obsidian; 7 stayed green over a row that had read as covered
+and was not), and sorted
+everything left open into 36 clauses needing a real host with no judgement (**B**) and 37 a vitest
+or the browser harness could close (**D**). The user ruled all of both should be built (AD18-R26),
+except two B clauses that stay recorded rather than built because nothing here can reach them:
+Design 89's Cmd+G needs a macOS leg, and none exists here; Browse 31 cannot fail until Obsidian
+starts recording leaf history for this view, which it does not at 1.13.7. **A step retags to `e2e`
+(AD18-R28) only once every one of its clauses is discharged** — a step with even one clause still
+open, or resting on a judgement no instrument can settle, keeps its `obsidian`, `desktop` or
+`judgement` tier; the row stays in its case, and its own *Automated* table says which test covers
+which clause. Every citation below was verified by the implementing task at the cited test's own
+body, not taken from a report's prose. `AD18-walk-automation-evidence.md`, committed alongside this
+file, carries the mutation that discharged each clause Tasks 2–8 built or closed (case, step,
+clause, test, mutation, outcome); each case's own `.superpowers/sdd/task-9-report.md` /
+`task-10-*-report.md` (gitignored, local-only) carries the fuller per-step accounting behind the
+retag itself; this section is the summary.
+
+- **[[Design an Asset]] (Task 9) moved from 111 to 11.** 99 steps retag to `e2e`; one (27, "place
+  that toilet on a plan by snapping it to a wall") retags to `suite` — its three clauses are all
+  pure vitest, none needing a host
+  (`tests/presentation/editor/elements/placementAtToilet.test.ts`, `placementAt.test.ts`,
+  `assetLayer.test.ts`). New host-only tests this round: `assetDesignerWalkHost.e2e.ts`,
+  `assetDesignerWalkReload.e2e.ts` and `assetDesignerWalkKeys.e2e.ts` (Task 3);
+  `assetDesignerInput.e2e.ts` (Task 4); and, closing D clauses with no host at all,
+  `designerHeaderIconOrder.test.ts`, `designerScaleBarRulers.test.ts`,
+  `presetThumbnailCanvas.test.ts`, `designerHeldPressSelection.test.ts`,
+  `designerRoundedRectMidDrag.test.ts`, `selectionDragToiletBowl.test.ts` and
+  `designerHistoryKeysWalk.test.ts` (Task 5), alongside the pre-existing
+  `designerContextMenu.test.ts` (a045c9fda), which the retag cites but this round did not touch.
+  Eight rows were
+  rewritten CONTRARY (AD18-R27) — 76, 90a, 90b, 95, 102, 105, 120, 125 — each having described
+  behaviour the build never had: Ctrl+G taken by Obsidian's own graph view under this vault's
+  default bindings (90a, 90b, 95), the asset's own Edit dimensions REMOVING the Corner radius row
+  rather than keeping it (102), no focus ring at all after a pointer click (105), a placed-but-
+  released trace point not blocking Ctrl+Z (120), the basin's Width figure reachable only by
+  keyboard (125). **Kept human (11):** 7, 57, 103, 104, 109 (legibility/"reads as" residue with no
+  instrument); 88b (screen reader — the header is not a live region, so nothing announces it); 92
+  (native host UI — Electron's own context menu is outside the DOM); 89 (Cmd+G on macOS — B, not
+  built); 56, 70, 121 (each keeps its
+  `judgement` tier because one clause — 70's "readable" half, 121's comparative Ctrl+Z/Ctrl+G
+  judgement — is bucket C, even though the rest of the row is now closed and cited).
+- **[[Compose an asset from parts]] (Task 10) moved from 23 to 0 — every clause in this case was
+  already bucket A.** Five steps (7b, 40, 41, 42, 50) retag to `suite`, closed by
+  `designerHiddenSelectionKeys.test.ts` and `designerGroupFromRest.test.ts`; the other eighteen
+  (7c–7f, 8, 38, 39, 43–49, 49a, 51–53) retag to `e2e`, needing the existing `composeParts.e2e.ts`
+  and `composeGroupDoors.e2e.ts` (a58e51bd4, W24 — pre-existing, not new this round). Five rows
+  were rewritten CONTRARY: 7c (a duplicated or
+  Undo-restored hidden part comes back SHOWN, not hidden); 43, 49, 51 and 48 (Obsidian's own
+  `graph:open` takes Ctrl+G under the default vault, and focus after a row-menu Group lands on the
+  ROW that opened the menu, never the canvas) — all pinned by `composeGroupDoors.e2e.ts`.
+- **[[Calibrate a sheet and reserve space]] (Task 10) moved from 27 to 2.** Twenty-four steps
+  retag to `e2e` and one (21l) to `suite`, closed by the new `designerHiddenClearanceWalk.test.ts`
+  (Task 7), whose one jsdom test proves both of 21l's clauses need no host at all. Two more new
+  Task 7 vitests (`designerCalibrationPendingLines.test.ts`, `designerClearanceReviewName.test.ts`)
+  plus Task 4's `assetDesignerInput.e2e.ts` closed the D and B clauses that let steps 9 and 21f
+  retag, and closed 32's other clauses too — but a fix round in this same task then reverted 32
+  itself back to `obsidian`, since its screen-reader clause stayed open (see "Kept human" below).
+  One row was rewritten CONTRARY: 36a — the asset's own Edit dimensions REPLACES a traced
+  footprint and never touches the clearance at all, so the clearance stays pending and hidden
+  rather than scaling and re-showing as the row used to claim. **Kept human (2):** 29, unchanged
+  (a pure `judgement` reading with no instrument); and 32, which a fix round in this same task
+  reverted to `obsidian` after first retagging it on the strength of three now-closed clauses — its
+  screen-reader announcement is the one clause left with no instrument anywhere, and a step with
+  any clause still open keeps its human tier.
+- **[[Recover an asset design rather than lose it]] (Task 10) moved from 33 to 5.** Twenty-eight
+  steps retag to `e2e` — eighteen were already fully discharged before this round, and Task 2
+  (host) and Task 6 (suite) closed the other ten this round, with the new
+  `designerRecoveryScreenState.test.ts`, `assetGeometryOrphanDiagnostics.test.ts` and — also new
+  this round (Task 2) — `assetDesignerRecoveryWalk.e2e.ts` and `assetDesignerRecoveryWalkRestore.e2e.ts`.
+  Two rows gained a corrected citation with no change in outcome: 37 (used to cite the wrong test for
+  its Try-again press) and 23 (now states its evidence is a renderer reload, not a full process
+  quit). **Kept human (5):** 2, 6, 8, 20, 34 — see "What stays human" below; three of the five (2,
+  6, 8) are host clauses the mutation gate itself cannot reach, not residue anyone forgot to test.
+- **[[Two designers on one asset]] (Task 10) moved from 8 to 1.** All seven non-`judgement` rows
+  retag to `e2e`, closed by the new `twoDesignersDrag.e2e.ts` (Task 4) and the new
+  `designerRecoveryScreenState.test.ts` (Task 6), alongside the pre-existing `designerRefresh.test.ts`,
+  `twoDesigners.e2e.ts` and `twoDesignersMore.e2e.ts`. Two rows were rewritten CONTRARY:
+  step 1 (a tab DRAGGED into a new split MOVES the one designer leaf rather than duplicating it —
+  only Split right/Split down duplicate) and step 8 (leaf B's held drag across a peer's write is
+  abandoned with no account anywhere — no badge, no history entry, no toast — rather than reading
+  Save error). **Kept human (1):** 10, a feel judgement about a silent-failure moment with no
+  instrument, human or automated.
+- **[[Browse the asset library]] (Task 10) moved from 20 to 6.** Fourteen steps retag to `e2e`,
+  closed by the new `assetLibraryWalk.e2e.ts` (Task 4) and the new `assetTileMarkEdge.test.ts`
+  (Task 8), alongside the pre-existing `assetTileStyles.test.ts`, `assetLibrary.e2e.ts`,
+  `assetLibraryNarrow.e2e.ts` and `assetLibraryState.e2e.ts`. Six rows were rewritten CONTRARY or
+  RULING: 22 (the category vocabulary is CLOSED — every declared category lists whether the vault
+  uses it or not); 26 (the funnel sidebar opens BESIDE the grid, narrowing it, never over it); 27
+  (the funnel starts SHOWING, not hidden, before anything is selected); 30 (only a full Obsidian
+  restart keeps Grid and the category; closing and reopening the leaf through the command does
+  not); 32 (the mark is CENTRED, sharing no edge with the tile's own name/size); 33 (the
+  design-less placeholder icon is the mark's own stroke weight, not thinner). **Kept human (6):**
+  1, 3, 17 (legibility/"reads as" judgements, each with one closed clause and one that stays a
+  judgement); 11 (its width figures are now closed, but "no intermediate width is unusable" is not);
+  31 (cannot fail until Obsidian records leaf history for this view); 33 (its "noticeably fainter"
+  clause is a colour-magnitude judgement the closed stroke-weight clause does not settle).
+- **[[Take an asset from the library into a plan]] (Task 10) moved from 19 to 1.** All eighteen
+  `obsidian` rows retag to `e2e` — none discharges entirely by vitest alone, so none qualify for
+  `suite`. New this round: `assetLibraryDuplicateRow.test.ts`, `editorArrivalAssetOverride.test.ts`,
+  `assetDesignerUsePlanChoice.test.ts`, `assetDesignerHandoffFootprint.test.ts` and
+  `canvasMenuAssetDesignerGroup.test.ts` (all Task 8), alongside the existing
+  `assetHandoff.e2e.ts` / `assetHandoffMore.e2e.ts`. No CONTRARY rewrite: the one candidate (a
+  stray palette-prefix flag on step 27) turned out to be Obsidian's own chrome on every
+  third-party command, not this plugin's text, and the review withdrew it. **Kept human (1):** 23,
+  a naming-consistency impression ("Edit shape" vs "Open in designer") with no rendering or state
+  property behind it.
+
+**What stays human, and why — the 26 by kind.** Every row below is a step, not merely a clause;
+several of these steps have most of their own clauses closed and cited in the case's own Automated
+table, and keep their tier for the ONE clause named here.
+
+- **Screen reader (2):** Design 88b (the header is not a live region, so nothing here is ever
+  announced — the negative is asserted, but the announcement itself, to real assistive technology,
+  has no instrument anywhere); Calibrate 32 (three of its four clauses are closed by real tests —
+  the live region, real Tab reachability, the exact computed name — the live announcement is not).
+- **Native host UI (1):** Design 92 — Electron's own native context menu is not in the DOM, so no
+  instrument here can read what it contains.
+- **Legibility and "reads as" (10):** Design 7 (the scale bar's own readability), 57 (a preset
+  thumbnail read as "recognisably not" a different one), 70 (whether a dimension number is
+  READABLE, as opposed to clickable, which is now closed), 103, 104, 109 (whether a layout or an
+  icon "reads as" its reference); Browse 1, 3, 17 (an empty shelf reading as room, five marks read
+  as distinguishable at 20px, a long note read whole); Take 23 (two button labels read side by
+  side, with no property any instrument could hold).
+- **Judgement with no pass condition (8):** Design 56 (drawing room at a sidebar width), Design
+  121's comparative half (Ctrl+Z swallowed vs. Ctrl+G falling through, checked by eye though the
+  rest of the row is closed); Calibrate 29 (whether the notice reads as belonging to the block
+  above it); Recover 20, 34 (whether a user would know the vault is inconsistent; whether a button
+  reads as an action); Two designers 10 (whether a person would notice a silent failure); Browse 11
+  ("no intermediate width is unusable"), 33 ("noticeably fainter").
+- **Open host clauses, recorded rather than built (5):** **Recover 2** — an attribute change that
+  reaches no plugin code at all (Obsidian raises no `modify` for it, measured), so by the mutation
+  gate the clause stays open even though `assetDesignerRecoveryWalk.e2e.ts` already pins the
+  picture; **Recover 6 and 8**, each for the same reason — the plugin's own half (the notice
+  appearing or clearing within a bound once the host reports the change) is closed and cited, but
+  whether the HOST raises the change unprompted at all is recorded as a measurement (13–18 ms and
+  1–5 ms on two runs, 15 s with no reconcile once under load) rather than asserted by anything that
+  could fail; **Design 89**, whose Cmd+G-on-macOS clause needs a leg this project has no way to
+  run, and AD18-R26 declined to build one for that reason; **Browse 31**, whose back/forward-
+  history assertion cannot fail until Obsidian 1.13.7 starts recording leaf history for this view
+  at all — the assertion PATTERN exists (`assetLibraryState.e2e.ts`) and is vacuous today by
+  construction, not by an oversight.
+
+## What a driven Obsidian already walks — read this before walking anything
+
+**W23-A and W24-A (2026-09-25) automated every step above that a driven Obsidian can settle**
+(`npm run test:e2e`; `W23-A-e2e-real-host.md` and `W24-A-e2e-manual-pass.md`). Each of the seven
+cases carries an **Automated in Obsidian** table, one row per CLAUSE of each step: a row citing a
+case is walked on every run of that suite, and a row reading `none —` says why no instrument here
+reaches it.
+
+**That table stopped being read-only reference on 2026-09-26.** AD18-R26 to AD18-R29 (above) read
+every one of those tables clause by clause and retagged a step out of the human count the moment
+none of its clauses was left open. **Two sentences this replaces are no longer true and are not
+repeated**: "the human pass is those `none —` rows, not the 241 above" — the human pass is now the
+26 steps named above, and it IS drawn from those tables; and "the count above is deliberately NOT
+recomputed from the tables" — recomputing it from exactly those tables, clause by clause, is what
+AD18-R28's retag did. A step half-automated is still a step somebody opens, which is why the retag
+is per STEP and not per clause — that half of the old sentence still holds.
+
+**Walk the Runs rows' findings first, where a row still has one.** The earlier e2e runs pinned what
+the host DOES where it disagreed with a row — Ctrl+G taken by Obsidian's own graph view in a
+default vault, a traced asset's Edit dimensions retyping its outline, the library forgetting its
+Grid/List choice on a plain close-and-reopen (though not across a full restart). **The sentence
+this replaces said each of those "needs a ruling, not a walk" — they have one now (AD18-R27):**
+every one of the 21 CONTRARY clauses and the 2 RULING clauses W24-A left standing was rewritten to
+what the build does, cited to its pinning test, in the case files themselves — not here, since
+MANUAL-PASS is an index rather than a copy of a row. Nothing named by W24-A still needs a ruling.
+
+## The gate inside the pass
+
+**[[Two designers on one asset]] step 1 decided how much of that case exists, and it is ANSWERED.**
+The e2e drove the tab menu's Split right and Split down, each giving a second designer leaf on the
+same asset (Move to new window moves it instead), so every row of that case stands. **One clause of
+that same row needed a correction, not a refusal**: dragging the tab into a new split MOVES the one
+leaf rather than duplicating it — rewritten CONTRARY under AD18-R27, cited above.
+
+## Rows this pass cannot reach, and who can
+
+- **U06** is REFUSED as written, not merely unrun — there is no freeze/issue workflow to exercise.
+  It needs a product decision, not a walker.
+- **AD16 item 1** (benchmarks) needed the F12 fixture family, and **the agent half of that split was
+  taken by wave 16 on 2026-09-22**. `shapeWithParts` exists at 25, 250 and 1000 parts with its part,
+  vertex and curved-edge counts documented and asserted (92/917/3667 vertices, 32/332/1332 curved
+  edges), so item 1 is no longer blocked on a fixture that does not exist. **It is still blocked on
+  everything else**: §6's conditions are a warmed renderer, recorded hardware and a leaf width, and
+  there is no benchmark harness here (`npm run perf` is deliberately absent) and no host. **A walker
+  cannot discharge this either** — it needs a benchmark somebody has written, not a pair of eyes, so
+  it stays outside this pass in the other direction from the one it used to sit in.
+- **AD16 item 2** (accessibility) is partly reachable and deliberately not claimed: the jsdom axe
+  scans verify no colour contrast, no visible focus indicator and no hit-target size, because jsdom
+  has no rendering engine for any of the three.
+- **AD16 item 3** (moderated novice usability) needs people. Not fakeable and not faked.
+
+## The `src/` findings this pass looks at — ONE now, and a second that is not this package's
+
+**This section named FOUR findings and a fifth until 2026-09-22, and three of the four were already
+closed when it said so.** That is the failure this whole document exists to prevent, sitting inside
+the document: the section above it correctly recorded two of them as fixed while this list went on
+asserting the opposite, and a walker reads the list rather than the narrative. Recounted against the
+tree rather than edited down from the old text.
+
+**Closed, and named here only so nobody re-finds them as defects:**
+
+- The designer's header reading `Saved` beside its own out-of-date strip — **fixed by W18-C**
+  (2026-09-22). `SaveStateIndicator` takes an optional `stale` prop and `AssetDesignerRoot` passes
+  the same `staleAfterRefresh` that draws the notice, so the two cannot disagree. The old claim that
+  `save-state.saved-refresh-needed` *"cannot be produced on that surface at all"* is false; steps 9,
+  11, 12a and 12b are regression guards that fail if the bare word comes back.
+- `runtime.ts`'s `writesBlocked` premise contradicting `assetDesignStore.stale` — **fixed by
+  W18-C**, a comment rather than behaviour, and the same over-claim was found duplicated in
+  `designerRefresh.test.ts`.
+- `PlanAssetUsage.projectId` reaching no view — **fixed by W19-B** (2026-09-22). Plan usage rows now
+  name the project that holds them, so two plans both called `Kitchen` in different projects no
+  longer draw as identical lines. **Read the guarantee narrowly**: it separates two
+  differently-named projects and nothing more, so two `Kitchen` plans in two projects BOTH named
+  `Flat renovation` still draw identically — the neighbouring `withPathsWhereAmbiguous` is what
+  escalates to a path for that, and `ListPlansUsingAsset.ts`'s own header names the residual arm.
+
+**Still open, and the only one this pass observes:**
+
+1. **`unrecoveredWrite` is set by the designer and drawn on no surface the designer renders** —
+   **B19, B20**. The designer's dispatcher wraps the save-state tracker and it dispatches at least
+   one command that can set the flag, yet `grep -rn "unrecoveredWrite" src/presentation/designer/`
+   returns nothing. **The inherited phrase "drawn nowhere" is FALSE and is not repeated here**: the
+   flag has nine consumer files, every one of them Plan Editor or Project Work. It stayed
+   record-only on 2026-09-22 by the user's decision, and closing it needs a row in
+   `AssetDesignerRoot.vue` plus a NEW locale key — `editor.unrecovered` reads *"Inspect the floor's
+   note"* and an asset designer cannot borrow it.
+
+**And one that is NOT this package's**, recorded only so it is not rediscovered: `settings.units`
+binds a control and persists through `saveSettings`, and **nothing outside `src/plugin/settings/`
+reads it** — re-measured 2026-09-22, with the display path hard-coded to `'en-US'` and `m²` in
+`formatLength.ts` and `formatArea.ts`, both docblocks naming *"the per-plan units PBI"*. **That is a
+PER-PLAN fact, which this global setting could not satisfy even if a reader existed**, so the honest
+fix is that PBI rather than a patch. It is plugin-wide and predates the expansion, so no step here
+looks at it. It does bear on AD16's release-checklist box *"No unfinished or nonfunctional controls
+advertised"*, which is ticked.
+
+## What a walker records
+
+Each case carries its own **Runs** table and its own **Outcome** section; fill those, in the case
+file, rather than anywhere else. **An aggregate "looks good to me" is not a filled Runs table** —
+the 2026-09-19 walk produced exactly that and the matrix had to say so. What moved a row on
+2026-09-21 was a per-step checklist with one expected result each, walked against the file.

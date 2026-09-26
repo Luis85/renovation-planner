@@ -1,0 +1,106 @@
+/*
+ * The asset designer's recovery control — card W22-A, ruling AD18-R15. The stale notice's `Try
+ * again`, and nothing else in this file.
+ *
+ * A partial of its OWN rather than more rules at the end of `designer.css`: that file has no room
+ * left for a rule under the assembler's 400-line CAP, and the seam is a budget rather than a new
+ * organising idea —
+ * exactly what `designer-rulers.css` and `continue-row.css` record for their own splits.
+ * **The argument is the CAP, never a figure.** `designer-trace.css` says outright to read
+ * `wc -l styles/designer.css` rather than any number written in a sibling partial, because a
+ * line count written here is falsified by the next person who adds a comment there and no gate
+ * re-runs it. This header repeats the rule instead of the number.
+ *
+ * Its POSITION in `styles/index.css` is not load-bearing, and that is a grep rather than a check:
+ * `grep -rln "rp-designer-retry" styles/` prints this file and nothing else, so no rule anywhere
+ * can win or lose against one here at equal specificity. Nothing re-runs that grep — move a
+ * selector of this family into another partial and this sentence is stale with nothing to say so.
+ *
+ * **THE DEFECT, measured in a browser and by nothing in this repository.** The button is a direct
+ * child of `.renovation-asset-designer`, which `designer.css` declares
+ * `display: flex; flex-direction: column` and gives no `align-items` — so the initial `normal`
+ * behaves as `stretch` on the cross axis, and a direct child whose cross size is `auto` takes the
+ * whole leaf. At a 1024 px leaf the unclassed button drew **1024 x 30 at `left: 0`**: a full-width
+ * bar below the notice's tinted strip, reading as a second toolbar rather than as an action. The
+ * `<p class="rp-designer-notice">` above it is full width too and that is CORRECT — a strip is
+ * meant to span the pane. A button is not.
+ *
+ * `align-self: flex-start` is the whole fix and is the declaration here that may not be tidied
+ * away: it opts this one child out of the stretch, so its inline size is its label's.
+ * `tests/gates/designerRecoveryStyles.test.ts` is red without it.
+ *
+ * The margins are the ASSOCIATION, and they are the notice's own padding restated rather than
+ * numbers chosen here — `designer.css` gives `.rp-designer-notice` exactly
+ * `var(--size-4-1) var(--size-4-2)`. The inline-start puts the button's box edge under the first
+ * character of the sentence it answers; the block-end keeps the strip's rhythm rather than letting
+ * the control touch whatever region follows it. All four sides are stated, because Obsidian's own
+ * `button` rule declares no margin at all and a half-set one would leave two sides to a sheet this
+ * project does not own.
+ *
+ * **WHAT IS REFUSED, and the losing side is real.** Giving the button the notice's own
+ * `--background-secondary` so the tint runs unbroken from strip to control is the stronger
+ * association, and that is exactly what is given up: an L-shaped tinted block reads as one unit,
+ * where a button on the plain background reads as a neighbour of one. **It is also the HOUSE
+ * SHAPE, which makes this a divergence rather than a road not taken.** The Plan Editor's
+ * `PersistentWarningStrip` puts its retry INSIDE the tinted item — a `<p
+ * class="rp-warning-strip__item">` holding a `.rp-warning-strip__content` beside a
+ * `.rp-warning-strip__actions`, laid out by `styles/editor-status.css` and tinted by
+ * `styles/editor-shell-fidelity.css` — so the two surfaces answer the same question differently
+ * and on purpose. Recorded here so nobody rediscovers the difference as a defect. It loses because a
+ * `<button>` whose background is `--background-secondary` has given up `--interactive-normal` and
+ * with it Obsidian's hover background and `--input-shadow` — the two things on screen that say
+ * "pressable". On the surface a user meets when a read has failed, pressability is worth more than
+ * adjacency. Neither arm is checkable here, which is why the trade is written down rather than
+ * merely taken. A WRAPPER making the two into one strip was not available at all: AD18-R15 settles
+ * the sibling placement, because four test files read `.rp-designer-notice`'s whole text as EQUAL
+ * to its sentence and a control inside one would make that class mean two things.
+ *
+ * **The focus ring is what the rest of this surface already does, and the risk of omitting it runs
+ * the other way round.** Measured in THIS tree rather than remembered:
+ * `grep -cE "^[[:space:]]*outline: 2px solid var\(--interactive-accent\)" styles/designer*.css`.
+ * **The anchor is not decoration and was not there first**: the unanchored form matched this very
+ * paragraph and answered 14, so the instrument originally cited here was one its own citation had
+ * falsified. Anchored, it prints eight files
+ * summing to **13** — `designer.css` 2, `designer-add` 2, `designer-dimensions` 1,
+ * `designer-header` 3, `designer-parts` 1, `designer-presets` 1, `designer-selection` 2, and this
+ * file's 1. So **12 before this rule existed**, and a tree that does not yet carry this partial
+ * prints 12; say which tree, or the next reader runs the grep somewhere else and finds the sentence
+ * wrong by one. `lightningcss` agrees at 13 rules over 8 files, so no rule declares it twice and
+ * no selector list hides a second subject — the text count and the parsed count are the same
+ * number here.
+ *
+ * Without this rule the designer's ONE recovery control would be the only one of that set left on
+ * Obsidian's default `button:focus-visible` box-shadow, which `styles/forms.css` measured at
+ * **2.29:1** in dark and **1.88:1** in light — both under WCAG 1.4.11's 3:1 floor for a non-text
+ * indicator — against `--interactive-accent`'s 4.00:1 and 3.43:1 on those same two surfaces.
+ * `.rp-empty-state__action` and `.rp-view-failure__action` carry it too and each record that a flow
+ * with two different rings is the next finding; they are the WEAKEST of the precedents rather than
+ * the whole of them, which is how this rule first got written up as scope creep.
+ *
+ * `outline-offset` is POSITIVE here and that IS a divergence worth naming: of the twelve, six use
+ * `1px` and four use `-2px`, so `2px` is the minority spelling. It matches `designer-presets` and
+ * `designer-dimensions` exactly, and both siblings above, and it suits this control specifically —
+ * the margin above insets the button, so there is room for a ring outside it that an edge-to-edge
+ * control does not have. The shadow Obsidian draws is left in place rather than suppressed, which
+ * is what keeps `buttonFocusRing.test.ts`'s flattening question from arising here at all.
+ *
+ * **This rule was guarded by NOTHING for one review round**, and deleting it left every gate in
+ * this repository green — measured, 282 tests over four files. `designerRecoveryStyles.test.ts`'s
+ * third case is what fails now, per arm: the rule's absence, a swapped token, a negative offset.
+ *
+ * **NOTHING BELOW IS DRAWN BY ANY GATE IN THIS REPOSITORY, and the sentence has to say so.**
+ * `tests/harness/page.ts` passes its `stale` knob to the PLAN EDITOR branch only —
+ * `mountAssetDesignerHarness` takes `select`, `mode`, `draw`, `camera`, `pending`, `grid` and
+ * `viewMenu`, and no stale knob — so no fixture reaches this state and no capture can photograph
+ * it, and jsdom resolves no CSS. The check beside this file asserts the DECLARATIONS. The rendered
+ * box is an injected probe's answer and the integrator's to report.
+ */
+.rp-designer-retry {
+	align-self: flex-start;
+	margin-block: 0 var(--size-4-1);
+	margin-inline: var(--size-4-2) 0;
+}
+.rp-designer-retry:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}

@@ -1,6 +1,11 @@
 /**
- * The asset design adapters' shared harness — every command, both ledgers and every fixture
- * constructed in ONE place.
+ * The asset design adapters' shared harness — both ledgers and every fixture constructed in ONE
+ * place, over the nine-command bundle `tests/helpers/designerComposition.ts`'s
+ * `createAssetDesignCommandBundle` builds (that module's own header states it is now the one
+ * definition, shared with `composeDesigner`). This file keeps only what that shared shape does
+ * not carry: the wrapper knobs `seeded`'s options take, and the concrete `SetAssetFacingCommand`
+ * / `SetAssetHeightCommand` instances the cases below dispatch the plain `execute` a peer leaf's
+ * gesture would — `AssetDesignHarness.plain`'s own docblock says why.
  *
  * It lives here rather than beside the cases because it now serves TWO files:
  * `reversibleAssetDesign.test.ts` and `reversibleAssetDesignWindows.test.ts`, which the
@@ -23,19 +28,9 @@ import {
 	type AssetDesignCommandBundle,
 } from '../../src/application/editor/asset/ReversibleAssetDesignCommands';
 import { SessionWriteLedger } from '../../src/application/editor/WriteLedger';
-import { SetAssetAnchorCommand } from '../../src/application/commands/asset/SetAssetAnchor';
-import { SetAssetClearanceCommand } from '../../src/application/commands/asset/SetAssetClearance';
-import { SetAssetFacingCommand } from '../../src/application/commands/asset/SetAssetFacing';
-import {
-	SetAssetFootprintCommand,
-	SetAssetFootprintFromDimensionsCommand,
-} from '../../src/application/commands/asset/SetAssetFootprint';
-import { SetAssetShapeCommand } from '../../src/application/commands/asset/SetAssetShape';
-import { SetAssetHeightCommand } from '../../src/application/commands/asset/SetAssetHeight';
-import { CalibrateAssetCommand } from '../../src/application/commands/asset/CalibrateAsset';
-import { SetAssetBackgroundCommand } from '../../src/application/commands/asset/SetAssetBackground';
+import type { SetAssetFacingCommand } from '../../src/application/commands/asset/SetAssetFacing';
+import type { SetAssetHeightCommand } from '../../src/application/commands/asset/SetAssetHeight';
 import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
-import type { VaultFileProbe } from '../../src/application/ports/VaultFileProbe';
 import type {
 	AssetGeometryDocument,
 	AssetGeometrySidecar,
@@ -52,6 +47,7 @@ import type { Calibration } from '../../src/domain/plan/Calibration';
 import { ObsidianAssetGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import { expectOk } from './domain';
 import { makeAsset } from './entities';
+import { createAssetDesignCommandBundle, type AssetDesignCommandSet } from './designerComposition';
 import { createRepositoryStack, parseFrontmatter, serializeFrontmatter } from './vault';
 
 export const SQUARE: readonly Point[] = [
@@ -93,6 +89,13 @@ export const drawn = (): AssetShape => ({
 	anchorPending: false,
 	facing: 0,
 	details: [],
+	// A shape that has been through `validateAssetShape` always carries the array, so a fixture
+	// compared against one that was READ BACK has to carry it too (AD04 §4). The same sentence,
+	// met a second time at AD14: the validator normalises `clearanceNeedsReview` to a definite
+	// boolean, so a read-back shape carries `false` where this literal would otherwise carry
+	// nothing at all — and `toEqual` sees those as different.
+	groups: [],
+	clearanceNeedsReview: false,
 });
 
 /** A vault fault a test can inject, shaped exactly as the ports' own union permits. */
@@ -209,10 +212,6 @@ export function repositoryWritingAfterSave(
 }
 
 /**
- * Every command and both ledgers are constructed HERE, once. A command built beside a case is
- * a command a mutation run silently leaves un-mutated, which this epic has already paid for.
- */
-/**
  * What `seeded` hands back. DECLARED rather than inferred, and the reason is the comment
  * inside `seeded` beside `reversible`: a class's members are resolved through the annotation
  * where the consuming expression sits, and the consuming expressions now live in two other
@@ -245,15 +244,6 @@ export interface AssetDesignHarness {
 	corrupt(): void;
 }
 
-/**
- * `SetAssetBackground`'s file probe, over the paths the cases in this suite pick as spec
- * sheets. A LIST rather than the real probe over the fake vault, because the probe answers a
- * question the vault entries cannot: a spec sheet is a PNG or a PDF, and this fake vault holds
- * note text. A case that invents a fourth path is refused at the file check, loudly, which is
- * the failure this list is allowed to have.
- */
-const SPEC_SHEETS: readonly string[] = ['Specs/oven.pdf', 'Specs/other.png', 'Specs/a.png'];
-const specSheetProbe: VaultFileProbe = { fileExists: (path) => SPEC_SHEETS.includes(path) };
 export async function seeded(
 	options: {
 		readonly sidecar?: (real: AssetGeometrySidecar) => AssetGeometrySidecar;
@@ -277,27 +267,13 @@ export async function seeded(
 	const commandDeps = { sidecar, assets, events, locks: new ReferenceLocks() };
 	const noteLedger = new SessionWriteLedger();
 	const geometryLedger = new SessionWriteLedger();
-	// Typed as the BUNDLE rather than as the concrete classes, so a case that replaces one door
-	// with a stand-in is replacing a door and not narrowing to a class the compiler then wants
-	// every private field of.
-	// Held as CONCRETE instances beside the annotated bundle, because the two doors are what
-	// a case needs to keep apart: the adapters dispatch `executeWithVersion`, and a PEER leaf
-	// — which is what several cases below stage — dispatches the plain `execute` a user's own
-	// gesture would. Naming only the bundle here would leave `execute` unreachable and turn
-	// every peer into a second versioned dispatcher, which is not the input being modelled.
-	const setFacingCommand = new SetAssetFacingCommand(commandDeps);
-	const setHeightCommand = new SetAssetHeightCommand(assets, events);
-	const bundle: AssetDesignCommandBundle = {
-		setFootprintFromDimensions: new SetAssetFootprintFromDimensionsCommand(commandDeps),
-		setFootprint: new SetAssetFootprintCommand(commandDeps),
-		setShape: new SetAssetShapeCommand(commandDeps),
-		setClearance: new SetAssetClearanceCommand(commandDeps),
-		setAnchor: new SetAssetAnchorCommand(commandDeps),
-		setFacing: setFacingCommand,
-		setHeight: setHeightCommand,
-		calibrate: new CalibrateAssetCommand(commandDeps),
-		setBackground: new SetAssetBackgroundCommand(commandDeps, specSheetProbe),
-	};
+	// The nine-command bundle, `designerComposition.ts`'s one definition now (this file's own
+	// header used to build a byte-identical second copy, `SPEC_SHEETS`/`specSheetProbe`
+	// included — that module's header carries why one function serves both). A property read
+	// below, never a destructure of it: a destructuring pattern is the one shape fallow's
+	// `unused-class-members` scan does not resolve through, per `AssetDesignCommandSet`'s own
+	// docblock.
+	const commandSet: AssetDesignCommandSet = createAssetDesignCommandBundle(commandDeps);
 
 	// ANNOTATED, and constructed here rather than inline in the returned literal: fallow
 	// resolves a class's members through the annotation where the consuming expression sits,
@@ -312,7 +288,7 @@ export async function seeded(
 	// splitting the file and watching `npm run analyze` report all six.
 	const reversible: ReversibleAssetDesignCommands = new ReversibleAssetDesignCommands(
 		{ sidecar, assets, events, noteLedger, geometryLedger },
-		bundle,
+		commandSet.bundle,
 	);
 
 	return {
@@ -322,16 +298,16 @@ export async function seeded(
 		sidecar: real,
 		noteLedger,
 		geometryLedger,
-		bundle,
+		bundle: commandSet.bundle,
 		/** The plain doors, for staging a peer leaf's own gesture. */
-		plain: { setFacing: setFacingCommand, setHeight: setHeightCommand },
+		plain: { setFacing: commandSet.setFacing, setHeight: commandSet.setHeight },
 		designChanges: designChangesHeardOn(events),
 		reversible,
 		/** The adapters over a bundle a case has replaced one door of. */
 		reversibleWith(overrides: Partial<AssetDesignCommandBundle>): ReversibleAssetDesignCommands {
 			return new ReversibleAssetDesignCommands(
 				{ sidecar, assets, events, noteLedger, geometryLedger },
-				{ ...bundle, ...overrides },
+				{ ...commandSet.bundle, ...overrides },
 			);
 		},
 		async seed(shape: AssetShape | null): Promise<void> {

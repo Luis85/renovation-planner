@@ -38,6 +38,7 @@ import { toiletShape } from '../../helpers/assetShapes';
 import { Notice } from '../../helpers/obsidian-mock';
 import { activateNotices } from '../../../src/presentation/notices/notify';
 import { installObsidianDom } from '../../helpers/dom';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 installCanvas();
 installResizeObserver();
@@ -66,7 +67,7 @@ function context(harness: Awaited<ReturnType<typeof seeded>>): AssetDesignerCont
 	const query = new GetAssetDesignQuery(harness.stack.assets, harness.sidecar);
 	return {
 		assetId: String(harness.assetId),
-		queries: { getAssetDesign: (assetId) => query.execute(assetId as AssetId) },
+		queries: { getAssetDesign: (assetId) => query.execute(assetId as AssetId), listPlansUsingAsset: unwiredPlanUsage },
 		commands: { designEdits: () => harness.reversible },
 		logger: recorder,
 		picker: null,
@@ -169,7 +170,35 @@ describe('the designer’s dimensions dialog', () => {
 	 * are not real measurements yet" — and *Edit dimensions* then offered those exact
 	 * placeholder-space numbers as the default, where Save writes them as a `typed` rectangle
 	 * in true millimetres and the warning correctly disappears, because the footprint really is
-	 * typed now. `DesignerInspector` was the ONLY reader of `dimensionsUnscaled` in the tree.
+	 * typed now.
+	 *
+	 * **A sentence stood here reading "`DesignerInspector` was the ONLY reader of
+	 * `dimensionsUnscaled` in the tree". It was TRUE when it was written and it is deleted
+	 * anyway, because being true of a tree nobody can see any more is not enough.** It entered at
+	 * `d852733bd`, and at that commit's PARENT it was exact — `git grep -n "dimensionsUnscaled"
+	 * d852733bd^ -- src/` prints the producer twice, one locale comment and one reader. It stopped
+	 * holding inside the very commit that wrote it, which added `editDimensions`'s own read. So
+	 * its past tense was correct and unreadable: three separate readers in a row took it for a
+	 * statement about the tree in front of them, and a sentence three careful readers misread is
+	 * badly written whatever its truth value. Replaced with a command rather than repaired into a
+	 * smaller number, since the next number would go stale the same way.
+	 *
+	 * `grep -rn "dimensionsUnscaled" src/` is the instrument. Its hits split two ways and the
+	 * split can only be made by READING each one: some are reads of the flag, and some are PROSE
+	 * in files that merely name it — a docblock explaining why a unit is withheld names the field
+	 * without reading it. So the line count is not a reader count, and **no list and no number is
+	 * kept here on purpose.**
+	 *
+	 * **That sentence replaces an enumeration, and the enumeration is why.** The paragraph above
+	 * concluded that a count *"would go stale the same way"* and said it was replaced with a
+	 * command — and then named five components anyway, two paragraphs after arguing not to. It
+	 * went stale twice more: `DesignerRulers` became a reader with the canvas rulers and was never
+	 * added, and the dimensions overlay made another. Both were found by a reviewer reading the
+	 * tree, not by anything that runs. A list kept beside an argument against keeping lists is the
+	 * shape this docblock has now failed at twice; the command is the whole of what is kept.
+	 *
+	 * Nothing this case asserts ever rested on the claim: both halves below are
+	 * `editDimensions`'s own behaviour, and they hold whatever else reads the flag.
 	 *
 	 * Both halves are asserted here, because they close different things: no `initial` is the
 	 * one that stops the laundering, and the `warning` is what
@@ -220,6 +249,54 @@ describe('the designer’s dimensions dialog', () => {
 		await flushPromises();
 
 		expect(vi.mocked(dialogs.openDialog).mock.calls[0][0]).toHaveProperty('initial', { width: 100, depth: 100 });
+	});
+
+	/**
+	 * **Typing back the offered numbers is not an edit.** `SetAssetShapeCommand` compares nothing by
+	 * design — `ALWAYS_CHANGED`, symbols spec Decision 7 — so a re-applied identical shape writes,
+	 * costs a revision and pushes an undo entry that visibly undoes nothing. The guard is at
+	 * `editDimensions` rather than in the command, because the command's rule is about a WHOLE shape
+	 * arriving from anywhere while this is about one form's own round trip.
+	 *
+	 * Compared against what the form OFFERED and not against the canonical extent: `drawn()` is
+	 * exactly 100 × 100, but a footprint measuring 100.4 is offered as 100, and a user typing 100
+	 * back into that field means "leave it" rather than "trim four tenths".
+	 *
+	 * Both halves asserted, because a guard that returned early from the wrong branch would still
+	 * pass one of them: nothing is dispatched, and the stored document is byte-identical — revision
+	 * included, which is the half a shape comparison alone would miss.
+	 */
+	it('writes nothing and pushes no undo entry when the offered dimensions are typed back', async () => {
+		const harness = await seeded();
+		await harness.seed(drawn());
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue({ width: 100, depth: 100 });
+		const setShape = vi.spyOn(harness.bundle.setShape, 'executeWithVersion');
+		const fromDimensions = vi.spyOn(harness.bundle.setFootprintFromDimensions, 'executeWithVersion');
+		const before = expectOk(await harness.sidecar.read(harness.assetId));
+
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+		await flushPromises();
+
+		expect(setShape).not.toHaveBeenCalled();
+		expect(fromDimensions).not.toHaveBeenCalled();
+		const after = expectOk(await harness.sidecar.read(harness.assetId));
+		expect(after.version.revision).toBe(before.version.revision);
+		expect(after.document).toEqual(before.document);
+	});
+
+	/** The other arm: one number moved is an edit, so the same gesture writes. */
+	it('writes when one of the offered dimensions is changed', async () => {
+		const harness = await seeded();
+		await harness.seed(drawn());
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue({ width: 100, depth: 120 });
+		const setShape = vi.spyOn(harness.bundle.setShape, 'executeWithVersion');
+
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+		await flushPromises();
+
+		expect(setShape).toHaveBeenCalled();
 	});
 
 	it('offers the same editor from the inspector once a shape exists', async () => {
@@ -282,7 +359,15 @@ describe('the designer’s dimensions dialog', () => {
 		const scaled = (await harness.document()).shape;
 		expectNear(scaled?.footprint.points, [[-380, -700], [380, -700], [380, 320], [-380, 320]]);
 		expect(scaled?.footprint.bulges).toEqual([0, 0, 1, 0]);
-		expectNear(scaled?.clearance?.points, [[-780, -700], [780, -700], [780, 1900], [-780, 1900]]);
+		// **AMENDED at AD14, not replaced.** This pinned `[[-780, -700], [780, -700], [780, 1900],
+		// [-780, 1900]]` — the toilet preset's own 780 x 1300 clearance put through the same 2 x 2
+		// the footprint takes — and that was the shipped behaviour ruling AD14-R1 / ADR-0034
+		// supersedes deliberately. The preset's clearance is MEASURED, so it is now preserved at the
+		// size its author drew and flagged for review; the numbers below are `toiletShape()`'s own,
+		// unmoved. The two fixtures the card named are in `tests/domain/asset/shapeEdits.test.ts`;
+		// this is the third, found by running the suite rather than by reading the card.
+		expectNear(scaled?.clearance?.points, [[-390, -350], [390, -350], [390, 950], [-390, 950]]);
+		expect(scaled?.clearanceNeedsReview).toBe(true);
 		expectNear(scaled?.details[0].outline.points, [[-380, -700], [380, -700], [380, -300], [-380, -300]]);
 		expectNear(scaled?.details[1].outline.points, [[-304, 54], [304, 54], [304, 346], [-304, 346]]);
 		expect(scaled?.details[1].outline.bulges).toEqual([1, 0, 1, 0]);

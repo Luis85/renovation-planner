@@ -1,11 +1,13 @@
-import { ItemView, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
+import { ItemView, Platform, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
 import { createApp, ref, type App as VueApp, type Ref } from 'vue';
 import { createPinia } from 'pinia';
 import AssetLibraryRoot from './AssetLibraryRoot.vue';
 import { ASSET_LIBRARY_CONTEXT, type AssetLibraryContext } from './AssetLibraryContext';
 import type { AssetLibraryDeps } from './AssetLibraryDeps';
+import { browseFrom, browseState, DEFAULT_BROWSE, type LibraryBrowse } from './libraryBrowse';
 import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from '../views/app-id-prefix';
+import { drawMobileRefusal } from '../views/mobileRefusal';
 
 /**
  * §2's asset-library view: the vault-wide catalogue, a SINGLETON exactly as the Renovation
@@ -40,6 +42,7 @@ export const ASSET_LIBRARY_ICON = 'boxes';
 interface AssetLibraryViewState {
 	readonly assetId: string;
 	readonly expanded: readonly string[];
+	readonly browse: LibraryBrowse;
 }
 
 /**
@@ -67,7 +70,7 @@ function assetLibraryStateFrom(state: unknown): AssetLibraryViewState | null {
 		Array.isArray(rawExpanded) && rawExpanded.every((category) => typeof category === 'string')
 			? rawExpanded
 			: [];
-	return { assetId, expanded };
+	return { assetId, expanded, browse: browseFrom(record) };
 }
 
 /**
@@ -134,16 +137,22 @@ export class AssetLibraryView extends ItemView {
 	 * about, and here it also carries meaning — `''` IS "nothing selected". `expanded` is
 	 * always present as an array, even when empty, for the identical reason.
 	 *
+	 * **AD18-R18's `layout` and `category` are the opposite, and on purpose.** Each is written
+	 * only away from its default (`browseState`), because a leaf that never used the Grid view
+	 * or the category filter has to keep reporting exactly the shape it reported before they
+	 * existed. `projectDestinationState` leaves out `section: 'details'` for the same reason.
+	 *
 	 * Reads the refs directly rather than a pair of plain fields kept in step with them: there
 	 * is exactly ONE storage location for each of `assetId` and `expanded` now, so this cannot
 	 * disagree with what `setState` last wrote or with what the mounted tree is showing.
 	 */
 	getState(): Record<string, unknown> {
-		return { assetId: this.assetIdRef.value, expanded: this.expandedRef.value };
+		return { assetId: this.assetIdRef.value, expanded: this.expandedRef.value, ...browseState(this.browseRef.value) };
 	}
 
 	/**
-	 * §6.3: neither a selection nor an expansion is a navigation, so `result.history` is left
+	 * §6.3: neither a selection nor an expansion is a navigation, and AD18-R18 extends that to
+	 * the layout and the category filter, so `result.history` is left
 	 * untouched here — never set true, for ANY accepted change. `RenovationProjectView.setState`
 	 * sets it true on an accepted, CHANGED `projectId`; copying that shape here would put a
 	 * history entry behind every row a user clicks, which is exactly the defect a review bot
@@ -165,14 +174,44 @@ export class AssetLibraryView extends ItemView {
 		if (parsed !== null) {
 			this.assetIdRef.value = parsed.assetId;
 			this.expandedRef.value = parsed.expanded;
+			this.browseRef.value = parsed.browse;
 		}
 		return Promise.resolve();
 	}
 
+	/**
+	 * **The mobile gate (AD13, criterion 6), and this is the ONLY door it needs** — unlike
+	 * `PlanEditorView` and `AssetDesignerView`, which both put theirs in a `sync()` because
+	 * `setState` reaches their mount decision as well as `onOpen`. Here it does not:
+	 * `setState` writes two refs and never mounts (see its own docblock), and `rebind` remounts
+	 * only what is already mounted — which on mobile is nothing, because this is where mounting
+	 * is refused. Counted rather than assumed: `grep -n "this.mount()" src/presentation/library/
+	 * AssetLibraryView.ts` prints THREE lines and two of them are calls — `rebind`'s and this
+	 * method's — the third being this sentence, which names the call it counts.
+	 *
+	 * **Why the catalogue is refused rather than only its door into the designer.** Every action
+	 * this surface offers a user leads somewhere desktop-only — the designer above all (C12: "a
+	 * separate mobile decision" has not been accepted) — so a library drawn on a phone is a list
+	 * whose rows go nowhere. The refusal follows the designer's own two-site shape (the surface
+	 * says so; the command that opens it stays out of the palette) rather than inventing a third
+	 * kind of gate, and it reuses `drawMobileRefusal` so there is one sentence about this
+	 * product's device scope and not four.
+	 *
+	 * **What it does NOT cover, written at the width of the check:** `ViewRoot`'s own "Open
+	 * library" button, which is bound through `RenovationProjectDeps.openAssetLibrary` and is
+	 * ungated — exactly as that surface's "Open in designer" door is ungated today. A press
+	 * there on mobile opens a leaf that says desktop-only, which is the honest refusal and not a
+	 * broken surface; making those buttons disappear is the project view's own change.
+	 */
 	onOpen(): Promise<void> {
 		// The hook the stylesheet keys on to reset Obsidian's own pane paddings
 		// (styles/chrome.css), the same line every other view here carries.
 		this.containerEl.addClass('renovation-planner-container');
+		if (Platform.isMobile) {
+			this.unmount();
+			drawMobileRefusal(this.contentEl);
+			return Promise.resolve();
+		}
 		if (!this.mounted) this.mount();
 		return Promise.resolve();
 	}
@@ -200,6 +239,8 @@ export class AssetLibraryView extends ItemView {
 	 */
 	private readonly assetIdRef: Ref<string> = ref('');
 	private readonly expandedRef: Ref<readonly string[]> = ref([]);
+	/** AD18-R18's layout and category filter, under the same one-ref-per-value rule. */
+	private readonly browseRef: Ref<LibraryBrowse> = ref(DEFAULT_BROWSE);
 
 	/**
 	 * §6.3's WRITE half, and the one door the Vue tree has into Obsidian's own view state.
@@ -246,9 +287,10 @@ export class AssetLibraryView extends ItemView {
 	 * An arrow-function FIELD rather than a method: `mount` hands it into the context, where a
 	 * method would arrive unbound and write `assetIdRef` on whatever called it.
 	 */
-	private readonly publishViewState = (assetId: string, expanded: readonly string[]): void => {
+	private readonly publishViewState = (assetId: string, expanded: readonly string[], browse: LibraryBrowse): void => {
 		this.assetIdRef.value = assetId;
 		this.expandedRef.value = expanded;
+		this.browseRef.value = browse;
 		void this.leaf.setViewState({ type: ASSET_LIBRARY_VIEW, state: this.getState() });
 	};
 
@@ -294,6 +336,7 @@ export class AssetLibraryView extends ItemView {
 			...this.deps,
 			assetId: this.assetIdRef,
 			expanded: this.expandedRef,
+			browse: this.browseRef,
 			publishViewState: this.publishViewState,
 		};
 		app.provide(ASSET_LIBRARY_CONTEXT, context);

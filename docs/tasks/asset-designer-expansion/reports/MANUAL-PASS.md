@@ -19,14 +19,26 @@ overlooked.**
 
 ## What the pass consists of
 
-**241 human steps across seven cases**, measured rather than remembered — re-derived on
-2026-09-25 against the finished AD18-R24 tree (a second follow-up round triaging the AD18-R23
-follow-up round's own recorded items at source: a false-refusal fix in core geometry, a warning
-for a typed size that lands away from what was typed, and one shared disclosure-chevron rule),
-with the command run verbatim as it is printed. **Do not trust this number; run the command.** It
-has been 84, then 90, then 109, then 145, then 179, then 182, then 205, then 206, then 215, then
-232, then this, and each time the session that moved it was the session that had just shipped —
-or, three times now, corrected — the thing it was counting:
+**This pass now means the human steps only — 26 across seven cases, today. It was 241 before this
+round.** AD18-R26 to AD18-R29 (2026-09-26) audited every clause of every one of the 241 steps
+against the *Automated in Obsidian* tables, built what a vitest or a real host could still close,
+and retagged a step to a new `e2e` tier the moment none of its clauses is left open — needing
+Obsidian exactly as `obsidian` does, but pinned by `npm run test:e2e` rather than by a person. The
+counting command below has only ever matched `obsidian`, `desktop` and `judgement`, so an `e2e`
+step falls out of the total by construction rather than by anyone re-reading a table and deciding a
+row felt done. See "AD18-R26 to AD18-R29" further down for the per-case accounting and the new test
+files; the paragraphs between here and there are the history of how the count grew to 241 and are
+unchanged by this round.
+
+**241**, re-derived on 2026-09-25 against the finished AD18-R24 tree (a second follow-up round
+triaging the AD18-R23 follow-up round's own recorded items at source: a false-refusal fix in core
+geometry, a warning for a typed size that lands away from what was typed, and one shared
+disclosure-chevron rule), was itself measured rather than remembered, with the command run verbatim
+as it is printed — **do not trust either number; run the command.** The full series: it has been
+84, then 90, then 109, then 145, then 179, then 182, then 205, then 206, then 215, then 232, then
+241, and now **26** — every earlier move on this list was a session that had just shipped a
+feature and grown the walk to match it (or, three times, corrected a wrong count); this is the
+first move the other way, because this round shipped no feature at all, only an audit and a retag:
 
 ```bash
 for f in "Design an Asset" "Take an asset from the library into a plan" \
@@ -38,12 +50,17 @@ for f in "Design an Asset" "Take an asset from the library into a plan" \
 done
 ```
 
-**[[Browse the asset library]] joins the command and the table below for the first time this
-round.** AD18-R18's Grid view is the first user-visible change this package has made to that
-case, and a case the command does not name is a case whose steps never reach this total — the
-same mistake naming a case here guards against for the other six.
+**[[Browse the asset library]] joined the command and the table below in the AD18-R18 round.**
+That case's Grid view was the first user-visible change this package had made to it, and a case
+the command does not name is a case whose steps never reach this total — the same mistake naming a
+case here guards against for the other six.
 
-| Case | Human steps | Of total | Discharges |
+**The table below is the 2026-09-25 snapshot this pass carried before this round's retag** —
+111/19/23/27/33/8/20, summing to 241 — kept as the record of how the walk grew to that number.
+"AD18-R26 to AD18-R29", further down, has the current per-case numbers (11/1/0/2/5/1/6, summing to
+26) and is where a reader wants the count from today.
+
+| Case | Human steps (2026-09-25) | Of total | Discharges |
 |---|---|---|---|
 | [[Design an Asset]] | **111** | 157 | U01 (with the next row) |
 | [[Take an asset from the library into a plan]] | 19 | 28 | U01, T34 |
@@ -462,27 +479,179 @@ counted seven, move nothing above.**
 and rotations) and Task 2 by the suite; Task 3's CSS merge was verified by `fallow dupes` and the
 existing stylesheet gates. None of the three has been looked at in a vault.
 
+**AD18-R26 to AD18-R29 landed next — automating the manual walk after a clause audit — the reason
+the total moved once more, from 241 to 26.** This round shipped no `src/` feature: the 21 CONTRARY
+and 2 RULING clauses W24-A had left standing were rewritten to what the build does (AD18-R27), the
+E2E workflow's desktop legs were sharded so CI minutes roughly double while wall time stays near
+today's (AD18-R29), and every other change is a new test. Session twenty's clause audit
+([`MANUAL-PASS-audit.md`](MANUAL-PASS-audit.md)) read every one of the 241 steps' own clauses
+against the *Automated in Obsidian* tables W23-A/W24-A had written, corrected 25 OVERCLAIM and
+closed 35 UNRECORDED rows along the way, sampled and mutation-tested a slice of what the tables
+claimed (29 mutations, 13 in a real Obsidian; 7 stayed green over a row that had read as covered
+and was not), and sorted
+everything left open into 36 clauses needing a real host with no judgement (**B**) and 37 a vitest
+or the browser harness could close (**D**). The user ruled all of both should be built (AD18-R26),
+except two B clauses that stay recorded rather than built because nothing here can reach them:
+Design 89's Cmd+G needs a macOS leg, and none exists here; Browse 31 cannot fail until Obsidian
+starts recording leaf history for this view, which it does not at 1.13.7. **A step retags to `e2e`
+(AD18-R28) only once every one of its clauses is discharged** — a step with even one clause still
+open, or resting on a judgement no instrument can settle, keeps its `obsidian`, `desktop` or
+`judgement` tier; the row stays in its case, and its own *Automated* table says which test covers
+which clause. Every citation below was verified by the implementing task at the cited test's own
+body, not taken from a report's prose — each case's own `.superpowers/sdd/task-9-report.md` /
+`task-10-*-report.md` carries the full per-step accounting; this is the summary.
+
+- **[[Design an Asset]] (Task 9) moved from 111 to 11.** 99 steps retag to `e2e`; one (27, "place
+  that toilet on a plan by snapping it to a wall") retags to `suite` — its three clauses are all
+  pure vitest, none needing a host
+  (`tests/presentation/editor/elements/placementAtToilet.test.ts`, `placementAt.test.ts`,
+  `assetLayer.test.ts`). New host-only tests this round: `assetDesignerWalkHost.e2e.ts`,
+  `assetDesignerWalkReload.e2e.ts` and `assetDesignerWalkKeys.e2e.ts` (Task 3);
+  `assetDesignerInput.e2e.ts` (Task 4); and, closing D clauses with no host at all,
+  `designerHeaderIconOrder.test.ts`, `designerScaleBarRulers.test.ts`,
+  `presetThumbnailCanvas.test.ts`, `designerHeldPressSelection.test.ts`,
+  `designerRoundedRectMidDrag.test.ts`, `selectionDragToiletBowl.test.ts`,
+  `designerContextMenu.test.ts` and `designerHistoryKeysWalk.test.ts` (Task 5). Eight rows were
+  rewritten CONTRARY (AD18-R27) — 76, 90a, 90b, 95, 102, 105, 120, 125 — each having described
+  behaviour the build never had: Ctrl+G taken by Obsidian's own graph view under this vault's
+  default bindings (90a, 90b, 95), the asset's own Edit dimensions REMOVING the Corner radius row
+  rather than keeping it (102), no focus ring at all after a pointer click (105), a placed-but-
+  released trace point not blocking Ctrl+Z (120), the basin's Width figure reachable only by
+  keyboard (125). **Kept human (11):** 7, 57, 88b, 92, 103, 104, 109 (legibility/"reads as"
+  residue with no instrument); 89 (Cmd+G on macOS — B, not built); 56, 70, 121 (each keeps its
+  `judgement` tier because one clause — 70's "readable" half, 121's comparative Ctrl+Z/Ctrl+G
+  judgement — is bucket C, even though the rest of the row is now closed and cited).
+- **[[Compose an asset from parts]] (Task 10) moved from 23 to 0 — every clause in this case was
+  already bucket A.** Five steps (7b, 40, 41, 42, 50) retag to `suite`, closed by
+  `designerHiddenSelectionKeys.test.ts` and `designerGroupFromRest.test.ts`; the other eighteen
+  (7c–7f, 8, 38, 39, 43–49, 49a, 51–53) retag to `e2e`, needing the existing `composeParts.e2e.ts`
+  and the new `composeGroupDoors.e2e.ts`. Five rows were rewritten CONTRARY: 7c (a duplicated or
+  Undo-restored hidden part comes back SHOWN, not hidden); 43, 49, 51 and 48 (Obsidian's own
+  `graph:open` takes Ctrl+G under the default vault, and focus after a row-menu Group lands on the
+  ROW that opened the menu, never the canvas) — all pinned by `composeGroupDoors.e2e.ts`.
+- **[[Calibrate a sheet and reserve space]] (Task 10) moved from 27 to 2.** Twenty-four steps
+  retag to `e2e` and one (21l) to `suite`, closed by the new `designerHiddenClearanceWalk.test.ts`
+  (Task 7), whose one jsdom test proves both of 21l's clauses need no host at all. Three more new
+  Task 7 vitests (`designerCalibrationPendingLines.test.ts`, `designerClearanceReviewName.test.ts`)
+  plus Task 4's `assetDesignerInput.e2e.ts` closed the D and B clauses that let steps 9, 21f and 32
+  retag. One row was rewritten CONTRARY: 36a — the asset's own Edit dimensions REPLACES a traced
+  footprint and never touches the clearance at all, so the clearance stays pending and hidden
+  rather than scaling and re-showing as the row used to claim. **Kept human (2):** 29, unchanged
+  (a pure `judgement` reading with no instrument); and 32, which a fix round in this same task
+  reverted to `obsidian` after first retagging it on the strength of three now-closed clauses — its
+  screen-reader announcement is the one clause left with no instrument anywhere, and a step with
+  any clause still open keeps its human tier.
+- **[[Recover an asset design rather than lose it]] (Task 10) moved from 33 to 5.** Twenty-eight
+  steps retag to `e2e` — eighteen were already fully discharged before this round, and Task 2
+  (host) and Task 6 (suite) closed the other ten this round, with the new
+  `designerRecoveryScreenState.test.ts` and `assetGeometryOrphanDiagnostics.test.ts` joining the
+  existing `assetDesignerRecoveryWalk.e2e.ts` and `assetDesignerRecoveryWalkRestore.e2e.ts`. Two
+  rows gained a corrected citation with no change in outcome: 37 (used to cite the wrong test for
+  its Try-again press) and 23 (now states its evidence is a renderer reload, not a full process
+  quit). **Kept human (5):** 2, 6, 8, 20, 34 — see "What stays human" below; three of the five (2,
+  6, 8) are host clauses the mutation gate itself cannot reach, not residue anyone forgot to test.
+- **[[Two designers on one asset]] (Task 10) moved from 8 to 1.** All seven non-`judgement` rows
+  retag to `e2e`, closed by the new `twoDesignersDrag.e2e.ts` (Task 4) and
+  `designerRecoveryScreenState.test.ts` / `designerRefresh.test.ts` (Task 6), alongside the
+  existing `twoDesigners.e2e.ts` and `twoDesignersMore.e2e.ts`. Two rows were rewritten CONTRARY:
+  step 1 (a tab DRAGGED into a new split MOVES the one designer leaf rather than duplicating it —
+  only Split right/Split down duplicate) and step 8 (leaf B's held drag across a peer's write is
+  abandoned with no account anywhere — no badge, no history entry, no toast — rather than reading
+  Save error). **Kept human (1):** 10, a feel judgement about a silent-failure moment with no
+  instrument, human or automated.
+- **[[Browse the asset library]] (Task 10) moved from 20 to 6.** Fourteen steps retag to `e2e`,
+  closed by the new `assetLibraryWalk.e2e.ts` (Task 4) and `assetTileMarkEdge.test.ts` /
+  `assetTileStyles.test.ts` (Task 8), alongside the existing `assetLibrary.e2e.ts`,
+  `assetLibraryNarrow.e2e.ts` and `assetLibraryState.e2e.ts`. Six rows were rewritten CONTRARY or
+  RULING: 22 (the category vocabulary is CLOSED — every declared category lists whether the vault
+  uses it or not); 26 (the funnel sidebar opens BESIDE the grid, narrowing it, never over it); 27
+  (the funnel starts SHOWING, not hidden, before anything is selected); 30 (only a full Obsidian
+  restart keeps Grid and the category; closing and reopening the leaf through the command does
+  not); 32 (the mark is CENTRED, sharing no edge with the tile's own name/size); 33 (the
+  design-less placeholder icon is the mark's own stroke weight, not thinner). **Kept human (6):**
+  1, 3, 17 (legibility/"reads as" judgements, each with one closed clause and one that stays a
+  judgement); 11 (its width figures are now closed, but "no intermediate width is unusable" is not);
+  31 (cannot fail until Obsidian records leaf history for this view); 33 (its "noticeably fainter"
+  clause is a colour-magnitude judgement the closed stroke-weight clause does not settle).
+- **[[Take an asset from the library into a plan]] (Task 10) moved from 19 to 1.** All eighteen
+  `obsidian` rows retag to `e2e` — none discharges entirely by vitest alone, so none qualify for
+  `suite`. New this round: `assetLibraryDuplicateRow.test.ts`, `editorArrivalAssetOverride.test.ts`,
+  `assetDesignerUsePlanChoice.test.ts`, `assetDesignerHandoffFootprint.test.ts` and
+  `canvasMenuAssetDesignerGroup.test.ts` (all Task 8), alongside the existing
+  `assetHandoff.e2e.ts` / `assetHandoffMore.e2e.ts`. No CONTRARY rewrite: the one candidate (a
+  stray palette-prefix flag on step 27) turned out to be Obsidian's own chrome on every
+  third-party command, not this plugin's text, and the review withdrew it. **Kept human (1):** 23,
+  a naming-consistency impression ("Edit shape" vs "Open in designer") with no rendering or state
+  property behind it.
+
+**What stays human, and why — the 26 by kind.** Every row below is a step, not merely a clause;
+several of these steps have most of their own clauses closed and cited in the case's own Automated
+table, and keep their tier for the ONE clause named here.
+
+- **Screen reader (2):** Design 88b (the header is not a live region, so nothing here is ever
+  announced — the negative is asserted, but the announcement itself, to real assistive technology,
+  has no instrument anywhere); Calibrate 32 (three of its four clauses are closed by real tests —
+  the live region, real Tab reachability, the exact computed name — the live announcement is not).
+- **Native host UI (1):** Design 92 — Electron's own native context menu is not in the DOM, so no
+  instrument here can read what it contains.
+- **Legibility and "reads as" (10):** Design 7 (the scale bar's own readability), 57 (a preset
+  thumbnail read as "recognisably not" a different one), 70 (whether a dimension number is
+  READABLE, as opposed to clickable, which is now closed), 103, 104, 109 (whether a layout or an
+  icon "reads as" its reference); Browse 1, 3, 17 (an empty shelf reading as room, five marks read
+  as distinguishable at 20px, a long note read whole); Take 23 (two button labels read side by
+  side, with no property any instrument could hold).
+- **Judgement with no pass condition (8):** Design 56 (drawing room at a sidebar width), Design
+  121's comparative half (Ctrl+Z swallowed vs. Ctrl+G falling through, checked by eye though the
+  rest of the row is closed); Calibrate 29 (whether the notice reads as belonging to the block
+  above it); Recover 20, 34 (whether a user would know the vault is inconsistent; whether a button
+  reads as an action); Two designers 10 (whether a person would notice a silent failure); Browse 11
+  ("no intermediate width is unusable"), 33 ("noticeably fainter").
+- **Open host clauses, recorded rather than built (5):** **Recover 2** — an attribute change that
+  reaches no plugin code at all (Obsidian raises no `modify` for it, measured), so by the mutation
+  gate the clause stays open even though `assetDesignerRecoveryWalk.e2e.ts` already pins the
+  picture; **Recover 6 and 8**, each for the same reason — the plugin's own half (the notice
+  appearing or clearing within a bound once the host reports the change) is closed and cited, but
+  whether the HOST raises the change unprompted at all is recorded as a measurement (13–18 ms and
+  1–5 ms on two runs, 15 s with no reconcile once under load) rather than asserted by anything that
+  could fail; **Design 89**, whose Cmd+G-on-macOS clause needs a leg this project has no way to
+  run, and AD18-R26 declined to build one for that reason; **Browse 31**, whose back/forward-
+  history assertion cannot fail until Obsidian 1.13.7 starts recording leaf history for this view
+  at all — the assertion PATTERN exists (`assetLibraryState.e2e.ts`) and is vacuous today by
+  construction, not by an oversight.
+
 ## What a driven Obsidian already walks — read this before walking anything
 
 **W23-A and W24-A (2026-09-25) automated every step above that a driven Obsidian can settle**
 (`npm run test:e2e`; `W23-A-e2e-real-host.md` and `W24-A-e2e-manual-pass.md`). Each of the seven
-cases now carries an **Automated in Obsidian** table, one row per CLAUSE of each step: a row citing
-a case is walked on every run of that suite, and a row reading `none —` says why no instrument here
-reaches it. **The human pass is those `none —` rows**, not the 241 above — the judgements, the
-screen-reader clauses, the native menus and drag-and-drop WebDriver cannot express, and the handful
-of steps the tables name as unreachable. The count above is deliberately NOT recomputed from the
-tables: it counts steps, and a step half-automated is still a step somebody opens.
+cases carries an **Automated in Obsidian** table, one row per CLAUSE of each step: a row citing a
+case is walked on every run of that suite, and a row reading `none —` says why no instrument here
+reaches it.
 
-**Walk the Runs rows' findings first.** The e2e pinned what the host DOES where it disagreed with a
-row, so several rows here now describe behaviour a passing build does not have — Ctrl+G is taken by
-Obsidian's graph view in a default vault, a traced asset's Edit dimensions retypes its outline, the
-library forgets its view on close. Each needs a ruling, not a walk; W24-A lists them.
+**That table stopped being read-only reference on 2026-09-26.** AD18-R26 to AD18-R29 (above) read
+every one of those tables clause by clause and retagged a step out of the human count the moment
+none of its clauses was left open. **Two sentences this replaces are no longer true and are not
+repeated**: "the human pass is those `none —` rows, not the 241 above" — the human pass is now the
+26 steps named above, and it IS drawn from those tables; and "the count above is deliberately NOT
+recomputed from the tables" — recomputing it from exactly those tables, clause by clause, is what
+AD18-R28's retag did. A step half-automated is still a step somebody opens, which is why the retag
+is per STEP and not per clause — that half of the old sentence still holds.
+
+**Walk the Runs rows' findings first, where a row still has one.** The earlier e2e runs pinned what
+the host DOES where it disagreed with a row — Ctrl+G taken by Obsidian's own graph view in a
+default vault, a traced asset's Edit dimensions retyping its outline, the library forgetting its
+Grid/List choice on a plain close-and-reopen (though not across a full restart). **The sentence
+this replaces said each of those "needs a ruling, not a walk" — they have one now (AD18-R27):**
+every one of the 21 CONTRARY clauses and the 2 RULING clauses W24-A left standing was rewritten to
+what the build does, cited to its pinning test, in the case files themselves — not here, since
+MANUAL-PASS is an index rather than a copy of a row. Nothing named by W24-A still needs a ruling.
 
 ## The gate inside the pass
 
 **[[Two designers on one asset]] step 1 decided how much of that case exists, and it is ANSWERED.**
 The e2e drove the tab menu's Split right and Split down, each giving a second designer leaf on the
-same asset (Move to new window moves it instead), so every row of that case stands.
+same asset (Move to new window moves it instead), so every row of that case stands. **One clause of
+that same row needed a correction, not a refusal**: dragging the tab into a new split MOVES the one
+leaf rather than duplicating it — rewritten CONTRARY under AD18-R27, cited above.
 
 ## Rows this pass cannot reach, and who can
 

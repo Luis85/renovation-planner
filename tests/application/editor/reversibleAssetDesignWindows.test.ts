@@ -429,42 +429,49 @@ describe('a background undo after a peer has written the sidecar', () => {
 });
 
 /**
- * `putNoteBack`'s stamp asks the vault before it is raised (S21 #17 review, I1): only a note still
- * naming the background the undo restored, over a calibration that is not the one it restores, is
- * the undo's half left behind. A read that FAULTS can show neither, so it stamps — both writes
- * were refused, and a half-undo nobody reports is the worse of the two wrong answers. The restore
- * and the put-back refuse with DISTINCT codes, so the stamp is seen to carry the restore's.
+ * `putNoteBack`'s stamp follows the put-back's REFUSAL, not the vault (owner ruling 18). A put-back
+ * refused as a conflict — `WRITE_BOUNDARY_CODES`, from `checkExpectedVersion` — means another writer
+ * changed the note after the restore, so the vault holds that writer's state and the undo returns
+ * the sidecar restore's cause unstamped. Any other refusal is a write fault and stamps, carrying that
+ * same cause; a code that is neither (`asset.pre-write-invalid`) counts as a fault. Driven on a
+ * CALIBRATED asset, where the old vault check stamped every one of these.
  */
-describe('a background undo whose restore and put-back are both refused, then a read faults', () => {
-	for (const port of ['note', 'sidecar'] as const) {
-		it(`stamps on a ${port} read fault, carrying the sidecar restore's cause`, async () => {
-			const undoing = { on: false, reads: 0, saves: 0 };
-			/** The second read of `which` inside the undo — the one after the put-back is refused. */
-			const faulting = (which: typeof port) => undoing.on && port === which && ++undoing.reads > 1;
-			const readFault = err({ ...injectedPersistenceError(), code: 'test.injected-read' });
+describe('a background undo whose restore and put-back are both refused', () => {
+	for (const [code, stamped] of [
+		['asset.revision-conflict', false],
+		['asset.external-modification', false],
+		['asset.write-failed', true],
+		['asset.pre-write-invalid', true],
+	] as const) {
+		it(`${stamped ? 'stamps' : 'does not stamp'} a put-back refused as ${code}, answering the sidecar restore's cause`, async () => {
+			const undoing = { on: false, saves: 0 };
 			const w = await seeded({
 				sidecar: (real) => ({
-					read: (id) => (faulting('sidecar') ? Promise.resolve(readFault) : real.read(id)),
+					read: (id) => real.read(id),
 					write: (id, written, expected) => (undoing.on ? Promise.resolve(err(injectedPersistenceError())) : real.write(id, written, expected)),
 				}),
 				assets: (real) => ({
-					getById: (id) => (faulting('note') ? Promise.resolve(readFault) : real.getById(id)),
+					getById: (id) => real.getById(id),
 					listAll: () => real.listAll(),
 					delete: (id, expected) => real.delete(id, expected),
 					save: (asset, expected) =>
-						undoing.on && ++undoing.saves > 1
-							? Promise.resolve(err({ ...injectedPersistenceError(), code: 'test.injected-put-back' }))
-							: real.save(asset, expected),
+						undoing.on && ++undoing.saves > 1 ? Promise.resolve(err({ ...injectedPersistenceError(), code })) : real.save(asset, expected),
 				}),
 			});
 			await w.seed(drawn());
 			await w.seedCalibration();
 			const gesture = w.reversible.setBackground({ assetId: w.assetId, path: 'Specs/a.png', kind: 'image', page: null });
 			expect(expectOk(await gesture.execute())).toBe('wrote');
+			const announced = w.designChanges.length;
 
 			undoing.on = true;
 			const refused = expectErr(await gesture.undo());
-			expect({ code: refused.code, stamped: leftWritesBehind(refused) }).toEqual({ code: 'test.injected-failure', stamped: true });
+			// A stamped undo's note restore stands, so it is announced for every leaf to redraw; a conflict's vault is the other writer's.
+			expect({ code: refused.code, stamped: leftWritesBehind(refused), announced: w.designChanges.length - announced }).toEqual({
+				code: 'test.injected-failure',
+				stamped,
+				announced: stamped ? 1 : 0,
+			});
 		});
 	}
 });

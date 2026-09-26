@@ -125,6 +125,9 @@ export interface ReversibleAssetDesignEdit {
 	undo(): Promise<DispatchResult>;
 }
 
+/** A store's own conflict refusal (`WRITE_BOUNDARY_CODES`): another writer moved the version this write presented. */
+const isConflict = (error: AppError): boolean => WRITE_BOUNDARY_CODES.some((code) => error.code.endsWith(`.${code}`));
+
 /**
  * What both adapters share: the wrapped command, its input, and the rule deciding which
  * version each forward write is conditioned on.
@@ -184,6 +187,21 @@ abstract class ReversibleAssetEdit<TInput extends AssetShapeInput> {
 	protected supersededSince(ledger: WriteLedger, generation: number): boolean {
 		return ledger.generation(this.input.assetId) !== generation;
 	}
+
+	/**
+	 * An UNSTAMPED refusal of one of an undo's own restore writes, as the user should read it
+	 * (owner rulings 17, 27 and 30): a conflict means another change raced the undo, which is
+	 * `undo.superseded` — the toast the generation check's refusal already raises, with the save
+	 * badge left alone — while a write FAULT passes through and still reads as a save error.
+	 *
+	 * Every conflict, including the one a ledger that answers nothing produces by falling back to
+	 * the pre-gesture version: the store's code is the same either way, and ruling 30 reads both as
+	 * superseded. Nothing is written in either case. The background adapter's stamped arm never
+	 * comes here, so rulings 18 and 23 are untouched: its cause keeps its own code.
+	 */
+	protected raced(error: AppError): DispatchResult {
+		return err(isConflict(error) ? undoSuperseded(this.input.assetId) : error);
+	}
 }
 
 /**
@@ -204,7 +222,8 @@ abstract class ReversibleAssetEdit<TInput extends AssetShapeInput> {
  * (`geometryLedger`), never on this adapter's own captured one — after footprint, clearance,
  * undo-the-clearance, the sidecar sits two writes past the footprint's, and a per-adapter
  * expectation would refuse the exact sequence undo/redo exists to make work. A sidecar edited
- * OUTSIDE this history since still refuses: its version left the ledger's behind.
+ * OUTSIDE this history since still refuses: its version left the ledger's behind, and `raced`
+ * reports that conflict as `undo.superseded`.
  *
  * **And that condition answers about the TIP, so the GENERATION answers about the chain.** A
  * peer writing between two of this history's gestures leaves the tip perfectly current by the
@@ -299,7 +318,7 @@ class ReversibleAssetGeometryEdit<TInput extends AssetShapeInput>
 		if (this.supersededSince(geometryLedger, inverse.generation)) return err(undoSuperseded(assetId));
 		const expected = geometryLedger.lastWritten(assetId) ?? inverse.preVersion;
 		const written = await sidecar.write(assetId, inverse.document, expected);
-		if (isErr(written)) return written;
+		if (isErr(written)) return this.raced(written.error);
 
 		// The restore is a write like any other, so it records — or the next undo down the
 		// stack presents a revision the sidecar no longer has (`WriteLedger` states that rule
@@ -319,7 +338,8 @@ class ReversibleAssetGeometryEdit<TInput extends AssetShapeInput>
  * It captures the whole `Asset`, not its height: an inverse built from one field would have to
  * be re-derived per command, and the entity is what the repository takes anyway. Restoring the
  * whole entity cannot revert a neighbour's edit, because the write is conditional — anybody
- * else's write moves the version and the restore is refused rather than applied.
+ * else's write moves the version and the restore is refused rather than applied (as
+ * `undo.superseded`, through `raced`).
  *
  * **The restore goes through the repository rather than back through
  * `SetAssetHeightCommand`.** Both were available and this one is the symmetric half of the
@@ -376,7 +396,7 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
 		if (this.supersededSince(noteLedger, inverse.generation)) return err(undoSuperseded(assetId));
 		const expected = noteLedger.lastWritten(assetId) ?? inverse.preVersion;
 		const saved = await assets.save(inverse.entity, expected);
-		if (isErr(saved)) return saved;
+		if (isErr(saved)) return this.raced(saved.error);
 
 		noteLedger.record(assetId, saved.value.version);
 		this.inverse = null;
@@ -387,9 +407,6 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
 		return ok('wrote');
 	}
 }
-
-/** A store's own conflict refusal (`WRITE_BOUNDARY_CODES`): another writer moved the version this write presented. */
-const isConflict = (error: AppError): boolean => WRITE_BOUNDARY_CODES.some((code) => error.code.endsWith(`.${code}`));
 
 /**
  * The inverse of `SetAssetBackground` (Task B7) — the first inverse in this file that spans
@@ -621,17 +638,6 @@ class ReversibleAssetBackgroundEdit
 		if (isConflict(putBack.error)) return this.raced(cause);
 		await events.publish(assetDesignChanged({ assetId }));
 		return err(markUncompensated(cause, [{ entityKind: 'asset', entityId: assetId }]));
-	}
-
-	/**
-	 * An UNSTAMPED refusal of one of this undo's own writes, as the user should read it (owner
-	 * ruling 17): a conflict means another change raced the undo, which is `undo.superseded` — the
-	 * toast the pre-flight read's refusal already raises, with the save badge left alone — while a
-	 * write FAULT passes through and still reads as a save error. The stamped arm above never comes
-	 * here, so rulings 18 and 23 are untouched: its cause keeps its own code.
-	 */
-	private raced(error: AppError): DispatchResult {
-		return err(isConflict(error) ? undoSuperseded(this.input.assetId) : error);
 	}
 }
 

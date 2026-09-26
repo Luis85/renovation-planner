@@ -10,13 +10,16 @@ those places reach no recorder, and whether any of them can raise the stamp on a
 
 `markUncompensated` is called at **23 sites** in 17 files. **17 sites** reach a recorder on every
 path. **4 sites** reach no recorder on any path. **2 sites** reach one on some paths and not on
-others. So **6 sites** have at least one unrecorded path. 5 of those 6 raise the stamp only when
-two writes are refused: the write the site guards, and the write that should have undone it.
-**The sixth raises it on a healthy vault.** That site is the Asset designer's background undo,
-`ReversibleAssetBackgroundEdit.undo`. It raises the stamp after one refused write, and a peer
-write that lands during the undo is enough. On an asset with no calibration, the vault after that
-stamp holds its pre-gesture note and calibration. The ordinary cycle within one leaf's history
-(run, undo, redo, on a healthy vault) raised no stamp at any of the 6 sites.
+others. So **6 sites** have at least one unrecorded path. As measured at `d54e95931`, 5 of those 6
+raised the stamp only when two writes were refused — the write the site guards, and the write that
+should have undone it — and **the sixth raised it on a healthy vault**: the Asset designer's
+background undo, `ReversibleAssetBackgroundEdit.undo`, which raised the stamp after one refused
+write, with a peer write landing during the undo enough to reach it; on an asset with no
+calibration, the vault after that stamp held its pre-gesture note and calibration. **That sixth
+site is fixed** (owner rulings 13 and 18; see "Since the census", §7 below, `28409ace0` and
+`b22a2ed41`): #17 now also needs two refusals, and its second — the note put-back — must be a
+write FAULT, not an ordinary conflict, to raise the stamp. The ordinary cycle within one leaf's
+history (run, undo, redo, on a healthy vault) raised no stamp at any of the 6 sites, then and now.
 
 ## 2. Instruments, and what each cannot see
 
@@ -60,7 +63,7 @@ history nor `withSaveStateTracking` nor `withIncidentGate` records anything.
 | 14 | `commands/spatial/StructureCommand.ts` › `recovery` | Room restore failed after a failed write; room undo failed and the re-write failed; or the re-read after a room undo did not match the baseline | `guardedStructure` | `guardCommand` |
 | 15 | `reference/undoDeleteResolution.ts` › `rollBack` | A requirement restore was refused, and a compensation (`removeAgain`, or an earlier requirement put-back) was refused too | Only caller: `undoDeleteResolution` ← `ReversibleDeleteZoneCommand.undo` (built by `presentation/editor/add/createZoneHistory.ts › deleteZoneHistory` from `inspector-wiring.ts` and `spatialRemoval.ts`) → history | **none** |
 | 16 | `commands/zone/reversible-delete-zone-command.ts` › `undo › restoreEntity` | The boundary restore was refused, and the zone re-delete (`removeAgain`) was refused too | Same as #15 | **none** |
-| 17 | `editor/asset/ReversibleAssetDesignCommands.ts` › `ReversibleAssetBackgroundEdit.undo` | **One refusal**: the sidecar restore was refused after the note restore landed | `ReversibleAssetDesignCommands` ← `presentation/designer/designerCommands.ts › createAssetDesignerCommands` over the raw `persistence.assetGeometry` / `persistence.assets` ports (`assetDesignerDeps.ts`) → the designer's history | **none** |
+| 17 | `editor/asset/ReversibleAssetDesignCommands.ts` › `ReversibleAssetBackgroundEdit.undo` | As measured at `d54e95931`, **one refusal**: the sidecar restore was refused after the note restore landed. **Since `b22a2ed41` (owner ruling 18), two refusals**: the sidecar restore is refused after the note restore landed, AND the note put-back that refusal triggers itself FAULTS (any code other than `asset.revision-conflict` or `asset.external-modification`) | `ReversibleAssetDesignCommands` ← `presentation/designer/designerCommands.ts › createAssetDesignerCommands` over the raw `persistence.assetGeometry` / `persistence.assets` ports (`assetDesignerDeps.ts`) → the designer's history | **none** |
 | 18 | `infrastructure/.../noteEntityWrite.ts` › `trashNoteBackedEntity` | The second-file delete was refused after the note was trashed, and the note restore was refused too. Only the asset caller supplies `alsoRemove`, so only it can reach this | `AssetRepository.delete` ← `DeleteAssetCommand` only (`decls.mjs`) ← guarded `deleteAsset` | `guardCommand` |
 | 19 | `infrastructure/.../ObsidianPlanRepository.ts` › `insertNew` | The note create failed after the sidecar was created, and the sidecar delete failed too | `PlanRepository.save(…, 'absent')` ← `CreatePlan` only. Every other caller passes a version, and `checkExpectedVersion` refuses a missing note under a version ← guarded `createPlan` | `guardCommand` |
 | 20 | `infrastructure/.../ObsidianPlanRepository.ts` › `delete` | The sidecar delete failed after the note was trashed, and the note restore failed too | `DeletePlan` only ← guarded `deletePlan` | `guardCommand` |
@@ -79,10 +82,13 @@ is reached on a redo.
 ## 4. Phase 2 — can each unrecorded site fire on a healthy vault?
 
 Probes: `tests/plugin/undoStampOnHealthyVault.test.ts` and
-`tests/plugin/designerUndoStampOnHealthyVault.test.ts` are committed. The fuller scratch versions,
-which also assert what stays unrecorded and drive the concurrent case, are in
-`D:/tmp-rp/s21-q1/probes/`. Their run is in `D:/tmp-rp/s21-q1/probes/run-full.txt`, where
-18 of 18 pass.
+`tests/plugin/designerUndoStampOnHealthyVault.test.ts` are committed (the designer file has since
+been rewritten twice, for owner rulings 13 and 18; see "Since the census", §7 below). The fuller
+scratch versions, which also assert what stays unrecorded and drive the concurrent case, are in
+`D:/tmp-rp/s21-q1/probes/`. Their run, as measured at `d54e95931`, is in
+`D:/tmp-rp/s21-q1/probes/run-full.txt`, where 18 of 18 passed — a dated record of that revision
+only: those scratch probes assert #17's old concurrent-stamp condition and would fail on the code
+at `b22a2ed41`.
 
 The rig is composed the way `planEditorDeps.ts` and `assetDesignerDeps.ts` compose it: the real
 repositories over the fake vault, guarded inner doors (`guardCommand`, `guardedStructure`,
@@ -112,54 +118,75 @@ stamp truthful when it fires.
 | #11 `restoreSteps` | No stamp across 4 gestures: delete a Room plus 2 walls; delete two grouped Rooms; paste two Rooms plus walls plus a group; and a Room with a boundary, a group and a requirement. Each was run, undone, redone, undone and redone. The existing `deleteSelectionCommand.test.ts` and `pasteCommand.test.ts` also drive benign first-step refusals, with no stamp | Undo of the multi-element delete: the Room restore (`zones.save`) is refused and the walls re-delete (`plans.save`) is refused → stamped, no entities named | **No**: the registry stays empty | Only on a genuinely half-written vault (two writes must fail) |
 | #15 `rollBack` | No stamp: delete a bounded, grouped Room with one requirement (`remove-references`), and cycle it | Requirement restore refused + `zones.delete` refused → stamped, no entities named. With the requirement restore refused alone, the undo compensates and raises no stamp | **No** | Only on a genuinely half-written vault |
 | #16 `restoreEntity` | Same healthy run as #15 | `RoomBoundaryHistory.restore` refused + `zones.delete` refused → stamped, naming the zone and the plan | **No** | Only on a genuinely half-written vault. The first refusal can be a logic refusal from the boundary restore (`boundary-missing`, `group-restore-conflict`). The second has to be a refused zone delete |
-| #17 `ReversibleAssetBackgroundEdit.undo` | No stamp, with a calibration and without one | `sidecar.write` refused → stamped, naming the asset | **No** | **Also on a healthy vault** (§4.6) |
+| #17 `ReversibleAssetBackgroundEdit.undo` | No stamp, with a calibration and without one | As measured at `d54e95931`: `sidecar.write` refused → stamped, naming the asset. **Since `b22a2ed41`:** that refusal alone puts the note back, unstamped; a stamp now needs the put-back itself to FAULT (P2, P5) | **No** | **Fixed** (§4.6): only on a put-back FAULT (P2, P5), or another writer's delete/lock surfacing as one inside the put-back's own read (P8) — see "Since the census", §7 |
 | #21 via `restoreZone` | No stamp: delete undo (above), and drawing a Room then undoing and redoing it | Fake-vault `modify:<sidecar>` + `delete:<note>` → `zone.sidecar-insert-uncompensated`, naming the zone and the plan, on a delete UNDO and on a draw REDO | **No** on both paths | Only on a genuinely half-written vault (two vault operations must fail) |
 | #22 via `removeAgain` | Same healthy run as #15 | Not driven by itself. Its only unrecorded path is the compensation inside #15 and #16, which were driven with `zones.delete` refused at the port. The repository's own two-failure arm was driven through the guarded door, where it IS recorded | Read | Only on a genuinely half-written vault (read). It is always wrapped by #15 or #16 |
 
-### 4.6 The finding: #17 stamps on a healthy vault
+### 4.6 Historical finding, since closed: #17 stamped on a healthy vault
 
-No fault is injected. A peer leaf's ordinary guarded gesture (`setFacing`) lands between the
-undo's pre-flight `sidecar.read` and its restoring `sidecar.write`. The same interleaving is
-already driven by `tests/application/editor/reversibleAssetDesign.test.ts` › "reports an
-uncompensated background undo when a peer writes the sidecar…". The restore is refused as
-`asset-geometry.revision-conflict`, and #17 stamps. Measured state after the stamp, compared with
+**As measured at `d54e95931`.** No fault was injected. A peer leaf's ordinary guarded gesture
+(`setFacing`) landed between the undo's pre-flight `sidecar.read` and its restoring
+`sidecar.write`. The same interleaving was driven by
+`tests/application/editor/reversibleAssetDesign.test.ts` › "reports an uncompensated background
+undo when a peer writes the sidecar…" (since renamed; see below). The restore was refused as
+`asset-geometry.revision-conflict`, and #17 stamped. Measured state after the stamp, compared with
 before the gesture:
 
-| Asset before the gesture | After the stamped undo | Is the vault half-written? |
+| Asset before the gesture | After the stamped undo (as measured at `d54e95931`) | Is the vault half-written? |
 |---|---|---|
 | No calibration | Note background `null` = before. Calibration `null` = before. The only change is the peer's own facing write | **No.** The stamp is raised over a vault that holds its pre-gesture state |
 | Calibrated | Note background restored. **Calibration lost** | Yes. The stamp is true |
 
-The calibrated row's stamp is truthful, but the vault it leaves is still a LEGAL one — an
+The calibrated row's stamp was truthful, but the vault it left was still a LEGAL one — an
 uncalibrated asset over its old background, not a corrupt one — so under option 2 a lost
-calibration would pause every write in the vault until a reload, the same as the false stamp does,
-for a loss that is real but narrow.
+calibration would have paused every write in the vault until a reload, the same as the false stamp
+did, for a loss that was real but narrow.
 
-Why it can happen: #17 is the only unrecorded site whose condition is ONE refused write. The
-other five each need a second refused write. The site stamps whenever the sidecar restore is
-refused after the note landed, and it does not ask whether that restore would have changed
-anything the note depends on. What reaches it, by a single user, inside one undo's read-to-write
-window (that window spans the note save):
+**Since `28409ace0` / `b22a2ed41` (owner rulings 13 and 18; §7 below), this finding no longer
+holds.** The test above is renamed to "refuses cleanly, with the note put back, when a peer writes
+the sidecar between the undo's pre-flight read and its restore" (`:421`), and it now asserts no
+stamp. On the same peer (`setFacing`, a conflict on the sidecar restore only), the put-back
+succeeds — no second writer contends for the note — so the undo answers unstamped, with the note
+left holding the *gesture's own* background rather than the pre-gesture one: the whole gesture is
+left standing, as if the undo had simply been refused outright. There is **no loss** on either
+row: the no-calibration row is unchanged, and on the calibrated row the calibration was already
+cleared by the forward gesture itself before this peer ever wrote, so the undo's failure to
+restore it is not a new loss this peer caused.
 
-- **Driven**, in the S21 review round (`e5f649398`): a **second designer leaf of the same asset**
-  — a split pane — running its own guarded gesture (`setFacing`) on that leaf's own history; the
-  **asset deleted** while the window is open, which stamps naming the deleted asset; and a
-  **byte-only rewrite of the `.rpgeo` sidecar** (a reformatting sync, semantically identical JSON),
-  which stamps as `asset-geometry.external-modification`.
+A true half-undo — a calibration lost that the peer's write did not already cause on its own —
+needs a *second* refusal, on the put-back itself: a peer that writes the SIDECAR refuses the
+restore, and a *different* peer write that lands on the NOTE before the put-back refuses that too,
+as a conflict. That shape (the S21 #17 re-review's Q2a, Minor 1; pinned in
+`designerUndoStampOnHealthyVault.test.ts` › "#17 — a note peer between the refused sidecar restore
+and the put-back") is answered unstamped, as an ordinary conflict — owner ruling 18 accepts that
+miss, and the docblock at `ReversibleAssetDesignCommands.ts` (~`:553`) states it.
+
+**Why it could happen, historically:** #17 was the only unrecorded site whose condition was ONE
+refused write, where the other five each needed a second. **That is no longer true**: #17 now also
+needs a second refusal, and that second refusal must be a write FAULT rather than a conflict. What
+reached the old, single-refusal condition — by a single user, inside one undo's read-to-write
+window (that window spans the note save) — is now driven, unstamped, as `#17 — a peer write inside
+the undo's read-to-write window leaves no stamp` in `designerUndoStampOnHealthyVault.test.ts`:
+
+- **Driven**, in the S21 review round (`e5f649398`) and re-pinned since: a **second designer leaf
+  of the same asset** — a split pane — running its own guarded gesture (`setFacing`) on that
+  leaf's own history; the **asset deleted** while the window is open; and a **byte-only rewrite of
+  the `.rpgeo` sidecar** (a reformatting sync, semantically identical JSON), read as
+  `asset-geometry.external-modification`. All three now refuse cleanly, unstamped.
 - **Established by reading only**, not driven: the **Asset library's own**
   `setAssetFootprintFromDimensions` (`assetLibraryDeps.ts`), which writes the same sidecar through
-  the same guarded command family as the peer writes above.
+  the same guarded command family as the peer writes above, and would refuse the same way.
 
-So this is not a second-device or sync-only case: one user, with a split designer pane or the
-Asset library open beside the designer, can reach it. **Not reached within one leaf's history**
-— `CommandHistory` serialises run, undo and redo through one queue, and the designer's tools and
-`editShape` go through that history — where all the healthy cycles were clean (again, only for
-that one serialised leaf: the fake vault is synchronous, so it forces every interleaving rather
-than letting one arise). Whether Obsidian can produce any of these interleavings in practice is
-not checkable here.
+**What still reaches the stamp at #17** — the fault side, all named in the S21 #17 re-review and
+listed with their commits in §7 below — is two genuine faults on an uncalibrated asset (P2), a
+sidecar-only sync write followed by a put-back fault on an uncalibrated asset (P5), and another
+writer's delete landing inside the put-back's own read, or a sync client's lock (established by
+reading only), surfacing as a fault rather than a conflict (P8) — each over a vault the code cannot
+tell from one that genuinely failed. Whether Obsidian can produce any of these interleavings in
+practice is not checkable here.
 
-Under option 2 (record inside `markUncompensated`), this stamp would become a vault-wide write
-block, and the only way to clear one is a reload (D-06).
+Under option 2 (record inside `markUncompensated`), any of these residual stamps would still
+become a vault-wide write block, and the only way to clear one is a reload (D-06).
 
 ## 5. The unasked check: a RECORDED site already pauses a coherent vault
 
@@ -208,9 +235,47 @@ incident, through the same door (`RenovationPlannerPlugin.ts:990-993`, which cal
 - The committed probes pin what a fix has to keep: a healthy undo raises no stamp and records
   nothing. Beyond that, the two probe files pin two different shapes. The five two-failure sites'
   positive controls (`undoStampOnHealthyVault.test.ts`) still raise their stamp when both refusals
-  named in §4's table are injected. The designer's positive control
-  (`designerUndoStampOnHealthyVault.test.ts`) is a ONE-refusal control, because #17's own condition
-  is one refused write — it pins the CURRENT mechanism, not a requirement, and a correct #17 fix
-  (restoring the sidecar first, say) may legitimately remove that stamp arm. They deliberately do
-  NOT pin that these stamps stay unrecorded, or #17's concurrent stamp. Both are true today, and
-  both are what the owner's choice may change.
+  named in §4's table are injected. **As measured at `d54e95931`, the designer's positive control
+  (`designerUndoStampOnHealthyVault.test.ts`) was a ONE-refusal control**, because #17's own
+  condition was one refused write — it pinned the mechanism of that revision, not a requirement,
+  and a correct #17 fix (restoring the sidecar first, say) could legitimately have removed that
+  stamp arm. **Since `b22a2ed41` (owner ruling 18), it is a TWO-refusal control instead**: the
+  sidecar restore refused AND the note put-back FAULTing, in both calibrations — the arm was
+  narrowed rather than removed, and the uncalibrated case is the one that now needs the stamp
+  announced, so every leaf redraws since its own note restore stands. **The committed cases no
+  longer avoid pinning #17's concurrent stamp**: they now pin the opposite of it — that a peer's
+  note edit landing between the refused sidecar restore and the put-back (Q2a), a single peer
+  writing both files (Q2b), the asset deleted inside the window, and a sync writing both files, all
+  raise none. That these stamps stay unrecorded is still deliberately not pinned, and is still what
+  the owner's choice may change.
+
+## 7. Since the census (`2026-09-25`–`2026-09-26`)
+
+Everything above is dated to `d54e95931`. Since then, #17 has been narrowed twice under owner
+rulings 13 and 18, and #23 has been fixed once under owner ruling 14 (already recorded in §5).
+Nothing else counted in §1–§3 has changed code under it.
+
+| Commit | Date | What changed |
+|---|---|---|
+| `ede046a05` | 2026-09-25 | Owner ruling 13 step 1, first pass at #17: the note is put back when the sidecar restore is refused, and the stamp is raised only when the vault the put-back leaves is genuinely a half-undo — a cached-read comparison (`undoLeftBehind`) checks the note's background and the sidecar's calibration against the inverse. A peer write that leaves a coherent vault no longer stamps by itself. |
+| `d8ac76607` | 2026-09-25 | Pins I2 at #17: the put-back's own save is conditioned on the version the note restore produced, so a peer's note edit landing between the refused sidecar restore and the put-back refuses the put-back rather than being silently overwritten. |
+| `28409ace0` | 2026-09-25 | Lands `ede046a05`'s fix and `d8ac76607`'s guard together, plus M1 (the fault arm publishes `assetDesignChanged` before it stamps, uncalibrated included) and M3 (the stale docblocks and comments corrected for the new, two-refusal condition). |
+| `b22a2ed41` | 2026-09-26 | Owner ruling 18: `undoLeftBehind`'s cached-read comparison is removed outright. The put-back's refusal is classified at the SOURCE instead — a CONFLICT (`WRITE_BOUNDARY_CODES`) is always answered unstamped, and a FAULT (any other code) always stamps — so no stamp at #17 depends on a cached read any more, and a peer's or a sync's conflicting write can no longer raise the stamp by itself. |
+| `9ba3432a2` | 2026-09-25 | Owner ruling 14 (#23): a rename skips a plan refused by `plan.schema-version-malformed`, `plan.sidecar-unreadable` or `plan.schema-version-unsupported` and records it in the diagnostics ledger, rather than opening the vault-wide incident §5 describes. `plan.migration-failed` still stops the rename with a failure notice; the ruling does not reach it. (Already recorded in §5.) |
+
+**Remaining coherent-vault stamps at #17, all fault-shaped** (the S21 #17 re-review, `2026-09-26`,
+on `28409ace0..b22a2ed41`):
+
+- **P2** — two genuine faults on an uncalibrated asset: the sidecar restore faults, and the note
+  put-back faults too. The vault after the stamp equals the finished undo.
+- **P5** — a sidecar-only sync write refuses the restore as a conflict, and the put-back then
+  faults, on an uncalibrated asset.
+- **P8** (the re-review's Minor 2) — another writer's delete landing inside the put-back's own
+  read (driven), or a sync client's lock (`EBUSY`, established by reading only) at the same
+  moment — indistinguishable here from a disk fault, so it also stamps, over a vault where the
+  asset is simply gone.
+
+All three are very low likelihood, and none is a conflict-coded refusal — so none is a peer's or a
+sync's ordinary write landing where the code could tell it apart from a genuine failure. That is
+the residual owner ruling 18 accepts, and the docblock at `ReversibleAssetDesignCommands.ts`
+(~`:553`, `putNoteBack`) states it at the decision site.

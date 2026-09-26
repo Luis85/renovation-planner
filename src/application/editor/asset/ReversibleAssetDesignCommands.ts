@@ -554,9 +554,15 @@ class ReversibleAssetBackgroundEdit
 	 * before or inside the note write) is answered the same way, unstamped: another writer changed
 	 * the note after the restore, so the vault holds that writer's state and not a half-undo — and a
 	 * read here could not say otherwise, since the note port answers from a cache that may not have
-	 * seen that write. Any other refusal is a write FAULT, over a note still holding the restore, and
-	 * stamps; a code that is neither (`asset.pre-write-invalid`) counts as a fault. Owner ruling 18
-	 * accepts the residual: a fault and an outside writer in the same moment go unreported.
+	 * seen that write. Owner ruling 18 accepts the miss this leaves: two peer writers, each refused
+	 * as an ordinary conflict and neither a fault, still leave the restored background with the
+	 * calibration lost — returned unstamped like any other conflict (the Q2a shape). Any other
+	 * refusal is a write FAULT, over a note still holding the restore, and stamps; a code that is
+	 * neither (`asset.pre-write-invalid`) counts as a fault. That fault side is wider than a genuine
+	 * write failure: another writer's delete landing inside the put-back's own read (driven: probe
+	 * P8), or a sync client's lock (`EBUSY`, established by reading only), is indistinguishable here
+	 * from a disk fault and so also stamps — a vault where the asset is simply gone. Very low
+	 * likelihood, and the design refuses the extra read that would tell the two apart.
 	 * Announced for the reason `SetAssetBackground`'s own uncompensated arm is: `withStateRefresh`
 	 * re-hydrates on `ok` alone and `EchoWindow` suppresses this plugin's own write, so without
 	 * it every leaf goes on drawing the background this undo really did remove.

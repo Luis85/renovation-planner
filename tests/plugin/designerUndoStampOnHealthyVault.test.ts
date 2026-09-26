@@ -264,7 +264,7 @@ describe('#17 — a peer write inside the undo\'s read-to-write window leaves no
 			});
 		});
 
-		it(`the asset deleted inside the window:the undo refuses cleanly and the asset stays gone (calibrated: ${String(calibrated)})`, async () => {
+		it(`the asset deleted inside the window: the undo refuses cleanly and the asset stays gone (calibrated: ${String(calibrated)})`, async () => {
 			const r = await designerRig(calibrated);
 			await r.dispatch('run', r.history.run(r.setBackground()));
 			r.afterNextNoteSave(async () => {

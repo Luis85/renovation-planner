@@ -234,8 +234,9 @@ describe('the window between the command\'s write and the version this gesture r
 		expect(peerRan.done).toBe(true);
 
 		// Asserted on the CODE: this refusal comes from the store, because the version the
-		// gesture presents is the one it really wrote and the peer has moved past it.
-		expect(expectErr(await gesture.undo()).code).toBe('asset-geometry.revision-conflict');
+		// gesture presents is the one it really wrote and the peer has moved past it — a
+		// conflict, which the adapter reports as `undo.superseded` (owner rulings 27 and 30).
+		expect(expectErr(await gesture.undo()).code).toBe('undo.superseded');
 		expect((await w.document()).shape?.facing).toBe(1);
 	});
 
@@ -254,7 +255,7 @@ describe('the window between the command\'s write and the version this gesture r
 		expect(expectOk(await gesture.execute())).toBe('wrote');
 		expect(peerRan.done).toBe(true);
 
-		expect(expectErr(await gesture.undo()).code).toBe('asset.revision-conflict');
+		expect(expectErr(await gesture.undo()).code).toBe('undo.superseded');
 		expect(await w.height()).toBe(1200);
 	});
 });
@@ -274,6 +275,10 @@ describe('the window between the command\'s write and the version this gesture r
  * store that has moved on is exactly the fail-closed answer — better than overwriting a state
  * this adapter can no longer describe. Both adapters, because a build that fixed one is a
  * build the other's identical line says nothing about.
+ *
+ * The store refuses it as a CONFLICT, the same code a racing peer gets, and the adapter cannot
+ * tell the two apart by it — so by owner ruling 30 this refusal reads as `undo.superseded` too:
+ * the user is shown the superseded toast rather than a save error, and nothing is written.
  */
 /** Records nothing and remembers nothing — every question answered as if unasked. */
 const silentLedger = (): WriteLedger => ({
@@ -285,7 +290,7 @@ const silentLedger = (): WriteLedger => ({
 });
 
 describe('an undo whose ledger answers nothing at all', () => {
-	it('falls back to the pre-gesture version and is refused, on the geometry side', async () => {
+	it('falls back to the pre-gesture version and is refused as superseded, writing nothing, on the geometry side', async () => {
 		const w = await seeded();
 		const adapters = new ReversibleAssetDesignCommands(
 			{
@@ -302,11 +307,11 @@ describe('an undo whose ledger answers nothing at all', () => {
 		expect(expectOk(await gesture.execute())).toBe('wrote');
 		const written = await w.document();
 
-		expect(expectErr(await gesture.undo()).code).toBe('asset-geometry.revision-conflict');
+		expect(expectErr(await gesture.undo()).code).toBe('undo.superseded');
 		expect(await w.document()).toEqual(written);
 	});
 
-	it('falls back to the pre-gesture version and is refused, on the note side', async () => {
+	it('falls back to the pre-gesture version and is refused as superseded, writing nothing, on the note side', async () => {
 		const w = await seeded();
 		const adapters = new ReversibleAssetDesignCommands(
 			{
@@ -321,7 +326,7 @@ describe('an undo whose ledger answers nothing at all', () => {
 		const gesture = adapters.setHeight({ assetId: w.assetId, height: 900 });
 		expect(expectOk(await gesture.execute())).toBe('wrote');
 
-		expect(expectErr(await gesture.undo()).code).toBe('asset.revision-conflict');
+		expect(expectErr(await gesture.undo()).code).toBe('undo.superseded');
 		expect(await w.height()).toBe(900);
 	});
 });

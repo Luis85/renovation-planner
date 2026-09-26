@@ -131,7 +131,7 @@ async function designerRig(calibrated: boolean) {
 	}
 	/** The toast and the save badge, which is all of an undo's refusal the user sees. */
 	const surface = () => ({ toasts, state: saveState.state });
-	return { registry, saveState, harness, guarded, leaf, raw, history, seen, outcomes, dispatch, setBackground, state, afterNextNoteSave, afterSidecarRefusal, surface };
+	return { registry, saveState, harness, guarded, edits, leaf, raw, history, seen, outcomes, dispatch, setBackground, state, afterNextNoteSave, afterSidecarRefusal, surface };
 }
 
 type Rig = Awaited<ReturnType<typeof designerRig>>;
@@ -403,5 +403,66 @@ describe("#17 — a sync writing both files inside the undo's window", () => {
 				}).toEqual({ background: { path: 'Specs/a.png', kind: 'image', page: null }, calibration: null });
 			});
 		}
+	}
+});
+
+/**
+ * The designer's SINGLE-resource undos — the geometry adapter (`setFacing` here) and the note
+ * adapter (`setHeight`) — answer a racing change the way the background undo does (owner rulings
+ * 27 and 30): a peer leaf writing the same file between the gesture and its undo refuses the
+ * restore as `undo.superseded`, unstamped, with the toast and the badge left at 'saved'. Nothing is
+ * written: the peer's value stands. A genuine write fault on the same restore is not a race, so it
+ * still reads as a save error, unstamped and without a toast.
+ */
+describe('a single-resource designer undo', () => {
+	const GESTURES = [
+		{
+			name: 'setFacing',
+			run: (r: Rig) => r.edits.setFacing({ assetId: r.harness.assetId, facing: 0.5 }),
+			peer: (r: Rig, leaf: ReturnType<Rig['leaf']>) => leaf.edits.setFacing({ assetId: r.harness.assetId, facing: 1.2 }),
+			read: async (r: Rig) => (await r.harness.document()).shape?.facing,
+			peerValue: 1.2,
+			fault: (r: Rig) => vi.spyOn(r.harness.sidecar, 'write').mockResolvedValueOnce(err(injectedPersistenceError())),
+		},
+		{
+			name: 'setHeight',
+			run: (r: Rig) => r.edits.setHeight({ assetId: r.harness.assetId, height: 1234 }),
+			peer: (r: Rig, leaf: ReturnType<Rig['leaf']>) => leaf.edits.setHeight({ assetId: r.harness.assetId, height: 900 }),
+			read: (r: Rig) => r.harness.height(),
+			peerValue: 900,
+			fault: (r: Rig) => {
+				const assets: AssetRepository = r.harness.stack.assets;
+				return vi.spyOn(assets, 'save').mockResolvedValueOnce(err(injectedPersistenceError()));
+			},
+		},
+	] as const;
+
+	for (const gesture of GESTURES) {
+		it(`${gesture.name}: a peer write before the undo reads as superseded and keeps the peer's value`, async () => {
+			const r = await designerRig(false);
+			await r.dispatch('run', r.history.run(gesture.run(r)));
+			const leaf = r.leaf();
+			expect(expectOk(await leaf.history.run(gesture.peer(r, leaf)))).toBe('wrote');
+			await r.dispatch('undo', r.history.undo());
+			expect({ seen: r.seen, value: await gesture.read(r), unrecovered: r.saveState.unrecoveredWrite, canUndo: r.raw.canUndo, surface: r.surface() }).toEqual({
+				seen: [{ step: 'undo', code: 'undo.superseded', stamped: false }],
+				value: gesture.peerValue,
+				unrecovered: false,
+				canUndo: true,
+				surface: SUPERSEDED,
+			});
+		});
+
+		it(`${gesture.name}: a write fault on the restore still reads as a save error, unstamped`, async () => {
+			const r = await designerRig(false);
+			await r.dispatch('run', r.history.run(gesture.run(r)));
+			gesture.fault(r);
+			await r.dispatch('undo', r.history.undo());
+			expect({ seen: r.seen, unrecovered: r.saveState.unrecoveredWrite, surface: r.surface() }).toEqual({
+				seen: [{ step: 'undo', code: 'test.injected-failure', stamped: false }],
+				unrecovered: false,
+				surface: { toasts: [], state: 'save-error' },
+			});
+		});
 	}
 });

@@ -362,7 +362,8 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 	/**
 	 * An undo that overwrites a later edit is a lost update wearing an undo's clothes. The
 	 * refusal is asserted on the CODE and on the document: "it refused" is equally true of a
-	 * build that refused for the wrong reason.
+	 * build that refused for the wrong reason. The store refuses the restore as a conflict, which
+	 * the adapter reports as `undo.superseded` (owner rulings 27 and 30).
 	 */
 	it('refuses rather than overwriting a sidecar write this history did not make', async () => {
 		const { reversible, assetId, seed, document, plain } = await seeded();
@@ -374,7 +375,7 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 		expect(expectOk(await plain.setFacing.execute({ assetId, facing: 1 }))).toBe('wrote');
 		const outsider = await document();
 
-		expect(expectErr(await command.undo()).code).toBe('asset-geometry.revision-conflict');
+		expect(expectErr(await command.undo()).code).toBe('undo.superseded');
 		expect(await document()).toEqual(outsider);
 	});
 
@@ -386,7 +387,7 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 
 		expect(expectOk(await plain.setHeight.execute({ assetId, height: 1200 }))).toBe('wrote');
 
-		expect(expectErr(await command.undo()).code).toBe('asset.revision-conflict');
+		expect(expectErr(await command.undo()).code).toBe('undo.superseded');
 		expect(await height()).toBe(1200);
 	});
 

@@ -60,12 +60,20 @@ async function refit(browser: NativeBrowser, designer: DesignerPage): Promise<vo
 	await browser.pause(300);
 }
 
-/** Dismiss every notice shown — a click is Obsidian's own dismissal — so the next assertion reads only what follows. */
+/**
+ * Dismiss every notice shown — a click is Obsidian's own dismissal — so the next assertion reads only
+ * what follows. The click is repeated on every poll: one click sometimes left the notice standing on
+ * the 1.13.7 Linux leg (its own CI run, green one push earlier), and a single pass never retried it.
+ */
 async function noticesCleared(browser: NativeBrowser, designer: DesignerPage): Promise<void> {
-	await browser.execute(() => {
-		for (const notice of document.querySelectorAll<HTMLElement>('.notice-container .notice')) notice.click();
-	});
-	await expect.poll(designer.notices).toEqual([]);
+	await expect
+		.poll(async () => {
+			await browser.execute(() => {
+				for (const notice of document.querySelectorAll<HTMLElement>('.notice-container .notice')) notice.click();
+			});
+			return designer.notices();
+		})
+		.toEqual([]);
 }
 
 /**

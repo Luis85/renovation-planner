@@ -71,15 +71,19 @@ gone, and the vault is left inconsistent with nothing anywhere saying so. The sa
 undoing a multi-element delete or a paste, and to undoing an edit in the Asset designer.
 
 For contrast, the *covered* half behaves very differently: a half-failed write that does reach a
-recorder pauses **every** write in the vault until the plugin is reloaded (decision D-06), and
-names itself in the diagnostics report.
+recorder pauses **every** write in the vault, and names itself in the diagnostics report. The pause
+is **durable** (decision D-08, ADR-0034): it is written to `write-incidents.json` and re-read at
+every load, so it survives reloads and restarts, and it ends only when the user removes that file
+and then reloads (the file is read once per load, tracker L-09, so the removal takes effect only
+at the next one; a reload alone is not a way out). This paragraph said "until the plugin is reloaded (decision D-06)" until owner ruling 21,
+which is the session-scoped behaviour D-08 replaced.
 
 ### Options
 
 | Option | What it changes | What it costs | What it costs if this is the wrong choice |
 |---|---|---|---|
 | **Leave it** (today) | Nothing. The named sites stay live and stay silent. | Nothing to build. The existing pin (below) stops the hole getting wider on the two of four pane bundles it walks — not on `assetDesignerDeps`, which is the one handing out the fourth site's ports. | A user's vault is left half-written after an undo, with no pause, no notice and nothing in the diagnostics report — and the plugin keeps writing over it. Nobody can tell from the product that it happened. |
-| **Record inside `markUncompensated` itself** | Closes the category by construction: every stamp becomes a durable incident wherever it is raised, because that function is the only place the stamp is made. | Makes a pure stamping function write to module-level state — it is currently a copy-and-return with no side effect. And it necessarily turns stamps that today reach no recorder into vault-wide write blocks, which is the point of the option and also its risk. | Every newly-recorded stamp pauses **all** writing in the vault, and under decision D-06 the only way a user clears that is reloading the plugin. If any site turns out to raise a stamp routinely on a vault that is in fact fine, the plugin becomes unusable until reload — on a branch nothing has ever run in a vault. |
+| **Record inside `markUncompensated` itself** | Closes the category by construction: every stamp becomes a durable incident wherever it is raised, because that function is the only place the stamp is made. | Makes a pure stamping function write to module-level state — it is currently a copy-and-return with no side effect. And it necessarily turns stamps that today reach no recorder into vault-wide write blocks, which is the point of the option and also its risk. | Every newly-recorded stamp pauses **all** writing in the vault, and under decision D-08 that pause survives reloads and restarts: the only way a user clears it is removing `write-incidents.json` and reloading. If any site turns out to raise a stamp routinely on a vault that is in fact fine, the plugin cannot write to that vault until the user does that — on a branch nothing has ever run in a vault. (Corrected under owner ruling 21: this cell said "until reload", citing D-06, which D-08 superseded.) |
 | **A static check that a stamp can reach a recorder** | Would refuse a raise site whose dispatch cannot reach `guardCommand`. | **Refused by measurement, not by argument** — recorded in ADR-0034. The guarded relation is made by wrapping an object at runtime and consumed by calling a port method; neither is an import edge. A walk from `guardedServices.ts` reaches 1 of the 17 stamping modules; one from `composition-root.ts` reaches 929 files including all of presentation. | Nothing — it was attempted and does not work. It is listed so it is not re-proposed. |
 | **List the covered paths in prose and keep them current** | Nothing in the code. | This is what the ADR did, and it contradicted itself: a site sat on the COVERED list while being uncovered (`undoDeleteResolution.rollBack`), found only when someone measured. | A list that reads as authoritative and is wrong is worse than no list, because the next reader stops measuring. |
 
@@ -172,6 +176,37 @@ The release owner chose **"Measure first"** in session 21's chat: agents list ev
 raise this "partly failed" mark without it being recorded, and check whether any can fire on a
 healthy vault, and the owner decides the fix from that result. The deciding experiment above is
 authorised as the next step. **Q1 remains open.**
+
+### The owner's choice, 2026-09-26 — taken
+
+The measurement is `11-q1-stamp-census.md`: 23 raise sites, 6 with a path reaching no recorder,
+and one of those six (#17, the Asset designer's background undo) able to stamp a healthy vault.
+The owner then ruled, in order:
+
+- **Ruling 13, "Fix false marks, then record".** First stop #17 marking a vault that is fine
+  (done under rulings 13 and 18, census §7), then **record every mark in one place** — this
+  section's option "Record inside `markUncompensated` itself" — so all six gaps close by
+  construction.
+- **Ruling 19, "Go ahead, Q3 first".** Land the keep-alive of Q3 (ruling 16) first, then record.
+  Taken knowing the corrected cost: a recorded stamp is **durable across restarts** (D-08), so
+  #17's three remaining fault-shaped cases (two disk faults, a sync write plus a fault, a delete
+  at the exact moment of the read) can durably block a healthy vault until the user removes
+  `write-incidents.json`.
+- **Ruling 20, "Accept both" side effects.** The diagnostics report lists slightly different
+  entry counts on nested undo chains (a stamp crossing two guarded doors is one entry, not two;
+  a compensation stamping over an already-stamped cause adds one), and once a mark lands
+  mid-gesture a later guarded step of the same gesture is refused — restored walls stay restored
+  rather than being re-deleted.
+- **Ruling 21, "D-08 is right".** The pause persists across restarts on purpose; this section's
+  "until reload" wording is corrected above, with no code change.
+
+**Implemented**: `markUncompensated` records the stamped copy through the existing write-incident
+holder; `guardCommand` and the rename listener record nothing; `eslint.config.mjs`'s
+`STAMP_CONSTRUCTION_BAN` refuses a stamp built by hand anywhere in `src/`, with its blind spots
+pinned in `tests/gates/stamp-construction-boundary.test.ts`. The ADR-0034 amendment dated
+2026-09-26 carries the reasoning, and census §7 the commit. **Q1 is decided.** Nothing here ran
+in a vault: a fix verified in situ is still the vault run this section's "deciding experiment"
+reserves for that.
 
 ## 4. Q2 — a settings change landing inside a live project create (tracker L-19)
 

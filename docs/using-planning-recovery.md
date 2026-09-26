@@ -41,9 +41,11 @@ mostly happens: undoing a zone deletion, undoing an asset assignment, and undoin
 cost override each write straight to their notes and are not paused. Neither are the link
 updates the plugin makes when you rename or move a file the plan links to as evidence. Those are
 examples rather than a boundary: nothing in the plugin lists or checks what sits outside the
-pause, so do not read this as a complete list. For an action outside the pause the plugin may
-neither pause nor remember: if it leaves files half-written, it can fail without ever recording
-an incident, and the warning you are reading now would not appear for it at all. So do not read
+pause, so do not read this as a complete list. An action outside the pause is not refused, but
+it is not unwatched either: when it notices that it left files half-written, it records an
+incident exactly as a command does, and writing pauses everywhere from then on. What it cannot
+record is a half-write it did not notice — not every failure is detected where it happens — so
+this warning is not guaranteed to appear for every partial write. So do not read
 any single action still working as proof the incident has cleared, and do not treat a quiet
 failure in one of those actions as nothing having happened. Stop making changes anywhere in the
 vault and inspect the affected files against your backup instead. Reading, navigating and

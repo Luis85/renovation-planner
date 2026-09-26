@@ -499,6 +499,30 @@ could name, not about whether the vault is safe.
   costed**: this correction removes a false reason to hesitate, not the reason to hesitate.
   Taking the option still needs an ADR-0034 amendment and a release owner, unchanged. The
   owner-facing version is in `docs/releases/first-beta-readiness/05-owner-decisions.md`.
+- **Amendment, 2026-09-26 (owner rulings 13, 19, 20 and 21): the option is TAKEN — every stamp is
+  recorded inside `markUncompensated`, and neither door records any more.** `markUncompensated`
+  records the stamped copy into the registry `activeWriteIncidentRegistry()` answers at stamp
+  time; `guardCommand` keeps only its gate and its keep-alive hold, and the host-rename listener
+  only its hold, so one stamp is one incident whichever way it leaves. The census that preceded it
+  (`docs/releases/first-beta-readiness/11-q1-stamp-census.md`) found 23 raise sites of which 6
+  had a path reaching neither door; those close by construction. Taken on the costs this record
+  already named, re-confirmed on the CORRECTED one: a recorded stamp is durable (D-08), so each
+  newly recorded path pauses the vault across restarts, not "until reload". Taken after the
+  designer undo's false stamp was fixed (#17, rulings 13 and 18) and after the keep-alive (ruling
+  16), which is what keeps a registry installed for a stamp a counted save makes after `onunload`.
+  Two side effects are accepted (ruling 20) and pinned in
+  `tests/plugin/undoStampOnHealthyVault.test.ts`: report counts change on nested chains (a stamp
+  crossing two guarded doors is one incident, not two; a compensation stamping over an already
+  stamped cause adds one), and once a stamp lands mid-gesture a later guarded step of the same
+  gesture is refused. **The static-check refusal above still stands, and is now beside the
+  point rather than overturned:** a raise site's reachability to a recorder is still not an
+  import edge, so it is still not checkable by a walk — but no recorder has to be reached any
+  more. What IS checked is the one assumption the construction rests on, that nothing in `src/`
+  builds a stamp except `markUncompensated`: `STAMP_CONSTRUCTION_BAN` in `eslint.config.mjs`,
+  whose literal spellings and blind spots (a computed key, `Object.defineProperty`, a class field,
+  a second function of that name, oxlint) `tests/gates/stamp-construction-boundary.test.ts`
+  drives. A stamp made while no registry is installed is still lost; the keep-alive narrows that
+  window to saves none of its holders counts.
 
 ## Amendment 1, 2026-09-18 — an UNDO is refused while the vault is paused
 

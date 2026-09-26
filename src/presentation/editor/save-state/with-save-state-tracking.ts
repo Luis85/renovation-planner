@@ -1,5 +1,6 @@
 import { leftWritesBehind, type DispatchResult } from '../../../application/commands/DispatchOutcome';
 import { WRITES_PAUSED_CODE } from '../../../application/errors/guardAgainstThrowing';
+import { activeWriteIncidentRegistry } from '../../../application/incidents/WriteIncidentRegistry';
 import { isErr } from '../../../core/result/Result';
 import type { RefreshedHistory } from '../tools/with-state-refresh';
 import type { useSaveStateStore } from './save-state-store';
@@ -35,6 +36,10 @@ export function withSaveStateTracking(
 	saveState: SaveStateTracker,
 ): RefreshedHistory {
 	const track = async (operation: () => Promise<DispatchResult>): Promise<DispatchResult> => {
+		// Held from the GESTURE, synchronously: a field the teardown blurs dispatches here before
+		// `onunload`, and reaches its guard only after it (owner ruling 16,
+		// `WriteIncidentRegistry.hold`).
+		const release = activeWriteIncidentRegistry()?.hold();
 		saveState.beginSaving();
 		try {
 			const result = await operation();
@@ -108,6 +113,8 @@ export function withSaveStateTracking(
 			// a decorator that swallowed it would turn a fault into silence.
 			saveState.resolveErr();
 			throw cause;
+		} finally {
+			release?.();
 		}
 	};
 

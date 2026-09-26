@@ -4,7 +4,7 @@ import type { Logger } from '../ports/Logger';
 import type { Command } from '../commands/Command';
 import type { Query } from '../queries/Query';
 import { leftWritesBehind, type UncompensatedWrite } from '../commands/DispatchOutcome';
-import { activeWriteIncidentRegistry } from '../incidents/WriteIncidentRegistry';
+import { activeWriteIncidentRegistry, type WriteIncidentRegistry } from '../incidents/WriteIncidentRegistry';
 import { persistenceError } from '../errors';
 import type { VaultExceptionMapper } from './exceptionMapper';
 
@@ -119,19 +119,27 @@ export function guardCommand<I, T, E extends AppError>(
 	const guarded = withBoundary(command.execute.bind(command), event, logger, map);
 	return {
 		execute: async (input) => {
-			const incidents = activeWriteIncidentRegistry();
+			// Annotated so fallow resolves `hold` through it (CLAUDE.md's Gotchas).
+			const incidents: WriteIncidentRegistry | null = activeWriteIncidentRegistry();
 			if (incidents !== null && incidents.anyOpen()) {
 				const refusal = writesPausedRefusal();
 				logger.error(event, { cause: refusal });
 				return err(refusal);
 			}
-			const result = await guarded(input);
-			// A presence test, not an emptiness test: "half-written, and this raise site cannot
-			// name what" is a legal stamp and a fully open incident.
-			if (isErr(result) && leftWritesBehind(result.error)) {
-				void incidents?.record(result.error as AppError & UncompensatedWrite);
+			// Released only AFTER the record below, so a teardown waiting on this save finds the
+			// incident open and keeps the registry (owner ruling 16, `WriteIncidentRegistry.hold`).
+			const release = incidents?.hold();
+			try {
+				const result = await guarded(input);
+				// A presence test, not an emptiness test: "half-written, and this raise site cannot
+				// name what" is a legal stamp and a fully open incident.
+				if (isErr(result) && leftWritesBehind(result.error)) {
+					void incidents?.record(result.error as AppError & UncompensatedWrite);
+				}
+				return result;
+			} finally {
+				release?.();
 			}
-			return result;
 		},
 	};
 }

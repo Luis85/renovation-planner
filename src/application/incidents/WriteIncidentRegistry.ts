@@ -75,6 +75,10 @@ export class WriteIncidentRegistry {
 	// until something counted rather than merely tested presence.
 	private seeded = false;
 
+	// Saves running against this registry, and what to do when the last one ends — `hold()`.
+	private held = 0;
+	private idle: (() => void) | null = null;
+
 	/**
 	 * @param location Where the durable record sits, for the diagnostics report to NAME —
 	 * never for this class to read or write, which is the store's whole job. It is carried
@@ -114,6 +118,37 @@ export class WriteIncidentRegistry {
 			return;
 		}
 		this.open.push(...listed.value);
+	}
+
+	/**
+	 * A save starting: its end is the returned function, called exactly once.
+	 *
+	 * Owner ruling 16 — the record is not released at unload while a save is still running,
+	 * because Obsidian's teardown blurs a typed field BEFORE `onunload` and the write that blur
+	 * commits reaches the vault AFTER it (`tests/e2e/unloadWindow.e2e.ts`, 1.13.7). Taken at the
+	 * two doors a gesture reaches synchronously — `guardCommand` and the editors'
+	 * `withSaveStateTracking` — so a save counts from its gesture, not from its guard, which two
+	 * serial queues put after `onunload`. A dispatch path that awaits before reaching either door
+	 * is not counted until it does.
+	 */
+	hold(): () => void {
+		this.held += 1;
+		return () => {
+			this.held -= 1;
+			if (this.held > 0) return;
+			const idle = this.idle;
+			this.idle = null;
+			idle?.();
+		};
+	}
+
+	/**
+	 * Run `callback` now if no save is running, else when the last one ends. One waiter: its
+	 * only caller is `SessionStores.dispose()`, which a session runs once.
+	 */
+	whenIdle(callback: () => void): void {
+		if (this.held === 0) callback();
+		else this.idle = callback;
 	}
 
 	/** Is any incident open? The gate's whole question, asked without touching the vault. */
@@ -196,8 +231,9 @@ export class WriteIncidentRegistry {
  *
  * `null` until something installs one, which is correct for a caller composing services
  * without a session: there is no vault whose incidents it could be answering about. The
- * plugin installs one at load and takes it back off at `onunload` — a global this code
- * installs is a global this code removes.
+ * plugin installs one at load and takes it back off at `onunload`, or when the last save
+ * still running then ends (`hold()`) — a global this code installs is a global this code
+ * removes.
  *
  * It is mutable module state, so a test that installs one owes every later case in its own
  * FILE a reset. Vitest gives each file in the `suite` project its own module registry, so

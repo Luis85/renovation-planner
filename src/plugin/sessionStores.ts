@@ -81,22 +81,23 @@ export class SessionStores {
 	 * "nothing open" over a vault this session's own incidents say is half-written — reached
 	 * from teardown rather than from an overlap.
 	 *
-	 * A CLEAN registry is still released: there is no refusal to keep, so the removal rule has
-	 * nothing to argue with. What that leaves open, unchanged from before this term existed: a
-	 * guarded write dispatched after `onunload` in a session that had nothing open fails with
-	 * its uncompensated writes unrecorded. Closing that means never releasing at all, which is
-	 * wider than rule 3 asks for.
+	 * **Nor is one released while a save is still running** — owner ruling 16, since that window
+	 * was measured reachable: Obsidian's teardown blurs a typed field before `onunload`, and the
+	 * write that blur commits lands after it (`tests/e2e/unloadWindow.e2e.ts`, 1.13.7). The two
+	 * checks below therefore wait for `whenIdle`, so a half-failure landing after unload is still
+	 * recorded and then keeps the registry installed by the rule 3 check.
 	 *
-	 * **The remedy, if that window turns out to be reachable in a vault** — it needs a
-	 * still-mounted view to dispatch after unload AND that write to half-fail: drop the
-	 * `anyOpen()` guard below and re-aim the cases that assert a clean dispose releases. The
-	 * price is that a disposed session's registry answers for the vault from module scope until
-	 * the next `SessionStores` is constructed — the constructor above installs unconditionally,
-	 * so the window is exactly "after unload, before the next load".
+	 * A CLEAN, idle registry is still released: there is no refusal to keep and no save to
+	 * record, so the removal rule has nothing to argue with. What stays open: a save that had not
+	 * reached either door `WriteIncidentRegistry.hold()` names when this ran. A save that never
+	 * settles keeps the registry until the next load replaces it, which is the cost the ruling
+	 * accepted — an old session's record answering for the vault until the next load.
 	 */
 	dispose(): void {
-		if (activeWriteIncidentRegistry() !== this.writeIncidents) return;
-		if (this.writeIncidents.anyOpen()) return;
-		installWriteIncidentRegistry(null);
+		this.writeIncidents.whenIdle(() => {
+			if (activeWriteIncidentRegistry() !== this.writeIncidents) return;
+			if (this.writeIncidents.anyOpen()) return;
+			installWriteIncidentRegistry(null);
+		});
 	}
 }

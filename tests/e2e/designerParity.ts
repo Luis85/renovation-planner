@@ -8,6 +8,38 @@ interface Rect { x: number; y: number; width: number; height: number }
 interface MidDrag { legend: string[]; revision: number }
 export interface Camera { x: number; y: number; scale: number; centre: { x: number; y: number } }
 
+/** What `thumbnailColours` reads: computed colour strings, before any arithmetic. */
+export interface DrawnColours { stroke: string; opacity: number; backgrounds: string[] }
+
+/** A computed `rgb()`/`rgba()` as `[r, g, b, a]`; any other notation throws rather than being guessed at. */
+function rgba(colour: string): number[] {
+	if (!colour.startsWith('rgb')) throw new Error(`Unread colour ${colour}.`);
+	const [r = 0, g = 0, b = 0, a = 1] = colour.slice(colour.indexOf('(') + 1, -1).split(',').map(Number);
+	return [r, g, b, a];
+}
+
+/** `top` at its alpha over an opaque `under`. */
+const over = (top: number[], under: number[]): number[] => [0, 1, 2].map((i) => (top[i] ?? 0) * (top[3] ?? 1) + (under[i] ?? 0) * (1 - (top[3] ?? 1)));
+
+/** WCAG 2.x relative luminance of an opaque sRGB colour. */
+const luminance = (rgb: number[]): number =>
+	rgb
+		.map((c) => c / 255)
+		.map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4))
+		.reduce((sum, c, i) => sum + c * ([0.2126, 0.7152, 0.0722][i] ?? 0), 0);
+
+/**
+ * The drawn stroke and the background under it (every ancestor's own, composited outermost first
+ * over white) and the WCAG 2.x contrast ratio between the two.
+ */
+export function contrastOf(colours: DrawnColours): { stroke: number[]; background: number[]; ratio: number } {
+	const background = colours.backgrounds.toReversed().reduce((under, colour) => over(rgba(colour), under), [255, 255, 255]);
+	const [r = 0, g = 0, b = 0, a = 1] = rgba(colours.stroke);
+	const stroke = over([r, g, b, a * colours.opacity], background);
+	const [high = 0, low = 0] = [luminance(stroke), luminance(background)].toSorted((x, y) => y - x);
+	return { stroke: stroke.map((c) => Math.round(c)), background: background.map((c) => Math.round(c)), ratio: (high + 0.05) / (low + 0.05) };
+}
+
 /** The ACTIVE designer leaf's content element, as a selector the page can resolve. */
 const ACTIVE = '.workspace-leaf.mod-active .workspace-leaf-content[data-type="renovation-asset-designer"]';
 
@@ -162,16 +194,16 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 	 * and each notes whether it arrived default-prevented — the evidence for whether a chord was
 	 * "captured" by the designer or left for the host.
 	 */
-	const watchChords = () =>
-		browser.execute(() => {
+	const watchChords = (letter = 'g') =>
+		browser.execute((wanted) => {
 			const holder = window as unknown as { rpChords: string[] };
 			holder.rpChords = [];
 			const record = (phase: string) => (event: KeyboardEvent) => {
-				if (event.ctrlKey && event.key.toLowerCase() === 'g') holder.rpChords.push(`${phase}:${event.shiftKey ? 'Ctrl+Shift+G' : 'Ctrl+G'}${event.defaultPrevented ? ':prevented' : ''}`);
+				if (event.ctrlKey && event.key.toLowerCase() === wanted) holder.rpChords.push(`${phase}:${event.shiftKey ? 'Ctrl+Shift+' : 'Ctrl+'}${wanted.toUpperCase()}${event.defaultPrevented ? ':prevented' : ''}`);
 			};
 			window.addEventListener('keydown', record('capture'), true);
 			window.addEventListener('keydown', record('bubble'));
-		});
+		}, letter);
 	/** The chords `watchChords` has seen since the last read, which it clears. */
 	const chords = () =>
 		browser.execute(() => {
@@ -238,6 +270,96 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 		return browser.execute(() => (window as unknown as { rpSample: Promise<MidDrag> }).rpSample);
 	};
 
+	/**
+	 * Every Obsidian command whose EFFECTIVE hotkeys (the user's, else the default) include one of
+	 * `combos` (`Mod+Z`-style) — the question "what would the host run for this key", asked of the hotkey manager.
+	 */
+	const boundTo = (combos: string[]) =>
+		browser.executeObsidian(({ app }, wanted) => {
+			const host = app as unknown as {
+				commands: { commands: Record<string, unknown> };
+				hotkeyManager: { getHotkeys(id: string): { modifiers: string[]; key: string }[] | undefined; getDefaultHotkeys(id: string): { modifiers: string[]; key: string }[] | undefined };
+			};
+			return Object.keys(host.commands.commands).filter((id) => {
+				const keys = host.hotkeyManager.getHotkeys(id) ?? host.hotkeyManager.getDefaultHotkeys(id) ?? [];
+				return keys.some((key) => wanted.includes([...key.modifiers, key.key.toUpperCase()].join('+')));
+			});
+		}, combos);
+
+	/**
+	 * Wrap the host's two command doors so every command that actually RAN (answered truthy) is
+	 * recorded — a hotkey reaches a command through `executeCommand`, measured with Ctrl+G, which
+	 * records `graph:open`. `commandsRun` reads and clears the record.
+	 */
+	const recordCommands = () =>
+		browser.executeObsidian(({ app }) => {
+			const doors = (app as unknown as { commands: Record<string, (...args: unknown[]) => unknown> }).commands;
+			const holder = window as unknown as { rpRan: string[] };
+			holder.rpRan = [];
+			for (const door of ['executeCommand', 'executeCommandById']) {
+				const original = doors[door]?.bind(doors);
+				if (!original) throw new Error(`No command door ${door}.`);
+				doors[door] = (...args: unknown[]) => {
+					const answer = original(...args);
+					const first = args[0] as { id?: string } | string;
+					if (answer) holder.rpRan.push(typeof first === 'string' ? first : (first.id ?? '?'));
+					return answer;
+				};
+			}
+		});
+	const commandsRun = () => browser.execute(() => (window as unknown as { rpRan: string[] }).rpRan.splice(0));
+
+	/**
+	 * The Inspector asset card's thumbnail outline against what it is drawn on, as the page computes
+	 * them: the stroke colour, the opacity every level applies to it, and every ancestor's own
+	 * background, innermost first. `contrastOf` turns that into a ratio.
+	 */
+	const thumbnailColours = (): Promise<DrawnColours> =>
+		browser.execute((root) => {
+			const path = document.querySelector(`${root} .rp-designer-asset-thumbnail__footprint`);
+			if (!path) throw new Error('No thumbnail outline.');
+			const chain: Element[] = [];
+			for (let el = path.parentElement; el; el = el.parentElement) chain.push(el);
+			const style = getComputedStyle(path);
+			return {
+				stroke: style.stroke,
+				opacity: [path, ...chain].reduce((product, el) => product * Number(getComputedStyle(el).opacity), Number(style.strokeOpacity)),
+				backgrounds: chain.map((el) => getComputedStyle(el).backgroundColor),
+			};
+		}, ACTIVE);
+
+	/**
+	 * What the active designer SHOWS for the four facts a plugin reload must keep beside the shape:
+	 * the Reference tab's Scale row, the pressed placement segment, the Front direction and the
+	 * Height field. Leaves the Object tab selected, where it found it.
+	 */
+	const placementReadings = async () => {
+		await designer.referenceTab();
+		// By its `dt` across EVERY field list: a shaped asset draws a Source list first, and
+		// `referenceRow` looks only in the first.
+		let scale: string | null = null;
+		await expect
+			.poll(async () => {
+				scale = await browser.execute(
+					(root) =>
+						[...document.querySelectorAll(`${root} .rp-designer-reference-fields dt`)].find((term) => term.textContent?.trim() === 'Scale')?.nextElementSibling?.textContent?.trim() ?? null,
+					ACTIVE,
+				);
+				return scale;
+			})
+			.not.toBeNull();
+		await designer.designer().$('.rp-designer-tab[data-rp-tab="object"]').click();
+		const shown = await browser.execute(
+			(root) => ({
+				anchor: [...document.querySelectorAll(`${root} .rp-designer-placement-modes button[aria-pressed="true"]`)].map((button) => button.getAttribute('name')),
+				front: document.querySelector<HTMLSelectElement>(`${root} select[name="front-direction"]`)?.value ?? null,
+				height: document.querySelector<HTMLInputElement>(`${root} input[name="height"]`)?.value ?? null,
+			}),
+			ACTIVE,
+		);
+		return { scale, ...shown };
+	};
+
 	/** Close the (only) designer leaf and wait until Obsidian holds none. */
 	const closeDesigner = async (): Promise<void> => {
 		await designer.closeDesigner();
@@ -250,7 +372,7 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 		return designer.readSidecar(assetId);
 	};
 
-	return { leafWidth, setLeafWidth, marks, camera, canvasPoint, dragBetween, drawBox, rightClick, menu, menuLines, focused, graphLeaves, hotkeysOf, unbindHotkey, watchChords, chords, pressCtrlG, legendRows, scaleBarText, generateClearance, sampleMidDrag, handle, closeDesigner, settle, ACTIVE,
+	return { leafWidth, setLeafWidth, marks, camera, canvasPoint, dragBetween, drawBox, rightClick, menu, menuLines, focused, graphLeaves, hotkeysOf, unbindHotkey, watchChords, chords, boundTo, recordCommands, commandsRun, thumbnailColours, placementReadings, pressCtrlG, legendRows, scaleBarText, generateClearance, sampleMidDrag, handle, closeDesigner, settle, ACTIVE,
 		/** A sidecar's path as the VAULT names it, for a read made from inside the page. */
 		sidecarFile: (assetId: string) => `Renovation/Library/Geometry/${assetId}.rpgeo`,
 	};

@@ -209,5 +209,39 @@ export function createCanvasPage(browser: NativeBrowser, designer: DesignerPage)
 		await tool('Select');
 	};
 
-	return { canvasBox, clickAt, clickCanvas, tool, trace, labels, label, shapeBoxes, viewToggle, viewTicked, leafWidth, zoom, zoomBy, holdSnapshot, pan };
+	/**
+	 * The background sheet as DRAWN, sampled where the unmirrored raster would put each `[fx, fy]`
+	 * fraction of it: the point is placed from the image node's own box (`x`, `y`, `width`,
+	 * `height`) through its LAYER's transform — never the node's own, which a flip would carry
+	 * along — and read back as the mean RGBA of a 3×3 pixel patch of that layer's own canvas.
+	 * `inside` says whether the point fell on the stage at all; no sheet drawn yet answers `[]`.
+	 */
+	const sheetSamples = (fractions: readonly (readonly [number, number])[]) =>
+		browser.execute(
+			(sel, wanted) => {
+				type Node = { x(): number; y(): number; width(): number; height(): number; getLayer(): Layer };
+				type Layer = { getAbsoluteTransform(): { point(p: { x: number; y: number }): { x: number; y: number } }; getCanvas(): { getPixelRatio(): number }; getNativeCanvasElement(): HTMLCanvasElement };
+				const konva = (window as unknown as { Konva: { stages: { find(s: string): Node[]; container(): HTMLElement }[] } }).Konva;
+				const host = document.querySelector(sel);
+				const image = konva.stages.find((stage) => host?.contains(stage.container()))?.find('Image')[0];
+				// Nothing yet, rather than a throw: a caller polls until the sheet has loaded.
+				if (!image) return [];
+				const layer = image.getLayer();
+				const ratio = layer.getCanvas().getPixelRatio();
+				const canvas = layer.getNativeCanvasElement();
+				const context = canvas.getContext('2d');
+				if (!context) throw new Error('No sheet context.');
+				return wanted.map(([fx, fy]) => {
+					const at = layer.getAbsoluteTransform().point({ x: image.x() + image.width() * fx, y: image.y() + image.height() * fy });
+					const [px, py] = [Math.round(at.x * ratio), Math.round(at.y * ratio)];
+					const data = context.getImageData(px - 1, py - 1, 3, 3).data;
+					const mean = [0, 1, 2, 3].map((channel) => Math.round(data.filter((_, index) => index % 4 === channel).reduce((sum, value) => sum + value, 0) / 9));
+					return { inside: px > 0 && py > 0 && px < canvas.width - 1 && py < canvas.height - 1, rgba: mean };
+				});
+			},
+			ACTIVE,
+			fractions,
+		);
+
+	return { canvasBox, clickAt, clickCanvas, tool, trace, labels, label, shapeBoxes, viewToggle, viewTicked, leafWidth, zoom, zoomBy, holdSnapshot, pan, sheetSamples };
 }

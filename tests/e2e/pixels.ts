@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { writeFile } from 'node:fs/promises';
+import { expect } from 'vitest';
 import type { NativeBrowser } from './session';
 
 /**
@@ -11,22 +12,74 @@ import type { NativeBrowser } from './session';
  */
 
 /**
- * The element `selector` finds, as the page paints it: CDP's own `Page.captureScreenshot` clipped
- * to its box (CSS px in, device px out), after it is scrolled into view. The PNG is also written to
- * the case's evidence folder as `<name>.png`, so the half of the clause a guard leaves to a person
- * can be looked at.
+ * The device pixel ratios every guard is read at, whatever the machine's own: this one's is 2 and
+ * CI's xvfb is 1, and a thin line rasterises differently at each.
+ */
+export const RATIOS = [1, 2] as const;
+
+/**
+ * `read` with the page drawn at `ratio` device pixels per CSS pixel, through CDP's own
+ * `Emulation.setDeviceMetricsOverride` (a width and height of 0 leave the window's size alone),
+ * cleared in a `finally` so the override never outlives the read.
+ */
+export async function atPixelRatio<T>(browser: NativeBrowser, ratio: number, read: () => Promise<T>): Promise<T> {
+	await browser.sendCommandAndGetResult('Emulation.setDeviceMetricsOverride', { width: 0, height: 0, deviceScaleFactor: ratio, mobile: false });
+	try {
+		await expect.poll(() => browser.execute(() => window.devicePixelRatio)).toBe(ratio);
+		return await read();
+	} finally {
+		await browser.sendCommandAndGetResult('Emulation.clearDeviceMetricsOverride', {});
+	}
+}
+
+/**
+ * The element `selector` finds, STAGED and then photographed: a deep copy of it, at its own CSS
+ * size, in a fixed box on an opaque `--background-primary` placed at WHOLE CSS pixels 8 px inside
+ * its leaf's top-left corner, and appended to the element's own parent so every descendant
+ * selector the shipped stylesheet draws it with still matches. Every picture a guard compares is
+ * therefore drawn at the same spot and the same device-pixel phase — in its own row, a 1 px line
+ * half a pixel off rasterises as two half-strength pixels where a copy one row down draws one full
+ * one, which reads as a different drawing (CI run 36345605529, at a ratio of 1). So the picture is
+ * the shipped markup under the shipped stylesheet, drawn at a fixed spot rather than in its row.
+ *
+ * Captured through CDP's own `Page.captureScreenshot`, clipped to the box (CSS px in, device px
+ * out), and written to the case's evidence folder as `<name>.png`; the copy is removed after.
  */
 export async function capture(browser: NativeBrowser, selector: string, directory: string, name: string): Promise<string> {
-	const box = await browser.execute((sel) => {
+	const clip = await browser.execute((sel) => {
 		const element = document.querySelector(sel);
-		element?.scrollIntoView({ block: 'nearest' });
-		return element ? element.getBoundingClientRect().toJSON() as DOMRect : null;
+		const leaf = element?.closest('.workspace-leaf-content');
+		if (!element?.parentElement || !leaf) return null;
+		const { width, height } = element.getBoundingClientRect();
+		const copy = element.cloneNode(true) as SVGElement | HTMLElement;
+		copy.style.cssText = `display: block; margin: 0; width: ${String(width)}px; height: ${String(height)}px;`;
+		const stage = document.createElement('div');
+		stage.className = 'rp-e2e-stage';
+		const [wide, tall] = [Math.ceil(width), Math.ceil(height)];
+		stage.style.cssText = `position: fixed; z-index: 10000; margin: 0; padding: 0; border: 0; background: var(--background-primary); width: ${String(wide)}px; height: ${String(tall)}px;`;
+		stage.append(copy);
+		element.parentElement.append(stage);
+		const corner = leaf.getBoundingClientRect();
+		const target = { x: Math.round(corner.left) + 8, y: Math.round(corner.top) + 8 };
+		// A fixed box is placed against the viewport unless an ancestor contains it; measured and
+		// moved by what is left over, so the box lands on the target whichever it is.
+		stage.style.left = `${String(target.x)}px`;
+		stage.style.top = `${String(target.y)}px`;
+		const placed = stage.getBoundingClientRect();
+		stage.style.left = `${String(2 * target.x - placed.left)}px`;
+		stage.style.top = `${String(2 * target.y - placed.top)}px`;
+		const landed = stage.getBoundingClientRect();
+		return { x: landed.left, y: landed.top, width: wide, height: tall, scale: 1 };
 	}, selector);
-	if (!box) throw new Error(`Nothing to capture at ${selector}.`);
-	const clip = { x: box.x, y: box.y, width: box.width, height: box.height, scale: 1 };
-	const { data } = (await browser.sendCommandAndGetResult('Page.captureScreenshot', { format: 'png', clip })) as { data: string };
-	await writeFile(path.join(directory, `${name}.png`), Buffer.from(data, 'base64'));
-	return data;
+	if (!clip) throw new Error(`Nothing to capture at ${selector}.`);
+	try {
+		if (!Number.isInteger(clip.x) || !Number.isInteger(clip.y)) throw new Error(`The stage landed off whole pixels, at ${String(clip.x)}, ${String(clip.y)}.`);
+		const { data } = (await browser.sendCommandAndGetResult('Page.captureScreenshot', { format: 'png', clip })) as { data: string };
+		await writeFile(path.join(directory, `${name}.png`), Buffer.from(data, 'base64'));
+		return data;
+	} finally {
+		await browser.execute(() => { document.querySelectorAll('.rp-e2e-stage').forEach((stage) => { stage.remove(); }); });
+	}
 }
 
 /**
@@ -44,7 +97,7 @@ export interface Difference {
 	readonly inked: readonly [number, number];
 	/** Pixels one picture inks and the other leaves blank. */
 	readonly differing: number;
-	/** `differing` over the pixels inked in either: 0 for the same drawing, 1 for two with nothing in common. */
+	/** `differing` over the pixels inked in either: 0 for the same drawing, 1 for two with nothing in common, NaN for two sizes. */
 	readonly fraction: number;
 }
 
@@ -83,7 +136,6 @@ export const difference = async (browser: NativeBrowser, one: string, other: str
 			return { size: [width, height] as [number, number], tones: distances.map((d) => tone(d)) };
 		};
 		const [a, b] = [await tonesOf(first), await tonesOf(second)];
-		if (a.size.join() !== b.size.join()) throw new Error(`Captures of different sizes: ${a.size.join('×')} and ${b.size.join('×')}.`);
 		const pixels = a.tones.map((mine, pixel) => [mine, b.tones[pixel] ?? 0] as const);
 		const differing = pixels.filter(([x, y]) => Math.abs(x - y) === 1).length;
 		const either = pixels.filter(([x, y]) => x === 1 || y === 1).length;
@@ -91,6 +143,7 @@ export const difference = async (browser: NativeBrowser, one: string, other: str
 			sizes: [a.size, b.size],
 			inked: [pixels.filter(([x]) => x === 1).length, pixels.filter(([, y]) => y === 1).length],
 			differing,
-			fraction: either === 0 ? 0 : differing / either,
+			// Two sizes are not one grid to compare over: NaN, which the caller's size assertion names.
+			fraction: a.size.join() !== b.size.join() ? Number.NaN : either === 0 ? 0 : differing / either,
 		};
 	}, one, other);

@@ -2,7 +2,7 @@ import { describe, expect } from 'vitest';
 import { test } from './fixture';
 import { writeEvidence } from './diagnostics';
 import { openCatalogue } from './library';
-import { capture, difference, DISTINCT } from './pixels';
+import { atPixelRatio, capture, difference, DISTINCT, RATIOS } from './pixels';
 import { mobileEmulation, type NativeBrowser } from './session';
 
 /**
@@ -49,15 +49,18 @@ const seedSidecars = (browser: NativeBrowser) =>
 /**
  * §3.4's fifth state, *not yet read*, HELD: the host's `vault.read` answers nothing for `path` until
  * `releaseRead` runs, and the sidecar is then modified, so the library forgets that row's mark and
- * asks again. `releaseRead` puts the host's own `read` back and answers what it held.
+ * asks again. `releaseRead` takes the patch off and answers what it held.
  */
 const holdRead = (browser: NativeBrowser, path: string) =>
 	browser.executeObsidian(async ({ app }, file) => {
 		const vault = app.vault as unknown as { read(file: { path: string }): Promise<string>; modify(file: object, data: string): Promise<void> };
 		const original = vault.read;
+		const own = Object.prototype.hasOwnProperty.call(vault, 'read');
 		const held: (() => void)[] = [];
 		(window as unknown as { rpReleaseRead?: () => void }).rpReleaseRead = () => {
-			vault.read = original;
+			// The patch is an own property shadowing the class's method: deleted, unless one was there before.
+			if (own) vault.read = original;
+			else delete (vault as { read?: unknown }).read;
 			for (const answer of held.splice(0)) answer();
 		};
 		vault.read = function (this: unknown, target) {
@@ -79,14 +82,16 @@ const releaseRead = (browser: NativeBrowser) =>
 describe('Browse the asset library, the row marks as painted in the real Obsidian host', () => {
 	/*
 	 * Step 3, "five distinguishable pictures … at 20px". GUARD (AD18-R30). Each of §3.4's five
-	 * states captured off a real List row in the same run — measured, unscaled, none and unreadable
+	 * states taken off a real List row in the same run, STAGED at one whole-pixel spot (`capture` in
+	 * `pixels.ts`) and read at a device pixel ratio of 1 and of 2 whatever the machine's own — measured, unscaled, none and unreadable
 	 * at rest, and not-yet-read HELD by stalling the host's read of one sidecar — and every pair
 	 * compared as drawings (`difference` in `pixels.ts`: each picture's ink against its own
 	 * background, so a colour difference alone does not count, which is §3.4's own rule that the
 	 * states differ in kind and never only in colour): more than `DISTINCT` of the pixels either
 	 * inks differ. Two rows each of measured, unscaled and none are compared too, and must answer the
-	 * same drawing — without that, a capture misaligned between rows would read as "different" and
-	 * the guard would pass on noise. `assetMark.test.ts` asserts five distinct classes and the
+	 * same drawing — without that, a capture misaligned between pictures would read as "different"
+	 * and the guard would pass on noise. In their own rows it did: CI run 36345605529, at a ratio of
+	 * 1, read the two unscaled rows 26 px apart, which is why every picture is staged. `assetMark.test.ts` asserts five distinct classes and the
 	 * per-state drawings; this is whether they PAINT differently at 20px. WHAT STAYS HUMAN:
 	 * "distinguishable to an eye that has not been told" what to look for, which is about what each
 	 * difference is (a dash, three dots, a cross), not how much of it there is. Every capture is in
@@ -102,32 +107,53 @@ describe('Browse the asset library, the row marks as painted in the real Obsidia
 		const kinds = () => browser.execute((ids, sel) => ids.map((id) => document.querySelector(sel.replace('ID', id))?.getAttribute('class') ?? ''), Object.keys(expected), mark('ID'));
 		await expect.poll(kinds).toEqual(Object.values(expected).map((kind) => `rp-al-mark rp-al-mark--${kind}`));
 
-		const shot = (assetId: string) => capture(browser, mark(assetId), directory, `mark-${assetId}`);
-		const resting = { measured: await shot(toilet), unscaled: await shot(SOFA), none: await shot(VANITY), unreadable: await shot(PAINT) };
-		const controls = {
-			measured: await difference(browser, resting.measured, await shot(PLANK)),
-			unscaled: await difference(browser, resting.unscaled, await shot(CHAIR)),
-			none: await difference(browser, resting.none, await shot(CUTTER)),
-		};
-		let pending = '';
+		const native = await browser.execute(() => window.devicePixelRatio);
+		const shot = (assetId: string, ratio: number, name = assetId) => capture(browser, mark(assetId), directory, `mark-${name}@${String(ratio)}x`);
+		const rest = (ratio: number) =>
+			atPixelRatio(browser, ratio, async () => {
+				const resting = { measured: await shot(toilet, ratio), unscaled: await shot(SOFA, ratio), none: await shot(VANITY, ratio), unreadable: await shot(PAINT, ratio) };
+				const controls = {
+					measured: await difference(browser, resting.measured, await shot(PLANK, ratio)),
+					unscaled: await difference(browser, resting.unscaled, await shot(CHAIR, ratio)),
+					none: await difference(browser, resting.none, await shot(CUTTER, ratio)),
+				};
+				return { resting, controls };
+			});
+		const atRest = [];
+		for (const ratio of RATIOS) atRest.push(await rest(ratio));
+		const pending: string[] = [];
 		try {
 			await holdRead(browser, `${GEOMETRY}/${SOFA}.rpgeo`);
 			await expect.poll(() => browser.$(mark(SOFA)).getAttribute('class')).toBe('rp-al-mark rp-al-mark--pending');
-			pending = await capture(browser, mark(SOFA), directory, 'mark-pending');
+			for (const ratio of RATIOS) pending.push(await atPixelRatio(browser, ratio, () => shot(SOFA, ratio, 'pending')));
 		} finally {
 			await releaseRead(browser);
 		}
 		await expect.poll(() => browser.$(mark(SOFA)).getAttribute('class')).toBe('rp-al-mark rp-al-mark--unscaled');
 
-		const states = Object.entries({ ...resting, pending });
-		const pairs = states.flatMap(([one, first], index) => states.slice(index + 1).map(([other, second]) => ({ pair: `${one}/${other}`, first, second })));
-		const compared = await Promise.all(pairs.map(async ({ pair, first, second }) => ({ pair, ...(await difference(browser, first, second)) })));
-		await writeEvidence(directory, 'mark-pixels', { controls, compared });
+		const byRatio = [];
+		for (const [index, ratio] of RATIOS.entries()) {
+			const read = atRest[index];
+			const held = pending[index];
+			if (!read || held === undefined) throw new Error(`No captures at ${String(ratio)}x.`);
+			const { resting, controls } = read;
+			const states = Object.entries({ ...resting, pending: held });
+			const pairs = states.flatMap(([one, first], at) => states.slice(at + 1).map(([other, second]) => ({ pair: `${one}/${other}`, first, second })));
+			const compared = [];
+			for (const { pair, first, second } of pairs) compared.push({ pair, ...(await difference(browser, first, second)) });
+			byRatio.push({ devicePixelRatio: ratio, controls, compared });
+		}
+		await writeEvidence(directory, 'mark-pixels', { nativeDevicePixelRatio: native, byRatio });
 
-		// The instrument reaches something, and answers "the same" for two rows drawing one state.
-		expect(Object.values(controls).map((control) => control.inked[0] > 0)).toEqual([true, true, false]);
-		expect(Object.values(controls).map((control) => control.differing)).toEqual([0, 0, 0]);
-		expect(compared).toHaveLength(10);
-		expect(compared.filter((pair) => !(pair.fraction > DISTINCT)).map(({ pair, fraction }) => `${pair} ${String(fraction)}`), 'pairs painted alike').toEqual([]);
+		for (const { devicePixelRatio: ratio, controls, compared } of byRatio) {
+			const at = `at ${String(ratio)}x`;
+			const all = [...Object.values(controls), ...compared];
+			// The instrument compares one grid, reaches something, and answers "the same" for two rows drawing one state.
+			expect(all.filter((each) => each.sizes[0].join() !== each.sizes[1].join()).map((each) => each.sizes), `${at}: captures of different sizes`).toEqual([]);
+			expect(Object.values(controls).map((control) => control.inked[0] > 0), `${at}: ink on the controls`).toEqual([true, true, false]);
+			expect(Object.values(controls).map((control) => control.differing), `${at}: two rows of one state`).toEqual([0, 0, 0]);
+			expect(compared, `${at}: every pair of the five`).toHaveLength(10);
+			expect.soft(compared.filter((pair) => !(pair.fraction > DISTINCT)).map(({ pair, fraction }) => `${pair} ${String(fraction)}`), `${at}: pairs painted alike`).toEqual([]);
+		}
 	});
 });

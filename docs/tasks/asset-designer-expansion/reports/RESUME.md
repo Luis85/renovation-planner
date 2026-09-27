@@ -95,13 +95,13 @@ case rows to say so). They are recorded, not fixed:
 
 ## Recorded, not fixed
 
-- **Test-hygiene items from the whole-round review** (`final-review-round6.md` in the gitignored ledger
-  lists them all): `assetDesignerWalkReload.e2e.ts`'s toggle loop is shaped to dodge a fallow clone and
-  wants a shared `togglePlugin` helper; test-to-test clones (`pressRow`/`showClearance`, the use-plan
-  picker rig) belong in `tests/helpers/`; the active-designer selector and `FIXTURE_PNG` are copied across
-  e2e files; two `assetTileMarkEdge.test.ts` cases duplicate `assetTileStyles.test.ts`; a `?? '{}'`
-  calibration check in the reload walk passes on a missing key; round-transient prose ("owned by a
-  different task this round", the workflow's "this round adds up to ~36 cases") should be reworded.
+- **Small test-hygiene items still open** (the larger ones — the fallow-dodging toggle loop, the
+  test-to-test clones, the copied e2e constants, the duplicate tile cases, the vacuous calibration check and
+  the round-transient prose — were cleared on 2026-09-27): `designerParity.ts`'s `hotkeysOf` lacks the
+  chord normalisation `boundTo` has (harmless today); Calibrate 21l's canvas-half assertion was never
+  watched red (the disk half gates the clause); Design 120's realistic order (Escape, release, Ctrl+Z) is not
+  driven. **A note for the next reader:** vitest's `expect.any(Object)` accepts `null`
+  (`typeof null === 'object'`); pair it with `not.toBeNull()` when null must fail.
 - **One unexplained red**: `assetDesigner.e2e.ts` *keeps every shape…* failed once in three runs under an
   unrelated mutation. Watch it as a possible flake.
 - Still open from earlier rounds: `unrecoveredWrite` is drawn on no designer surface; the browser

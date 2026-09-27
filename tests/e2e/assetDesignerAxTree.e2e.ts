@@ -1,6 +1,6 @@
 import { describe, expect } from 'vitest';
 import { test } from './fixture';
-import { readAx } from './axTree';
+import { liveRegionTexts, readAx } from './axTree';
 import { createDesignerPage, DESIGNER } from './designer';
 import { mobileEmulation } from './session';
 
@@ -22,6 +22,12 @@ describe('The asset designer in the real accessibility tree', () => {
 	 * moments. Its AX text is the bare state word at both, since the relative phrase is `aria-hidden`
 	 * (`SaveStateIndicator.vue`'s docblock).
 	 *
+	 * **"At all" reaches past the label's own ancestry**: at each moment, every live region in the
+	 * document (the plugin's notice regions and Obsidian's included) holds nothing it did not hold
+	 * before the commit, and none holds the save word. So a save announced through a notice fails
+	 * this too (measured: a `notify` on every settled save reddens it). That read is a STATE, not the
+	 * announcement event, so a region written and then cleared between two reads would pass.
+	 *
 	 * The renderer's clock is made movable before the save, as `assetDesignerParity.e2e.ts` does for
 	 * step 88c: an offset on `Date.now` and the indicator's one-minute interval run every 200 ms.
 	 */
@@ -38,17 +44,22 @@ describe('The asset designer in the real accessibility tree', () => {
 		});
 		const designer = createDesignerPage(browser, page, ui);
 		const assetId = await designer.createToilet('Quiet toilet');
+		const before = await liveRegionTexts(browser);
 		await designer.nudgeTo(assetId, 2);
 		const label = () => readAx(browser, `${IN_DESIGNER} .rp-save-state-label`);
+		// Nor through any OTHER live region: nothing new in one since the commit, and none holds the save word.
+		const heard = async () => (await liveRegionTexts(browser)).filter((text) => !before.includes(text) || /Sav(?:ed|ing)/u.test(text));
 
 		await expect.poll(designer.header).toBe('Saved just now');
 		await expect.poll(label).toMatchObject({ liveChain: [], text: 'Saved' });
+		expect(await heard()).toEqual([]);
 
 		await browser.execute(() => {
 			(window as unknown as { rpAhead: number }).rpAhead = 5 * 60_000;
 		});
 		await expect.poll(designer.header).toBe('Saved 5 min ago');
 		await expect.poll(label).toMatchObject({ liveChain: [], text: 'Saved' });
+		expect(await heard()).toEqual([]);
 	});
 
 	/**

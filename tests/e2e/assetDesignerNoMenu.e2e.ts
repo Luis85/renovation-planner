@@ -110,6 +110,9 @@ const outcome = (browser: NativeBrowser): Promise<Outcome> =>
 		return { contextMenuEvents: record.events.splice(0), hostMenuCalls: record.calls.splice(0), domMenus: document.querySelectorAll('.menu').length, designerMenus: document.querySelectorAll('.rp-canvas-context-menu').length };
 	});
 
+const readNativeMenus = (browser: NativeBrowser) =>
+	browser.executeObsidian(({ app }) => (app.vault as unknown as { getConfig(key: string): unknown }).getConfig('nativeMenus'));
+
 const setNativeMenus = (browser: NativeBrowser, value: unknown) =>
 	browser.executeObsidian(({ app }, on) => (app.vault as unknown as { setConfig(key: string, value: unknown): void }).setConfig('nativeMenus', on), value);
 
@@ -142,8 +145,9 @@ describe('Design an Asset step 92, in the real Obsidian host', () => {
 		// hit order asks them first — so a regression there would hand the press to the bowl and open ITS
 		// menu, which the comparison below would show.
 		const targets: [string, Point, { details: Box[]; marks: Box[] }][] = [
-			// On the outline's left edge, 3 px in, below the tank and beside the bowl.
-			['footprint outline', { x: footprint.x + 3, y: footprint.y + footprint.height * 0.6 }, { details, marks: [anchor, facing] }],
+			// On the outline's left edge, 3 px in, halfway down its STRAIGHT side: `roundFront` rounds the front
+			// with a half-circle of the width, so the side runs straight for `height - width / 2` from the back.
+			['footprint outline', { x: footprint.x + 3, y: footprint.y + (footprint.height - footprint.width / 2) / 2 }, { details, marks: [anchor, facing] }],
 			['anchor dot', centre(anchor), { details: [], marks: [facing] }],
 			['facing arrow', centre(facing), { details: [], marks: [anchor] }],
 		];
@@ -159,10 +163,10 @@ describe('Design an Asset step 92, in the real Obsidian host', () => {
 			expect(placed).toEqual({ label, clearOfBand: true, clearOfDetails: true, clearOfOtherMarks: true });
 		}
 
-		const preference = await browser.executeObsidian(({ app }) => (app.vault as unknown as { getConfig(key: string): unknown }).getConfig('nativeMenus'));
-		const listenersBefore = await install(browser);
-		let listenersAfter: number | undefined;
+		const preference = await readNativeMenus(browser);
+		let listenersBefore: number | undefined, listenersAfter: number | undefined;
 		try {
+			listenersBefore = await install(browser);
 			for (const native of [false, true]) {
 				await setNativeMenus(browser, native);
 				for (const [label, point] of targets) {
@@ -180,10 +184,15 @@ describe('Design an Asset step 92, in the real Obsidian host', () => {
 				}
 			}
 		} finally {
-			listenersAfter = await uninstall(browser);
-			await setNativeMenus(browser, preference);
+			try {
+				listenersAfter = await uninstall(browser);
+			} finally {
+				await setNativeMenus(browser, preference);
+			}
 		}
 		// Every hook came off: Obsidian's own `context-menu` listener is all that is left.
 		expect(listenersAfter).toBe(listenersBefore);
+		// And the preference is back to what the vault had.
+		expect(await readNativeMenus(browser)).toBe(preference);
 	});
 });

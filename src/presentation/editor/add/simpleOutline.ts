@@ -57,9 +57,10 @@ export function outlineCrosses(points: readonly Point[]): boolean {
 }
 
 /**
- * `createPolygon` and then the crossing rule, and NOTHING about area: the door that must keep
- * accepting a zero-area outline takes this one. `SelectTool.commit` is that door on its vertex
- * arm — L-23, the zero-area vertex drag, is a policy question this module is not.
+ * `createPolygon` and then the crossing rule, and NOTHING about area: the door that judges no
+ * area ITSELF takes this one. `SelectTool.commit` is that door on its vertex arm — a zero-area
+ * vertex drag (L-23) is refused one layer down, at dispatch, by the Zone entity's own rule
+ * (owner ruling 34), so this module still answers only the crossing question.
  *
  * WRITE-ONLY, like `areaOutline` itself — legacy Zone files remain readable unchanged, and a
  * vault already holding a crossing outline still loads, still draws and still bills wrongly.

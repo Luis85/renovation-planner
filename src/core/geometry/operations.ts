@@ -217,8 +217,10 @@ export function length(shape: LineSegment | Polyline): number {
 /**
  * Unsigned magnitude (shoelace formula). Winding order is deliberately invisible here.
  *
- * ZERO is a legitimate answer — a collinear vertex set is a legal polygon (SDD §26 files
- * degeneracy under "Future") and its area really is nothing. `Infinity` is not: every
+ * ZERO is a legitimate answer — a collinear vertex set is a legal POLYGON and its area really is
+ * nothing. It is not a legal Zone outline to WRITE: the Zone entity refuses one on create and on
+ * every outline change (L-23, owner ruling 34), and a zone stored with one still loads and is
+ * measured here as 0. `Infinity` is not: every
  * coordinate can be finite while their PRODUCTS overflow, and this function's output is a
  * Requirement's quantity and therefore its cost, through `Zone.area()`. A measurement that
  * cannot be represented is refused rather than reported, which is the rule `dimensionsOf`

@@ -1,6 +1,6 @@
 import type { GeometryError, ValidationError } from '../../core/errors/AppError';
 import { createCurvedPolygon, type CurvedPolygon } from '../../core/geometry/CurvedPolygon';
-import { area as polygonArea, perimeter as polygonPerimeter } from '../../core/geometry/operations';
+import { area as polygonArea, enclosesArea, perimeter as polygonPerimeter } from '../../core/geometry/operations';
 import type { Vector } from '../../core/geometry/Vector';
 import { err, ok, type Result } from '../../core/result/Result';
 import { isZoneStatus, type ZoneStatus } from './ZoneStatus';
@@ -45,10 +45,33 @@ interface ZoneFields {
 }
 
 /**
+ * The one rule a WRITTEN outline is held to beyond what `createCurvedPolygon` checks: it encloses
+ * an area (L-23, owner ruling 34). `enclosesArea` refuses exactly a zero or unrepresentable
+ * shoelace sum, so a collinear outline and an even bowtie are refused and a repeated corner around
+ * a real surface is not; a crossing outline is L-29's, refused at the tool by `outlineCrosses`.
+ * `polygon-zero-area` is the code `areaOutline` already raises for the same shape, so the user
+ * reads the sentence the outline dialog already shows for it.
+ */
+function enclosingOutline(geometry: CurvedPolygon): Result<CurvedPolygon, GeometryError> {
+	const checked = createCurvedPolygon(geometry);
+	if (!checked.ok || enclosesArea(checked.value)) return checked;
+	return err({ category: 'Geometry', code: 'polygon-zero-area', message: 'A zone outline must enclose an area.' });
+}
+
+/**
  * A spatial object on a plan (PRD §8). Immutable. `Polygon` is an UNVALIDATED interface
  * by design — an editor legitimately holds garbage mid-gesture — so the entity
  * re-validates its vertex set through Slice 2's own validator rather than trusting the
  * type, and every path into a stored geometry gets the identical answer.
+ *
+ * **Creating and changing an outline are held to one rule more than loading one** (owner rulings
+ * 34 and 35): `create` and `withGeometry` both go through `enclosingOutline`, while `fromStored`
+ * — the zone mapper's read, and nothing else in `src/` (`tests/gates/zone-load-entry.test.ts`) —
+ * does not, so a vault written before the rule still loads. Such a zone refuses every outline
+ * change that leaves it without an area, which is what reaches it through `withGeometry`: a
+ * drag, a form, a caption drag and a recolour (both restate the outline). A rename, a details
+ * change, a lock and a delete never touch the outline and still pass, so it can be found and
+ * removed.
  */
 export class Zone {
 	readonly id: ZoneId;
@@ -78,6 +101,18 @@ export class Zone {
 	}
 
 	static create(props: CreateZoneProps): Result<Zone, ValidationError | GeometryError> {
+		return Zone.build(props, enclosingOutline);
+	}
+
+	/** The LOAD entry: a stored outline is not asked to enclose an area. See the class docblock. */
+	static fromStored(props: CreateZoneProps): Result<Zone, ValidationError | GeometryError> {
+		return Zone.build(props, createCurvedPolygon);
+	}
+
+	private static build(
+		props: CreateZoneProps,
+		outline: (geometry: CurvedPolygon) => Result<CurvedPolygon, GeometryError>,
+	): Result<Zone, ValidationError | GeometryError> {
 		const name = zoneName(props.name);
 		if (!name.ok) return name;
 		if (!isZoneType(props.zoneType)) {
@@ -90,7 +125,7 @@ export class Zone {
 			return err(zoneError('unknown-color', `"${String(props.color)}" is not a color.`));
 		}
 		// Copy both points and curve parameters so a caller cannot mutate the validated boundary.
-		const geometry = createCurvedPolygon(props.geometry);
+		const geometry = outline(props.geometry);
 		if (geometry.ok) {
 			return ok(
 				new Zone({
@@ -126,7 +161,7 @@ export class Zone {
 	}
 
 	withGeometry(geometry: CurvedPolygon): Result<Zone, GeometryError> {
-		const checked = createCurvedPolygon(geometry);
+		const checked = enclosingOutline(geometry);
 		if (checked.ok) {
 			return ok(new Zone({ ...this.fields(), geometry: checked.value }));
 		}

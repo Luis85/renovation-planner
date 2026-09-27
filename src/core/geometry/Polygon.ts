@@ -53,6 +53,9 @@ export function validatePolygonPoints(
  * unit, valid transform) are properties of other boundaries — the editor (slice 8) and
  * persistence validation (slice 4); its "Future" rules (self-intersection, winding
  * normalization, repair) are deliberately not implemented or stubbed here.
+ *
+ * Area is not asked here either: a collinear point list is a valid `Polygon`. A Zone outline is
+ * held to enclosing one by the Zone entity, on write only (L-23, owner ruling 34).
  */
 export function createPolygon(points: readonly Point[]): Result<Polygon, GeometryError> {
 	const checked = validatePolygonPoints(points);

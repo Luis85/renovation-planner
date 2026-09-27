@@ -548,7 +548,8 @@ export class SelectTool implements EditorTool {
 		// self-crossing L-29 reproduces (a bowtie's signed area is the difference of its
 		// lobes, so the zone bills the wrong money). Neither arm judges AREA:
 		// `crossingFreeOutline` is `createPolygon` plus the crossing rule and nothing else,
-		// because the zero-area drag is a policy question this slice does not answer.
+		// because area is the Zone entity's rule (L-23, owner ruling 34): a drag that leaves
+		// no area is refused at dispatch by `Zone.withGeometry`, not here.
 		//
 		// The test names the EXEMPT kind rather than the gated one, and that is the whole
 		// reason it is spelled this way round. `body` is the narrow, argued case — a rigid

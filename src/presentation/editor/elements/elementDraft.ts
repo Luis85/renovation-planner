@@ -50,7 +50,14 @@ export function discardElementGeometry(draft: ElementDraft): void {
 	const { kind, name, shape, loading, busy, conflict } = draft, error = conflict ? draft.error : null;
 	Object.assign(draft, createElementDraft(), { kind, name, shape, loading, busy, conflict, error });
 }
-/** Every proposal of an element's points passes here: a valid element, and an object, post or hatch outline that encloses a surface and does not cross itself. */
+/**
+ * Every proposal of an element's points passes here: a valid element, and an object, post or hatch
+ * outline that encloses a surface and does not cross itself. "Encloses" is the Zone rule, through
+ * `simpleAreaOutline`, so a slanted-snap sliver is refused here as it is for a room (owner ruling
+ * 38, extending 36). This is the ONLY area check an element has — there is no domain rule — so a
+ * body move (`ElementMove` gates vertex drags only) or a paste of a sliver element stored before
+ * the rule is not refused.
+ */
 export function acceptsElementPoints(element: SpatialElement, points: readonly Point[]): boolean {
 	return validSpatialElement({ ...element, points }) && (!outlineKind(element.kind) || simpleAreaOutline(points).ok);
 }

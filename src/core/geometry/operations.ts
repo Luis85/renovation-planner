@@ -326,14 +326,17 @@ const NEGLIGIBLE_AREA_RATIO = 1e-6;
  * with collinear corners has a flat corner box and a real area, which divides to `Infinity` and
  * passes.
  *
- * The ratio is taken as `measured / width / height` rather than against a multiplied box, so a box
- * whose area overflows does not read a real area as negligible (the vast triangle the Zone tests
- * pin), and a flat box around no area is `0 / 0`, `NaN` — which the negated comparison refuses
- * rather than lets through.
+ * The ratio is divided out rather than taken against a multiplied box, so a box whose AREA
+ * overflows does not read a real area as negligible (the vast triangle the Zone tests pin); and
+ * each extent is taken in halves, `max / 2 - min / 2`, for the reason `boundsMidpoint` gives, so a
+ * box whose WIDTH overflows does not either — its spanning triangle, about 1 inside a box 2e308
+ * wide, where `max - min` is `Infinity` and the ratio 0. Halving both extents makes the ratio four
+ * times too large, which the final `/ 4` puts back. A flat box around no area is `0 / 0`, `NaN` — which the negated
+ * comparison refuses rather than lets through.
  */
 export function isNegligibleArea(polygon: CurvedPolygon, measured: number): boolean {
 	const { minX, maxX, minY, maxY } = extentOf(polygon.points);
-	return !(measured / (maxX - minX) / (maxY - minY) >= NEGLIGIBLE_AREA_RATIO);
+	return !(measured / (maxX / 2 - minX / 2) / (maxY / 2 - minY / 2) / 4 >= NEGLIGIBLE_AREA_RATIO);
 }
 
 export function perimeter(polygon: CurvedPolygon): Result<number, GeometryError> {

@@ -78,6 +78,10 @@ export function crossingFreeOutline(points: readonly Point[]): Result<Polygon, G
  * `areaOutline` FIRST and then the crossing rule. Every door that already required a
  * measurable surface takes this one.
  *
+ * That includes `elementDraft`'s object, post and hatch outlines, so `areaOutline`'s negligible-area
+ * rule reaches them as it reaches rooms — ruled, not incidental (owner ruling 38, extending 36).
+ * For an element this presentation check is the only one: no domain rule asks an element's area.
+ *
  * The order decides which refusal wins whenever an outline would fail BOTH steps — that is,
  * whenever `createPolygon` succeeds, `areaOutline` still refuses, and the outline also crosses:
  * `areaOutline`'s code here, `polygon-self-intersection` with the two steps swapped. Two codes

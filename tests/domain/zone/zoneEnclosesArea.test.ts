@@ -98,6 +98,16 @@ function rectangle(width: number, depth: number, degrees: number): CurvedPolygon
 }
 
 /**
+ * A corner `offset` mm off the diagonal of a 10 m square: 5000 × `offset` mm² inside a 1e8 mm²
+ * box, so 0.002 mm is a ratio of 1e-7, a tenth of the ruling's millionth, and 0.024 mm is 1.2e-6,
+ * just above it. Both sides have to hold, or a threshold lowered towards zero or a ratio missing
+ * its width would still pass.
+ */
+function offDiagonal(offset: number): CurvedPolygon {
+	return { points: [{ x: 0, y: 0 }, { x: 10_000, y: 10_000 }, { x: 5000, y: 5000 + offset }] };
+}
+
+/**
  * Owner ruling 36: an outline whose area is negligible beside its axis-aligned bounding box —
  * below a millionth of it — is refused as enclosing none. The review's case is the slanted edge:
  * a corner projected onto a non-axis-aligned line lands at an unrounded float, so the "collinear"
@@ -131,6 +141,25 @@ describe('an outline whose area is negligible beside its size', () => {
 	it('accepts a real area whose bounding box is not representable', () => {
 		const vast: CurvedPolygon = { points: [{ x: -6.75e153, y: -6.75e153 }, { x: 6.75e153, y: -4.05e153 }, { x: -4.05e153, y: 6.75e153 }] };
 		expect(expectOk(Zone.create(base(vast))).geometry.points).toHaveLength(3);
+	});
+
+	/** The threshold pinned from BELOW as well as above: see `offDiagonal`. */
+	it('refuses an outline at a tenth of the threshold, over a 10 m box', () => {
+		expect(expectErr(Zone.create(base(offDiagonal(0.002)))).code).toBe('polygon-zero-area');
+	});
+
+	it('accepts an outline just above the threshold, over the same box', () => {
+		expect(expectOk(Zone.create(base(offDiagonal(0.024)))).geometry.points).toHaveLength(3);
+	});
+
+	/**
+	 * m1: the box's WIDTH is what overflows here, not its area — 2e308 across and 1e-308 high, an
+	 * area of about 1 inside a box of about 2 (`boundsMidpoint`'s own spanning triangle). Taking the
+	 * extents as `max - min` read the width as Infinity and the area as negligible.
+	 */
+	it('accepts a real area whose bounding box is wider than a double', () => {
+		const spanning: CurvedPolygon = { points: [{ x: -1e308, y: 0 }, { x: 1e308, y: 1e-308 }, { x: 1e308, y: 0 }] };
+		expect(expectOk(Zone.create(base(spanning))).geometry.points).toHaveLength(3);
 	});
 
 	/** M2: finite corners whose area overflows are refused under the code that says so, not as zero area. */

@@ -1820,6 +1820,29 @@ Important ones, all in documentation, and one fix wave closed them.
 the final fix wave: `verify` ×4 plus `audit`, and five E2E jobs (two sharded desktop versions plus
 mobile emulation). Both were read by run id. PR #230 stays a draft.
 
+### AD18-R30 to AD18-R33 — the 26 human steps, against instruments the first audit did not try. (2026-09-27)
+
+**Context.** Session twenty-one audited the 26 steps AD18-R26 to R29 left human
+([`MANUAL-PASS-audit-2.md`](../reports/MANUAL-PASS-audit-2.md)): two read-only auditors, one probe
+that measured four instruments in a real Obsidian 1.13.7 on Windows (Chromium's accessibility tree
+over CDP, poll-only; Obsidian's native-menu preference and Electron's `Menu`; window and canvas
+screenshots; a macOS leg, read only), and one independent Opus review with nine mutations, seven red and
+two green by design. It added a bucket, **P**: a measurement settles a named part of a clause but not the
+clause as a person reads it. Result on `cecb332b7`: 56 clauses, 27 A (two of them host pins no `src/`
+mutation can redden), 4 B, 11 C, 2 D, 12 P; per step 2 automated by host pin, 9 human, 10 proxy, 5
+open. The user took four rulings in one batched round, every one as recommended:
+
+| Item | Shipped before | Ruled |
+|---|---|---|
+| **AD18-R30** — the 12 P clauses (AX tree: Design 88b, Calibrate 32; pixels and contrast: Design 7, 57 x2, 70, Browse 3, 33; geometry: Design 56, 109, Recover 34, Browse 11) | nothing measures them; each is read by eye in the walk | **All 12 are built. Design 88b's AX-tree clause DISCHARGES** (no live ancestor is the clause itself). **Every other P is a GUARD**: it catches a regression, and the "reads as" judgement stays in the walk, so its step keeps its human tier |
+| **AD18-R31** — Design 89 on macOS | the macOS clause is "none — a Windows run"; the row says "Cmd+G" while the build draws "⌘+G" (CONTRARY) | **A vitest case for the ⌘ label** (`Platform.isMacOS = true`) and **the row rewritten to ⌘+G**. No macOS E2E leg; "a real Mac takes the macOS arm" stays human residue for a walker on a Mac |
+| **AD18-R32** — Design 92, "Obsidian's native menu opens, or nothing" | a disjunct no build can fail | **Reworded to "nothing opens: no designer menu, no Obsidian menu, native or DOM"** and built as one e2e case with the probe's renderer hooks (the `context-menu` event fired, no `Menu.buildFromTemplate`, no `.menu`), selection cleared, points clear of every part, hooks removed after |
+| **AD18-R33** — host pins, host timing and a recorded answer | Recover 2 and Browse 31 stay in the walk "by the mutation gate"; Recover 6/8's host timing is recorded, not asserted; Calibrate 29 clause 1 was answered on 2026-09-19 | **Recover 2 and Browse 31 count as discharged** and are retagged `e2e`; their cases stay as tripwires for a host change. **Recover 6/8's host timing stays a recorded measurement** (no bound asserted), so 6 and 8 stay human. **Calibrate 29 is re-asked in full** on the current build; the 2026-09-19 answer is not carried forward |
+
+**Not authorized by these rulings, and asked for separately if needed:** a schema change, a stored
+field, a new runtime dependency or devDependency, AD17 or roadmap work, or any element of CLAUDE.md's
+*Deliberately absent* list.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

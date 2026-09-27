@@ -198,14 +198,26 @@ describe('affectsSaveState', () => {
 	 * this is a stamp rather than a carve-out by code — carving the code out would have put a
 	 * sticky badge on an override of a Requirement somebody else deleted, which wrote nothing.
 	 */
-	it.each(['Reference', 'Domain', 'Validation', 'Calculation'] as const)(
+	it.each(['Reference', 'Domain', 'Validation', 'Calculation', 'Geometry'] as const)(
 		'counts a stamped %s refusal, which left writes standing despite its pre-write category',
 		(category) => {
 			expect(affectsSaveState(markUncompensated(errorOf(category), []))).toBe(true);
 		},
 	);
 
-	it.each(['Persistence', 'Geometry', 'Migration', 'Import'] as const)(
+	/**
+	 * **Owner ruling 37: a `Geometry` refusal is raised before anything is written.** Every raise
+	 * site is a pure function; every repository port answers `RepositoryError`, which has no
+	 * `Geometry` arm. The two a drag reaches — L-23's no-area outline and its overflow twin — are
+	 * transcribed from `Zone.ts`'s `enclosingOutline` and `operations.ts`'s `polygonArea`. The one
+	 * shape that can follow a write, a composed paste or delete whose later step refuses, is the
+	 * stamped case above: `restoreSteps` marks it when putting the earlier steps back fails.
+	 */
+	it.each(['polygon-zero-area', 'polygon-area-overflow'])('ignores the pre-write Geometry refusal %s', (code) => {
+		expect(affectsSaveState({ category: 'Geometry', code, message: 'an outline the write rule refused' })).toBe(false);
+	});
+
+	it.each(['Persistence', 'Migration', 'Import'] as const)(
 		'counts a %s failure, because the safe answer is "we might not have written your data"',
 		(category) => {
 			expect(affectsSaveState(errorOf(category))).toBe(true);

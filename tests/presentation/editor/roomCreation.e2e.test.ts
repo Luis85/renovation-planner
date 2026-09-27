@@ -237,7 +237,7 @@ describe('Add Room, end to end', () => {
 	/**
 	 * **The surface is the SAVE-STATE BADGE, and it is the badge rather than a toast on
 	 * purpose.** `injectedPersistenceError()` is category `Persistence`, which is not one of
-	 * `affectsSaveState`'s four pre-write categories, so `withSaveStateTracking` — one layer
+	 * `affectsSaveState`'s pre-write categories, so `withSaveStateTracking` — one layer
 	 * below this dispatch, inside `wrapDispatcher` — resolves it as a save error and flips the
 	 * indicator. `reportDispatchFailure`, which `createRoomFromDraft` calls as `reportRejected`,
 	 * then asks the SAME predicate and routes it to the `autosave-write` origin, whose sink in

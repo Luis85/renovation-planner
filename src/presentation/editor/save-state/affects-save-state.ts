@@ -12,6 +12,7 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
 	'Domain',
 	'Reference',
 	'Calculation',
+	'Geometry',
 ];
 
 /**
@@ -103,6 +104,24 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * the category is pre-write by the resolution's error union rather than by anything here, and
  * a later widening of that union is the change that would falsify this paragraph.
  *
+ * **`Geometry`**, owner ruling 37, and the first category here that is pre-write by a TYPE
+ * rather than by an enumeration. It was left out as one of the categories "whose whole subject
+ * IS the write" — a default nobody had measured, and one a sweep of the code refutes: every
+ * `category: 'Geometry'` literal is in a pure function (`core/geometry/`, `Zone.ts`,
+ * `AssetShape.ts`, the editor's own `areaOutline`/`simpleOutline`), and every repository port's
+ * write answers `RepositoryError` — `Persistence | Migration | Validation`, no `Geometry` arm —
+ * so no write can return one; the infrastructure re-labels what it meets on a read
+ * (`zone.entity-invalid`, `plan-geometry.curve-invalid`). The one port that DOES answer one,
+ * `ZoneGeometryVersions.versionFor`, is a pure computation `GroupGeometryCommand` asks before
+ * `geometry.write`. So within one command a `Geometry` refusal precedes that command's first
+ * write: L-23's `polygon-zero-area` and `polygon-area-overflow` from `withGeometry`, the curve
+ * codes from `preservePointCurves`, both before `zones.save`. The one shape that can follow a
+ * write is a COMPOSED command (`PasteCommand`, `DeleteSelectionCommand`) whose later step
+ * refuses after an earlier step wrote — and `restoreSteps` puts those back and stamps the
+ * refusal when it cannot, which is the stamp below answering exactly as it does for the other
+ * four. Before this, a drag leaving a room with no area put a sticky "Save error" over a vault
+ * nothing had touched, with no sentence naming why.
+ *
  * That set is REACHABLE, not theoretical, and each widening was one keystroke or one click
  * away. The Inspector's two override fields are `type="text"` (`RequirementRow.vue`), so
  * typing `-5` into one raises the first `Domain` site. The Inspector's Delete button opens
@@ -154,11 +173,13 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * **Still an inequality against a named set rather than a list of the categories that count,
  * deliberately.** A new `AppError` category added by a later slice defaults to AFFECTING the
  * indicator, because "we might not have written your data" is the safe answer to give while
- * nobody has thought about it. The unsafe default is silence. **Four of the eight are in the
- * pre-write set now and four are not** (`Persistence`, `Geometry`, `Import`, `Migration`), and
- * a set that has grown to half the vocabulary is worth stopping at rather than letting grow
- * quietly. What remains outside it is the four categories whose whole subject IS the write —
- * two of them, `Import` and `Migration`, having no dispatched raise site at all today. The
+ * nobody has thought about it. The unsafe default is silence. **Five of the eight are in the
+ * pre-write set now and three are not** (`Persistence`, `Import`, `Migration`). The fifth was
+ * argued against the paragraph below rather than against the nuisance of a badge: `Geometry`
+ * joined because a port type keeps it pre-write and the stamp covers the composed commands, not
+ * because the badge annoyed anyone. What remains outside it is the three categories whose whole
+ * subject IS the write — two of them, `Import` and `Migration`, having no dispatched raise site
+ * at all today. The
  * further this widens the more the indicator depends on every enumerated raise site STAYING
  * pre-write, with nothing checking that; the next widening should be argued against that
  * rather than against the nuisance of a badge, and if a fifth is ever proposed the honest
@@ -169,7 +190,7 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  *
  * **The exposure this creates is the unsafe direction, and the part of it that was REACHABLE
  * is now closed by a report rather than by this predicate.** A `Domain`, `Validation`,
- * `Reference` or `Calculation` error raised AFTER a write had already landed would be
+ * `Reference`, `Calculation` or `Geometry` error raised AFTER a write had already landed would be
  * under-reported: the indicator settles `saved`, or reverts to what it read before the batch,
  * over data whose write half-completed. An earlier draft said "the sweeps above found NO such
  * site today" and named `deleteResolution.ts` as where one was "likeliest to appear" on the

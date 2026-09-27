@@ -15,12 +15,12 @@
  * gesture; the rig has no vault files to compare.
  *
  * What the user SEES is read through the instruments `toolRefusalSurfaces.test.ts` uses —
- * `Notice.shown` and the save indicator's rendered label — and it is MEASURED, not chosen here:
- * a refusal from a dispatched gesture is carried by the save indicator alone
- * (`reportDispatchFailure`), and `Geometry` is outside `affectsSaveState`'s pre-write set, so
- * the indicator reads "Save error" and no notice is raised. No sentence names the cause. That is
- * the routing every dispatched geometry refusal already takes; this pins it for this one rather
- * than changing it, and the report that landed this names it as an owner question.
+ * `Notice.shown` and the save indicator's rendered label. Owner ruling 37: the refusal is raised
+ * before anything is written, so `Geometry` is in `affectsSaveState`'s pre-write set and
+ * `reportDispatchFailure` raises ONE notice carrying the category's sentence while the badge
+ * keeps whatever it read before the gesture — the `undo.superseded` shape (rulings 17/27/30).
+ * Until that ruling the indicator read "Save error", no notice named the cause, and the badge
+ * stayed until the next successful save.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Notice } from '../../helpers/obsidian-mock';
@@ -53,15 +53,15 @@ const SLIVER_POINTS = [{ x: 5000, y: 3400 }, { x: 7000, y: 3400 }, { x: 6000, y:
 const listing = async (zones: InMemoryZoneRepository) => expectOk(await zones.listByPlan(planId)).loaded;
 const indicator = (harness: Awaited<ReturnType<typeof rig>>['harness']) => harness.wrapper.find('.rp-save-state-label');
 const refused = (harness: Awaited<ReturnType<typeof rig>>['harness']) => indicator(harness).classes().includes('rp-save-state-save-error');
-/** "Save error" on the indicator, and no notice: see the header for why this is what the user gets. */
-function expectShownAsSaveError(harness: Awaited<ReturnType<typeof rig>>['harness']) {
-	expect(indicator(harness).text()).toBe('Save error');
-	expect(refused(harness)).toBe(true);
-	expect(Notice.shown).toEqual([]);
+/** One notice with the Geometry category's sentence, and the badge as it read before: see the header. */
+function expectShownAsGeometryNotice(harness: Awaited<ReturnType<typeof rig>>['harness'], badge: string) {
+	expect(Notice.shown).toEqual(['A geometry value is invalid.']);
+	expect(refused(harness)).toBe(false);
+	expect(indicator(harness).text()).toBe(badge);
 }
 
 describe('a vertex drag that would leave a room enclosing no area', () => {
-	it('is refused through SelectTool.commit, writes nothing, and reads as a save error', async () => {
+	it('is refused through SelectTool.commit, writes nothing, and reads as a geometry notice', async () => {
 		const { harness, zonesRepo } = await rig(async ({ zones }) => {
 			await zones.save(makeZone({ id: TRIANGLE, projectId: PROJECT_ID, planId, name: 'Triangle', geometry: { points: TRIANGLE_POINTS } }), 'absent');
 		});
@@ -73,6 +73,7 @@ describe('a vertex drag that would leave a room enclosing no area', () => {
 			await settle();
 			expect(useSelectionStore(harness.pinia).selectedIds).toEqual([TRIANGLE]);
 			const before = await listing(zonesRepo);
+			const badge = indicator(harness).text();
 
 			pointer(canvas, 'pointerdown', 648, 199);
 			pointer(canvas, 'pointermove', 648, 300);
@@ -82,7 +83,7 @@ describe('a vertex drag that would leave a room enclosing no area', () => {
 			await settleUntil(async () => Notice.shown.length > 0 || refused(harness) || JSON.stringify(await listing(zonesRepo)) !== JSON.stringify(before), 'the drag to be refused or written');
 
 			expect(await listing(zonesRepo)).toEqual(before);
-			expectShownAsSaveError(harness);
+			expectShownAsGeometryNotice(harness, badge);
 		} finally {
 			harness.unmount();
 		}
@@ -93,9 +94,9 @@ describe('a room stored without an area', () => {
 	/**
 	 * STOP-ZERO 4: the drag that FIXES it is taken, and undoing that fix is refused, because the
 	 * outline it would restore is exactly the one that can no longer be saved. The fixed outline
-	 * stays in the vault.
+	 * stays in the vault, and the badge keeps the "Saved" the fix earned (ruling 37).
 	 */
-	it('is fixed by a vertex drag, and the undo of that fix is refused as a save error', async () => {
+	it('is fixed by a vertex drag, and the undo of that fix is refused as a geometry notice', async () => {
 		const { harness, zonesRepo } = await rig(async ({ zones }) => {
 			const stored = expectOk(Zone.fromStored({ id: SLIVER, projectId: PROJECT_ID, planId, name: 'Sliver', zoneType: 'Room', geometry: { points: SLIVER_POINTS } }));
 			await zones.save(stored, 'absent');
@@ -115,11 +116,12 @@ describe('a room stored without an area', () => {
 			await settleUntil(async () => JSON.stringify((await listing(zonesRepo)).find(zone => zone.entity.id === SLIVER)?.entity.geometry.points) === JSON.stringify(fixed), 'the fixing drag to land');
 			expect(Notice.shown).toEqual([]);
 			expect(refused(harness)).toBe(false);
+			const badge = indicator(harness).text();
 
 			actionButton(harness, 'Undo').click();
 			await settleUntil(() => Notice.shown.length > 0 || refused(harness), 'the undo refusal to reach the user');
 
-			expectShownAsSaveError(harness);
+			expectShownAsGeometryNotice(harness, badge);
 			expect((await listing(zonesRepo)).find(zone => zone.entity.id === SLIVER)?.entity.geometry.points).toEqual(fixed);
 		} finally {
 			harness.unmount();
@@ -138,7 +140,7 @@ describe('a vertex drag onto a slanted neighbour edge', () => {
 	/** The same edge as its base, and its apex above it at screen (548,248). */
 	const SLANTED = [{ x: 4594, y: 3606 }, { x: 7436, y: 2164 }, { x: 5000, y: 2000 }];
 
-	it('is refused, writes nothing, and reads as a save error', async () => {
+	it('is refused, writes nothing, and reads as a geometry notice', async () => {
 		const { harness, zonesRepo } = await rig(async ({ zones }) => {
 			await zones.save(makeZone({ id: 'zone-neighbour' as ZoneId, projectId: PROJECT_ID, planId, name: 'Neighbour', geometry: { points: NEIGHBOUR } }), 'absent');
 			await zones.save(makeZone({ id: TRIANGLE, projectId: PROJECT_ID, planId, name: 'Triangle', geometry: { points: SLANTED } }), 'absent');
@@ -151,6 +153,7 @@ describe('a vertex drag onto a slanted neighbour edge', () => {
 			await settle();
 			expect(useSelectionStore(harness.pinia).selectedIds).toEqual([TRIANGLE]);
 			const before = await listing(zonesRepo);
+			const badge = indicator(harness).text();
 
 			pointer(canvas, 'pointerdown', 548, 249);
 			pointer(canvas, 'pointermove', 556, 320);
@@ -159,7 +162,7 @@ describe('a vertex drag onto a slanted neighbour edge', () => {
 			await settleUntil(async () => Notice.shown.length > 0 || refused(harness) || JSON.stringify(await listing(zonesRepo)) !== JSON.stringify(before), 'the drag to be refused or written');
 
 			expect(await listing(zonesRepo)).toEqual(before);
-			expectShownAsSaveError(harness);
+			expectShownAsGeometryNotice(harness, badge);
 		} finally {
 			harness.unmount();
 		}

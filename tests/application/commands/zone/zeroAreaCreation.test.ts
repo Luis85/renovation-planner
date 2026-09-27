@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { structureStack } from '../../../helpers/structure';
 import { makeDeleteZoneCommand } from '../../../helpers/slice10';
 import { expectDefined, expectErr, expectOk } from '../../../helpers/domain';
@@ -17,11 +17,14 @@ import { EMPTY_STRUCTURE } from '../../../../src/domain/spatial/Structure';
  * is the whole of what "nothing was written" means here — the fake vault's files, not the disk.
  */
 const COLLINEAR = [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 2000, y: 0 }];
+const TRIANGLE = [...COLLINEAR.slice(0, 2), { x: 1000, y: 1000 }];
+/** Ruling 36's case: a corner snapped a fifth of the way along a slanted edge keeps a float residue, not an exact zero. */
+const SLANTED_SLIVER = [{ x: 4594, y: 3606 }, { x: 7436, y: 2164 }, { x: 5162.4, y: 3317.6 }];
+
+afterEach(() => vi.restoreAllMocks());
 
 /** The plan's geometry sidecar, parsed, out of a snapshot of the vault's entries. */
 const sidecar = (entries: Map<string, string>) => JSON.parse(expectDefined([...entries].find(([path]) => path.endsWith('.rpgeo')), 'sidecar')[1]) as { revision: number };
-/** The same snapshot with the sidecar's revision set aside, every other byte compared. */
-const ignoringRevision = (entries: Map<string, string>) => new Map([...entries].map(([path, text]) => [path, path.endsWith('.rpgeo') ? { ...sidecar(entries), revision: 0 } : text]));
 
 async function wired() {
 	const base = await structureStack();
@@ -64,39 +67,46 @@ describe('a zone outline that encloses no area cannot be created', () => {
 	});
 
 	/**
-	 * M6, pinned rather than changed: a clipboard holding a Room WITH an area and a sliver writes
-	 * the Room, meets the sliver's refusal, and deletes the Room again through `restoreSteps`, so
-	 * the paste fails whole. The vault ends where it began in every byte but ONE field: the plan's
-	 * geometry sidecar keeps its (empty) objects and its revision has moved on by two — the insert
-	 * and the removal are two writes, and a revision counts writes, not contents.
+	 * Owner ruling 39: a paste checks every Room it places BEFORE its first write and refuses the
+	 * whole paste, so a Room with an area beside a stored sliver writes nothing — no Zone note
+	 * created, none trashed, and the plan's geometry sidecar not rewritten, revision included.
+	 * Before the ruling the first Room was written and then deleted again, which left the sidecar
+	 * two revisions on and, in a real vault, a note in the trash.
 	 */
-	it('through a paste of a Room with an area beside one without, which writes the first and deletes it again', async () => {
+	it.each([
+		['a Room with an area beside a stored sliver', [{ key: 'zone-room', name: 'Room', zoneType: 'Room', points: TRIANGLE }, { key: 'zone-sliver', name: 'Sliver', zoneType: 'Room', points: SLANTED_SLIVER }], EMPTY_STRUCTURE],
+		['a Room, a stored sliver, a wall and an element', [{ key: 'zone-room', name: 'Room', zoneType: 'Room', points: TRIANGLE }, { key: 'zone-sliver', name: 'Sliver', zoneType: 'Room', points: SLANTED_SLIVER }], {
+			...EMPTY_STRUCTURE,
+			walls: [{ id: 'wall-a', start: { x: 0, y: 0 }, end: { x: 1000, y: 0 }, height: 2400, thickness: 150 }],
+			elements: [{ id: 'element-arrow', kind: 'arrow' as const, points: [{ x: 0, y: 500 }, { x: 1000, y: 500 }] }],
+		}],
+	])('through a paste of %s, which is refused whole before writing anything', async (_what, rooms, structure) => {
 		const r = await wired(), before = r.entries();
-		const clipboard = expectDefined(captureClipboard({
-			rooms: [
-				{ key: 'zone-room', name: 'Room', zoneType: 'Room', points: [...COLLINEAR.slice(0, 2), { x: 1000, y: 1000 }] },
-				{ key: 'zone-sliver', name: 'Sliver', zoneType: 'Room', points: COLLINEAR },
-			],
-			structure: EMPTY_STRUCTURE, names: [], groups: [],
-		}, ['zone-room', 'zone-sliver']), 'clipboard');
+		const clipboard = expectDefined(captureClipboard({ rooms, structure, names: [], groups: [] },
+			[...rooms.map(room => room.key), ...structure.walls.map(item => item.id), ...(structure.elements ?? []).map(item => item.id)]), 'clipboard');
+		expect(clipboard.structure.walls.length + clipboard.structure.elements.length).toBe(structure.walls.length + (structure.elements ?? []).length);
 		const created: string[] = [];
 		r.stack.vault.on('create', (file: { path: string }) => created.push(file.path));
+		const trash = vi.spyOn(r.stack.fileManager, 'trashFile');
 		const paste = new PasteCommand(r.deps, { planId: r.plan.id, clipboard, target: { x: 5000, y: 5000 } });
 
 		expect(expectErr(await paste.execute()).code).toBe('polygon-zero-area');
-		expect(created.filter(path => path.includes('/Zones/'))).toHaveLength(1);
-		expect(expectOk(await r.stack.zones.listByPlan(r.plan.id)).loaded).toHaveLength(0);
-		expect(ignoringRevision(r.entries())).toEqual(ignoringRevision(before));
-		expect(sidecar(r.entries()).revision).toBe(sidecar(before).revision + 2);
+		expect(created).toEqual([]);
+		expect(trash).not.toHaveBeenCalled();
+		expect(sidecar(r.entries()).revision).toBe(sidecar(before).revision);
+		expect(r.entries()).toEqual(before);
 	});
 
-	it('while a paste of a Room that does enclose one is still written', async () => {
+	it('while a paste of Rooms that all enclose one is still written', async () => {
 		const r = await wired();
 		const clipboard = expectDefined(captureClipboard({
-			rooms: [{ key: 'zone-room', name: 'Room', zoneType: 'Room', points: [...COLLINEAR.slice(0, 2), { x: 1000, y: 1000 }] }],
+			rooms: [
+				{ key: 'zone-room', name: 'Room', zoneType: 'Room', points: TRIANGLE },
+				{ key: 'zone-second', name: 'Second', zoneType: 'Room', points: TRIANGLE.map(point => ({ x: point.x + 3000, y: point.y })) },
+			],
 			structure: EMPTY_STRUCTURE, names: [], groups: [],
-		}, ['zone-room']), 'clipboard');
+		}, ['zone-room', 'zone-second']), 'clipboard');
 		expectOk(await new PasteCommand(r.deps, { planId: r.plan.id, clipboard, target: { x: 5000, y: 5000 } }).execute());
-		expect(expectOk(await r.stack.zones.listByPlan(r.plan.id)).loaded).toHaveLength(1);
+		expect(expectOk(await r.stack.zones.listByPlan(r.plan.id)).loaded).toHaveLength(2);
 	});
 });

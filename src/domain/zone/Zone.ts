@@ -61,8 +61,12 @@ interface ZoneFields {
  * read as zero. `polygon-zero-area` is the code `areaOutline` raises for the same shape by the
  * same predicate, so the typed dialog and the write agree about which outlines exist. Neither code
  * has copy of its own; both read the Geometry category's sentence.
+ *
+ * Exported for ONE caller beyond this class: `PasteCommand` asks it of every Room a paste places
+ * before the paste's first write (owner ruling 39), so a paste holding a room of no area is refused
+ * whole rather than written and rolled back. `create` still asks it too, as the backstop.
  */
-function enclosingOutline(geometry: CurvedPolygon): Result<CurvedPolygon, GeometryError> {
+export function enclosingOutline(geometry: CurvedPolygon): Result<CurvedPolygon, GeometryError> {
 	const checked = createCurvedPolygon(geometry);
 	if (!checked.ok) return checked;
 	const measured = polygonArea(checked.value);

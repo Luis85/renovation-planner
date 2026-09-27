@@ -8,8 +8,7 @@
  * over an asset whose shape read had regressed would still pass every existing assertion.
  *
  * Mounts the real `AssetDesignerView` — the same Obsidian lifecycle
- * `tests/presentation/designer/assetDesignerView.test.ts` drives (that file is owned by a
- * different task this round; this is a NEW file rather than an edit to it) — with a real Konva
+ * `tests/presentation/designer/assetDesignerView.test.ts` drives — with a real Konva
  * stage (`installCanvas`/`installResizeObserver`, since jsdom draws neither), and reads the real
  * Konva scene graph for the footprint's own node name, `footprintLayer.ts`'s
  * `'asset-footprint-outline'` — the identical selector

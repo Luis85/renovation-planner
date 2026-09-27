@@ -493,3 +493,51 @@ export async function selecting(shape: AssetShape = editableShape()): Promise<De
 	await settle();
 	return rig;
 }
+
+/**
+ * **AD18-R20/R22/R23's shared Parts-panel vocabulary**, cloned near-identically across the four
+ * `designerHidden*.test.ts` files before this move — the same fallow blind spot `selecting`'s own
+ * docblock names above: a clone between two `*.test.ts` files is invisible to fallow's duplication
+ * check, so `tests/helpers/` is where it becomes one definition AND one fallow can see.
+ *
+ * A Parts row by its `name` attribute — the query every one of `pressRow`, `toggleHidden` and a
+ * case's own direct read (an `aria-pressed` check, a context-menu target) resolves through.
+ */
+export function partRow(rig: DesignerRig, name: string): HTMLButtonElement {
+	return rig.wrapper.element.querySelector(`.rp-designer-part-row[name="${name}"]`) as HTMLButtonElement;
+}
+
+/**
+ * Presses a Parts row and settles — the click a user makes to select or focus that part.
+ *
+ * `init` is the one place the four source files disagreed rather than merely duplicated:
+ * `designerHiddenSelectionKeys.test.ts` needed a shift-click for its grouping cases, which
+ * `HTMLElement.click()` cannot carry, so its own version dispatched a `MouseEvent` directly. That
+ * version is the superset kept here — a bare `pressRow(rig, name)` dispatches the identical
+ * bubbling, cancelable click a plain `.click()` would have, so the other three files' behaviour is
+ * unchanged.
+ */
+export async function pressRow(rig: DesignerRig, name: string, init: MouseEventInit = {}): Promise<void> {
+	partRow(rig, name).dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...init }));
+	await settle();
+}
+
+/** The Parts panel's `Show clearance` checkbox, set and settled. */
+export async function showClearance(rig: DesignerRig, on: boolean): Promise<void> {
+	await rig.wrapper.get('[name="show-clearance"]').setValue(on);
+	await settle();
+}
+
+/**
+ * The selected graphic's own Hide / Show control, which its pressed row draws.
+ *
+ * Scoped to `name`'s row when given — `designerHiddenSelectionKeys.test.ts`'s "set with a member
+ * that is not drawn" cases can have more than one such control on screen at once, so its own
+ * version scoped by `data-key`. The other two source files never had two selected parts at once
+ * and queried the single control globally; `name` left `undefined` keeps that lookup.
+ */
+export async function toggleHidden(rig: DesignerRig, name?: string): Promise<void> {
+	const selector = name === undefined ? '[name="toggle-hidden"]' : `[data-key="${name}"] [name="toggle-hidden"]`;
+	(rig.wrapper.element.querySelector(selector) as HTMLButtonElement).click();
+	await settle();
+}

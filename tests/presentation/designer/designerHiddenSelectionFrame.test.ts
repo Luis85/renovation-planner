@@ -17,20 +17,14 @@ import type { Viewport } from '../../../src/presentation/editor/viewport/Viewpor
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { editableShape } from '../../helpers/assetShapes';
-import { selecting, type DesignerRig } from '../../helpers/designerRig';
+import { pressRow as press, selecting, showClearance, toggleHidden, type DesignerRig } from '../../helpers/designerRig';
 import { settle } from '../../helpers/editor';
 
 /** A camera no fit in these cases lands on, so a frame that happened is one that moved it. */
 const PARKED: Viewport = { pan: { x: 12345, y: -6789 }, zoom: 0.02 };
 
-const partRow = (rig: DesignerRig, name: string) => rig.wrapper.element.querySelector(`.rp-designer-part-row[name="${name}"]`) as HTMLButtonElement;
 /** Each strip's band as the template wrote it — its own `style` attribute, where the camera arithmetic lands. */
 const bands = (rig: DesignerRig) => [...rig.wrapper.element.querySelectorAll('.rp-designer-ruler__extent')].map((band) => band.getAttribute('style'));
-
-async function press(rig: DesignerRig, row: string): Promise<void> {
-	partRow(rig, row).click();
-	await settle();
-}
 
 /** `Shift+2` on the canvas from the parked camera; answers the camera it leaves. */
 async function frameSelection(rig: DesignerRig): Promise<Viewport> {
@@ -47,18 +41,8 @@ interface Hider {
 	show(rig: DesignerRig): Promise<void>;
 }
 
-const showClearance = (on: boolean) => async (rig: DesignerRig) => {
-	await rig.wrapper.get('[name="show-clearance"]').setValue(on);
-	await settle();
-};
-// The selected graphic's own Hide / Show control, which its pressed row opens.
-const toggleHidden = async (rig: DesignerRig) => {
-	await rig.wrapper.get('[name="toggle-hidden"]').trigger('click');
-	await settle();
-};
-
 const HIDERS: ReadonlyArray<readonly [string, Hider]> = [
-	['the clearance, behind Show clearance', { row: 'clearance', hide: showClearance(false), show: showClearance(true) }],
+	['the clearance, behind Show clearance', { row: 'clearance', hide: (rig: DesignerRig) => showClearance(rig, false), show: (rig: DesignerRig) => showClearance(rig, true) }],
 	['a graphic, hidden in the Parts panel', { row: 'detail:detail-1', hide: toggleHidden, show: toggleHidden }],
 ];
 

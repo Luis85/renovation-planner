@@ -18,10 +18,9 @@ import { useAssetDesignStore } from '../../../src/presentation/designer/stores/a
 import { STAGE_PIXELS, worldPerScreenPixel } from '../../../src/presentation/editor/viewport/Viewport';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { editableShape } from '../../helpers/assetShapes';
-import { drag, selecting, type DesignerRig } from '../../helpers/designerRig';
+import { drag, partRow, pressRow as press, selecting, showClearance, toggleHidden, type DesignerRig } from '../../helpers/designerRig';
 import { settle } from '../../helpers/editor';
 
-const partRow = (rig: DesignerRig, name: string) => rig.wrapper.element.querySelector(`.rp-designer-part-row[name="${name}"]`) as HTMLButtonElement;
 const drawnCount = (rig: DesignerRig, name: string) => rig.stage.find(name).filter((node) => node.isVisible()).length;
 const selectionDrawn = (rig: DesignerRig) => ({
 	outline: drawnCount(rig, '.asset-selection-outline') > 0,
@@ -30,29 +29,14 @@ const selectionDrawn = (rig: DesignerRig) => ({
 });
 const NOTHING = { outline: false, handles: 0, stem: false };
 
-async function press(rig: DesignerRig, row: string): Promise<void> {
-	partRow(rig, row).click();
-	await settle();
-}
-
 interface Hider {
 	readonly row: string;
 	hide(rig: DesignerRig): Promise<void>;
 	show(rig: DesignerRig): Promise<void>;
 }
 
-const showClearance = (on: boolean) => async (rig: DesignerRig) => {
-	await rig.wrapper.get('[name="show-clearance"]').setValue(on);
-	await settle();
-};
-// The selected graphic's own Hide / Show control, which its pressed row opens.
-const toggleHidden = async (rig: DesignerRig) => {
-	await rig.wrapper.get('[name="toggle-hidden"]').trigger('click');
-	await settle();
-};
-
 const HIDERS: ReadonlyArray<readonly [string, Hider]> = [
-	['the clearance, behind Show clearance', { row: 'clearance', hide: showClearance(false), show: showClearance(true) }],
+	['the clearance, behind Show clearance', { row: 'clearance', hide: (rig: DesignerRig) => showClearance(rig, false), show: (rig: DesignerRig) => showClearance(rig, true) }],
 	['a graphic, hidden in the Parts panel', { row: 'detail:detail-1', hide: toggleHidden, show: toggleHidden }],
 ];
 

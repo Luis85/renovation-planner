@@ -9,9 +9,8 @@
  * meaning first among the rendered items — with no right-click and no Obsidian.
  *
  * Driven through `CanvasMenuList`'s own `items` prop, exactly as `wallThickness.test.ts`'s
- * *exposes Plan-only menu entry...* reads it (that file is owned by a different task this round;
- * this is a NEW file), over a real placed asset element so `designerActions` has an `assetId` to
- * answer for.
+ * *exposes Plan-only menu entry...* reads it, over a real placed asset element so
+ * `designerActions` has an `assetId` to answer for.
  */
 import { afterEach, expect, it, vi } from 'vitest';
 import { assetPlacementRig } from '../../helpers/assetPlacement';

@@ -4,8 +4,10 @@
  * AD18 Task 8 / AD18-R27 (browse.md step 32, RULING): the case's own pass condition claims the
  * name, the size and "the same edge the mark sits above" all share one left edge. The case's own
  * evidence for the row already contradicts that — the mark is centred (`align-self: center`) —
- * and `assetTileStyles.test.ts` (owned by a different task this round) already pins that one fact
- * in isolation ("keeps the mark centred against the now-stretched tile"). What nothing pins is
+ * and `assetTileStyles.test.ts` already pins both of the facts that contradiction rests on: the
+ * tile's own `align-items: stretch` ("stretches every child to the tile's own width...") and the
+ * mark's `align-self: center` against it ("keeps the mark centred against the now-stretched
+ * tile"). This file does not re-pin either fact; it starts from them. What nothing pins is
  * the CONTRAST that makes the clause unmeetable rather than merely imprecise: the mark and the
  * design-less placeholder icon that stands in for it (AD18-R21) are the only two `.rp-al-tile`
  * children that override the tile's `align-items: stretch` with their own `align-self: center`,
@@ -52,14 +54,6 @@ function declaredValues(selector: string, property: string): unknown[] {
 }
 
 describe('Browse 32\'s "same edge the mark sits above" (AD18-R27): the stylesheet gives it no fixed left edge', () => {
-	it('stretches every tile child to the content edge by default', () => {
-		expect(declaredValues('.rp-al-tiles .rp-al-tile', 'align-items')).toEqual(parsed('align-items', 'stretch'));
-	});
-
-	it('centres the mark against that stretch, rather than flush against the content edge', () => {
-		expect(declaredValues('.rp-al-tiles .rp-al-tile .rp-al-mark', 'align-self')).toEqual(parsed('align-self', 'center'));
-	});
-
 	it('centres the design-less placeholder icon the same way, not flush against the mark\'s own slot', () => {
 		expect(declaredValues('.rp-al-tiles .rp-al-tile .rp-al-tile__category-icon', 'align-self')).toEqual(
 			parsed('align-self', 'center'),

@@ -15,22 +15,16 @@ import { describe, expect, it } from 'vitest';
 import type { AssetShape } from '../../../src/domain/asset/AssetShape';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { editableShape } from '../../helpers/assetShapes';
-import { selecting, type DesignerRig } from '../../helpers/designerRig';
+import { partRow as row, pressRow as press, selecting, showClearance, toggleHidden, type DesignerRig } from '../../helpers/designerRig';
 import { settle } from '../../helpers/editor';
 
 const BOWL = 'detail:detail-2';
 const TOP = 'detail:detail-1';
 const GROUPED = { groups: [{ id: 'group-1', members: ['detail-1', 'detail-2'] }] };
 
-const row = (rig: DesignerRig, name: string) => rig.wrapper.element.querySelector(`.rp-designer-part-row[name="${name}"]`) as HTMLButtonElement;
 const menu = (rig: DesignerRig) => rig.wrapper.element.querySelector('.rp-canvas-context-menu');
 const menuItem = (rig: DesignerRig, id: string) => rig.wrapper.element.querySelector(`.rp-canvas-context-menu [data-rp-context-action="${id}"]`);
 const shape = async (rig: DesignerRig): Promise<AssetShape | null> => (await rig.document()).shape;
-
-async function press(rig: DesignerRig, name: string, init: MouseEventInit = {}): Promise<void> {
-	row(rig, name).dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...init }));
-	await settle();
-}
 
 /** A keydown on `target`, settled; answers the event so a case can ask whether anything claimed it. */
 async function key(target: Element, init: KeyboardEventInit): Promise<KeyboardEvent> {
@@ -45,17 +39,6 @@ async function contextMenuOn(target: Element): Promise<MouseEvent> {
 	target.dispatchEvent(event);
 	await settle();
 	return event;
-}
-
-async function showClearance(rig: DesignerRig, on: boolean): Promise<void> {
-	await rig.wrapper.get('[name="show-clearance"]').setValue(on);
-	await settle();
-}
-
-/** A graphic's own Hide / Show control, which its SELECTED row draws — scoped to that row, since a set draws one per member. */
-async function toggleHidden(rig: DesignerRig, name: string): Promise<void> {
-	(rig.wrapper.element.querySelector(`[data-key="${name}"] [name="toggle-hidden"]`) as HTMLButtonElement).click();
-	await settle();
 }
 
 interface Hider {

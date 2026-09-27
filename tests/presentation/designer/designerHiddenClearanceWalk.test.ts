@@ -21,18 +21,8 @@ import { STAGE_PIXELS, worldPerScreenPixel } from '../../../src/presentation/edi
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { t } from '../../../src/presentation/i18n/strings';
 import { editableShape } from '../../helpers/assetShapes';
-import { band, held, selecting, type DesignerRig } from '../../helpers/designerRig';
+import { band, held, pressRow, selecting, showClearance, type DesignerRig } from '../../helpers/designerRig';
 import { settle } from '../../helpers/editor';
-
-async function pressRow(rig: DesignerRig, name: string): Promise<void> {
-	(rig.wrapper.element.querySelector(`.rp-designer-part-row[name="${name}"]`) as HTMLButtonElement).click();
-	await settle();
-}
-
-async function showClearance(rig: DesignerRig, on: boolean): Promise<void> {
-	await rig.wrapper.get('[name="show-clearance"]').setValue(on);
-	await settle();
-}
 
 /** A rig with the clearance selected by its Parts row. */
 async function clearanceSelected(): Promise<DesignerRig> {

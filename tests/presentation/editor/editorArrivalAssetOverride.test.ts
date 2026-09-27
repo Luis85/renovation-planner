@@ -2,9 +2,9 @@
 /**
  * AD18 Task 8, take.md step 14's D clause: "clicking the plan places an `Oven`, not whatever the
  * Add menu last used" — the hand-off must OVERRIDE an asset the Add menu's picker had already
- * armed, and nothing drives that contrast today. `editorArrivalAssetHandoff.test.ts` (owned by
- * a different task this round) only ever calls `navigate` against a fresh draft; it never arms
- * the Add menu FIRST. Driven through the same real doors that file uses —
+ * armed, and nothing drives that contrast today. `editorArrivalAssetHandoff.test.ts` only ever
+ * calls `navigate` against a fresh draft; it never arms the Add menu FIRST. Driven through the
+ * same real doors that file uses —
  * `assetPlacementTask.choose` for the Add menu's own picker, and `useEditorArrival`'s
  * `navigateToRecord` for the hand-off — over the real `assetPlacementTask` and the real
  * asset-shape query, so what is asserted is the same `arm`/`startDraft` path production takes

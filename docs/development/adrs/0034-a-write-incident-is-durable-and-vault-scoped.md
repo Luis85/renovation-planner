@@ -519,9 +519,9 @@ could name, not about whether the vault is safe.
   import edge, so it is still not checkable by a walk — but no recorder has to be reached any
   more. What IS checked is the one assumption the construction rests on, that nothing in `src/`
   builds a stamp except `markUncompensated`: `STAMP_CONSTRUCTION_BAN` in `eslint.config.mjs`,
-  whose literal spellings and blind spots (a computed key, `Object.defineProperty`, a class field,
-  a second function of that name, oxlint) `tests/gates/stamp-construction-boundary.test.ts`
-  drives. A stamp made while no registry is installed is still lost; the keep-alive narrows that
+  whose literal spellings and blind spots (a computed key, `Object.assign` with a computed key,
+  `Object.defineProperty`, a class field, a second function of that name, oxlint)
+  `tests/gates/stamp-construction-boundary.test.ts` drives. A stamp made while no registry is installed is still lost; the keep-alive narrows that
   window to saves none of its holders counts.
   **Durable residuals over a vault that may be coherent (added 2026-09-26, S21 close-out).** The
   designer's background undo (#17 in the census) still stamps when its note put-back is refused
@@ -530,12 +530,19 @@ could name, not about whether the vault is safe.
   own read (P8), and a put-back refused `asset.pre-write-invalid` — each of which now durably
   pauses, under D-08, a vault the code cannot tell from one that genuinely half-failed. The owner
   accepted P2, P5 and P8's delete by ruling 19; P8's sync-client lock (`EBUSY`, established by
-  reading only) by ruling 31; and `asset.pre-write-invalid` by ruling 23 (census §7).
+  reading only) by ruling 31; and `asset.pre-write-invalid` by ruling 23 (census §7). A rename
+  whose later plan's READ is refused with a code the skip does not cover (`plan.migration-failed`)
+  after an earlier plan was written goes through `relocateEvidence`'s `abort`, the same as a
+  refused save — a stamp and a durable pause, an owner question, ruling 32 (driven generically:
+  `relocateEvidenceIncident.test.ts` › "stamps a failed READ that follows a write, not only a
+  failed save").
   **A designer undo refused as a conflict is not a stamp (rulings 17, 27 and 30).** A designer
   undo whose restoring write is refused as a conflict (`WRITE_BOUNDARY_CODES`) — a racing change,
   or on the single-file undos also a write ledger holding no version for the step — reads as
-  `undo.superseded`, leaves the save badge alone and records nothing; a genuine write fault on
-  those undos is unchanged.
+  `undo.superseded`, leaves the save badge alone and records nothing, unless, on the background
+  undo, the note put-back then faults, which is a stamped fault instead (census §7's
+  fault-shaped residuals); a
+  genuine write fault on those undos is unchanged.
   **Correction, 2026-09-26 (S21 fix round): recording at STAMP TIME also changes who a reload's
   old save answers to.** `SessionStores`'s constructor installs its new registry as the active
   one immediately, before that session's own `seed()` has run, and `markUncompensated` records

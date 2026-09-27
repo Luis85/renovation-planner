@@ -235,7 +235,7 @@ So the trigger is not only a hand edit: ordinary sync lag and ordinary version s
 incident, through the same door (`RenovationPlannerPlugin`'s `vault.on('rename')` listener,
 which calls `evidenceRenamed` on EVERY rename in the vault).
 
-**Since `9ba3432a2` (owner ruling 14),** a rename skips a plan any of these three codes refuses and records it in the diagnostics ledger, so none of them opens an incident or raises a failure notice. `plan.migration-failed` is the one read refusal the skip does not cover: a plan answering it still stops every rename at that plan with a failure notice, as before. It fails closed on purpose, and the ruling does not reach it.
+**Since `9ba3432a2` (owner ruling 14),** a rename skips a plan any of these three codes refuses and records it in the diagnostics ledger, so none of them opens an incident or raises a failure notice. `plan.migration-failed` is the one read refusal the skip does not cover: a plan answering it still stops every rename at that plan, as before. If no plan was written yet, that is a failure notice and nothing else; after an earlier plan was written, the same `abort` also stamps, so it opens a durable, vault-wide incident naming the plans already written (driven generically by `relocateEvidenceIncident.test.ts` › "stamps a failed READ that follows a write, not only a failed save"). It fails closed on purpose, and the ruling does not reach it; the durable arm is an open owner question (ruling 32, tracker L-51).
 
 ## 6. What this does not decide
 
@@ -272,7 +272,9 @@ the recorder itself has moved into `markUncompensated` under rulings 13, 19 and 
 "Recorder" column and every "reaches no recorder" in §1–§4 describe `d54e95931`, not the code now.
 The 23 raise sites themselves are unchanged. Rulings 17, 27 and 30 then changed only what a
 designer undo whose restoring write is refused as a conflict (`WRITE_BOUNDARY_CODES`) SHOWS: it
-reads as `undo.superseded`, leaves the save badge alone and records nothing, and no stamp moved.
+reads as `undo.superseded`, leaves the save badge alone and records nothing — unless, on the
+background undo, the note put-back then faults, which is a stamped fault instead (the
+fault-shaped residuals below) — and no stamp moved.
 
 | Commit | Date | What changed |
 |---|---|---|
@@ -281,7 +283,7 @@ reads as `undo.superseded`, leaves the save badge alone and records nothing, and
 | `28409ace0` | 2026-09-25 | Fixes that Important 1: the refused arm now asks the vault first — a new private `undoLeftBehind(inverse)` checks that the note still names `inverse.entity.background` AND the sidecar's calibration differs from `inverse.document.calibration` — so a two-refusal case that leaves a coherent, uncalibrated vault no longer stamps. Also lands `d8ac76607`'s guard, M1 (the fault arm publishes `assetDesignChanged` before it stamps, uncalibrated included) and M3 (the stale docblocks and comments corrected for the new condition). (`b22a2ed41` later removed `undoLeftBehind` under ruling 18.) |
 | `b22a2ed41` | 2026-09-26 | Owner ruling 18: `undoLeftBehind`'s cached-read comparison is removed outright. The put-back's refusal is classified at the SOURCE instead — a CONFLICT (`WRITE_BOUNDARY_CODES`) is always answered unstamped, and a FAULT (any other code) always stamps — so no stamp at #17 depends on a cached read any more, and a peer's or a sync's conflicting write can no longer raise the stamp by itself. |
 | `8895ddc45` | 2026-09-26 | Owner rulings 13, 19 and 20, step 2 (tests at `52e84a385`): `markUncompensated` records every stamp it makes through the write-incident holder, and `guardCommand` and `evidenceRenamed` record nothing, so the §3 "Recorder" column is now the same for all 23 sites — recorded at the stamp — and the six sites with an unrecorded path (#11, #15, #16, #17, #21, #22) close by construction. A recorded stamp is durable across restarts (D-08, ruling 21). Driven: the five history-path positive controls in `undoStampOnHealthyVault.test.ts` and #17's in `designerUndoStampOnHealthyVault.test.ts` now open an incident; one #21 stamp crossing two guarded doors is one incident, not two; a multi-element delete undo whose Room restore stamps has its guarded walls compensation refused `writes-paused`, leaving four walls and two incidents (ruling 20). `STAMP_CONSTRUCTION_BAN` (`eslint.config.mjs`) refuses a stamp built by hand in `src/`. Nothing ran in a vault. |
-| `9ba3432a2` | 2026-09-25 | Owner ruling 14 (#23): a rename skips a plan refused by `plan.schema-version-malformed`, `plan.sidecar-unreadable` or `plan.schema-version-unsupported` and records it in the diagnostics ledger, rather than opening the vault-wide incident §5 describes. `plan.migration-failed` still stops the rename with a failure notice; the ruling does not reach it. (Already recorded in §5.) |
+| `9ba3432a2` | 2026-09-25 | Owner ruling 14 (#23): a rename skips a plan refused by `plan.schema-version-malformed`, `plan.sidecar-unreadable` or `plan.schema-version-unsupported` and records it in the diagnostics ledger, rather than opening the vault-wide incident §5 describes. `plan.migration-failed` still stops the rename: a failure notice before any plan was written, a stamp and a durable pause after one (ruling 32); the ruling does not reach it. (Already recorded in §5.) |
 | `99f8ff21f` | 2026-09-26 | Owner ruling 17, built per ruling 24 (tests at `5edecb8ac`): the background undo's three unstamped conflict returns — the note restore refused as a conflict, and `putNoteBack`'s two unstamped arms — pass through a private `raced`, which answers `undo.superseded` for a conflict (a code ending `.revision-conflict` or `.external-modification`, `WRITE_BOUNDARY_CODES`) and passes anything else through. `undo.superseded` does not touch the save badge, so the user sees a toast where the badge showed a save error. The stamped fault arm is unchanged. `b12ac50ad` restores a space lost from one test case's title. |
 | `274cd9499` | 2026-09-26 | Owner rulings 27 and 30 (tests at `5ee9b9c16`): `raced` moves into the base class unchanged, and the single-file undos (the geometry edits such as facing, and height) map a conflict on their restoring write to `undo.superseded` too — every conflict, including a write ledger holding no version for the step (ruling 30 superseding ruling 27's "the 'undo history broken' cases keep failing as faults"). A write fault on those undos still shows the save error, unstamped. Only `undo()` changed. |
 
@@ -308,8 +310,8 @@ Since step 2 (`8895ddc45`) each of the four stamps is recorded, so each durably 
 The owner accepted P2, P5 and P8's delete by ruling 19; P8's sync-client lock (`EBUSY`,
 established by reading only) by ruling 31; and `asset.pre-write-invalid` by ruling 23.
 
-**Accepted residuals of rulings 17, 27 and 30, and one observation** (S21 close-out,
-`2026-09-26`):
+**Accepted residuals of rulings 17, 27 and 30** (S21 close-out, `2026-09-26`; ruling 33 on
+`2026-09-27`):
 
 - **Ruling 29**: the double-conflict half-undo on a calibrated asset (the Q2a shape above) now
   reads "edited elsewhere" — the `undo.superseded` toast — where it showed the save-error badge.
@@ -321,7 +323,8 @@ established by reading only) by ruling 31; and `asset.pre-write-invalid` by ruli
   leaves by the same write with the same conflict codes as a race, so it too reads as
   superseded; nothing is written. Pinned by `reversibleAssetDesignWindows.test.ts`'s two "…is
   refused as superseded, writing nothing…" cases.
-- **Observation, not asked of the owner** (the ruling-17 review): if only the asset's NOTE is
-  deleted before the background undo's pre-flight — in the file explorer, say — the undo answers
-  `asset.not-found`, a toast with the badge unchanged, not the superseded copy. A guarded delete
-  removes the sidecar too and reads as superseded.
+- **Ruling 33** (observed by the ruling-17 review, asked on 2026-09-27): if only the asset's
+  NOTE is deleted before the background undo's pre-flight — in the file explorer, say — the undo
+  answers `asset.not-found`, a toast with the badge unchanged, not the superseded copy. A guarded
+  delete removes the sidecar too and reads as superseded. Accepted by ruling 33: "not found" is
+  accurate for a deleted asset.

@@ -268,13 +268,18 @@ into the registry installed when it is made. It does not hold:
 - **A stamp made while no registry is installed is still lost.** The keep-alive narrows that to
   saves none of its holders counts.
 - **The ban has blind spots**, pinned as blind spots in
-  `tests/gates/stamp-construction-boundary.test.ts`: a computed key, `Object.defineProperty`, a
-  class field, a second function of that name, and oxlint, which does not carry the rule.
+  `tests/gates/stamp-construction-boundary.test.ts`: a computed key, `Object.assign` with a
+  computed key, `Object.defineProperty`, a class field, a second function of that name, and
+  oxlint, which does not carry the rule.
 - **Durable pauses over a vault that may be coherent** — each pauses writing across restarts:
   #17's fault-shaped residuals P2, P5 and P8's delete (census §7, accepted by ruling 19); P8's
   sync-client lock (`EBUSY`, established by reading only, ruling 31); a put-back refused
-  `asset.pre-write-invalid` (ruling 23); and two older paths recorded as owner questions by ruling
-  25 (section 8).
+  `asset.pre-write-invalid` (ruling 23); two older paths recorded as owner questions by ruling
+  25 (section 8); and a rename whose later plan's READ is refused with a code the skip does not
+  cover (`plan.migration-failed`) after an earlier plan was written — the same `abort` as ruling
+  25's rename, a stamp and a durable pause, an owner question, ruling 32 (driven generically:
+  `relocateEvidenceIncident.test.ts` › "stamps a failed READ that follows a write, not only a
+  failed save").
 - **A reload while an old save is still running** records that save's half-failure into the NEW
   session's registry, pinned as "not endorsed" and disclosed in ADR-0034's amendment.
 - **No E2E case drives the designer undo race or the registry across unload**; both rest on the
@@ -712,7 +717,7 @@ owner saw it; what each decides, and what it does not, follows.
 
 Not asked, and not decided: L-50, and anything needing a vault.
 
-**Decided 2026-09-25 and 2026-09-26 (session 21, later rounds), by the release owner in the same
+**Decided 2026-09-25 to 2026-09-27 (session 21, later rounds), by the release owner in the same
 chat.** Numbered as in the session's record of rulings, which continues the twelve above as 1 to
 12. Quoted words are the chosen option's label and description as the owner saw them.
 
@@ -726,9 +731,11 @@ chat.** Numbered as in the session's record of rulings, which continues the twel
   already treat those notes. No vault-wide pause for a rename that succeeded; the skipped plans
   get named in the diagnostics report." Built at `9ba3432a2`; census §5. `plan.migration-failed`
   is outside it and still stops a rename.
-- **Ruling 15, Q2 and Q3 as e2e — "Yes, automate them"** (2026-09-25). The owner wrote those
-  cases themselves (`settingsDuringCreate.e2e.ts` at `30ea1bc9d`, `unloadWindow.e2e.ts` at
-  `bff12d416`), so no committed record shows the agent task it authorised running.
+- **Ruling 15, Q2 and Q3 as e2e — "Yes, automate them"** (2026-09-25). Those cases
+  (`settingsDuringCreate.e2e.ts` at `30ea1bc9d`, `unloadWindow.e2e.ts` at `bff12d416`) were
+  committed from the owner's own session (`luis.mendez@generic.de`, with a Claude co-author
+  trailer), not by this session's agents, so no committed record shows the agent task it
+  authorised running.
 - **Ruling 16, Q3 — "Keep the record alive"** (2026-09-25). Supersedes ruling 4. Quoted and
   described in section 5; built at `4e5e2de75..a932d1c77`.
 - **Ruling 17, a designer Undo refused by a racing change — "Always 'superseded'"**
@@ -766,7 +773,8 @@ chat.** Numbered as in the session's record of rulings, which continues the twel
   only the two conflict codes on those undos to 'superseded'. The 'undo history broken' cases keep
   failing as faults." **Superseded by ruling 30**: those cases leave by the same write with the
   same conflict codes as a race, so the code cannot tell them apart, and the option text had
-  promised a split nobody had checked.
+  promised a split the ruling-17 implementer and reviewer had both reported the code could not
+  make.
 - **Ruling 28, the "Reload and undo again" copy — "Keep wording"** (2026-09-26). "It already says
   reload first; accurate as written. No German change needed." A second Undo press without a
   reload answers the same toast again.
@@ -781,3 +789,13 @@ chat.** Numbered as in the session's record of rulings, which continues the twel
   beside P2, P5, P8's delete and pre-write-invalid as an accepted durable residual. No code
   change." Same class as ruling 19's "delete at the exact moment of the read"; established by
   reading only, never driven.
+- **Ruling 32, #23's non-skippable read refusal (`plan.migration-failed`) after an earlier plan
+  was written — "Owner question, decide later"** (2026-09-27). "Added to L-51 beside the conflict
+  case (same mechanism, same 'abort'), and to the lists of durable pauses. No code change now."
+  A rename whose later plan's read is refused `plan.migration-failed` after an earlier plan was
+  written stamps and pauses durably; before any write, the same refusal is a failure notice and
+  no stamp. **An open owner question**, tracker row L-51.
+- **Ruling 33, a note deleted alone before a designer background Undo — "Accept as is"**
+  (2026-09-27). "'Not found' is accurate for a deleted asset; record as accepted." The undo
+  answers `asset.not-found`, a toast with the save badge unchanged, not the superseded copy
+  (census §7).

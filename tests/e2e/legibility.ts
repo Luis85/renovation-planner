@@ -12,19 +12,35 @@ import type { NativeBrowser } from './session';
 export const TEXT_CONTRAST = 4.5;
 export const NON_TEXT_CONTRAST = 3;
 
+/** Obsidian's own theme switch, as the settings pane calls it. */
+const changeTheme = (browser: NativeBrowser, theme: string): Promise<void> =>
+	browser.executeObsidian(({ app }, name) => {
+		(app as unknown as { changeTheme(theme: string): void }).changeTheme(name);
+	}, theme);
+
 /**
  * `read` once in Obsidian's light theme (`moonstone`) and once in its dark one (`obsidian`), each
  * applied through the host's own `changeTheme` and waited for on `body.theme-dark` before reading.
+ * The theme the vault had before — its `theme` config, or the scheme the body showed when that is
+ * unset — is put back afterwards, on failure too, and on success the body is waited for to show it.
  */
 export async function inBothThemes<T>(browser: NativeBrowser, read: () => Promise<T>): Promise<{ light: T; dark: T }> {
+	const dark = () => browser.execute(() => document.body.classList.contains('theme-dark'));
+	const wasDark = await dark();
+	const config = await browser.executeObsidian(({ app }) => (app.vault as unknown as { getConfig(key: string): unknown }).getConfig('theme'));
 	const readIn = async (theme: string): Promise<T> => {
-		await browser.executeObsidian(({ app }, name) => {
-			(app as unknown as { changeTheme(theme: string): void }).changeTheme(name);
-		}, theme);
-		await expect.poll(() => browser.execute(() => document.body.classList.contains('theme-dark'))).toBe(theme === 'obsidian');
+		await changeTheme(browser, theme);
+		await expect.poll(dark).toBe(theme === 'obsidian');
 		return read();
 	};
-	return { light: await readIn('moonstone'), dark: await readIn('obsidian') };
+	let measured: { light: T; dark: T };
+	try {
+		measured = { light: await readIn('moonstone'), dark: await readIn('obsidian') };
+	} finally {
+		await changeTheme(browser, typeof config === 'string' ? config : wasDark ? 'obsidian' : 'moonstone');
+	}
+	await expect.poll(dark, { message: 'the theme put back' }).toBe(wasDark);
+	return measured;
 }
 
 /** One painted element: `contrastOf`'s input, plus what a caller needs beside it. */

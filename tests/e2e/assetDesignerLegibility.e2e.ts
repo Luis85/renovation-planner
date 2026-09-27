@@ -62,8 +62,11 @@ describe('Design an Asset, legibility guards in the real Obsidian host', () => {
 	 * zoom after centring the bar: at the opening camera the bar is drawn about a pixel thick (the
 	 * evidence file's `opening`), and a sample of it is the resampler's blend of ink and paper. WHAT STAYS HUMAN: whether a person reads "1000 mm" off the sheet
 	 * at the camera the designer opens on, where the label is drawn a few pixels tall — a size this
-	 * guard deliberately does not grade — and whether the bar reads as a scale bar at all. The
-	 * canvas grid, drawn over the stage in the DOM, is not composited.
+	 * guard deliberately does not grade — and whether the bar reads as a scale bar at all.
+	 * BLIND SPOTS, because the reading is the layer canvas's backing store: a fade applied by CSS
+	 * `opacity` or `filter` on that canvas or an ancestor moves no stored pixel, so it is invisible
+	 * here (`under` reads background colours, not opacity); and anything drawn ABOVE the background
+	 * — a later Konva layer, or the canvas grid the DOM draws over the stage — is not composited.
 	 */
 	desktop('draws the reference sheet\'s scale bar at 3:1 or more against its paper, at the layer\'s own opacity', async ({
 		native: { browser, page, ui, directory },
@@ -116,8 +119,10 @@ describe('Design an Asset, legibility guards in the real Obsidian host', () => {
 	 * computed `stroke-width` times the element's screen scale unless `vector-effect` is
 	 * `non-scaling-stroke`, and both inputs are read from the page — the scale being below 1 is
 	 * asserted first, since without it no stroke could shrink and the relation would hold vacuously.
-	 * WHAT STAYS HUMAN: whether a person can make out the cabinet, the basin and the tap hole at
-	 * 48 px, which depends on the drawing, not on its ink.
+	 * The width half has NO LOWER BOUND: a non-scaling stroke declared at 0.2 px passes, since it is
+	 * drawn at what it declares; the absolute width stays with the human judgement below (and with
+	 * Task 6's pixel captures). WHAT STAYS HUMAN: whether a person can make out the cabinet, the
+	 * basin and the tap hole at 48 px, which depends on the drawing, not on its ink.
 	 */
 	desktop('draws every preset card\'s lines at 3:1 or more in both themes, at a width the thumbnail\'s scale does not shrink', async ({
 		native: { browser, page, ui, directory },
@@ -150,7 +155,8 @@ describe('Design an Asset, legibility guards in the real Obsidian host', () => {
 	 * its text at WCAG 2.x SC 1.4.3's 4.5:1 against what is drawn under it — the label's own box,
 	 * asserted opaque first, since that is what makes the box the thing under the text — in both
 	 * themes; and its computed font size no smaller than the host's `--font-ui-smaller`, resolved in
-	 * the same run in the labels' own container. WHAT STAYS HUMAN: whether a number stays readable
+	 * the same run on `document.body`, so a plugin-scoped redefinition of that variable around the
+	 * labels would lower the label and never the floor. WHAT STAYS HUMAN: whether a number stays readable
 	 * where labels overlap (the case counts 15 pairs, left overlapping by design), which is crowding
 	 * rather than ink.
 	 */
@@ -168,14 +174,14 @@ describe('Design an Asset, legibility guards in the real Obsidian host', () => {
 
 		const labels = `${ACTIVE_DESIGNER} [data-rp-dimension]`;
 		const measured = await inBothThemes(browser, () => paints(browser, labels, 'color', 'data-rp-dimension'));
-		const floor = await browser.execute((sel) => {
+		const floor = await browser.execute(() => {
 			const probe = document.createElement('span');
 			probe.style.fontSize = 'var(--font-ui-smaller)';
-			document.querySelector(sel)?.parentElement?.append(probe);
+			document.body.append(probe);
 			const size = Number.parseFloat(getComputedStyle(probe).fontSize);
 			probe.remove();
 			return size;
-		}, labels);
+		});
 		const light = measured.light.map(report);
 		const dark = measured.dark.map(report);
 		await writeEvidence(directory, 'dimension-legibility', { floor, light, dark });

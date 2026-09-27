@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import type { NativeBrowser } from './session';
-import { createDesignerPage, type DesignerPage, type ObsidianPage } from './designer';
+import { ACTIVE_DESIGNER, createDesignerPage, type DesignerPage, type ObsidianPage } from './designer';
 import type { PlannerPage } from './helpers';
 
 /** A designer on a newly created asset, and the canvas page over it. */
@@ -9,9 +9,6 @@ export async function newDesign(browser: NativeBrowser, page: ObsidianPage, ui: 
 	const canvas = createCanvasPage(browser, designer);
 	return { designer, canvas, assetId: await designer.createAsset(name) };
 }
-
-/** The ACTIVE designer leaf's content, the one a user is looking at. */
-const ACTIVE = '.workspace-leaf.mod-active .workspace-leaf-content[data-type="renovation-asset-designer"]';
 
 export interface Box {
 	left: number;
@@ -52,7 +49,7 @@ export function createCanvasPage(browser: NativeBrowser, designer: DesignerPage)
 			const canvas = document.querySelector(`${sel} .rp-plan-canvas`);
 			if (!canvas) throw new Error('No designer canvas.');
 			return canvas.getBoundingClientRect().toJSON() as Box;
-		}, ACTIVE);
+		}, ACTIVE_DESIGNER);
 
 	const clickAt = (x: number, y: number) =>
 		browser.action('pointer').move({ x: Math.round(x), y: Math.round(y), origin: 'viewport' }).down().up().perform();
@@ -83,7 +80,7 @@ export function createCanvasPage(browser: NativeBrowser, designer: DesignerPage)
 					text: button.textContent?.trim() ?? '',
 					box: button.getBoundingClientRect().toJSON() as Box,
 				})),
-			ACTIVE,
+			ACTIVE_DESIGNER,
 		);
 	const label = async (name: string): Promise<Label> => {
 		const found = (await labels()).find((candidate) => candidate.name === name);
@@ -105,7 +102,7 @@ export function createCanvasPage(browser: NativeBrowser, designer: DesignerPage)
 					return { left: c.left + r.x, top: c.top + r.y, width: r.width, height: r.height };
 				});
 			},
-			ACTIVE,
+			ACTIVE_DESIGNER,
 			name,
 		);
 
@@ -135,11 +132,11 @@ export function createCanvasPage(browser: NativeBrowser, designer: DesignerPage)
 			if (!leaf) throw new Error('No active designer leaf.');
 			split.expand();
 			split.setSize(split.size + leaf.getBoundingClientRect().width - wanted);
-		}, ACTIVE, width);
+		}, ACTIVE_DESIGNER, width);
 		let measured = 0;
 		await expect
 			.poll(async () => {
-				measured = await browser.execute((sel) => document.querySelector(sel)?.getBoundingClientRect().width ?? 0, ACTIVE);
+				measured = await browser.execute((sel) => document.querySelector(sel)?.getBoundingClientRect().width ?? 0, ACTIVE_DESIGNER);
 				return Math.abs(measured - width);
 			})
 			.toBeLessThan(2);
@@ -176,7 +173,7 @@ export function createCanvasPage(browser: NativeBrowser, designer: DesignerPage)
 					band: (leaf?.querySelector('.rp-designer-ruler--top .rp-designer-ruler__extent')?.getBoundingClientRect().left) ?? null,
 				};
 			}, 900);
-		}, ACTIVE);
+		}, ACTIVE_DESIGNER);
 		await browser
 			.action('pointer')
 			.move({ x: Math.round(x), y: Math.round(y), origin: 'viewport' })
@@ -254,7 +251,7 @@ export function createCanvasPage(browser: NativeBrowser, designer: DesignerPage)
 				});
 				return { size: { width: image.width(), height: image.height() }, cssMirrors, samples };
 			},
-			ACTIVE,
+			ACTIVE_DESIGNER,
 			fractions,
 		);
 

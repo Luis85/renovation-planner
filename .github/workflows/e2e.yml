@@ -23,8 +23,9 @@ jobs:
       matrix:
         include:
           # 1.13.7 is the earliest PUBLIC build at `minAppVersion` (1.13.0 was Insiders-only).
-          # Desktop legs are sharded in two: this round adds up to ~36 cases and the unsharded
-          # leg ran 10-12 min under the 20-min timeout.
+          # Desktop legs are sharded in two: the unsharded desktop leg ran 10-12 min against the
+          # 20-min timeout, so sharding buys headroom as the suite grows rather than answering
+          # to any one round's case count.
           - version: "1.13.7"
             ui: desktop
             shardIndex: 1

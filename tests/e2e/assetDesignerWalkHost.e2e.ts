@@ -4,6 +4,7 @@ import { createDesignerPage } from './designer';
 import { createCanvasPage } from './designerCanvas';
 import { contrastOf, createParityPage } from './designerParity';
 import { writeEvidence } from './diagnostics';
+import { FIXTURE_PNG } from './recovery';
 import { mobileEmulation, type NativeBrowser } from './session';
 
 /**
@@ -14,8 +15,6 @@ import { mobileEmulation, type NativeBrowser } from './session';
  * Obsidian's themes (step 87). Desktop only, as the designer is.
  */
 const desktop = mobileEmulation ? test.skip : test;
-
-const FIXTURE_PNG = 'editor-background-png-test.png';
 
 /**
  * Four points of `editor-background-png-test.png` as fractions of its 3000 × 2000 px, from

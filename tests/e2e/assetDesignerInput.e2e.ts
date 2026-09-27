@@ -1,6 +1,6 @@
 import { describe, expect } from 'vitest';
 import { test } from './fixture';
-import { createDesignerPage } from './designer';
+import { ACTIVE_DESIGNER, createDesignerPage } from './designer';
 import { createCanvasPage } from './designerCanvas';
 import { createFollowupsPage } from './designerFollowups';
 import { createParityPage } from './designerParity';
@@ -18,8 +18,6 @@ import { mobileEmulation, type NativeBrowser } from './session';
  * sheet and reserve space.md` step 32's button reached by a real Tab.
  */
 const desktop = mobileEmulation ? test.skip : test;
-
-const ACTIVE = '.workspace-leaf.mod-active .workspace-leaf-content[data-type="renovation-asset-designer"]';
 
 /** One press and release of the keyboard's dedicated ContextMenu key (Windows VK_APPS, 93), through CDP. */
 async function pressContextMenuKey(browser: NativeBrowser): Promise<void> {
@@ -93,7 +91,7 @@ describe('Design an Asset and Calibrate, the input and layout clauses only the r
 			const button = document.querySelector(`${sel} .rp-designer-open-library`)?.getBoundingClientRect();
 			const shown = document.querySelector('body > .tooltip')?.getBoundingClientRect();
 			return [button?.toJSON() as DOMRect, shown?.toJSON() as DOMRect];
-		}, ACTIVE);
+		}, ACTIVE_DESIGNER);
 		console.log(`step 73 door ${JSON.stringify(door)} tip ${JSON.stringify(tip)}`);
 		// Drawn under the door it names, where Obsidian's default placement puts it.
 		expect(tip.top).toBeGreaterThanOrEqual(door.bottom);
@@ -115,7 +113,7 @@ describe('Design an Asset and Calibrate, the input and layout clauses only the r
 		let last = '';
 		await expect
 			.poll(async () => {
-				const now = JSON.stringify(await browser.execute((sel) => [...document.querySelectorAll(`${sel} [data-rp-dimension]`)].map((label) => label.getBoundingClientRect().toJSON() as DOMRect), ACTIVE));
+				const now = JSON.stringify(await browser.execute((sel) => [...document.querySelectorAll(`${sel} [data-rp-dimension]`)].map((label) => label.getBoundingClientRect().toJSON() as DOMRect), ACTIVE_DESIGNER));
 				const settled = now === last;
 				last = now;
 				return settled;
@@ -134,7 +132,7 @@ describe('Design an Asset and Calibrate, the input and layout clauses only the r
 				}
 				return [`${name} ${JSON.stringify(box.toJSON())} canvas ${JSON.stringify(canvas?.toJSON())}`];
 			});
-		}, ACTIVE);
+		}, ACTIVE_DESIGNER);
 		console.log(`step 70 unreachable ${JSON.stringify(unreachable)}`);
 		expect(unreachable).toEqual([]);
 	});
@@ -160,7 +158,7 @@ describe('Design an Asset and Calibrate, the input and layout clauses only the r
 			const last = controls.at(-1);
 			last?.focus();
 			return last ? `${last.tagName.toLowerCase()}:${last.getAttribute('name') ?? last.getAttribute('aria-label') ?? last.textContent?.trim() ?? ''}` : null;
-		}, ACTIVE);
+		}, ACTIVE_DESIGNER);
 		expect(before).toBe('input:show-clearance');
 		await browser.keys('Tab');
 		expect(await button.isFocused()).toBe(true);

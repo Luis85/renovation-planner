@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { describe, expect } from 'vitest';
 import { test } from './fixture';
 import { BOWL, createDesignerPage, DESIGNER } from './designer';
+import { FIXTURE_PNG } from './recovery';
 import { mobileEmulation } from './session';
 
 /**
@@ -14,7 +15,6 @@ import { mobileEmulation } from './session';
  */
 const desktop = mobileEmulation ? test.skip : test;
 
-const FIXTURE_PNG = 'editor-background-png-test.png';
 const FIXTURE_PDF = 'editor-background-pdf-test.pdf';
 
 describe('Design an Asset, in the real Obsidian host', () => {
@@ -88,11 +88,9 @@ describe('Design an Asset, in the real Obsidian host', () => {
 		await designer.nudgeTo(assetId, 2);
 		const bowl = designer.readSidecar(assetId).shape?.details.find((detail) => detail.name === 'bowl');
 
-		await page.disablePlugin('renovation-planner');
-		await page.enablePlugin('renovation-planner');
 		// A finding, pinned: Obsidian detaches a disabled plugin's leaves and re-enabling restores
 		// none of them — the manual case's "reopen both asset designers" is a reopen, not a return.
-		await expect.poll(() => designer.leafStates(DESIGNER)).toEqual([]);
+		await designer.reloadPlugin();
 
 		await designer.openDesignerFor('Reloaded toilet');
 		expect(await designer.openAssetId()).toBe(assetId);

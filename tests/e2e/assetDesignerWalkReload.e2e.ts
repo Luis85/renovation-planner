@@ -5,7 +5,8 @@ import { createDesignerPage, DESIGNER, type DesignerPage } from './designer';
 import { createCanvasPage } from './designerCanvas';
 import { createParityPage, type ParityPage } from './designerParity';
 import type { PlannerPage } from './helpers';
-import { mobileEmulation, PLUGIN_ID, type NativeBrowser } from './session';
+import { FIXTURE_PNG } from './recovery';
+import { mobileEmulation, type NativeBrowser } from './session';
 
 /**
  * `docs/tests/cases/Design an Asset.md` step 24, the four facts beside the shape that a plugin
@@ -29,8 +30,6 @@ import { mobileEmulation, PLUGIN_ID, type NativeBrowser } from './session';
  * assets are calibrated to different known lengths so that size differs between them.
  */
 const desktop = mobileEmulation ? test.skip : test;
-
-const FIXTURE_PNG = 'editor-background-png-test.png';
 
 interface Dressing { name: string; known: number; front: string; height: number }
 /** Two assets whose four facts all differ from each other and from the toilet preset's own. */
@@ -90,13 +89,13 @@ describe('Design an Asset, the facts beside the shape across a plugin reload', (
 		for (const [assetId, dressing] of [[first, A], [second, B]] as const) {
 			expect(before[assetId]?.shown).toMatchObject({ anchor: ['placement-back-centre'], front: dressing.front, height: String(dressing.height) });
 			expect(before[assetId]?.shown.scale).toBe('Calibrated');
-			expect((JSON.parse(before[assetId]?.sidecar ?? '{}') as { calibration: unknown }).calibration).not.toBeNull();
+			expect(before[assetId]?.sidecar).toBeDefined();
+			expect((JSON.parse(before[assetId]?.sidecar ?? '{}') as { calibration: unknown }).calibration).toEqual(expect.any(Object));
 		}
 		expect(before[first]?.sheet).not.toEqual(before[second]?.sheet);
 
-		for (const enabled of [false, true]) await (enabled ? page.enablePlugin(PLUGIN_ID) : page.disablePlugin(PLUGIN_ID));
 		// Neither leaf came back by itself (W24-A's finding); both are reopened by hand.
-		await expect.poll(() => designer.leafStates(DESIGNER)).toEqual([]);
+		await designer.reloadPlugin();
 		for (const { name } of [A, B]) await designer.openDesignerFor(name);
 		await expect.poll(async () => ((await designer.leafStates(DESIGNER)) as { assetId: string }[]).map((state) => state.assetId).toSorted()).toEqual(
 			[first, second].toSorted(),

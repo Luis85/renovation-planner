@@ -3,6 +3,7 @@ import { test } from './fixture';
 import { createDesignerPage, DESIGNER, type ObsidianPage } from './designer';
 import type { PlannerPage } from './helpers';
 import { createCanvasPage, newDesign } from './designerCanvas';
+import { FIXTURE_PNG } from './recovery';
 import { mobileEmulation, type NativeBrowser } from './session';
 
 /**
@@ -15,7 +16,6 @@ import { mobileEmulation, type NativeBrowser } from './session';
  */
 const desktop = mobileEmulation ? test.skip : test;
 
-const FIXTURE_PNG = 'editor-background-png-test.png';
 const SQUARE = [[0.35, 0.35], [0.65, 0.35], [0.65, 0.65], [0.35, 0.65]] as const;
 const TANK = 'detail:detail-1';
 

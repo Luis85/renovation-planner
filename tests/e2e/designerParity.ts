@@ -1,5 +1,5 @@
 import { expect } from 'vitest';
-import type { DesignerPage } from './designer';
+import { ACTIVE_DESIGNER, type DesignerPage } from './designer';
 import { createCanvasPage } from './designerCanvas';
 import type { NativeBrowser } from './session';
 
@@ -46,9 +46,6 @@ export function contrastOf(colours: DrawnColours): { stroke: number[]; backgroun
 	return { stroke: stroke.map((c) => Math.round(c)), background: background.map((c) => Math.round(c)), ratio: (high + 0.05) / (low + 0.05) };
 }
 
-/** The ACTIVE designer leaf's content element, as a selector the page can resolve. */
-const ACTIVE = '.workspace-leaf.mod-active .workspace-leaf-content[data-type="renovation-asset-designer"]';
-
 /**
  * The AD18-R16 parity round's surfaces as a user reaches them in a real Obsidian: a leaf narrowed
  * or widened by resizing the WINDOW (Obsidian's default 1024 px window gives the designer a 679 px
@@ -57,7 +54,7 @@ const ACTIVE = '.workspace-leaf.mod-active .workspace-leaf-content[data-type="re
  */
 export function createParityPage(browser: NativeBrowser, designer: DesignerPage) {
 	const leafWidth = () =>
-		browser.execute((root) => (document.querySelector(root) as HTMLElement | null)?.getBoundingClientRect().width ?? 0, ACTIVE);
+		browser.execute((root) => (document.querySelector(root) as HTMLElement | null)?.getBoundingClientRect().width ?? 0, ACTIVE_DESIGNER);
 
 	/**
 	 * Resize the host WINDOW until the active designer leaf is about `width` px wide — the one way
@@ -104,7 +101,7 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 			const layer = stage?.find('Layer').find((candidate) => candidate.name() === 'asset-footprint');
 			if (!stage || !layer) throw new Error('No designer stage.');
 			return { x: layer.x(), y: layer.y(), scale: layer.scaleX(), centre: { x: stage.width() / 2, y: stage.height() / 2 } };
-		}, ACTIVE);
+		}, ACTIVE_DESIGNER);
 
 	const { canvasPoint } = designer;
 
@@ -160,7 +157,7 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 					? '---'
 					: [...child.childNodes].map((node) => node.textContent?.trim() ?? '').filter(Boolean).join(' | '),
 			);
-		}, ACTIVE);
+		}, ACTIVE_DESIGNER);
 
 	/** Which element holds focus, as a short description a case can compare. */
 	const focused = () =>
@@ -232,7 +229,7 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 					const kind = [...(swatch?.classList ?? [])].find((name) => name.startsWith('rp-designer-legend__swatch--'))?.slice(28) ?? 'none';
 					return `${kind}:${row.textContent?.trim() ?? ''}`;
 				}),
-			ACTIVE,
+			ACTIVE_DESIGNER,
 		);
 
 	/** The scale bar as it reads: its marks and its end, space-separated. */
@@ -240,7 +237,7 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 		browser.execute(
 			(root) =>
 				[...document.querySelectorAll(`${root} .rp-designer-scale-bar span`)].map((span) => span.textContent?.trim() ?? '').join(' '),
-			ACTIVE,
+			ACTIVE_DESIGNER,
 		);
 
 	/** A uniform clearance on every side, through the Inspector's own generator. */
@@ -268,7 +265,7 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 					}, 700);
 				});
 			},
-			ACTIVE,
+			ACTIVE_DESIGNER,
 			sidecar,
 		);
 		const chain = browser.action('pointer').move({ x: Math.round(from.x), y: Math.round(from.y), origin: 'viewport' }).down();
@@ -339,7 +336,7 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 				opacity: [path, ...chain].reduce((product, el) => product * Number(getComputedStyle(el).opacity), Number(style.strokeOpacity)),
 				backgrounds: chain.map((el) => getComputedStyle(el).backgroundColor),
 			};
-		}, ACTIVE);
+		}, ACTIVE_DESIGNER);
 
 	/**
 	 * What the active designer SHOWS for the four facts a plugin reload must keep beside the shape:
@@ -356,7 +353,7 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 				scale = await browser.execute(
 					(root) =>
 						[...document.querySelectorAll(`${root} .rp-designer-reference-fields dt`)].find((term) => term.textContent?.trim() === 'Scale')?.nextElementSibling?.textContent?.trim() ?? null,
-					ACTIVE,
+					ACTIVE_DESIGNER,
 				);
 				return scale;
 			})
@@ -368,7 +365,7 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 				front: document.querySelector<HTMLSelectElement>(`${root} select[name="front-direction"]`)?.value ?? null,
 				height: document.querySelector<HTMLInputElement>(`${root} input[name="height"]`)?.value ?? null,
 			}),
-			ACTIVE,
+			ACTIVE_DESIGNER,
 		);
 		return { scale, ...shown };
 	};
@@ -385,7 +382,7 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 		return designer.readSidecar(assetId);
 	};
 
-	return { leafWidth, setLeafWidth, marks, camera, canvasPoint, dragBetween, drawBox, rightClick, menu, menuLines, focused, graphLeaves, hotkeysOf, unbindHotkey, watchChords, chords, boundTo, recordCommands, commandsRun, thumbnailColours, placementReadings, pressCtrlG, legendRows, scaleBarText, generateClearance, sampleMidDrag, handle, closeDesigner, settle, ACTIVE,
+	return { leafWidth, setLeafWidth, marks, camera, canvasPoint, dragBetween, drawBox, rightClick, menu, menuLines, focused, graphLeaves, hotkeysOf, unbindHotkey, watchChords, chords, boundTo, recordCommands, commandsRun, thumbnailColours, placementReadings, pressCtrlG, legendRows, scaleBarText, generateClearance, sampleMidDrag, handle, closeDesigner, settle, ACTIVE: ACTIVE_DESIGNER,
 		/** A sidecar's path as the VAULT names it, for a read made from inside the page. */
 		sidecarFile: (assetId: string) => `Renovation/Library/Geometry/${assetId}.rpgeo`,
 	};

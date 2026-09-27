@@ -3,6 +3,7 @@ import { test } from './fixture';
 import { createClearancePage, square } from './clearance';
 import { createDesignerPage, type DesignerPage, type ObsidianPage } from './designer';
 import type { PlannerPage } from './helpers';
+import { FIXTURE_PNG } from './recovery';
 import { mobileEmulation, type NativeBrowser } from './session';
 
 /**
@@ -13,7 +14,6 @@ import { mobileEmulation, type NativeBrowser } from './session';
  */
 const desktop = mobileEmulation ? test.skip : test;
 
-const FIXTURE_PNG = 'editor-background-png-test.png';
 const FIXTURE_PDF = 'editor-background-pdf-test.pdf';
 const PENDING = ['The outline is still in reference pixels', 'The clearance is still in reference pixels'];
 const PENDING_HINT = 'Calibrate a known length on the sheet to turn these into millimetres.';

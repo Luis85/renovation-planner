@@ -2,6 +2,7 @@ import { describe, expect } from 'vitest';
 import { test } from './fixture';
 import { expectNoViolations } from './accessibility';
 import { createDesignerPage, DESIGNER } from './designer';
+import { FIXTURE_PNG } from './recovery';
 import { mobileEmulation } from './session';
 
 /**
@@ -12,7 +13,6 @@ import { mobileEmulation } from './session';
  */
 const desktop = mobileEmulation ? test.skip : test;
 
-const FIXTURE_PNG = 'editor-background-png-test.png';
 const REVIEW_NOTICE =
 	'This clearance was kept at the size you drew it when the object was resized. Check that it still describes the space you need.';
 

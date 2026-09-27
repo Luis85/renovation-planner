@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { expect } from 'vitest';
-import type { DesignerPage, Sidecar } from './designer';
+import { ACTIVE_DESIGNER, type DesignerPage, type Sidecar } from './designer';
 import type { NativeBrowser } from './session';
 
 /**
@@ -84,9 +84,6 @@ export const referenceSheet = async (designer: DesignerPage, assetId: string): P
 	expect(designer.readSidecar(assetId).calibration).not.toBeNull();
 	return before + 2;
 };
-
-/** The active designer leaf, as the page's own selector — the one `ui.leaf` resolves. */
-const ACTIVE_DESIGNER = '.workspace-leaf.mod-active .workspace-leaf-content[data-type="renovation-asset-designer"]';
 
 /**
  * What the active designer shows, as three lists a comparison can hold equal: every drawn Konva

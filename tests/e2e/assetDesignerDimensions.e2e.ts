@@ -3,6 +3,7 @@ import { test } from './fixture';
 import { createDesignerPage, type ObsidianPage } from './designer';
 import { centreOf, createCanvasPage, newDesign, overlaps } from './designerCanvas';
 import type { PlannerPage } from './helpers';
+import { FIXTURE_PNG } from './recovery';
 import { mobileEmulation, type NativeBrowser } from './session';
 
 /**
@@ -13,7 +14,6 @@ import { mobileEmulation, type NativeBrowser } from './session';
  */
 const desktop = mobileEmulation ? test.skip : test;
 
-const FIXTURE_PNG = 'editor-background-png-test.png';
 const BOWL_FIGURES = ['width', 'depth', 'offset-left', 'offset-right', 'offset-top', 'offset-bottom'].map((figure) => `detail-detail-2-${figure}`);
 const OVERALL = ['overall-width', 'overall-depth'];
 

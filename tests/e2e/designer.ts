@@ -1,12 +1,14 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect } from 'vitest';
-import type { NativeBrowser } from './session';
+import { PLUGIN_ID, type NativeBrowser } from './session';
 import type { createPlannerPage } from './helpers';
 
 export const DESIGNER = 'renovation-asset-designer';
 export const LIBRARY = 'renovation-asset-library';
 export const PLAN_EDITOR = 'renovation-plan-editor';
+/** The active designer leaf's own content element, as a `browser.execute` querySelector takes it. */
+export const ACTIVE_DESIGNER = '.workspace-leaf.mod-active .workspace-leaf-content[data-type="renovation-asset-designer"]';
 /** The toilet preset's bowl, the part every drag and nudge here takes. */
 export const BOWL = 'detail:detail-2';
 /** The one refusal on this surface that speaks in a sentence — `undo.superseded`. */
@@ -345,6 +347,16 @@ export function createDesignerPage(browser: NativeBrowser, page: ObsidianPage, u
 		return logs.map((entry) => entry.message);
 	};
 
+	/**
+	 * Disables then re-enables the plugin and confirms every asset-designer leaf is gone —
+	 * Obsidian detaches a disabled plugin's leaves and restores none on enable (W24-A's finding).
+	 */
+	const reloadPlugin = async (): Promise<void> => {
+		await page.disablePlugin(PLUGIN_ID);
+		await page.enablePlugin(PLUGIN_ID);
+		await expect.poll(() => leafStates(DESIGNER)).toEqual([]);
+	};
+
 	return {
 		leaf,
 		designer,
@@ -384,6 +396,7 @@ export function createDesignerPage(browser: NativeBrowser, page: ObsidianPage, u
 		editSidecar,
 		reconcile,
 		consoleMessages,
+		reloadPlugin,
 		inspectorField: (name: string) => designer().$(`.rp-designer-inspector input[name="${name}"]`),
 	};
 }

@@ -20,6 +20,17 @@
  * (`Zone['from' + 'Stored']`) or escaped (`'from\u0053tored'`), and a file outside `src/`. It
  * fails when it reaches nothing, since an instrument that reaches nothing looks exactly like a
  * clean tree.
+ *
+ * **It counts FILES, not calls.** A second call inside a file already on the list — another
+ * `Zone.fromStored(...)` in `zoneMapper.ts`, or one in `Zone.ts` itself — changes nothing it reads.
+ *
+ * **The load entry is TWO names deep, and the second is pinned the same way.** `zoneFromPersistence`
+ * is itself an exported unchecked entry — it reaches `fromStored` for whoever calls it — so a new
+ * caller of IT reopens the door without ever spelling `fromStored`. It has two callers: the
+ * repository's load (`ObsidianZoneRepository`) and `prepareZoneGeometryVersions`, which builds an
+ * entity only for its plan id, project id and version and hands the NEXT outline to
+ * `withGeometry`, which checks it. A caller one hop further out — a module wrapping either of
+ * those — is outside what this reads.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -27,9 +38,16 @@ import { describe, expect, it } from 'vitest';
 import { namesIdentifier, parseScript, parseSource, stringsOf } from '../helpers/parsedSource';
 import { REPO, repoRelative } from '../helpers/repo';
 
-const NAME = 'fromStored';
-const DEFINITION = 'src/domain/zone/Zone.ts';
 const LOADER = 'src/infrastructure/persistence/mappers/zoneMapper.ts';
+/** Each unchecked name, and every `src/` file allowed to spell it, its definition included. */
+const PINNED: ReadonlyArray<readonly [name: string, files: readonly string[]]> = [
+	['fromStored', ['src/domain/zone/Zone.ts', LOADER]],
+	['zoneFromPersistence', [
+		'src/infrastructure/obsidian/repositories/ObsidianZoneRepository.ts',
+		'src/infrastructure/obsidian/repositories/zoneGeometryVersions.ts',
+		LOADER,
+	]],
+];
 
 function sources(dir: string): string[] {
 	return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -39,8 +57,8 @@ function sources(dir: string): string[] {
 	});
 }
 
-const spells = (file: ReturnType<typeof parseSource>['file']): boolean =>
-	namesIdentifier(file, NAME) || stringsOf(file).includes(NAME);
+const spells = (file: ReturnType<typeof parseSource>['file'], name = 'fromStored'): boolean =>
+	namesIdentifier(file, name) || stringsOf(file).includes(name);
 
 describe('the zone load entry', () => {
 	it('reads what it is asked to and nothing it is not', () => {
@@ -49,14 +67,14 @@ describe('the zone load entry', () => {
 		expect(spells(parseSource('c.ts', '// Zone.fromStored is the load entry\nexport const x = 1;').file)).toBe(false);
 	});
 
-	it('is named only by its definition and the zone mapper in src/', () => {
+	it.each(PINNED)('%s is named only by the files pinned for it in src/', (name, allowed) => {
 		const files = sources(join(REPO, 'src'));
 		expect(files.length).toBeGreaterThan(100);
 		// The bytes are asked first only to decide which files are worth PARSING — every one the
 		// parse could count holds the name as text — so the parse still decides, and a comment
 		// spelling it is still not a hit. Parsing all of `src/` measured past the 5 s case budget.
-		const candidates = files.filter((path) => readFileSync(path, 'utf8').includes(NAME));
-		const naming = candidates.filter((path) => spells(parseScript(path).file)).map((path) => repoRelative(path)).toSorted();
-		expect(naming).toEqual([DEFINITION, LOADER]);
+		const candidates = files.filter((path) => readFileSync(path, 'utf8').includes(name));
+		const naming = candidates.filter((path) => spells(parseScript(path).file, name)).map((path) => repoRelative(path)).toSorted();
+		expect(naming).toEqual(allowed.toSorted());
 	});
 });

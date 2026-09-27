@@ -18,6 +18,11 @@ import { EMPTY_STRUCTURE } from '../../../../src/domain/spatial/Structure';
  */
 const COLLINEAR = [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 2000, y: 0 }];
 
+/** The plan's geometry sidecar, parsed, out of a snapshot of the vault's entries. */
+const sidecar = (entries: Map<string, string>) => JSON.parse(expectDefined([...entries].find(([path]) => path.endsWith('.rpgeo')), 'sidecar')[1]) as { revision: number };
+/** The same snapshot with the sidecar's revision set aside, every other byte compared. */
+const ignoringRevision = (entries: Map<string, string>) => new Map([...entries].map(([path, text]) => [path, path.endsWith('.rpgeo') ? { ...sidecar(entries), revision: 0 } : text]));
+
 async function wired() {
 	const base = await structureStack();
 	const { stack, geometry, ledger } = base;
@@ -56,6 +61,33 @@ describe('a zone outline that encloses no area cannot be created', () => {
 		expect(expectErr(await paste.execute()).code).toBe('polygon-zero-area');
 		expect(expectOk(await r.stack.zones.listByPlan(r.plan.id)).loaded).toHaveLength(0);
 		expect(r.entries()).toEqual(before);
+	});
+
+	/**
+	 * M6, pinned rather than changed: a clipboard holding a Room WITH an area and a sliver writes
+	 * the Room, meets the sliver's refusal, and deletes the Room again through `restoreSteps`, so
+	 * the paste fails whole. The vault ends where it began in every byte but ONE field: the plan's
+	 * geometry sidecar keeps its (empty) objects and its revision has moved on by two — the insert
+	 * and the removal are two writes, and a revision counts writes, not contents.
+	 */
+	it('through a paste of a Room with an area beside one without, which writes the first and deletes it again', async () => {
+		const r = await wired(), before = r.entries();
+		const clipboard = expectDefined(captureClipboard({
+			rooms: [
+				{ key: 'zone-room', name: 'Room', zoneType: 'Room', points: [...COLLINEAR.slice(0, 2), { x: 1000, y: 1000 }] },
+				{ key: 'zone-sliver', name: 'Sliver', zoneType: 'Room', points: COLLINEAR },
+			],
+			structure: EMPTY_STRUCTURE, names: [], groups: [],
+		}, ['zone-room', 'zone-sliver']), 'clipboard');
+		const created: string[] = [];
+		r.stack.vault.on('create', (file: { path: string }) => created.push(file.path));
+		const paste = new PasteCommand(r.deps, { planId: r.plan.id, clipboard, target: { x: 5000, y: 5000 } });
+
+		expect(expectErr(await paste.execute()).code).toBe('polygon-zero-area');
+		expect(created.filter(path => path.includes('/Zones/'))).toHaveLength(1);
+		expect(expectOk(await r.stack.zones.listByPlan(r.plan.id)).loaded).toHaveLength(0);
+		expect(ignoringRevision(r.entries())).toEqual(ignoringRevision(before));
+		expect(sidecar(r.entries()).revision).toBe(sidecar(before).revision + 2);
 	});
 
 	it('while a paste of a Room that does enclose one is still written', async () => {

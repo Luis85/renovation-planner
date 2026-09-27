@@ -5,8 +5,12 @@
  * the real `MoveSpatialObjectCommand` — over the rig's in-memory zone repository.
  *
  * The gesture is the one the tracker recorded: a triangle with two corners on one horizontal
- * line, and its third dragged onto that line. The editor's own snapping is what makes the result
- * exactly collinear, and until ruling 34 the drag wrote it. "Nothing was written" is asserted as
+ * line, and its third dragged onto that line, which until ruling 34 the drag wrote. **This first
+ * case does not show snapping doing it**: its drop, screen (648,388), maps to exactly (6000,3400)
+ * under the rig's transform — already on the line, so it cannot tell a snap from none. The slanted
+ * case at the end is the one where the snap decides the point — the drop maps to (5160,3320) and
+ * the corner is written, before ruling 36, at the edge projection (5159.52…,3319.05…), about
+ * 1.2e-10 mm² off collinear. "Nothing was written" is asserted as
  * the repository's listing — every zone and its version — equal to a snapshot taken before the
  * gesture; the rig has no vault files to compare.
  *
@@ -117,6 +121,45 @@ describe('a room stored without an area', () => {
 
 			expectShownAsSaveError(harness);
 			expect((await listing(zonesRepo)).find(zone => zone.entity.id === SLIVER)?.entity.geometry.points).toEqual(fixed);
+		} finally {
+			harness.unmount();
+		}
+	});
+});
+
+/**
+ * Ruling 36, the review's case: the neighbour edge is SLANTED, so the snap that lands the corner
+ * on it projects onto a line no float grid holds, and the "collinear" triangle keeps a residue of
+ * about 1e-10 mm². An exact-zero test read that as a real area and the drag wrote it.
+ */
+describe('a vertex drag onto a slanted neighbour edge', () => {
+	/** World (4594,3606)–(7436,2164) is screen (507.4,408.6)–(791.6,264.4); the neighbour lies below it. */
+	const NEIGHBOUR = [{ x: 4594, y: 3606 }, { x: 7436, y: 2164 }, { x: 7436, y: 3606 }];
+	/** The same edge as its base, and its apex above it at screen (548,248). */
+	const SLANTED = [{ x: 4594, y: 3606 }, { x: 7436, y: 2164 }, { x: 5000, y: 2000 }];
+
+	it('is refused, writes nothing, and reads as a save error', async () => {
+		const { harness, zonesRepo } = await rig(async ({ zones }) => {
+			await zones.save(makeZone({ id: 'zone-neighbour' as ZoneId, projectId: PROJECT_ID, planId, name: 'Neighbour', geometry: { points: NEIGHBOUR } }), 'absent');
+			await zones.save(makeZone({ id: TRIANGLE, projectId: PROJECT_ID, planId, name: 'Triangle', geometry: { points: SLANTED } }), 'absent');
+		});
+		try {
+			const canvas = canvasOf(harness);
+			actionButton(harness, 'Select').click();
+			await settle();
+			click(canvas, 610, 300);
+			await settle();
+			expect(useSelectionStore(harness.pinia).selectedIds).toEqual([TRIANGLE]);
+			const before = await listing(zonesRepo);
+
+			pointer(canvas, 'pointerdown', 548, 249);
+			pointer(canvas, 'pointermove', 556, 320);
+			pointer(canvas, 'pointermove', 564, 380);
+			pointer(canvas, 'pointerup', 564, 380);
+			await settleUntil(async () => Notice.shown.length > 0 || refused(harness) || JSON.stringify(await listing(zonesRepo)) !== JSON.stringify(before), 'the drag to be refused or written');
+
+			expect(await listing(zonesRepo)).toEqual(before);
+			expectShownAsSaveError(harness);
 		} finally {
 			harness.unmount();
 		}

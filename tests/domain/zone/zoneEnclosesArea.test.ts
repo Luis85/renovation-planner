@@ -11,8 +11,9 @@ import { squareAt } from '../../helpers/entities';
  * L-23, owner rulings 34 and 35: a Zone outline must enclose an area to be WRITTEN — created or
  * changed — while a zone already stored without one still LOADS, through its own entry.
  *
- * The predicate is `enclosesArea`, which refuses exactly a zero (or unrepresentable) shoelace
- * sum. So the duplicate-vertex and symmetric-bowtie cases below are pinned both ways on purpose:
+ * The predicate is `isNegligibleArea` over `area` (ruling 36): zero, or below a millionth of the
+ * outline's bounding box, is no area, and an unrepresentable one is refused as an overflow. So the
+ * duplicate-vertex and symmetric-bowtie cases below are pinned both ways on purpose:
  * this is the zero-area rule and not a simplicity rule (L-29's is `outlineCrosses`, at the tool).
  */
 const base = (geometry: CurvedPolygon = squareAt()): CreateZoneProps => ({
@@ -87,5 +88,54 @@ describe('a zone stored without an area', () => {
 		expect(expectOk(stored().withName('Found it')).name).toBe('Found it');
 		expect(expectOk(stored().withDetails('Found it', 'Room')).name).toBe('Found it');
 		expect(stored().withLocked(true).locked).toBe(true);
+	});
+});
+
+/** A `width` by `depth` rectangle at the origin, turned by `degrees`. */
+function rectangle(width: number, depth: number, degrees: number): CurvedPolygon {
+	const [c, s] = [Math.cos(degrees * Math.PI / 180), Math.sin(degrees * Math.PI / 180)];
+	return { points: [[0, 0], [width, 0], [width, depth], [0, depth]].map(([x, y]) => ({ x: x * c - y * s, y: x * s + y * c })) };
+}
+
+/**
+ * Owner ruling 36: an outline whose area is negligible beside its axis-aligned bounding box —
+ * below a millionth of it — is refused as enclosing none. The review's case is the slanted edge:
+ * a corner projected onto a non-axis-aligned line lands at an unrounded float, so the "collinear"
+ * triangle keeps a residue of about 1e-10 mm² that an exact-zero test reads as a real area.
+ */
+describe('an outline whose area is negligible beside its size', () => {
+	/** The review's neighbour edge (4594,3606)–(7436,2164), and a corner a fifth of the way along it, as the float the projection gives. */
+	const SLANTED_SLIVER: CurvedPolygon = { points: [{ x: 4594, y: 3606 }, { x: 7436, y: 2164 }, { x: 5162.4, y: 3317.6 }] };
+
+	it('refuses the slanted sliver on create and on an outline change', () => {
+		expect(expectErr(Zone.create(base(SLANTED_SLIVER))).code).toBe('polygon-zero-area');
+		expect(expectErr(expectOk(Zone.create(base())).withGeometry(SLANTED_SLIVER)).code).toBe('polygon-zero-area');
+	});
+
+	it.each([
+		['10 mm by 10 m, axis-aligned', rectangle(10, 10_000, 0)],
+		['10 mm by 10 m, rotated 45 degrees', rectangle(10, 10_000, 45)],
+		// Its area is about 2.0e-4 of its bounding box: two hundred times the ruling's threshold.
+		['1 mm by 10 m, rotated 45 degrees', rectangle(1, 10_000, 45)],
+	])('accepts a genuinely thin room, %s', (_what, geometry) => {
+		expect(expectOk(Zone.create(base(geometry))).geometry.points).toHaveLength(4);
+	});
+
+	/** Collinear corners and a closing semicircle: a flat corner box around a real area, which the arc alone encloses. */
+	it('still accepts a curved outline whose corners are collinear', () => {
+		const halfDisc: CurvedPolygon = { points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 200, y: 0 }], bulges: [0, 0, 1] };
+		expect(expectOk(Zone.create(base(halfDisc))).geometry.bulges).toEqual([0, 0, 1]);
+	});
+
+	/** The ratio is divided out rather than multiplied up: this box overflows a double while its area, about half of it, does not. */
+	it('accepts a real area whose bounding box is not representable', () => {
+		const vast: CurvedPolygon = { points: [{ x: -6.75e153, y: -6.75e153 }, { x: 6.75e153, y: -4.05e153 }, { x: -4.05e153, y: 6.75e153 }] };
+		expect(expectOk(Zone.create(base(vast))).geometry.points).toHaveLength(3);
+	});
+
+	/** M2: finite corners whose area overflows are refused under the code that says so, not as zero area. */
+	it('refuses an unrepresentable area as an overflow', () => {
+		const huge: CurvedPolygon = { points: [{ x: 0, y: 0 }, { x: 1e308, y: 0 }, { x: 0, y: 1e308 }] };
+		expect(expectErr(Zone.create(base(huge))).code).toBe('polygon-area-overflow');
 	});
 });

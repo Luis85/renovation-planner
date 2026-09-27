@@ -55,7 +55,8 @@ export function validatePolygonPoints(
  * normalization, repair) are deliberately not implemented or stubbed here.
  *
  * Area is not asked here either: a collinear point list is a valid `Polygon`. A Zone outline is
- * held to enclosing one by the Zone entity, on write only (L-23, owner ruling 34).
+ * held to enclosing a non-negligible one by the Zone entity, on write only (L-23, owner rulings
+ * 34 and 36).
  */
 export function createPolygon(points: readonly Point[]): Result<Polygon, GeometryError> {
 	const checked = validatePolygonPoints(points);

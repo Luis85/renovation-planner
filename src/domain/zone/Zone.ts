@@ -1,6 +1,6 @@
 import type { GeometryError, ValidationError } from '../../core/errors/AppError';
 import { createCurvedPolygon, type CurvedPolygon } from '../../core/geometry/CurvedPolygon';
-import { area as polygonArea, enclosesArea, perimeter as polygonPerimeter } from '../../core/geometry/operations';
+import { area as polygonArea, isNegligibleArea, perimeter as polygonPerimeter } from '../../core/geometry/operations';
 import type { Vector } from '../../core/geometry/Vector';
 import { err, ok, type Result } from '../../core/result/Result';
 import { isZoneStatus, type ZoneStatus } from './ZoneStatus';
@@ -46,15 +46,28 @@ interface ZoneFields {
 
 /**
  * The one rule a WRITTEN outline is held to beyond what `createCurvedPolygon` checks: it encloses
- * an area (L-23, owner ruling 34). `enclosesArea` refuses exactly a zero or unrepresentable
- * shoelace sum, so a collinear outline and an even bowtie are refused and a repeated corner around
- * a real surface is not; a crossing outline is L-29's, refused at the tool by `outlineCrosses`.
- * `polygon-zero-area` is the code `areaOutline` already raises for the same shape, so the user
- * reads the sentence the outline dialog already shows for it.
+ * an area (L-23, owner ruling 34), and "an area" means one that is not negligible beside the
+ * outline's own bounding box (ruling 36, `isNegligibleArea` — below a millionth of it is zero).
+ *
+ * **What the tolerance refuses**: an exact zero — a collinear outline, an even bowtie — and the
+ * residue a corner snapped onto a SLANTED edge leaves, where the projection lands on a float and
+ * the "collinear" triangle keeps about 1e-10 mm². **What it does not**: a thin but real room (1 mm
+ * by 10 m turned 45° is about 2e-4 of its box), a small room of ordinary proportions, a repeated
+ * corner around a real surface, and any curved outline the arcs' own box would pass — the box is
+ * the corners', the permissive reading (see `isNegligibleArea`). A crossing outline is L-29's,
+ * refused at the tool by `outlineCrosses`.
+ *
+ * An area `area` cannot represent is refused under its own `polygon-area-overflow` rather than
+ * read as zero. `polygon-zero-area` is the code `areaOutline` raises for the same shape by the
+ * same predicate, so the typed dialog and the write agree about which outlines exist. Neither code
+ * has copy of its own; both read the Geometry category's sentence.
  */
 function enclosingOutline(geometry: CurvedPolygon): Result<CurvedPolygon, GeometryError> {
 	const checked = createCurvedPolygon(geometry);
-	if (!checked.ok || enclosesArea(checked.value)) return checked;
+	if (!checked.ok) return checked;
+	const measured = polygonArea(checked.value);
+	if (!measured.ok) return measured;
+	if (!isNegligibleArea(checked.value, measured.value)) return checked;
 	return err({ category: 'Geometry', code: 'polygon-zero-area', message: 'A zone outline must enclose an area.' });
 }
 
@@ -62,7 +75,8 @@ function enclosingOutline(geometry: CurvedPolygon): Result<CurvedPolygon, Geomet
  * A spatial object on a plan (PRD §8). Immutable. `Polygon` is an UNVALIDATED interface
  * by design — an editor legitimately holds garbage mid-gesture — so the entity
  * re-validates its vertex set through Slice 2's own validator rather than trusting the
- * type, and every path into a stored geometry gets the identical answer.
+ * type: every path in — created, changed or loaded — is held to that validator's answer, and a
+ * write is held to one rule more, below.
  *
  * **Creating and changing an outline are held to one rule more than loading one** (owner rulings
  * 34 and 35): `create` and `withGeometry` both go through `enclosingOutline`, while `fromStored`

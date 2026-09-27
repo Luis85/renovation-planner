@@ -26,7 +26,9 @@ const gap = (box: Box, line: Segment): number =>
 
 /**
  * The overall width's label box and its DRAWN dimension line: the first stroke of the line path,
- * mapped to the screen through the path's own transform.
+ * mapped to the screen through the path's own transform. The number pattern reads plain decimals;
+ * `String(n)` writes an exponent only under 1e-6, which would leave this `null` and time the poll
+ * out loudly rather than read a wrong line.
  */
 const overallWidth = (browser: NativeBrowser) =>
 	browser.execute((root) => {
@@ -78,20 +80,29 @@ describe('Design an Asset and Recover, geometry guards in the real Obsidian host
 			if (!drawn) throw new Error('No overall width drawn.');
 			const { label, line } = drawn;
 			const [footprint] = await canvas.shapeBoxes('asset-footprint-outline');
+			// The row's frame is the footprint SELECTED: its handles are the obstacles that pick the slot.
+			expect((await canvas.shapeBoxes('asset-selection-handle')).length, `${frame}: the footprint is selected`).toBeGreaterThan(0);
 			console.log(`step 109 ${frame}: label ${JSON.stringify(label)} line ${JSON.stringify(line)} footprint top ${String(footprint.top)}`);
 			expect(gap(label, line), `${frame}: the line meets its label`).toBeLessThanOrEqual(1);
+			// `footprint.top` is Konva's client rect, which takes in half the 1.5 px outline stroke, so the
+			// edge itself lies 0.75 px below it: a label centred ON the edge has about 0.25 px of this
+			// pixel's slack left. The offset is a constant of the stroke, not of a platform.
 			expect(centreOf(label).y, `${frame}: the label is off the drawing`).toBeLessThanOrEqual(footprint.top + 1);
 			return { label, footprint };
 		};
 
 		await check('fitted');
-		const box = await canvas.canvasBox();
+		// The top edge brought up to just under the top ruler's strip, read off the ruler's own box so a
+		// change of strip size moves the frame with it: there the label's outside row is on the strip.
+		const ruler = await browser.execute((root) => document.querySelector(`${root} .rp-designer-ruler--top`)?.getBoundingClientRect().toJSON() as Box | undefined, ACTIVE_DESIGNER);
+		if (!ruler) throw new Error('No top ruler.');
+		const rulerBottom = ruler.top + ruler.height;
 		const [fitted] = await canvas.shapeBoxes('asset-footprint-outline');
-		await canvas.pan(0, box.top + 24 - fitted.top);
+		await canvas.pan(0, rulerBottom + 6 - fitted.top);
 		await designer.selectPart('footprint');
-		// The frame is the one meant: the top edge under the ruler's strip, the label on that edge.
+		// The frame is the one meant: the top edge just under the ruler's strip, the label on that edge.
 		const [panned] = await canvas.shapeBoxes('asset-footprint-outline');
-		expect(panned.top - box.top).toBeLessThan(30);
+		expect(panned.top).toBeLessThan(rulerBottom + 12);
 		const { label, footprint } = await check('under the ruler');
 		expect(Math.abs(centreOf(label).y - footprint.top)).toBeLessThanOrEqual(1);
 	});

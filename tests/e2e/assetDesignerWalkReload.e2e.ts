@@ -89,8 +89,14 @@ describe('Design an Asset, the facts beside the shape across a plugin reload', (
 		for (const [assetId, dressing] of [[first, A], [second, B]] as const) {
 			expect(before[assetId]?.shown).toMatchObject({ anchor: ['placement-back-centre'], front: dressing.front, height: String(dressing.height) });
 			expect(before[assetId]?.shown.scale).toBe('Calibrated');
-			expect(before[assetId]?.sidecar).toBeDefined();
-			expect((JSON.parse(before[assetId]?.sidecar ?? '{}') as { calibration: unknown }).calibration).toEqual(expect.any(Object));
+			// A missing sidecar already fails above `record`'s own `readFileSync`, before this loop
+			// ever runs. What's checked here is the value once the file exists: not `null` (a
+			// calibration that was cleared) and not `undefined` (a key never written) — `not.toBeNull()`
+			// and `toEqual(expect.any(Object))` are BOTH needed, since `expect.any(Object)` alone
+			// passes on `null` (`typeof null === 'object'`, measured against this vitest).
+			const calibration = (JSON.parse(before[assetId]?.sidecar ?? '{}') as { calibration: unknown }).calibration;
+			expect(calibration).not.toBeNull();
+			expect(calibration).toEqual(expect.any(Object));
 		}
 		expect(before[first]?.sheet).not.toEqual(before[second]?.sheet);
 

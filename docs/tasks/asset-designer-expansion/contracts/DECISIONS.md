@@ -1806,8 +1806,11 @@ Important ones, all in documentation, and one fix wave closed them.
   build's behaviour.
 
 **Not closed by this round:**
-- Calibrate step 36, a `suite` row, now contradicts the rewritten 36a in the same file. It needs a
-  ruling.
+- ~~Calibrate step 36, a `suite` row, now contradicts the rewritten 36a in the same file. It needs a
+  ruling.~~ **Ruled 2026-09-27 by the user: step 36 is aligned with 36a** — rewritten to what the build
+  does under AD18-R27's rule (the footprint is replaced by a typed rectangle, the pending clearance is
+  not scaled, no review notice), retagged `suite` → `e2e` because only the e2e case asserts the whole
+  path, and cited to its tests. The walk count is unchanged (26); step 36 was never a human step.
 - Recover 2, and Recover 6 and 8's host half, cannot be pinned honestly.
 - Design 89 needs a macOS leg.
 - Browse 31 cannot fail until Obsidian records leaf history for the library view.

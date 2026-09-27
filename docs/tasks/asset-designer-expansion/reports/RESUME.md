@@ -70,7 +70,8 @@ case rows to say so). They are recorded, not fixed:
 - **Focus after Group from a Parts row stays on the row**, not the canvas (Compose 48).
 - **A duplicated or undone hidden part comes back shown** (Compose 7c).
 - **Edit dimensions on a traced, uncalibrated asset retypes its outline** and leaves a pending
-  clearance unscaled and hidden (Calibrate 36a).
+  clearance unscaled, with no review notice — and hidden, if it was hidden (Calibrate 36 and 36a; step
+  36 was rewritten to match on 2026-09-27, by the user's ruling).
 - **The asset's Edit dimensions drops a rounded rectangle's Corner radius row** (Design 102).
 - **A pointer click on the canvas draws no focus ring**; Tab does (Design 105).
 - **One trace point placed does not block Ctrl+Z** (Design 120).
@@ -94,9 +95,6 @@ case rows to say so). They are recorded, not fixed:
 
 ## Recorded, not fixed
 
-- **Calibrate step 36 (a `suite` row) now contradicts the rewritten 36a in the same file**: it says the
-  clearance scales with Edit dimensions on a traced, uncalibrated asset, which 36a's pinning test shows it
-  does not. It sat outside the audited tiers. It needs a ruling or an AD18-R27-style rewrite.
 - **Test-hygiene items from the whole-round review** (`final-review-round6.md` in the gitignored ledger
   lists them all): `assetDesignerWalkReload.e2e.ts`'s toggle loop is shaped to dodge a fallow clone and
   wants a shared `togglePlugin` helper; test-to-test clones (`pressRow`/`showClearance`, the use-plan

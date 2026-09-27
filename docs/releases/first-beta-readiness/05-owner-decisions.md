@@ -22,7 +22,8 @@ written. Options have been taken: Q1's in section 3 (rulings 13 and 19) and Q3's
 (ruling 16), each built on this branch. And the plugin has now run in a real Obsidian: the
 `E2E` workflow merged at `5bcefced7` drives it (1.13.7 and `latest` on Linux, plus a
 mobile-emulation leg that is not a device test) over the repository's test vault
-`tests/e2e/vault`, and the owner's own cases measured Q2 and Q3 there (sections 4 and 5).
+`tests/e2e/vault`. The owner's own cases measured Q2 and Q3 on 1.13.7, Windows, one machine
+(sections 4 and 5); the E2E workflow re-runs both cases on Linux.
 What still holds: nothing has been run in the owner's own vault or on a device, and no
 screen-reader or performance verification has been performed.
 
@@ -89,8 +90,9 @@ pause actually covers, and the answer to both is the same missing check.
 
 *Superseded 2026-09-26 (step 2, `8895ddc45`), and kept above as the situation the owner ruled
 on.* `markUncompensated` now records the stamp it makes, and neither `guardCommand` nor the
-rename listener records anything, so there are no longer two recorders to reach: a stamp is
-recorded wherever it is raised, provided a write-incident registry is installed when it is made.
+rename listener records anything, so there are no longer two recorders to reach: every stamp
+`markUncompensated` makes is recorded, provided a write-incident registry is installed when it is
+made.
 The census counted six sites with a path that reached neither recorder, not three or four
 (`11-q1-stamp-census.md`); they close by construction. `STAMP_CONSTRUCTION_BAN` in
 `eslint.config.mjs` is the check that now exists, refusing a stamp built by hand in `src/`.
@@ -103,8 +105,8 @@ indicator, and that is all. Writing is **not** paused. No warning is raised. The
 does not mention it. If the user closes that pane, or reloads the plugin, even the indicator is
 gone, and the vault is left inconsistent with nothing anywhere saying so. The same applies to
 undoing a multi-element delete or a paste, and to undoing an edit in the Asset designer.
-*Superseded 2026-09-26 (step 2):* that undo's stamp is now recorded, so writing pauses
-everywhere in the vault, durably, and the diagnostics report names the incident. A stamp made
+*Superseded 2026-09-26 (step 2):* that undo's stamp is now recorded, so every guarded write pauses
+across the vault, durably, and the diagnostics report names the incident. A stamp made
 while no registry is installed is still lost; the keep-alive of section 5 keeps one installed
 for the saves it counts.
 
@@ -269,9 +271,10 @@ into the registry installed when it is made. It does not hold:
   `tests/gates/stamp-construction-boundary.test.ts`: a computed key, `Object.defineProperty`, a
   class field, a second function of that name, and oxlint, which does not carry the rule.
 - **Durable pauses over a vault that may be coherent** — each pauses writing across restarts:
-  #17's fault-shaped residuals P2, P5 and P8 (census §7, accepted by ruling 19)
-  and a put-back refused `asset.pre-write-invalid` (ruling 23); and two older paths recorded as
-  owner questions by ruling 25 (section 8).
+  #17's fault-shaped residuals P2, P5 and P8's delete (census §7, accepted by ruling 19); P8's
+  sync-client lock (`EBUSY`, established by reading only, ruling 31); a put-back refused
+  `asset.pre-write-invalid` (ruling 23); and two older paths recorded as owner questions by ruling
+  25 (section 8).
 - **A reload while an old save is still running** records that save's half-failure into the NEW
   session's registry, pinned as "not endorsed" and disclosed in ADR-0034's amendment.
 - **No E2E case drives the designer undo race or the registry across unload**; both rest on the
@@ -513,7 +516,7 @@ making unload close the plugin's own panes, so nothing is left alive to write, a
 decides after the estimate and the vault run, which the owner cannot do soon. Costing the fourth
 option in the table above is authorised. **Q3 remains open.** *Superseded 2026-09-25 by ruling 16
 below: the owner's own measurement refuted this option's premise, since Obsidian closes the
-plugin's panes before `onunload`, so no costing was done.*
+plugin's panes before `onunload`, so no costing step is recorded as having run.*
 
 ### The owner's choice, 2026-09-25 — re-asked and taken
 
@@ -573,8 +576,9 @@ document; the tracker's G1, BP-02 and BP-03 rows carry their state.
   performance property.** None has been performed on this branch, ever. Q2 and Q3 each need one
   vault run before their answer can be acted on with confidence, and Q1 needs one before any fix to
   it can be trusted in situ. *Narrowed 2026-09-26:* the `E2E` workflow now runs the plugin in a
-  real Obsidian over the test vault (section 1), and Q2 and Q3 were measured there. None of that
-  is the owner's own vault or a device, and no E2E case drives Q1's fix.
+  real Obsidian over the test vault (section 1). Q2 and Q3 were measured on 1.13.7, Windows, one
+  machine (sections 4 and 5); the E2E workflow re-runs both cases on Linux. None of that is the
+  owner's own vault or a device, and no E2E case drives Q1's fix.
 - **It adds no user-facing copy.** Any option here that would need a new user-visible message is
   blocked behind limitation L-15 until a human writes the second language, and the option's row
   says so. Since 2026-09-25 the owner's ruling on L-15 (section 8) lets an agent draft the German,
@@ -724,7 +728,7 @@ chat.** Numbered as in the session's record of rulings, which continues the twel
   is outside it and still stops a rename.
 - **Ruling 15, Q2 and Q3 as e2e — "Yes, automate them"** (2026-09-25). The owner wrote those
   cases themselves (`settingsDuringCreate.e2e.ts` at `30ea1bc9d`, `unloadWindow.e2e.ts` at
-  `bff12d416`), so the agent task it authorised was dropped.
+  `bff12d416`), so no committed record shows the agent task it authorised running.
 - **Ruling 16, Q3 — "Keep the record alive"** (2026-09-25). Supersedes ruling 4. Quoted and
   described in section 5; built at `4e5e2de75..a932d1c77`.
 - **Ruling 17, a designer Undo refused by a racing change — "Always 'superseded'"**
@@ -773,3 +777,7 @@ chat.** Numbered as in the session's record of rulings, which continues the twel
   'superseded' for every conflict, including the bookkeeping-bug case — same as background Undo
   already does. Smallest change. A bookkeeping bug would show a reload hint instead of 'Save
   error'; nothing is written in either case." Built at `5ee9b9c16` (tests) and `274cd9499`.
+- **Ruling 31, #17's P8 sync-client lock (`EBUSY`) — "Accept, record it"** (2026-09-26). "Recorded
+  beside P2, P5, P8's delete and pre-write-invalid as an accepted durable residual. No code
+  change." Same class as ruling 19's "delete at the exact moment of the read"; established by
+  reading only, never driven.

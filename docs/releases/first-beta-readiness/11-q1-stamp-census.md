@@ -271,8 +271,8 @@ rulings 13 and 18, #23 has been fixed once under owner ruling 14 (already record
 the recorder itself has moved into `markUncompensated` under rulings 13, 19 and 20 — so §3's
 "Recorder" column and every "reaches no recorder" in §1–§4 describe `d54e95931`, not the code now.
 The 23 raise sites themselves are unchanged. Rulings 17, 27 and 30 then changed only what a
-designer undo refused by a race SHOWS: it reads as `undo.superseded`, leaves the save badge
-alone and records nothing, and no stamp moved.
+designer undo whose restoring write is refused as a conflict (`WRITE_BOUNDARY_CODES`) SHOWS: it
+reads as `undo.superseded`, leaves the save badge alone and records nothing, and no stamp moved.
 
 | Commit | Date | What changed |
 |---|---|---|
@@ -305,7 +305,8 @@ code could tell it apart from a genuine failure. That is the residual owner ruli
 `putNoteBack`'s docblock in `ReversibleAssetDesignCommands.ts` states it at the decision site.
 Since step 2 (`8895ddc45`) each of the four stamps is recorded, so each durably pauses the vault
 (D-08: across reloads and restarts, until the user removes `write-incidents.json` and reloads).
-The owner accepted P2, P5 and P8 by ruling 19 and `asset.pre-write-invalid` by ruling 23.
+The owner accepted P2, P5 and P8's delete by ruling 19; P8's sync-client lock (`EBUSY`,
+established by reading only) by ruling 31; and `asset.pre-write-invalid` by ruling 23.
 
 **Accepted residuals of rulings 17, 27 and 30, and one observation** (S21 close-out,
 `2026-09-26`):

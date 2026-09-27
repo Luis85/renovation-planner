@@ -47,8 +47,9 @@ the pause is not refused, but it is not unwatched either: the plugin records an 
 moment any of its writes notices that it left files half-written, whichever action made the
 write, and every checked write is refused from then on. What it cannot record is a half-write it did
 not notice — not every failure is detected where it happens — or one noticed while the plugin is
-disabled, after it unloads and before it loads again, unless a save that started before the
-unload is still running — so this warning is not guaranteed to appear for every partial write.
+disabled, after it unloads and before it loads again, unless the plugin was still counting a save
+that started before the unload — so this warning is not guaranteed to appear for every partial
+write.
 So do not read
 any single action still working as proof the incident has cleared, and do not treat a quiet
 failure in one of those actions as nothing having happened. Stop making changes anywhere in the
@@ -121,7 +122,8 @@ or a sync changing the same asset between your edit and your Undo — is refused
 that the change was edited elsewhere after this step, and that you can reload and undo again.
 That is not an incident: writing is not paused and the tab's save indicator is left alone. In
 one rare case — two other writers changing a calibrated asset during the Undo — the asset can be
-left without its calibration behind that same message, so check its scale if you see it there.
+left without its calibration behind that same message, so check its scale if you see it there. A
+delete or a write failure in the same moment can instead show a save error or open an incident.
 
 For the connected editing journey, see [Plan a renovation from the floor](using-plan-editor.md).
 

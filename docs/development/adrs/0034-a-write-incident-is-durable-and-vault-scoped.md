@@ -529,11 +529,13 @@ could name, not about whether the vault is safe.
   by a put-back fault (P5), another writer's delete or a sync client's lock inside the put-back's
   own read (P8), and a put-back refused `asset.pre-write-invalid` — each of which now durably
   pauses, under D-08, a vault the code cannot tell from one that genuinely half-failed. The owner
-  accepted the first three by ruling 19 and the fourth by ruling 23 (census §7).
-  **A racing designer undo is not a stamp (rulings 17, 27 and 30).** A designer undo refused by a
-  racing change, and on the single-file undos also one refused because the write ledger has no
-  version for the step, reads as `undo.superseded`, leaves the save badge alone and records
-  nothing; a genuine write fault on those undos is unchanged.
+  accepted P2, P5 and P8's delete by ruling 19; P8's sync-client lock (`EBUSY`, established by
+  reading only) by ruling 31; and `asset.pre-write-invalid` by ruling 23 (census §7).
+  **A designer undo refused as a conflict is not a stamp (rulings 17, 27 and 30).** A designer
+  undo whose restoring write is refused as a conflict (`WRITE_BOUNDARY_CODES`) — a racing change,
+  or on the single-file undos also a write ledger holding no version for the step — reads as
+  `undo.superseded`, leaves the save badge alone and records nothing; a genuine write fault on
+  those undos is unchanged.
   **Correction, 2026-09-26 (S21 fix round): recording at STAMP TIME also changes who a reload's
   old save answers to.** `SessionStores`'s constructor installs its new registry as the active
   one immediately, before that session's own `seed()` has run, and `markUncompensated` records

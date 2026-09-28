@@ -12,8 +12,9 @@ import type { NativeBrowser } from './session';
  */
 
 /**
- * The device pixel ratios every guard is read at, whatever the machine's own: this one's is 2 and
- * CI's xvfb is 1, and a thin line rasterises differently at each.
+ * The device pixel ratios every guard is read at, whatever the machine's own: this one's is 2, CI's
+ * xvfb legs are EXPECTED to be 1 (each case's evidence records `nativeDevicePixelRatio`, which is
+ * where to read it), and a thin line rasterises differently at each.
  */
 export const RATIOS = [1, 2] as const;
 
@@ -39,8 +40,16 @@ export async function atPixelRatio<T>(browser: NativeBrowser, ratio: number, rea
  * selector the shipped stylesheet draws it with still matches. Every picture a guard compares is
  * therefore drawn at the same spot and the same device-pixel phase — in its own row, a 1 px line
  * half a pixel off rasterises as two half-strength pixels where a copy one row down draws one full
- * one, which reads as a different drawing (CI run 36345605529, at a ratio of 1). So the picture is
- * the shipped markup under the shipped stylesheet, drawn at a fixed spot rather than in its row.
+ * one, which reads as a different drawing (CI run 36345605529 read two copies of one mark 26 px
+ * apart; its ratio was not recorded, 1 is expected there). So the picture is the shipped markup
+ * under the shipped stylesheet, drawn at a fixed spot rather than in its row.
+ *
+ * What the stage does NOT carry, and why none of it can turn a mutation green: the host row's or
+ * card's own background (the stage's is `--background-primary`), clipping by an ancestor's
+ * `overflow`, and the half-pixel row position a ratio-1 display may actually draw the mark at. A
+ * copy that is covered or clipped makes every picture alike, which reddens the pairs; a dropped
+ * background can only remove a signal, never add one. What a mark looks like on a half-pixel row
+ * is the human half of the clause.
  *
  * Captured through CDP's own `Page.captureScreenshot`, clipped to the box (CSS px in, device px
  * out), and written to the case's evidence folder as `<name>.png`; the copy is removed after.
@@ -52,7 +61,11 @@ export async function capture(browser: NativeBrowser, selector: string, director
 		if (!element?.parentElement || !leaf) return null;
 		const { width, height } = element.getBoundingClientRect();
 		const copy = element.cloneNode(true) as SVGElement | HTMLElement;
-		copy.style.cssText = `display: block; margin: 0; width: ${String(width)}px; height: ${String(height)}px;`;
+		// Property by property, so an inline style the shipped element carries reaches the copy too.
+		copy.style.setProperty('display', 'block');
+		copy.style.setProperty('margin', '0');
+		copy.style.setProperty('width', `${String(width)}px`);
+		copy.style.setProperty('height', `${String(height)}px`);
 		const stage = document.createElement('div');
 		stage.className = 'rp-e2e-stage';
 		const [wide, tall] = [Math.ceil(width), Math.ceil(height)];

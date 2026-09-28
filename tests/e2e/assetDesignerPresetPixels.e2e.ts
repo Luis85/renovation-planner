@@ -26,7 +26,9 @@ describe('Design an Asset, the vanity\'s card as painted in the real Obsidian ho
 	 * differ, which two drawings rendering the same pixels also satisfy. WHAT STAYS HUMAN:
 	 * "recognisably" — whether a person tells the vanity from the washbasin at 48 px at a glance,
 	 * which is about what the difference IS (a wider cabinet, a dashed carcass), not how much of it
-	 * there is. Both captures are in the case's evidence folder.
+	 * there is; and how the card reads on its own background and sub-pixel position, which the stage
+	 * replaces (`capture`'s docblock names what it drops). Both captures are in the case's evidence
+	 * folder.
 	 */
 	desktop('paints the vanity\'s card differently from the washbasin\'s in more than a tenth of their ink', async ({
 		native: { browser, page, ui, directory },

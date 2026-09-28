@@ -90,12 +90,15 @@ describe('Browse the asset library, the row marks as painted in the real Obsidia
 	 * states differ in kind and never only in colour): more than `DISTINCT` of the pixels either
 	 * inks differ. Two rows each of measured, unscaled and none are compared too, and must answer the
 	 * same drawing — without that, a capture misaligned between pictures would read as "different"
-	 * and the guard would pass on noise. In their own rows it did: CI run 36345605529, at a ratio of
-	 * 1, read the two unscaled rows 26 px apart, which is why every picture is staged. `assetMark.test.ts` asserts five distinct classes and the
-	 * per-state drawings; this is whether they PAINT differently at 20px. WHAT STAYS HUMAN:
-	 * "distinguishable to an eye that has not been told" what to look for, which is about what each
-	 * difference is (a dash, three dots, a cross), not how much of it there is. Every capture is in
-	 * the case's evidence folder.
+	 * and the guard would pass on noise. In their own rows it did: CI run 36345605529 read the two
+	 * unscaled rows 26 px apart (its ratio was not recorded; 1 is expected on xvfb, and each run's
+	 * evidence now records it), which is why every picture is staged. `assetMark.test.ts` asserts
+	 * five distinct classes and the per-state drawings; this is whether they PAINT differently at
+	 * 20px. WHAT STAYS HUMAN: "distinguishable to an eye that has not been told" what to look for,
+	 * which is about what each difference is (a dash, three dots, a cross), not how much of it there
+	 * is; and whether a dashed mark still reads as dashed on the half-pixel row a ratio-1 display may
+	 * draw it on, which the stage deliberately does not reproduce (`capture`'s docblock names what it
+	 * drops). Every capture is in the case's evidence folder.
 	 */
 	desktop('paints the five mark states as five different drawings at 20px, and one state\'s two rows as the same', async ({
 		native: { browser, page, ui, directory },

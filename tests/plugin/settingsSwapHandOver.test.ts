@@ -49,6 +49,27 @@ async function wiredPlugin() {
 	return { stack, ...loaded, persistence };
 }
 
+/**
+ * Arm exactly ONE extra `applySettings` inside the vault `create` event of the next path `at`
+ * accepts — after the plugin's own listener has queued it, as Obsidian delivers to listeners in
+ * registration order. Answers, per forced swap, whether the metadata cache still had no entry.
+ */
+function forceSwapAtCreate(
+	plugin: Awaited<ReturnType<typeof wiredPlugin>>['plugin'],
+	stack: Awaited<ReturnType<typeof wiredPlugin>>['stack'],
+	triggerVault: (event: string, ...args: readonly unknown[]) => void,
+	at: (path: string) => boolean,
+): () => boolean[] {
+	const cold: boolean[] = [];
+	stack.vault.on('create', (file: TFile) => {
+		triggerVault('create', file);
+		if (cold.length > 0 || !at(file.path)) return;
+		cold.push(stack.metadataCache.getFileCache(file) === null);
+		(plugin as unknown as Swappable).applySettings(plugin.root.settings as RenovationPlannerSettings);
+	});
+	return () => cold;
+}
+
 beforeEach(() => {
 	vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 });
@@ -62,18 +83,11 @@ describe('a settings swap inside the create-to-parse gap', () => {
 		const { plugin, stack, triggerVault, persistence } = await wiredPlugin();
 		// The investigation's forced-at-create arm: exactly one extra apply, inside the create
 		// event of the project note, while the cache still has no entry for it.
-		let forced = false;
-		stack.vault.on('create', (file: TFile) => {
-			triggerVault('create', file);
-			if (forced || !file.path.endsWith('.md')) return;
-			forced = true;
-			expect(stack.metadataCache.getFileCache(file)).toBeNull();
-			(plugin as unknown as Swappable).applySettings(plugin.root.settings as RenovationPlannerSettings);
-		});
+		const forced = forceSwapAtCreate(plugin, stack, triggerVault, (path) => path.endsWith('.md'));
 
 		const created = expectOk(await persistence().createProject.execute({ name: 'Kitchen' }));
 		const id = created.project.entity.id;
-		expect(forced).toBe(true);
+		expect(forced()).toEqual([true]);
 		// The new root's own scan ran inside the gap and could not see it: the premise.
 		expect(persistence().index.getPath(id)).toBeUndefined();
 
@@ -83,6 +97,38 @@ describe('a settings swap inside the create-to-parse gap', () => {
 		expect(persistence().index.getPath(id)).toBe('Renovation/Kitchen/Kitchen.md');
 		const listed = expectOk(await persistence().listProjects.execute());
 		expect(listed.projects.map((project) => project.name)).toEqual(['Kitchen']);
+	});
+
+	/**
+	 * The review's Important finding: the same race during a PLAN create. `insertNew` writes the
+	 * sidecar, THEN the note, so the swap hands over `[…/Geometry/<id>.rpgeo, …/<plan>.md]` in
+	 * that order; the sidecar step finds no indexed plan and is skipped, and the note used to be
+	 * indexed with no mapping — listed, and `plan-geometry.path-unresolved` on every read until
+	 * the next rebuild. Two arms, because ordering inside one flush is not what decides it: forced
+	 * at the SIDECAR's create, the note's own event reaches the NEW adapter after the adopted
+	 * sidecar, so no reordering of the handed-over list could put the note first.
+	 */
+	it.for([
+		['the plan note', (path: string) => path.endsWith('.md')],
+		['the geometry sidecar', (path: string) => path.endsWith('.rpgeo')],
+	] as const)('keeps the geometry of a plan whose swap lands in the create event of %s', async ([, at]) => {
+		const { plugin, stack, triggerVault, persistence } = await wiredPlugin();
+		const project = expectOk(await persistence().createProject.execute({ name: 'House' }));
+		stack.metadataCache.catchUp();
+		const forced = forceSwapAtCreate(plugin, stack, triggerVault, at);
+
+		const created = expectOk(
+			await persistence().createPlan.execute({ projectId: project.project.entity.id, name: 'Ground' }),
+		);
+		const planId = created.plan.entity.id;
+		expect(forced()).toEqual([true]);
+
+		stack.metadataCache.catchUp();
+		vi.advanceTimersByTime(500);
+
+		expect(persistence().index.getPath(planId)).toBe('Renovation/House/Plans/Ground.md');
+		expect(persistence().index.getGeometrySidecarPath(planId)).toBe(`Renovation/House/Geometry/${planId}.rpgeo`);
+		expectOk(await persistence().geometry.read(planId));
 	});
 
 	it('processes a handed-over path once, in the new root, and nothing in the outgoing one', async () => {
@@ -121,7 +167,9 @@ describe('a settings swap inside the create-to-parse gap', () => {
 		expect(oldHeard).toEqual([]);
 	});
 
-	it('does not resurrect a note deleted before the swap', async () => {
+	// Green on 4c0953cd5's parent too — a guard, not a red: the delete empties the pending set
+	// before the swap, so there is nothing to hand over either way.
+	it('does not resurrect a note deleted before the swap (a guard, green before the ruling too)', async () => {
 		const { plugin, stack, triggerVault, persistence } = await wiredPlugin();
 		stack.vault.on('create', (file: TFile) => triggerVault('create', file));
 		stack.vault.on('delete', (file: TFile) => triggerVault('delete', file));
@@ -140,13 +188,39 @@ describe('a settings swap inside the create-to-parse gap', () => {
 		expect(persistence().index.getPath(id)).toBeUndefined();
 	});
 
-	it('arms no timer in the new root when nothing was pending', async () => {
+	// Green before the ruling too: nothing pending means `adopt([])` enqueues nothing.
+	it('arms no timer in the new root when nothing was pending (a guard, green before the ruling too)', async () => {
 		const { plugin } = await wiredPlugin();
 		const before = vi.getTimerCount();
 
 		await plugin.saveSettings({ units: 'imperial' });
 
 		expect(vi.getTimerCount()).toBe(before);
+	});
+
+	/**
+	 * A delete that arrives AFTER the hand-over and before the new adapter's timer fires reaches
+	 * the NEW adapter (the plugin's listeners read `this.root` per event), whose `onDelete` takes
+	 * the adopted path out of its pending set — so the timer finds nothing to resurrect. Green
+	 * before the ruling too, for a different reason: the swap's flush had already dropped it.
+	 */
+	it('does not resurrect a note deleted after the hand-over (a guard, green before the ruling too)', async () => {
+		const { plugin, stack, triggerVault, persistence } = await wiredPlugin();
+		stack.vault.on('create', (file: TFile) => triggerVault('create', file));
+		stack.vault.on('delete', (file: TFile) => triggerVault('delete', file));
+		const id = createProjectId();
+		const path = 'Renovation/Late/Late.md';
+		await stack.vault.createFolder('Renovation/Late');
+		await stack.vault.create(path, serializeFrontmatter({ type: 'renovation-project', id, 'schema-version': 1, name: 'Late' }));
+
+		await plugin.saveSettings({ units: 'imperial' });
+		await stack.vault.delete(stack.vault.getAbstractFileByPath(path) as TFile);
+		const fresh = vi.spyOn(persistence().changeAdapter as unknown as Processing, 'processPath');
+		stack.metadataCache.catchUp();
+		vi.advanceTimersByTime(500);
+
+		expect(fresh).not.toHaveBeenCalled();
+		expect(persistence().index.getPath(id)).toBeUndefined();
 	});
 
 	/**

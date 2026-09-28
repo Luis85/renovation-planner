@@ -74,13 +74,19 @@ function listed(ui: Ui): Promise<string[]> {
 interface ForceWindow {
 	__rpForceArmed?: boolean;
 	__rpForceInstalled?: boolean;
-	/** One entry per forced swap: whether the metadata cache still had NO entry for the note. */
-	__rpForced?: boolean[];
+	/**
+	 * One entry per forced swap: whether the metadata cache still had NO entry for the note, and
+	 * whether the OUTGOING adapter already held the path as pending — the gap and the hand-over.
+	 */
+	__rpForced?: { cold: boolean; pending: boolean }[];
 }
 
-/** The plugin's private swap and the settings it runs on, reached as the S21 forced arm reached them. */
+/**
+ * The plugin's private swap and the settings it runs on, reached as the S21 forced arm reached
+ * them, plus the change adapter's private pending set.
+ */
 interface Swappable {
-	root: { settings: unknown };
+	root: { settings: unknown; persistence: { changeAdapter: { pending: Set<string> } } | null };
 	applySettings(next: unknown): void;
 }
 
@@ -102,13 +108,18 @@ async function armSwapAtCreate(browser: NativeBrowser): Promise<void> {
 			if (!held.__rpForceArmed || !file.path.endsWith('.md')) return;
 			held.__rpForceArmed = false;
 			const note = app.vault.getFileByPath(file.path);
-			held.__rpForced?.push(note !== null && app.metadataCache.getFileCache(note) === null);
+			held.__rpForced?.push({
+				cold: note !== null && app.metadataCache.getFileCache(note) === null,
+				// Without this a listener order that ran the swap BEFORE the plugin queued the path
+				// would still pass: nothing to hand over, and the new root's own event listed it.
+				pending: plugin.root.persistence?.changeAdapter.pending.has(file.path) === true,
+			});
 			plugin.applySettings(plugin.root.settings);
 		});
 	}, PLUGIN_ID);
 }
 
-const forcedSwaps = (browser: NativeBrowser): Promise<boolean[]> =>
+const forcedSwaps = (browser: NativeBrowser): Promise<{ cold: boolean; pending: boolean }[]> =>
 	browser.execute(() => (window as unknown as ForceWindow).__rpForced ?? []);
 
 async function setProjectsFolder(browser: NativeBrowser, folder: string): Promise<void> {
@@ -209,8 +220,11 @@ describe('Q2: a settings save inside a live project create', () => {
 				arms.push({ name, listed: seen, afterMs: Date.now() - start });
 			}
 			await writeEvidence(directory, 'ruling-41-forced-arms', arms);
-			// The premise, or this case proves nothing: every iteration's swap ran inside the gap.
-			expect(await forcedSwaps(browser)).toEqual(Array.from({ length: FORCED_ITERATIONS }, () => true));
+			// The premise, or this case proves nothing: every iteration's swap ran inside the gap,
+			// with the path already queued in the adapter the swap retired.
+			expect(await forcedSwaps(browser)).toEqual(
+				Array.from({ length: FORCED_ITERATIONS }, () => ({ cold: true, pending: true })),
+			);
 			expect(arms.map((arm) => arm.listed)).toEqual(Array.from({ length: FORCED_ITERATIONS }, () => true));
 		},
 	);

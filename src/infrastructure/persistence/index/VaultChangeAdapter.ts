@@ -11,7 +11,7 @@ import {
 	entityRefOf,
 	stringField,
 } from './buildProjectIndexEntries';
-import { incrementalSidecarMapping } from './sidecarMapping';
+import { incrementalSidecarMapping, promotedSidecarMapping } from './sidecarMapping';
 import { entryById } from './entryLookup';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
@@ -117,6 +117,11 @@ export class VaultChangeAdapter {
 	 * spent the only event there would ever be — the S21 investigation's 0 of 20. Taken out
 	 * here, it is processed ~500 ms later by the adapter that replaces this one, against a cache
 	 * that has caught up. Nothing is processed here, so this adapter publishes nothing after it.
+	 *
+	 * **The bound, which this narrows and does not close:** the hand-over buys the note one
+	 * debounce (~500 ms) for Obsidian to parse it. A note whose parse takes LONGER than that is
+	 * still read against a null cache by the adopting adapter and dropped as "not ours" until
+	 * the next full rebuild, exactly as before — nothing here listens for the parse itself.
 	 */
 	handOver(): string[] {
 		if (this.timer !== null) {
@@ -254,28 +259,46 @@ export class VaultChangeAdapter {
 		// spelled in this method, beside the call below rather than inside it, which is why the
 		// repositories' own upserts did neither: the rollback of a failed delete displaced a
 		// promoted loser into no collection at all.
-		this.applyUpsert({
+		const arriving: ProjectIndexEntry = {
 			id: ref.id as ProjectIndexEntry['id'],
 			type: ref.type,
 			path,
 			projectId: stringField(frontmatter['project']) as ProjectIndexEntry['projectId'],
 			planId: stringField(frontmatter['plan']) as ProjectIndexEntry['planId'],
-			// Preserve a sidecar mapping an out-of-band note edit cannot have moved — the sidecar
-			// path lives only in this index and in the writers that record it. ASSETS as well as
-			// plans since asset paths became index-backed: this door used to answer `undefined`
-			// for everything but a plan, so one synced or hand-edited asset note dropped the
-			// mapping and the asset went shapeless.
-			//
-			// **The preservation is for the SAME id, and `existing` is the entry at this PATH.**
-			// An id swap in the frontmatter — a hand edit, a sync, a copied note — makes those two
-			// different entities, and the displaced one's geometry is not its successor's. Handing
-			// it over pointed every Zone read and write on the new id at the old plan's sidecar,
-			// so the entity that was just removed above kept receiving the writes. Unqualified,
-			// the `??` never even reached the index lookup on this path.
-			geometrySidecarPath:
-				(existing?.id === ref.id ? existing.geometrySidecarPath : undefined)
-				?? this.deps.index.getGeometrySidecarPath(ref.id as ProjectIndexEntry['id']),
-		});
+		};
+		this.applyUpsert({ ...arriving, geometrySidecarPath: this.sidecarMappingOf(arriving, existing) });
+	}
+
+	/**
+	 * The sidecar mapping a note arriving through this pipeline carries into the index.
+	 *
+	 * It preserves a sidecar mapping an out-of-band note edit cannot have moved — the sidecar
+	 * path lives only in this index and in the writers that record it. ASSETS as well as
+	 * plans since asset paths became index-backed: this door used to answer `undefined`
+	 * for everything but a plan, so one synced or hand-edited asset note dropped the
+	 * mapping and the asset went shapeless.
+	 *
+	 * **The preservation is for the SAME id, and `existing` is the entry at this PATH.**
+	 * An id swap in the frontmatter — a hand edit, a sync, a copied note — makes those two
+	 * different entities, and the displaced one's geometry is not its successor's. Handing
+	 * it over pointed every Zone read and write on the new id at the old plan's sidecar,
+	 * so the entity `processNote` had just removed kept receiving the writes. Unqualified,
+	 * the `??` never even reached the index lookup on this path.
+	 *
+	 * **And when neither knows one, it is RESOLVED from the vault** (owner ruling 41's
+	 * review, I1) — the rebuild's own join, through `promotedSidecarMapping`. A plan's
+	 * sidecar is written BEFORE its note, so a `.rpgeo` event processed while the note was
+	 * not yet indexed took `processSidecar`'s "no indexed plan" arm and recorded nothing,
+	 * and this upsert then listed a plan every geometry read refused. A settings swap
+	 * inside that create reaches it in either order (the handed-over list, or a note event
+	 * arriving at the new adapter after the adopted sidecar), which is why it is answered
+	 * here, after the note, rather than by ordering one flush. The cost is one walk of the
+	 * vault's files per plan or asset note that arrives with no known mapping.
+	 */
+	private sidecarMappingOf(arriving: ProjectIndexEntry, existing: ProjectIndexEntry | undefined): string | undefined {
+		return (existing?.id === arriving.id ? existing.geometrySidecarPath : undefined)
+			?? this.deps.index.getGeometrySidecarPath(arriving.id)
+			?? promotedSidecarMapping(this.deps, arriving);
 	}
 
 	private processSidecar(path: string): void {

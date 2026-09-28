@@ -506,7 +506,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * `queueSettingsWrite`'s tail swallows on both arms so the chain survives — so this is the
 	 * one place that can report either failure. The write's own rejection was already caught;
 	 * the swap's was not, and `applySettings` can throw exactly the way `persistLibraryFolder`
-	 * already plans for (the outgoing adapter's `flush()`, an open view's `rebind()`): the
+	 * already plans for (`disposeCascade`'s flush and disposals, an open view's `rebind()`): the
 	 * write had already landed in `data.json` by the time that happens, so the outcome is N4's
 	 * `'apply-failed'` in every way but its shape — this door has no outcome value to hand a
 	 * caller, so it reports the identical sentence itself rather than leaving the promise to
@@ -630,7 +630,8 @@ export default class RenovationPlannerPlugin extends Plugin {
 	/**
 	 * Retires the OUTGOING root's cascade — the adapter's pending flush and the subscriptions
 	 * composition wired at construction time — as one step, called from exactly two places: the
-	 * disposer `onload` pushes, and the top of `applySettings` (G10). Both boundaries retire the
+	 * disposer `onload` pushes, and `applySettings` before it composes the next root (G10) —
+	 * second there, after the pending hand-over (ruling 41). Both boundaries retire the
 	 * same root the same way, because a root left mid-flush or mid-subscription past either one
 	 * is a root something can still publish INTO: `onunload`'s own reason is a timer landing
 	 * after teardown (G1), and a settings swap's is the identical timer landing against a bus
@@ -667,9 +668,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// the old one, which is then still the adapter every vault event reaches.
 		const pending = this.root.persistence?.changeAdapter.handOver() ?? [];
 		try {
-			// FIRST, before the swap: the outgoing root's pending flush and cascade subscriptions
-			// must not run against a bus nothing will consult (G10) — the timer is the one
-			// publisher that could.
+			// Before the swap, and right after the hand-over above: the outgoing root's cascade
+			// subscriptions must not run against a bus nothing will consult (G10), and its timer —
+			// the one publisher that could — is already cancelled, so this flush finds nothing.
 			this.disposeCascade();
 
 			// The verbose-logging floor is re-applied HERE, not only at load: a toggle in the

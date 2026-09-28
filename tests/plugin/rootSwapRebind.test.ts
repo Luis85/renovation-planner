@@ -54,14 +54,21 @@ installResizeObserver();
 
 /**
  * G10: the outgoing root's cascade subscriptions were never disposed on a swap, and its
- * debounce timer was never flushed either — harmless on its own, except the timer is exactly
+ * debounce timer was never cancelled either — harmless on its own, except the timer is exactly
  * the kind of thing that could still publish into a bus the new root's views no longer read
  * from (G1 names the same adapter for the identical reason at `onunload`). `disposeCascade`
  * is the one method both boundaries call, so proving it runs here is proving the SAME
  * mechanism the unload suite proves for the other boundary.
+ *
+ * **Narrower at a swap since owner ruling 41**: `applySettings` hands the pending paths to the
+ * incoming root (`VaultChangeAdapter.handOver`) BEFORE `disposeCascade`, which cancels the
+ * timer, so the flush this case counts runs over an empty set and processes nothing. What keeps
+ * the retired timer from publishing is the hand-over; `settingsSwapHandOver.test.ts` asserts
+ * the outgoing adapter processes nothing. The flush call is still asserted because it is still
+ * `disposeCascade`, shared with unload, and unload's flush does process.
  */
 describe('a root swap retires the outgoing root before composing the next one', () => {
-	it('flushes the outgoing adapter and disposes its cascade subscriptions before the swap', async () => {
+	it('runs disposeCascade — its (now empty) flush and its disposals — before the swap', async () => {
 		resetRecorder();
 		const { plugin } = await loadedPlugin();
 		const outgoing = plugin.root.persistence as NonNullable<typeof plugin.root.persistence>;

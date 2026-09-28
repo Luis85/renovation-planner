@@ -91,6 +91,8 @@ export async function settleSettings(browser: NativeBrowser): Promise<void> {
 		if (plugin === undefined) throw new Error(`plugin ${id} is not loaded`);
 		for (let turn = 0; turn < 50; turn += 1) {
 			const tail = plugin.settingsWrites;
+			// A renamed or removed field would read `undefined` twice and "settle" at once.
+			if (!(tail instanceof Promise)) throw new Error(`plugin ${id} has no settings-write chain to await`);
 			await tail;
 			await new Promise((resolve) => {
 				setTimeout(resolve, 0);

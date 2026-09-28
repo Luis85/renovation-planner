@@ -381,10 +381,12 @@ watch(
  *   The user-visible consequence is that they are told nothing, the project exists under the
  *   old folder, and the list never shows it, so they may create it again and end up with two.
  *
- * **Which arm production takes is UNVERIFIED** — it turns on the ordering of Obsidian's
- * `create` event, its asynchronous parse and this adapter's 500 ms debounce, and nothing on
- * this branch has ever been run in a vault. Do not collapse the two arms into one here
- * without that experiment.
+ * **Which arm production takes was measured in S21** (real Obsidian, CI): warm, unless a
+ * SECOND settings apply lands between the `create` event and the parse (2–19 ms) — its swap
+ * used to FLUSH the pending path and take the cold arm. Owner ruling 41 changed that swap to
+ * hand the path to the incoming root's adapter (`VaultChangeAdapter.handOver`/`adopt`), so the
+ * cold arm now needs a parse slower than the 500 ms debounce. That residue is still reachable,
+ * so both arms stay written down here.
  *
  * (This paragraph also said `VaultChangeAdapter` "indexes the note into the new root while
  * publishing nothing at all". That is false in BOTH arms — warm it publishes and indexes,

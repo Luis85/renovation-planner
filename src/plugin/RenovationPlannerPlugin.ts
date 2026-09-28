@@ -634,13 +634,12 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * same root the same way, because a root left mid-flush or mid-subscription past either one
 	 * is a root something can still publish INTO: `onunload`'s own reason is a timer landing
 	 * after teardown (G1), and a settings swap's is the identical timer landing against a bus
-	 * the new root's views no longer read from.
+	 * the new root's views no longer read from. At a swap the flush finds nothing to process:
+	 * `applySettings` has already handed the pending paths to the incoming root (ruling 41).
 	 */
 	private disposeCascade(): void {
 		this.root.persistence?.changeAdapter.flush();
-		for (const subscription of this.root.persistence?.subscriptions ?? []) {
-			subscription.dispose();
-		}
+		for (const subscription of this.root.persistence?.subscriptions ?? []) subscription.dispose();
 	}
 
 	/**
@@ -660,26 +659,38 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * cutting it is a change to what a root OWNS, not a parameter here.
 	 */
 	private applySettings(next: RenovationPlannerSettings): void {
-		// FIRST, before the swap: the outgoing root's pending flush and cascade subscriptions
-		// must not run against a bus nothing will consult (G10) — the timer is the one
-		// publisher that could.
-		this.disposeCascade();
+		// Owner ruling 41: the outgoing adapter's pending paths are taken out UNPROCESSED before
+		// `disposeCascade` flushes, so that flush finds nothing — a path still pending is usually
+		// a note created milliseconds ago that Obsidian has not parsed, and flushing it read a
+		// null cache and dropped it as "not ours" for the rest of the session. They are adopted
+		// by whichever root is in charge when this ends: the new one, or — if the swap throws —
+		// the old one, which is then still the adapter every vault event reaches.
+		const pending = this.root.persistence?.changeAdapter.handOver() ?? [];
+		try {
+			// FIRST, before the swap: the outgoing root's pending flush and cascade subscriptions
+			// must not run against a bus nothing will consult (G10) — the timer is the one
+			// publisher that could.
+			this.disposeCascade();
 
-		// The verbose-logging floor is re-applied HERE, not only at load: a toggle in the
-		// pane takes effect immediately, in both directions, without a plugin reload.
-		this.logger.setLevel(next.verboseLogging ? 'debug' : LOG_LEVEL);
+			// The verbose-logging floor is re-applied HERE, not only at load: a toggle in the
+			// pane takes effect immediately, in both directions, without a plugin reload.
+			this.logger.setLevel(next.verboseLogging ? 'debug' : LOG_LEVEL);
 
-		this.root = createCompositionRoot(
-			next,
-			this.root.logger,
-			this.vaultStack,
-			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
-			{ ledger: this.ledger, markers: this.stores.markers, locks: this.sessionLocks() },
-		);
-		// The new root carries an EMPTY index. Re-running the build is what makes the swap
-		// complete; without it the session reads an index of nothing until the next reload,
-		// and every already-registered listener maintains a root nobody consults.
-		this.startPersistence();
+			this.root = createCompositionRoot(
+				next,
+				this.root.logger,
+				this.vaultStack,
+				{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
+				{ ledger: this.ledger, markers: this.stores.markers, locks: this.sessionLocks() },
+			);
+			// The new root carries an EMPTY index. Re-running the build is what makes the swap
+			// complete; without it the session reads an index of nothing until the next reload,
+			// and every already-registered listener maintains a root nobody consults. A handed-over
+			// note the scan cannot see yet is the adopted path's to index, ~500 ms from now.
+			this.startPersistence();
+		} finally {
+			this.root.persistence?.changeAdapter.adopt(pending);
+		}
 		// AFTER the rebuild, deliberately: a view rebound first would mount against the new
 		// root's still-empty index, draw its "nothing here" state, and need the rebuild event
 		// to correct itself. Rebinding second means each view mounts once, against an index

@@ -107,6 +107,38 @@ export class VaultChangeAdapter {
 		}
 	}
 
+	/**
+	 * Owner ruling 41: the paths this adapter is still waiting on, taken out UNPROCESSED, with
+	 * the timer cancelled — for a settings swap to give to the incoming root's `adopt`.
+	 *
+	 * `flush` is the wrong door at a swap, and it was the one used: a path still pending is
+	 * usually a note Obsidian created a few milliseconds ago and has not parsed yet, so flushing
+	 * it read a null cache and an echo window that had not heard of it, called it "not ours" and
+	 * spent the only event there would ever be — the S21 investigation's 0 of 20. Taken out
+	 * here, it is processed ~500 ms later by the adapter that replaces this one, against a cache
+	 * that has caught up. Nothing is processed here, so this adapter publishes nothing after it.
+	 */
+	handOver(): string[] {
+		if (this.timer !== null) {
+			window.clearTimeout(this.timer);
+			this.timer = null;
+		}
+		const paths = Array.from(this.pending);
+		this.pending.clear();
+		return paths;
+	}
+
+	/**
+	 * The other half of `handOver`: each path queued exactly as if its vault event had just
+	 * arrived here, so it waits out this adapter's own debounce and meets THIS root's index and
+	 * echo window. It trusts nothing from the root it came from — a note of ours that the old
+	 * echo window would have recognised reads here as a change the plugin did not make, which
+	 * costs one `ProjectIndexEntryChanged` and is what puts it in the new index at all.
+	 */
+	adopt(paths: readonly string[]): void {
+		for (const path of paths) this.enqueue(path);
+	}
+
 	private enqueue(path: string): void {
 		// A zero debounce means "process synchronously" — what tests use, and what keeps
 		// this module free of timer APIs when it runs outside a browser window.

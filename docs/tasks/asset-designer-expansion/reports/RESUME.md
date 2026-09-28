@@ -116,8 +116,8 @@ tier on a different clause (Design 89's B clause, Browse 33's remaining P and C 
 
 ## Known behaviour: the walk must NOT file these as new defects
 
-Carried forward from session twenty (nothing below was touched this round except the one addition at
-the end), each pinned by a test that turns red the day the behaviour changes:
+Carried forward from session twenty (nothing below was touched this round except the two additions
+at the end), each pinned by a test that turns red the day the behaviour changes:
 
 - **Obsidian's graph view takes Ctrl+G in a default vault**, so Group never runs by that chord until
   the user unbinds `graph:open` (Compose 43, 49, 51; Design 90a, 90b, 95).
@@ -151,6 +151,17 @@ the end), each pinned by a test that turns red the day the behaviour changes:
   icon and the `New asset` button wraps to two lines instead of clipping — that wrapped state has not
   itself been looked at in a real vault, per Task 5's own report, so file a NEW defect only if the
   button still overhangs or clips there, not for the wrap itself.
+- **New this round (Task 6 re-review 2): a library row can flash back to "not yet read" (the pending
+  three dots) after already drawing its mark, with nothing about it edited.** `viewportMarks.ts`'s
+  `invalidate` forgets a drawn mark and re-requests it immediately; until that read answers, the row
+  draws the pending picture again. This is what CI's two red Browse 3 runs actually caught (see "The
+  rule this session paid for" above) — a row already drawn as *unscaled* went back to *not yet read*
+  for a moment, with nobody having touched its sidecar since the test created it, on Linux, after the
+  guard's own class poll. **What re-announced a once-created file is unidentified**; the likeliest
+  lead, not verified, is the Linux file watcher reconciling a `vault.create` write late. Whether this
+  flash is itself a defect worth fixing (a stale-while-revalidate approach would keep the old mark
+  drawn until the new read lands) is open for the user — file it as a product question, not as a new
+  defect a walker found on their own.
 
 ## Recorded, not fixed
 
@@ -168,8 +179,8 @@ Carried forward, still open:
 
 **This round's own items** (`round7-minors.md`, reconciled by the final review dispatched on
 `cecb332b7..7bb94a45b`: two items were fixed in that review's fix wave and two were found not to be
-defects, both dropped from this list; the five below are the ones the review recorded rather than
-fixed):
+defects, both dropped from this list; plus two more from Task 6's re-review 2 of the fix-round-3
+diagnosis, `ebec4d669`. The seven below are recorded rather than fixed):
 
 - Task 2's clock hook is duplicated between `assetDesignerAxTree.e2e.ts` and the parity case, below
   fallow's duplication threshold.
@@ -180,6 +191,15 @@ fixed):
 - An optional "button stays within its card" relation would widen the AD18-R34 revert mutation's red
   band on Windows; not built.
 - Task 6's pixel-diff headroom is thin at 1x: the weakest pair measured 0.268 against a 0.1 floor.
+- **Task 6 re-review 2, Minor 11: `capture` (`tests/e2e/pixels.ts`) does not record how long it
+  waited for a row's expected state.** A retry that fires is invisible in the evidence — recording
+  the wait (`{ data, waitedMs }`, or an appended list in `mark-pixels.json`) would show a flash
+  instead of silently absorbing it.
+- **Task 6 re-review 2, Minor 12: nothing checks the stage is still attached (`isConnected`) right
+  before the screenshot.** A narrow false-green path: if a row is re-keyed or re-created in the gap
+  between the state check and the capture, a detached copy could photograph whatever is behind it,
+  and a blank picture paired with an inked one would still read as "different" rather than failing
+  loudly.
 
 ## Machine lessons
 
@@ -246,13 +266,22 @@ of building — plus a fifth false claim in one of the build's own metrics, not 
   in the bowl's favour by design — neither point is actually clear of a part. Only the footprint
   outline point is. The case row (Task 7a) was corrected not to promise "clear of every part" for the
   points that are not.
-- **Task 6's first pixel metric passed on this Windows machine and failed on real Linux CI.** The
-  Browse 3 mark-pixel guard, on a clean, unmutated tree, went red on E2E run `36345605529` (1.13.7,
-  shard 1/2) with a control reading `[0, 26, 0]` where zero was expected. On this machine, at
-  `devicePixelRatio` 2, two captured rows always land on whole pixels; at `devicePixelRatio` 1 on
-  Linux they did not, and a sub-pixel row-position phase difference alone read as two different
-  drawings. Fixed by staging every capture at one fixed, whole-pixel position before reading it,
-  rather than trusting wherever the row happened to lay out.
+- **Task 6's first pixel metric passed on this Windows machine and failed on real Linux CI, and the
+  first diagnosis for WHY was itself wrong.** The Browse 3 mark-pixel guard, on a clean, unmutated
+  tree, went red on E2E run `36345605529` (1.13.7, shard 1/2) with a control reading `[0, 26, 0]`
+  where zero was expected, and red again on run `36476196536` with the same signature. Round 1
+  guessed a sub-pixel row-position phase difference — plausible from the number alone, but nobody
+  had opened the PNGs. **Re-review 2 (fix round 3, `ebec4d669`) diffed the actual captures and found
+  the real cause: a late re-read had put the chair's row back to *not yet read* — the pending three
+  dots — at the exact moment its control copy was taken, so the copy was of the pending picture, not
+  the chair.** Device-pixel-ratio was never the mechanism: the sofa's own in-row capture in the first
+  red run and its staged capture in the second are byte-identical, so that row was already on a
+  whole-pixel phase before staging existed at all. The fix: `capture` now checks a row's expected
+  state class in the same synchronous `browser.execute` step as the clone, with a bounded retry, so
+  a copy can only be taken of a row already showing its expected state — deterministic by
+  construction, not merely staged at a fixed position. (CI's xvfb legs running at `devicePixelRatio`
+  1 against this machine's 2 is a real fact, recorded below under "Machine lessons" — it just was
+  not the cause of this failure.)
 
 Each was caught only because the implementing task re-measured the brief's own claim against `src/`
 before building the test, rather than building what the brief described.

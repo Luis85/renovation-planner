@@ -319,6 +319,7 @@
 /* The full row under the last tiles, as board 01 draws it: an invitation rather than a tile. */
 .rp-al-tiles .rp-al-create-card {
 	display: flex;
+	flex-wrap: wrap;
 	grid-column: 1 / -1;
 	align-items: flex-start;
 	gap: var(--size-4-3);
@@ -333,7 +334,10 @@
 	color: var(--text-muted);
 }
 
+/* AD18-R34: under 10rem beside the icon the body wraps below it, and the button's label wraps
+   before it would overhang the shelves (clipped on Linux at the narrowest 240px-rail width). */
 .rp-al-create-card .rp-al-create-card__body {
+	flex: 1 1 10rem;
 	min-width: 0;
 }
 
@@ -352,6 +356,10 @@
 	display: inline-flex;
 	align-items: center;
 	gap: var(--size-2-2);
+	max-width: 100%;
+	height: auto;
+	min-height: var(--input-height);
+	white-space: normal;
 }
 
 .rp-al-create-card .rp-al-create-card__action:focus-visible {

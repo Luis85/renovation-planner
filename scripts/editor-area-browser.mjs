@@ -80,8 +80,25 @@ export async function activate(page, selector) {
 		await tabTo(page, '[data-rp-room-navigation]');
 		await page.keyboard.press('Enter');
 	}
-	await tabTo(page, selector);
+	await (selector.startsWith('.rp-room-list__row') ? roveTo : tabTo)(page, selector);
 	await page.keyboard.press('Enter');
+}
+/**
+ * A rooms list is ONE Tab stop (L-46): Tab to the stop of the list holding `selector`, then the
+ * arrows to the first row matching it, within the same 150-press budget as `tabTo`.
+ */
+async function roveTo(page, selector) {
+	await tabTo(page, `.rp-room-list:has(${selector}) .rp-room-list__row[tabindex="0"]`);
+	for (let count = 0; count < 150; count++) {
+		const step = await page.evaluate(sel => {
+			const rows = [...document.activeElement.closest('.rp-room-list').querySelectorAll('.rp-room-list__row')];
+			const from = rows.indexOf(document.activeElement), to = rows.findIndex(row => row.matches(sel));
+			return from === to ? null : from < to ? 'ArrowDown' : 'ArrowUp';
+		}, selector);
+		if (step === null) return;
+		await page.keyboard.press(step);
+	}
+	throw new Error(`The arrows did not reach ${selector}`);
 }
 export async function selectRoomForEditing(page) {
 	const narrow = await page.locator('[data-rp-rail="layers"]').isVisible();

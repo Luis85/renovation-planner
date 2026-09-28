@@ -1,7 +1,8 @@
 import { ref, type Ref } from 'vue';
 
 /**
- * One tab stop for a list of any length, with the arrows moving inside it (design spec §7).
+ * One tab stop for a list of any length, with the arrows moving inside it (design spec §7; the
+ * Plan Editor's Rooms-and-areas list reuses it for the owner's L-46 ruling, "One Tab stop").
  *
  * **Roving exists to bound an UNBOUNDED set, and that is the whole of when to reach for it.** A
  * vault of thirty projects must not cost thirty tabs to walk past; every other control on this
@@ -30,12 +31,12 @@ export interface RovingFocus {
 	focusFirst: () => void;
 }
 
-/** The id a row's roving key is drawn from — `data-project-id`, which every row carries. */
-function keyOf(element: HTMLElement | undefined): string | null {
-	return element?.dataset.projectId ?? null;
-}
-
-export function useRovingFocus(container: Ref<HTMLElement | null>, selector: string): RovingFocus {
+/**
+ * `key` names the `dataset` entry a row's roving key is drawn from, which every member carries:
+ * `projectId` for a project row, `rpId` for a Plan Editor room row (L-46).
+ */
+export function useRovingFocus(container: Ref<HTMLElement | null>, selector: string, key = 'projectId'): RovingFocus {
+	const keyOf = (element: HTMLElement | undefined): string | null => element?.dataset[key] ?? null;
 	const activeIndex = ref(0);
 	/**
 	 * WHICH ROW the index means, so a filtered list can put the tab stop back on it. A plain

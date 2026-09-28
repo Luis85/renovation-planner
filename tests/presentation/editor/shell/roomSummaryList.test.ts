@@ -43,7 +43,7 @@ type LogLine = (event: string, context?: Record<string, unknown>) => void;
  */
 function mountList(
 	selectAndFrame = vi.fn<(id: string) => void>(),
-	options: { writesBlocked?: boolean | Ref<boolean>; getById?: () => Promise<ReturnType<typeof ok<{ entity: { name: string; zoneType: string; locked: boolean }; version: typeof KITCHEN_VERSION }>>> } = {},
+	options: { attach?: boolean; writesBlocked?: boolean | Ref<boolean>; getById?: () => Promise<ReturnType<typeof ok<{ entity: { name: string; zoneType: string; locked: boolean }; version: typeof KITCHEN_VERSION }>>> } = {},
 ) {
 	setActivePinia(createPinia());
 	const commitEdit = vi.fn<(edit: unknown) => Promise<boolean>>(() => Promise.resolve(true));
@@ -62,6 +62,7 @@ function mountList(
 	};
 	const wrapper = mount(RoomSummaryList, {
 		props: { records: RECORDS, heading: 'Rooms' },
+		...(options.attach === true ? { attachTo: document.body } : {}),
 		global: { provide: { [EDITOR_RUNTIME as symbol]: runtime, [PLAN_EDITOR_CONTEXT as symbol]: context } },
 	});
 	return { wrapper, selectAndFrame, commitEdit, writesBlocked };
@@ -246,5 +247,149 @@ describe('RoomSummaryList', () => {
 		await flushPromises();
 
 		expect(commitEdit).toHaveBeenCalledTimes(2);
+	});
+});
+
+/**
+ * L-46, the owner's "One Tab stop" (2026-09-25): Tab once into the list, the arrows between rooms,
+ * and the lock reached by a key. Attached to `document.body` because focus is the subject, and
+ * jsdom moves `document.activeElement` only for a connected element.
+ */
+const FOUR: readonly SpatialRecordDto[] = [
+	...RECORDS,
+	{ kind: 'room', id: 'zone-bath', planId: 'plan-ground', name: 'Bath', zoneType: 'Room', points: [], areaMm2: 0 },
+	{ kind: 'room', id: 'zone-hall', planId: 'plan-ground', name: 'Hall', zoneType: 'Room', points: [], areaMm2: 0 },
+];
+
+function mountFour(options: Parameters<typeof mountList>[1] = {}) {
+	const mounted = mountList(vi.fn(), { ...options, attach: true });
+	return { ...mounted, ready: mounted.wrapper.setProps({ records: FOUR }) };
+}
+const rowOf = (id: string) => document.querySelector<HTMLElement>(`.rp-room-list__row[data-rp-id="${id}"]`);
+const tabStops = () => [...document.querySelectorAll<HTMLElement>('.rp-room-list button')].filter((button) => button.tabIndex >= 0);
+const press = (key: string) => {
+	(document.activeElement as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+	return nextTick();
+};
+
+describe('RoomSummaryList keyboard (one Tab stop)', () => {
+	afterEach(() => { document.body.innerHTML = ''; });
+
+	it('puts exactly one control of the whole list in the Tab order: the first row', async () => {
+		const { ready } = mountFour();
+		await ready;
+		expect(document.querySelectorAll('.rp-room-list button')).toHaveLength(8);
+		expect(tabStops()).toEqual([rowOf('zone-kitchen')]);
+		expect([...document.querySelectorAll('[data-rp-lock]')].map((lock) => lock.getAttribute('tabindex'))).toEqual(['-1', '-1', '-1', '-1']);
+	});
+
+	it('ArrowDown and ArrowUp move the focus and the one Tab stop, clamped at both ends', async () => {
+		const { ready } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowUp');
+		expect(document.activeElement).toBe(rowOf('zone-kitchen'));
+		await press('ArrowDown');
+		await press('ArrowDown');
+		expect(document.activeElement).toBe(rowOf('zone-bath'));
+		expect(tabStops()).toEqual([rowOf('zone-bath')]);
+		await press('ArrowDown');
+		await press('ArrowDown');
+		expect(document.activeElement).toBe(rowOf('zone-hall'));
+		await press('ArrowUp');
+		expect(document.activeElement).toBe(rowOf('zone-bath'));
+		expect(tabStops()).toEqual([rowOf('zone-bath')]);
+	});
+
+	it('leaves a modified arrow to the host and consumes a plain one', async () => {
+		const { ready } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		for (const key of ['ArrowDown', 'ArrowRight']) {
+			for (const modifier of ['altKey', 'ctrlKey', 'metaKey', 'shiftKey']) {
+				const modified = new KeyboardEvent('keydown', { key, [modifier]: true, bubbles: true, cancelable: true });
+				rowOf('zone-kitchen')?.dispatchEvent(modified);
+				expect(modified.defaultPrevented, `${modifier}+${key}`).toBe(false);
+				expect(document.activeElement).toBe(rowOf('zone-kitchen'));
+			}
+		}
+		const plain = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
+		rowOf('zone-kitchen')?.dispatchEvent(plain);
+		expect(plain.defaultPrevented).toBe(true);
+	});
+
+	it('ArrowRight reaches the row\'s own lock and ArrowLeft returns to the row; the arrows still move between rooms from the lock', async () => {
+		const { ready } = mountFour();
+		await ready;
+		rowOf('zone-terrace')?.focus();
+		await press('ArrowRight');
+		expect(document.activeElement).toBe(document.querySelector('[data-rp-lock="zone-terrace"]'));
+		expect(tabStops()).toEqual([rowOf('zone-terrace')]);
+		await press('ArrowLeft');
+		expect(document.activeElement).toBe(rowOf('zone-terrace'));
+		await press('ArrowRight');
+		await press('ArrowDown');
+		expect(document.activeElement).toBe(rowOf('zone-bath'));
+	});
+
+	it('the lock ArrowRight reaches is the same toggle: it dispatches the same edit, and nothing while writes are paused', async () => {
+		const { ready, commitEdit } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowRight');
+		(document.activeElement as HTMLElement).click();
+		await flushPromises();
+		expect(commitEdit).toHaveBeenCalledWith(expect.objectContaining({ kind: 'details', zoneId: 'zone-kitchen' }));
+
+		document.body.innerHTML = '';
+		const paused = mountFour({ writesBlocked: true });
+		await paused.ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowRight');
+		expect(document.activeElement?.getAttribute('aria-disabled')).toBe('true');
+		(document.activeElement as HTMLElement).click();
+		await flushPromises();
+		expect(paused.commitEdit).not.toHaveBeenCalled();
+	});
+
+	it('a row stays a native button, so Enter and Space select it the way a click does', async () => {
+		const { ready, selectAndFrame } = mountFour();
+		await ready;
+		const row = rowOf('zone-bath');
+		expect(row?.tagName).toBe('BUTTON');
+		expect(row?.getAttribute('type')).toBe('button');
+		row?.click();
+		expect(selectAndFrame).toHaveBeenCalledWith('zone-bath', false);
+	});
+
+	it('keeps the focus and the Tab stop on the same room when rooms are added, removed and renamed around it', async () => {
+		const { wrapper, ready } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowDown');
+		await press('ArrowDown');
+		const bath = rowOf('zone-bath');
+		expect(document.activeElement).toBe(bath);
+
+		const [kitchen, terrace, bathRecord, hall] = FOUR;
+		const added = { ...kitchen, id: 'zone-attic', name: 'Attic' };
+		await wrapper.setProps({ records: [added, kitchen, { ...terrace, name: 'Patio' }, bathRecord, hall] });
+		expect(document.activeElement).toBe(bath);
+		expect(tabStops()).toEqual([bath]);
+
+		await wrapper.setProps({ records: [bathRecord, hall] });
+		expect(document.activeElement).toBe(bath);
+		expect(tabStops()).toEqual([bath]);
+	});
+
+	it('moves the Tab stop to a surviving row when the room holding it is removed', async () => {
+		const { wrapper, ready } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowDown');
+		await press('ArrowDown');
+		await press('ArrowDown');
+		await wrapper.setProps({ records: FOUR.slice(0, 3) });
+		expect(tabStops()).toEqual([rowOf('zone-bath')]);
 	});
 });

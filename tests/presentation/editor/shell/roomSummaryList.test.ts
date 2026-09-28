@@ -432,6 +432,40 @@ describe('RoomSummaryList keyboard (one Tab stop)', () => {
 		expect(document.activeElement).toBe(document.body);
 	});
 
+	/**
+	 * Regression (L-46 re-review, Important): `useSpatialRecords`/`buildFloorSummary` rebuild the
+	 * `records` array on every reactive read, so a rename, a lock toggle or an undo of either hands
+	 * this component a NEW array holding the SAME ids. The two watchers above are keyed on
+	 * `records.map(r => r.id)`, a fresh array every evaluation, so they fire on every such
+	 * content-only update too — not only a removal — and the post-flush watcher's unconditional
+	 * `.focus()` on the row then yanked focus off a LOCK back onto its row on every content change,
+	 * even though nothing left the list. Refocusing must be conditioned on the previously focused
+	 * room's id actually being gone from the new ids, the same test `reconcile`'s own
+	 * `surviving === -1` branch already makes.
+	 */
+	it('does not steal focus from a lock when an update leaves the same ids in place', async () => {
+		const { wrapper, ready } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowRight');
+		const lock = document.querySelector('[data-rp-lock="zone-kitchen"]');
+		expect(document.activeElement).toBe(lock);
+
+		const [kitchen, terrace, bath, hall] = FOUR;
+		await wrapper.setProps({ records: [{ ...kitchen, locked: true }, terrace, bath, hall] });
+		expect(document.activeElement).toBe(lock);
+	});
+
+	it('does not move focus off a row when a same-ids update renames it', async () => {
+		const { wrapper, ready } = mountFour();
+		await ready;
+		rowOf('zone-terrace')?.focus();
+
+		const [kitchen, terrace, bath, hall] = FOUR;
+		await wrapper.setProps({ records: [kitchen, { ...terrace, name: 'Patio' }, bath, hall] });
+		expect(document.activeElement).toBe(rowOf('zone-terrace'));
+	});
+
 	it('a lock focused directly, not reached via ArrowRight, syncs the roving index to its own row', async () => {
 		const { ready } = mountFour();
 		await ready;

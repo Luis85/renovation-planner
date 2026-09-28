@@ -62,17 +62,40 @@ function onFocusin(event: FocusEvent): void {
 }
 
 /**
+ * The id of the room FOCUS is currently in — the row itself, or, via a lock, the row that lock
+ * belongs to — or `null` when focus is not inside this list at all. Read off the DOM rather than
+ * off `roving`'s own private tracking, so it reflects the room actually holding focus regardless
+ * of how it got there (arrow, Tab, or a pointer click straight onto a lock).
+ */
+function focusedRoomId(): string | null {
+	const active = document.activeElement as HTMLElement | null;
+	if (active === null || list.value === null || !list.value.contains(active)) return null;
+	const row = active.matches('[data-rp-lock]') ? active.closest('li')?.querySelector<HTMLElement>('.rp-room-list__row') : active;
+	return row?.dataset.rpId ?? null;
+}
+
+/**
  * Removing the focused room's own record moves the Tab stop to a survivor (`reconcile`) but does
  * not move FOCUS — a plain ref write reaches no element — so it fell to `BODY` (L-46 review
- * finding 2). `hadFocus` is read before `reconcile` runs (this watcher fires pre-patch, so the
- * removed row is still in the DOM to be "inside the list" against), and the refocus itself waits
- * for the SEPARATE post-flush watcher below so it runs after Vue has actually patched the rows —
- * refocusing here, pre-patch, would target a row about to be replaced. Left alone when focus was
- * outside the list to begin with.
+ * finding 2). `focusedId` is read before `reconcile` runs (this watcher fires pre-patch, so the
+ * removed row is still in the DOM to answer `focusedRoomId`), and the refocus itself waits for
+ * the SEPARATE post-flush watcher below so it runs after Vue has actually patched the rows —
+ * refocusing here, pre-patch, would target a row about to be replaced.
+ *
+ * **Refocus only when that id actually left `ids`, not on every change of them.**
+ * `useSpatialRecords`/`buildFloorSummary` hand this component a freshly built `records` array on
+ * every reactive read — a rename, a lock toggle, an undo of either — so `records.map(id)` is a
+ * NEW array on every one of those too, and both watchers below fire on all of them, not only a
+ * removal (L-46 re-review, Important). Gating on "the focused room's id is still among `ids`"
+ * (mirroring `reconcile`'s own `surviving === -1` case) is what tells a same-ids content update
+ * apart from an actual removal; the first must leave focus exactly where it was — on a LOCK,
+ * among other places, which the unconditional `.focus()` on the row this replaced did not.
  */
 let refocusAfterPatch = false;
+let focusedId: string | null = null;
 watch(() => props.records.map((record) => record.id), (ids) => {
-	refocusAfterPatch = list.value !== null && list.value.contains(document.activeElement);
+	focusedId = focusedRoomId();
+	refocusAfterPatch = focusedId !== null && !ids.includes(focusedId);
 	roving.reconcile(ids);
 });
 watch(() => props.records.map((record) => record.id), () => {

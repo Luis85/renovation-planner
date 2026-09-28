@@ -70,6 +70,37 @@ export async function closePluginSettings(browser: NativeBrowser, windows: Setti
 	await browser.switchToWindow(windows.mainWindow);
 }
 
+/** The plugin instance's settings-write chain, which `RenovationPlannerPlugin` keeps private. */
+interface SettingsChain {
+	settingsWrites: Promise<void>;
+}
+
+/**
+ * Wait until every queued settings write has saved AND swapped the root (owner ruling 41).
+ *
+ * The folder text control saves on every keystroke, and each save runs `applySettings` — a new
+ * root, a rescan and a remount of every open view. Closing the settings window does not wait for
+ * that queue, so a later step can meet a view WebDriver already holds being remounted (a stale
+ * element) or a swap landing in the middle of a create. Re-reads the tail after each await,
+ * because a write queued while the previous tail settled is a new tail; the S21 investigation's
+ * drained arm (40 of 40 clean) is this loop.
+ */
+export async function settleSettings(browser: NativeBrowser): Promise<void> {
+	await browser.executeObsidian(async ({ app }, id) => {
+		const plugin = (app as unknown as { plugins: { plugins: Record<string, SettingsChain | undefined> } }).plugins.plugins[id];
+		if (plugin === undefined) throw new Error(`plugin ${id} is not loaded`);
+		for (let turn = 0; turn < 50; turn += 1) {
+			const tail = plugin.settingsWrites;
+			await tail;
+			await new Promise((resolve) => {
+				setTimeout(resolve, 0);
+			});
+			if (plugin.settingsWrites === tail) return;
+		}
+		throw new Error('the settings-write queue never settled');
+	}, PLUGIN_ID);
+}
+
 /** The control of the settings row whose name is exactly `name`. */
 export function settingControl(browser: NativeBrowser, name: string, control: string) {
 	const row = '//div[contains(concat(" ",normalize-space(@class)," ")," setting-item ")]';

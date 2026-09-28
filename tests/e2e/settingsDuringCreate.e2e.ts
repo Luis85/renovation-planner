@@ -1,9 +1,9 @@
 import { describe, expect } from 'vitest';
 import { test } from './fixture';
-import { closePluginSettings, openPluginSettings, settingControl } from './helpers';
+import { closePluginSettings, openPluginSettings, settingControl, settleSettings } from './helpers';
 import { writeEvidence } from './diagnostics';
 import { reloadPlugin, type Ui } from './planner';
-import { mobileEmulation, type NativeBrowser } from './session';
+import { mobileEmulation, PLUGIN_ID, type NativeBrowser } from './session';
 
 /**
  * Owner question Q2 (tracker L-19, lifecycle contract F1), as the one vault run
@@ -16,6 +16,8 @@ const desktop = mobileEmulation ? test.skip : test;
 /** `VaultChangeAdapter`'s 500 ms debounce, three times over plus a parse: long enough on a loaded runner. */
 const ROW_WINDOW_MS = 3_000;
 const ITERATIONS = 3;
+/** The forced case's iterations: once forced, the race is deterministic, so a few are enough. */
+const FORCED_ITERATIONS = 5;
 
 interface HeldVault {
 	create: (...args: unknown[]) => Promise<unknown>;
@@ -69,11 +71,55 @@ function listed(ui: Ui): Promise<string[]> {
 	return ui.projectView().$$('.rp-project-row .rp-project-list__name').map((element) => element.getText());
 }
 
+interface ForceWindow {
+	__rpForceArmed?: boolean;
+	__rpForceInstalled?: boolean;
+	/** One entry per forced swap: whether the metadata cache still had NO entry for the note. */
+	__rpForced?: boolean[];
+}
+
+/** The plugin's private swap and the settings it runs on, reached as the S21 forced arm reached them. */
+interface Swappable {
+	root: { settings: unknown };
+	applySettings(next: unknown): void;
+}
+
+/**
+ * Owner ruling 41's race, forced: exactly ONE extra `applySettings` for the next note created,
+ * run INSIDE the vault's `create` event — after the plugin's own listener (registered at
+ * layout-ready, so earlier) has queued the path, and before Obsidian parses the note. The S21
+ * investigation's forced-at-create arm listed 0 of 20 on the build before the ruling.
+ */
+async function armSwapAtCreate(browser: NativeBrowser): Promise<void> {
+	await browser.executeObsidian(({ app }, id) => {
+		const held = window as unknown as ForceWindow;
+		held.__rpForceArmed = true;
+		if (held.__rpForceInstalled) return;
+		held.__rpForceInstalled = true;
+		held.__rpForced = [];
+		const plugin = (app as unknown as { plugins: { plugins: Record<string, Swappable> } }).plugins.plugins[id];
+		app.vault.on('create', (file) => {
+			if (!held.__rpForceArmed || !file.path.endsWith('.md')) return;
+			held.__rpForceArmed = false;
+			const note = app.vault.getFileByPath(file.path);
+			held.__rpForced?.push(note !== null && app.metadataCache.getFileCache(note) === null);
+			plugin.applySettings(plugin.root.settings);
+		});
+	}, PLUGIN_ID);
+}
+
+const forcedSwaps = (browser: NativeBrowser): Promise<boolean[]> =>
+	browser.execute(() => (window as unknown as ForceWindow).__rpForced ?? []);
+
 async function setProjectsFolder(browser: NativeBrowser, folder: string): Promise<void> {
 	const windows = await openPluginSettings(browser);
 	await settingControl(browser, 'Default projects folder', 'input').setValue(folder);
 	await browser.keys('Tab');
 	await closePluginSettings(browser, windows);
+	// Owner ruling 41: every keystroke queued a save and a swap. Waiting for the last of them is
+	// what keeps a trailing swap out of the create-to-parse gap (the S21 cold arm) and off the
+	// elements the next step holds; the gap itself is pinned by the forced case below.
+	await settleSettings(browser);
 }
 
 /** Submit one project create, and hold it inside `vault.create` while the folder setting changes. */
@@ -131,6 +177,41 @@ describe('Q2: a settings save inside a live project create', () => {
 			await expect.poll(async () => (await listed(ui)).toSorted()).toEqual(names);
 			// The owner's criterion (05-owner-decisions.md §4): "block only if run shows it".
 			expect(arms.map((arm) => arm.listed)).toEqual(Array.from({ length: ITERATIONS }, () => true));
+		},
+	);
+
+	/**
+	 * Owner ruling 41: the settings swap HANDS the outgoing adapter's pending note to the incoming
+	 * root instead of flushing it against a cache that has not parsed it. The case above waits for
+	 * settings to settle, so it can no longer reach that gap; this one forces it, every iteration.
+	 * Unverified until CI runs it — the e2e packages are not installed where it was written.
+	 */
+	desktop(
+		'a project whose create event meets a settings swap before the parse is listed without a reload (ruling 41)',
+		{ timeout: 300_000 },
+		async ({ native: { browser, ui, directory } }) => {
+			const arms: { name: string; listed: boolean; afterMs: number }[] = [];
+			for (let i = 1; i <= FORCED_ITERATIONS; i += 1) {
+				const name = `Pantry ${i}`;
+				await ui.openProjectView();
+				await armSwapAtCreate(browser);
+				await ui.projectView().$('.rp-project-list__create, .rp-empty-state__action').click();
+				// The forced swap remounts the view, so the dialog goes either way: closed by the
+				// create's own success or cancelled by the rebind's unmount.
+				await ui.submitForm(name);
+				await expect
+					.poll(async () => Object.keys(await ui.notesOfType('renovation-project')).filter((p) => p.endsWith(`/${name}.md`)))
+					.toHaveLength(1);
+				await ui.openProjectView();
+				const start = Date.now();
+				let seen = false;
+				while (!seen && Date.now() - start < ROW_WINDOW_MS) seen = (await listed(ui)).includes(name);
+				arms.push({ name, listed: seen, afterMs: Date.now() - start });
+			}
+			await writeEvidence(directory, 'ruling-41-forced-arms', arms);
+			// The premise, or this case proves nothing: every iteration's swap ran inside the gap.
+			expect(await forcedSwaps(browser)).toEqual(Array.from({ length: FORCED_ITERATIONS }, () => true));
+			expect(arms.map((arm) => arm.listed)).toEqual(Array.from({ length: FORCED_ITERATIONS }, () => true));
 		},
 	);
 });

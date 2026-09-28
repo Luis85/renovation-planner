@@ -73,10 +73,13 @@ async function accessibility(page, scenario, out, suffix = '') {
 }
 /**
  * Runs `action` in the Inspector with Rooms and areas CLOSED, then reopens the section by keyboard.
- * At 1440 and 1000 px the open list lies between its summary and the Inspector in forward Tab order,
- * and closing it is what keeps the forward walk inside tabTo's 150 presses; at 460 px the list is in
- * the Layers overlay and never in that walk, and the same close and reopen run anyway. So `pan` and
- * `materialPan` run with the list open, and whatever `action` does runs with it closed.
+ * At 1440 and 1000 px the open list lies between its summary and the Inspector in forward Tab order.
+ * Before L-46 each row cost two Tab stops (the row and its lock), so an 80-room floor left 160 stops
+ * there — past `tabTo`'s 150-press budget — and closing the list was what kept the forward walk
+ * inside it. L-46 made the whole list ONE Tab stop, so that budget is no longer at risk at those two
+ * widths; the close and reopen still run there, unchanged by that. At 460 px the list is in the
+ * Layers overlay and never in that walk, so the same close and reopen run there regardless. So `pan`
+ * and `materialPan` run with the list open, and whatever `action` does runs with it closed.
  */
 async function pastRoomsList(page, action) {
  const section = '[data-rp-section="rooms"] summary';

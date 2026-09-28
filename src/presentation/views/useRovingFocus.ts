@@ -27,6 +27,7 @@ export interface RovingFocus {
 	activeIndex: Ref<number>;
 	onKeydown: (event: KeyboardEvent) => boolean;
 	syncFromFocus: (event: FocusEvent) => void;
+	syncTo: (element: HTMLElement | null) => void;
 	reconcile: (ids: readonly string[]) => void;
 	focusFirst: () => void;
 }
@@ -60,6 +61,20 @@ export function useRovingFocus(container: Ref<HTMLElement | null>, selector: str
 		all[next]?.focus();
 	}
 
+	/**
+	 * `syncFromFocus`'s own move, reachable for a target that ISN'T what focus landed on —
+	 * `RoomSummaryList.vue`'s lock click (L-46 review finding 1): the lock sits outside
+	 * `members()`, so a focusin landing there left `activeIndex`/`activeKey` on the stale row and
+	 * a following ArrowDown moved from that stale row instead of the lock's own.
+	 */
+	function syncTo(element: HTMLElement | null): void {
+		const all = members();
+		const index = element === null ? -1 : all.indexOf(element);
+		if (index === -1) return;
+		activeIndex.value = index;
+		activeKey = keyOf(all[index]);
+	}
+
 	return {
 		activeIndex,
 
@@ -77,12 +92,10 @@ export function useRovingFocus(container: Ref<HTMLElement | null>, selector: str
 		 * write of the value `focusAt` just set.
 		 */
 		syncFromFocus(event: FocusEvent): void {
-			const all = members();
-			const index = all.indexOf(event.target as HTMLElement);
-			if (index === -1) return;
-			activeIndex.value = index;
-			activeKey = keyOf(all[index]);
+			syncTo(event.target as HTMLElement);
 		},
+
+		syncTo,
 
 		onKeydown(event: KeyboardEvent): boolean {
 			// A modified arrow belongs to the host — Obsidian binds several — so only the bare

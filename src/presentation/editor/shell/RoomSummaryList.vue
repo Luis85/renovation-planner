@@ -37,12 +37,49 @@ const selection = useSelectionStore();
  * ArrowRight reaches the row's lock and ArrowLeft returns, which is the WAI-ARIA grid pattern's
  * own key for the next cell in a row. The lock is then the same `ZoneLockToggle` button, so Enter
  * and Space press it and the pause refuses it exactly as a click. The canvas context menu offers
- * no lock, so the key is the ruling's whole route. Focus stays in the row for ArrowUp/ArrowDown
- * from the lock, since `syncFromFocus` ignores a non-row target and the index keeps its row.
+ * no lock, so the key is the ruling's whole route. ArrowUp/ArrowDown from the lock move between
+ * rooms rather than staying put, because `onFocusin` syncs the roving index to the lock's OWN row
+ * before `roving.onKeydown` reads it — a lock reached any other way than ArrowRight (a pointer
+ * click) left the index on whatever row was active before, so the next arrow moved from that
+ * stale row instead of the lock's (L-46 review finding 1).
  */
 const list = ref<HTMLElement | null>(null);
 const roving = useRovingFocus(list, '.rp-room-list__row', 'rpId');
-watch(() => props.records.map((record) => record.id), (ids) => roving.reconcile(ids));
+
+/**
+ * The lock sits outside `roving`'s own `.rp-room-list__row` members, so its own `syncFromFocus`
+ * (keyed off `event.target` directly) never recognizes it. Route a lock focus through `syncTo`
+ * with that lock's OWN row instead, so the roving index — and the arrow keys and the Tab stop
+ * that read it — follow the row the user is actually in rather than a stale one.
+ */
+function onFocusin(event: FocusEvent): void {
+	const target = event.target as HTMLElement;
+	if (target.matches('[data-rp-lock]')) {
+		roving.syncTo(target.closest('li')?.querySelector<HTMLElement>('.rp-room-list__row') ?? null);
+		return;
+	}
+	roving.syncFromFocus(event);
+}
+
+/**
+ * Removing the focused room's own record moves the Tab stop to a survivor (`reconcile`) but does
+ * not move FOCUS — a plain ref write reaches no element — so it fell to `BODY` (L-46 review
+ * finding 2). `hadFocus` is read before `reconcile` runs (this watcher fires pre-patch, so the
+ * removed row is still in the DOM to be "inside the list" against), and the refocus itself waits
+ * for the SEPARATE post-flush watcher below so it runs after Vue has actually patched the rows —
+ * refocusing here, pre-patch, would target a row about to be replaced. Left alone when focus was
+ * outside the list to begin with.
+ */
+let refocusAfterPatch = false;
+watch(() => props.records.map((record) => record.id), (ids) => {
+	refocusAfterPatch = list.value !== null && list.value.contains(document.activeElement);
+	roving.reconcile(ids);
+});
+watch(() => props.records.map((record) => record.id), () => {
+	if (!refocusAfterPatch) return;
+	refocusAfterPatch = false;
+	list.value?.querySelectorAll<HTMLElement>('.rp-room-list__row')[roving.activeIndex.value]?.focus();
+}, { flush: 'post' });
 
 function onKeydown(event: KeyboardEvent): void {
 	if (roving.onKeydown(event)) {
@@ -74,7 +111,7 @@ function isSelected(id: string): boolean {
 		ref="list"
 		class="rp-room-list"
 		@keydown="onKeydown"
-		@focusin="roving.syncFromFocus"
+		@focusin="onFocusin"
 	>
 		<li
 			v-for="(record, index) in records"

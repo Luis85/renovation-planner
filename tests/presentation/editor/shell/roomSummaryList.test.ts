@@ -352,14 +352,28 @@ describe('RoomSummaryList keyboard (one Tab stop)', () => {
 		expect(paused.commitEdit).not.toHaveBeenCalled();
 	});
 
-	it('a row stays a native button, so Enter and Space select it the way a click does', async () => {
-		const { ready, selectAndFrame } = mountFour();
+	/**
+	 * jsdom does not synthesize a native button's Enter/Space-to-click activation (that is a
+	 * user-agent default action, not something the DOM event pipeline performs), so a test that
+	 * dispatched a `keydown` for either key and asserted `selectAndFrame` was called would pass
+	 * for the wrong reason: nothing in this component would fire it either way. What IS checkable
+	 * is the half this component controls — that it stays a plain native button and does not
+	 * intercept and `preventDefault` either key, which is what would block the platform's own
+	 * activation from applying (L-46 review finding 4; the row-click path itself is covered above).
+	 */
+	it('rows stay native buttons, so the platform\'s Enter/Space activation applies', async () => {
+		const { ready } = mountFour();
 		await ready;
 		const row = rowOf('zone-bath');
 		expect(row?.tagName).toBe('BUTTON');
 		expect(row?.getAttribute('type')).toBe('button');
-		row?.click();
-		expect(selectAndFrame).toHaveBeenCalledWith('zone-bath', false);
+
+		row?.focus();
+		for (const key of ['Enter', ' ']) {
+			const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+			row?.dispatchEvent(event);
+			expect(event.defaultPrevented).toBe(false);
+		}
 	});
 
 	it('keeps the focus and the Tab stop on the same room when rooms are added, removed and renamed around it', async () => {
@@ -391,5 +405,64 @@ describe('RoomSummaryList keyboard (one Tab stop)', () => {
 		await press('ArrowDown');
 		await wrapper.setProps({ records: FOUR.slice(0, 3) });
 		expect(tabStops()).toEqual([rowOf('zone-bath')]);
+	});
+
+	/**
+	 * `reconcile` moves the Tab STOP (a `tabindex` write) to a survivor, but nothing else moves
+	 * actual FOCUS — a plain `ref` write reaches no element — so it fell to `BODY` on removal
+	 * (L-46 review finding 2).
+	 */
+	it('moves FOCUS itself to the surviving stop when the focused room is removed', async () => {
+		const { wrapper, ready } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowDown');
+		expect(document.activeElement).toBe(rowOf('zone-terrace'));
+
+		await wrapper.setProps({ records: FOUR.filter((record) => record.id !== 'zone-terrace') });
+		expect(document.activeElement).toBe(rowOf('zone-bath'));
+	});
+
+	it('does not move focus on a removal when focus was outside the list to begin with', async () => {
+		const { wrapper, ready } = mountFour();
+		await ready;
+		expect(document.activeElement).toBe(document.body);
+
+		await wrapper.setProps({ records: FOUR.filter((record) => record.id !== 'zone-terrace') });
+		expect(document.activeElement).toBe(document.body);
+	});
+
+	it('a lock focused directly, not reached via ArrowRight, syncs the roving index to its own row', async () => {
+		const { ready } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowDown');
+		await press('ArrowDown');
+		await press('ArrowDown');
+		expect(document.activeElement).toBe(rowOf('zone-hall'));
+
+		// A pointer click on a DIFFERENT row's lock, bypassing ArrowRight entirely — the roving
+		// index must follow it rather than staying on the row ArrowDown last visited.
+		document.querySelector<HTMLElement>('[data-rp-lock="zone-kitchen"]')?.focus();
+		await nextTick();
+		await press('ArrowDown');
+		expect(document.activeElement).toBe(rowOf('zone-terrace'));
+		expect(tabStops()).toEqual([rowOf('zone-terrace')]);
+	});
+
+	it('consumes a plain ArrowRight and ArrowLeft on a row', async () => {
+		const { ready } = mountFour();
+		await ready;
+		rowOf('zone-terrace')?.focus();
+
+		const right = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+		rowOf('zone-terrace')?.dispatchEvent(right);
+		expect(right.defaultPrevented).toBe(true);
+		expect(document.activeElement).toBe(document.querySelector('[data-rp-lock="zone-terrace"]'));
+
+		const left = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true });
+		document.activeElement?.dispatchEvent(left);
+		expect(left.defaultPrevented).toBe(true);
+		expect(document.activeElement).toBe(rowOf('zone-terrace'));
 	});
 });

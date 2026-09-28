@@ -10,9 +10,9 @@ marks it ready, tags it or publishes it without asking the user.**
 
 | | |
 |---|---|
-| HEAD | **A hand-off cannot name its own sha.** Confirm it: `gh run list --branch renovation-planner-asset-designer-bc5539 --limit 4 --json databaseId,workflowName,headSha,status,conclusion`, then read BOTH workflows (CI and E2E) by run id. At the moment this file was written, HEAD was `7bb94a45b1fb54f58f677932e26d757bc7ca5bda` (Task 8's commit) with CI run `36476196439` and E2E run `36476196536` both still `queued` — neither had reported. Re-check before trusting either. |
+| HEAD | **A hand-off cannot name its own sha.** Confirm it: `gh run list --branch renovation-planner-asset-designer-bc5539 --limit 4 --json databaseId,workflowName,headSha,status,conclusion`, then read BOTH workflows (CI and E2E) by run id. This file's parent commit was `7bb94a45b1fb54f58f677932e26d757bc7ca5bda` (Task 8's commit); CI run `36476196439` and E2E run `36476196536` are THAT sha's runs, not necessarily HEAD's — re-check status by run id rather than trusting a status recorded here. Last green at the time of writing was `716fe264685b33303da561c53f3a115cd5327dd0`; everything after it is docs-only. |
 | Last green sha | `716fe264685b33303da561c53f3a115cd5327dd0` (Tasks 1–6 plus the AD18-R34 CSS fix, no case-file or MANUAL-PASS edits yet) — CI run `36471871811` and E2E run `36471871858`, both `success`, confirmed by reading the run ids directly |
-| `origin/main` | Last merged at `61fbf1588` (PR #238). `git merge-base HEAD origin/main` printed the same sha, so this branch carries nothing origin/main does not have and origin/main has moved nothing since. Fetch and re-check before assuming that still holds; ask the user before merging |
+| `origin/main` | Last merged at `61fbf1588` (PR #238). `git merge-base HEAD origin/main` printed the same sha as origin/main's own tip: the branch is up to date with origin/main (merge-base = its tip, `61fbf1588`) and 515 commits ahead of it (`git rev-list --count origin/main..HEAD` = 515, all of PR #230). Fetch and re-check before assuming that still holds; ask the user before merging |
 
 ## The next session's job: walk the 22 human steps
 
@@ -45,7 +45,7 @@ mutation that proves each guard, one row per clause.
 | Take an asset from the library into a plan | 23 | "Edit shape" (library) vs. "Open in designer" (plan) reading as one destination under two names | none — no property any instrument could hold |
 | Compose an asset from parts | — | **none left.** Every clause in this case is closed | — |
 | Calibrate a sheet and reserve space | 29 | whether the notice reads as belonging to the Clearance block above it, or as a fourth unnamed block. **Re-asked in full under AD18-R33** — the 2026-09-19 walk's answer is not carried forward, since the block has had rounds since | none — no instrument for either clause |
-| Calibrate a sheet and reserve space | 32 | whether a screen reader announces the review notice (three of its four clauses — live region, Tab order, computed name — are closed and now also read off Chromium's own AX tree) | `assetDesignerAxTree.e2e.ts` (AX-tree read: `live: polite`, review text, button name) |
+| Calibrate a sheet and reserve space | 32 | whether a screen reader announces the review notice (three of its four clauses — live region, Tab order, computed name — are closed; two of them, the live region and the name, now also read off Chromium's own AX tree) | `assetDesignerAxTree.e2e.ts` (AX-tree read: `live: polite`, review text, button name) |
 | Recover an asset design rather than lose it | 6 | whether Obsidian raises the repair unprompted at all ("on its own, before you drag") — the plugin's own bound-and-clear half is closed and cited | none — `recovery.ts`'s `noticeAfterEdit` records `hostMs` and asserts no bound on it; measured 13–18ms and 1–5ms quiet, 15s with no reconcile once under load. This is a host fact, not a `src/` code path |
 | Recover an asset design rather than lose it | 8 | whether Obsidian raises the write event unprompted at all ("within about a second") — same shape as step 6 | none — same `hostMs` mechanism |
 | Recover an asset design rather than lose it | 20 | would a user know, from what is on screen, that the undo half-succeeded and the vault is inconsistent | none |
@@ -55,7 +55,7 @@ mutation that proves each guard, one row per clause.
 | Browse the asset library | 3 | the five outline-state marks distinguishable to an eye at 20px | `assetLibraryMarkPixels.e2e.ts` (pairwise pixel-diff at 20px, 1x and 2x) |
 | Browse the asset library | 11 | "no intermediate width at which the panel is unusable" | `assetLibraryWidthSweep.e2e.ts` (strict clip/overflow/overlap sweep from 460px up — see AD18-R34 below) |
 | Browse the asset library | 17 | whether the whole note is readable, or it is obvious how to read it | none — the case's own acceptance criterion marks this open by design |
-| Browse the asset library | 33 | "noticeably" fainter than a real design's mark (the same-stroke-weight clause is now closed by `assetTileStrokeParity.test.ts`) | `assetLibraryLegibility.e2e.ts` (contrast-relation floor, faint vs. muted token) |
+| Browse the asset library | 33 | "noticeably" fainter than a real design's mark (the same-stroke-weight clause is now closed by `assetTileStrokeParity.test.ts`) | `assetLibraryLegibility.e2e.ts` (icon-line contrast below mark-line contrast, both themes) |
 
 **Walk every one of them in a real vault** (`npm run test-build`, into this repository, which is a
 vault). Fill each case's own Runs table and Outcome section — **an aggregate "looks good" is not a
@@ -81,12 +81,12 @@ closing what the rulings authorized — narrowly.**
   `src/` mutation able to redden it on this host version) and retagged `e2e`; Recover 6/8's host
   timing stays a recorded measurement, not an assertion; Calibrate 29 re-asked in full.
 - **AD18-R34** (2026-09-28, a day later): Task 5's Browse 11 width-sweep guard, unmutated, went red
-  on real Linux CI (E2E run `36345605529`, both desktop shards) at a 568px library container that
+  on real Linux CI (E2E run `36345605529`, 1.13.7 and latest, desktop shard 1/2) at a 568px library container that
   Windows never reaches — the Create-your-own card's `New asset` button overhung the rail. Ruled:
   fix the CSS, not the guard. `styles/asset-library-grid.css`'s create-card rules now wrap the body
   and the button before either can overhang; the guard's one prior tolerance for that fault is gone,
   so it is strict with nothing exempt.
-- **Six build tasks**, each independently reviewed (one to three fix rounds apiece): Task 1
+- **Six build tasks**, each independently reviewed (zero to three fix rounds apiece): Task 1
   (`9a89cb4e2`) — the two suite-only D gaps, Design 89's macOS label and Browse 33's stroke parity.
   Task 2 (`f25503971`, fix `53aedcbae`) — the AX-tree reads for Design 88b (discharge) and Calibrate
   32 (guard), new `tests/e2e/axTree.ts`. Task 3 (`2b9332b9e`, `f88169e1a`) — Design 92's
@@ -109,8 +109,10 @@ closing what the rulings authorized — narrowly.**
 (both DISCHARGE rulings). Recover 2 and Browse 31 left it too, but not because a test settles the
 human judgement — each is a HOST-PIN: the clause was already asserted by an existing e2e case, and
 the audit could find no `src/` mutation able to turn it red on Obsidian 1.13.7, so the mutation gate
-itself cannot keep it open. Every OTHER new test built this round is a guard: it narrows what a
-walker has to judge by eye, but the step it sits beside stays on the list above.
+itself cannot keep it open. Every other new **e2e** test is a guard: it narrows what a walker has
+to judge by eye, but the step it sits beside stays on the list above. Task 1's two vitests are the
+exception: each discharges a whole **D** clause without moving a step, because that step keeps its
+tier on a different clause (Design 89's B clause, Browse 33's remaining P and C clauses).
 
 ## Known behaviour: the walk must NOT file these as new defects
 
@@ -164,18 +166,13 @@ Carried forward, still open:
 - Still open from earlier rounds: `unrecoveredWrite` is drawn on no designer surface; the browser
   harness never calls `activateNotices()`; `arcArc`'s residual cusp class; the held-drag ceiling.
 
-**This round's own items** (`round7-minors.md`; the final review dispatched on
-`cecb332b7..7bb94a45b` may still resolve some of these — they are written here as recorded, not
-fixed, and left for that review to reconcile):
+**This round's own items** (`round7-minors.md`, reconciled by the final review dispatched on
+`cecb332b7..7bb94a45b`: two items were fixed in that review's fix wave and two were found not to be
+defects, both dropped from this list; the five below are the ones the review recorded rather than
+fixed):
 
-- `platformModifier.ts` / `platformModifier.test.ts`'s docblock says "no caller yet", while
-  `designerMenu.ts` calls `modifierLabel()` — pre-existing, found by Task 1's review.
-- Task 4's fallow run flagged a clone between `assetDesignerLegibility.e2e.ts` and
-  `assetDesignerWalkHost.e2e.ts`.
 - Task 2's clock hook is duplicated between `assetDesignerAxTree.e2e.ts` and the parity case, below
   fallow's duplication threshold.
-- Task 2's Calibrate 32 button-name AX read repeats what `designerClearanceReviewName.test.ts`
-  (jsdom) already checks.
 - `styles/asset-library-grid.css`'s create-card action rule carries a redundant `max-width: 100%`
   (frees a line at the partial's 399/400-line cap).
 - The wrapped create-card state (icon on its own row, two-line button) has never been looked at in a
@@ -183,7 +180,6 @@ fixed, and left for that review to reconcile):
 - An optional "button stays within its card" relation would widen the AD18-R34 revert mutation's red
   band on Windows; not built.
 - Task 6's pixel-diff headroom is thin at 1x: the weakest pair measured 0.268 against a 0.1 floor.
-- Task 7b's case-file edit has a curly vs. straight apostrophe in one quoted test title.
 
 ## Machine lessons
 
@@ -229,8 +225,8 @@ Carried forward, still true:
 
 ## The rule this session paid for
 
-**A task brief's own premises are claims too, and this round found five of them false at the point
-of building.**
+**A task brief's own premises are claims too, and this round found four of them false at the point
+of building — plus a fifth false claim in one of the build's own metrics, not a brief's premise.**
 
 - **Task 2's brief called Design 88b's second moment "the midnight rollover".** The step's own row
   asks for the visible text to advance to "Saved N min ago" — the minute tick, not midnight. Midnight

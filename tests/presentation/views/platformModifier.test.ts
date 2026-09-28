@@ -1,11 +1,10 @@
 /**
  * @vitest-environment jsdom
  *
- * `modifierLabel()` has no caller yet — the foot legend that reads it is Task 9's — but it
- * shares this module and its one mocked flag (`Platform.isMacOS`) with `opensNote()`, which
- * Task 8 does call. This repository's coverage floors leave no headroom for an untested
- * function, so both are pinned here rather than left for whichever task finally calls the
- * second one.
+ * `modifierLabel()` now has two callers — `ProjectList.vue`'s foot-line key legend and
+ * `designerMenu.ts`'s canvas-menu shortcut labels — and shares this module and its one mocked
+ * flag (`Platform.isMacOS`) with `opensNote()`. This repository's coverage floors leave no
+ * headroom for an untested function, so both are pinned here.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { Platform } from 'obsidian';

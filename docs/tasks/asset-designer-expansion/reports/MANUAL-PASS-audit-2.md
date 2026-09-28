@@ -1,5 +1,8 @@
 # MANUAL-PASS audit 2: the 26 human steps against new instruments
 
+**Ruled 2026-09-27 as AD18-R30 to R33 (plus R34 on 2026-09-28); built and applied in round 2 — see
+`AD18-walk-automation-evidence.md`.** The body below is the pre-ruling snapshot and is left as read.
+
 **Date:** 2026-09-27. **Tree:** `cecb332b7` (CI 36313125464 and E2E 36313125670 green on it).
 **Method:** [`auditing-manual-test-cases`](../../../../.claude/skills/auditing-manual-test-cases/SKILL.md),
 binding. Scope is the 26 steps the first audit

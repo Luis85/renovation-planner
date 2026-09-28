@@ -65,8 +65,8 @@ case here guards against for the other six.
 
 **The table below is the 2026-09-25 snapshot this pass carried before this round's retag** —
 111/19/23/27/33/8/20, summing to 241 — kept as the record of how the walk grew to that number.
-"AD18-R26 to AD18-R29", further down, has the current per-case numbers (11/1/0/2/5/1/6, summing to
-26) and is where a reader wants the count from today.
+"AD18-R30 to AD18-R34", further down, has the current per-case numbers (9/1/0/2/4/1/5, summing to
+22) and is where a reader wants the count from today.
 
 | Case | Human steps (2026-09-25) | Of total | Discharges |
 |---|---|---|---|
@@ -677,7 +677,7 @@ Linux CI (AD18-R34):
   keep their human tier. **Calibrate 29 is re-asked in full**: the 2026-09-19 walk's answer to its
   first clause is not carried forward as settled, since the Clearance block has had rounds since.
 - **AD18-R34** (2026-09-28): Task 5's Browse 11 guard, unmutated, went red on real Linux CI (E2E run
-  36345605529, both desktop shards) at a 568px library container Windows never reaches — the
+  36345605529, 1.13.7 and latest, desktop shard 1/2) at a 568px library container Windows never reaches — the
   Create-your-own card's `New asset` button overhung the rail and its last glyph was cut. Ruled: fix
   the CSS. `styles/asset-library-grid.css`'s create-card rules now let the button wrap before it can
   overhang, and the guard's one tolerated fault is gone — it is strict, with nothing exempt, and
@@ -695,8 +695,9 @@ AD18-R26-R29 section.
   (`assetDesignerLegibility.e2e.ts`/`assetDesignerGeometry.e2e.ts`/`assetDesignerPresetPixels.e2e.ts`)
   and keep their tier — each still has a "legible"/"reads as"/"enough room" residue no instrument
   settles. Step 89's row is corrected from "Cmd+G" to "⌘+G" and cites
-  `designerContextMenuMac.test.ts`'s GUARD; the step stays `obsidian` because a real Mac's Obsidian
-  taking that arm is still unverified here. **Kept human (9):** 7, 56, 57, 70, 89, 103, 104, 109, 121
+  `designerContextMenuMac.test.ts`'s DISCHARGE of the ⌘-label clause; the step stays `obsidian` on
+  its separate B clause — a real Mac's Obsidian taking that arm is still unverified here. **Kept
+  human (9):** 7, 56, 57, 70, 89, 103, 104, 109, 121
   — unchanged from the 11 apart from 88b and 92 leaving.
 - **[[Calibrate a sheet and reserve space]] stays at 2.** Step 29 is re-asked in full under
   AD18-R33 rather than resting on 2026-09-19's answer; step 32 gains
@@ -744,9 +745,9 @@ Recover 2, Browse 31); every other step below kept its residue exactly as AD18-R
 it, now with a GUARD citation where this round built one.
 
 - **Screen reader (1):** Calibrate 32 — three of its four clauses are closed by real tests (the live
-  region, real Tab reachability, the exact computed name, now also read off Chromium's own
-  accessibility tree); the live announcement itself, to real assistive technology, still has no
-  instrument anywhere.
+  region, real Tab reachability, the exact computed name); two of them (the live region, the name)
+  now also read off Chromium's own accessibility tree; the live announcement itself, to real
+  assistive technology, still has no instrument anywhere.
 - **Legibility and "reads as" (10):** Design 7 (the scale bar's own readability, now with a 3:1 floor
   beside it), 57 (a preset thumbnail read as "recognisably not" a different one, now with a pixel-diff
   floor beside it), 70 (whether a crowded dimension number is READABLE, now with a 4.5:1/font-size
@@ -764,7 +765,7 @@ it, now with a GUARD citation where this round built one.
 - **Open host clauses, recorded rather than built (3):** **Recover 6 and 8**, each for the plugin's
   own half being closed and cited while whether the HOST raises the change unprompted at all stays a
   recorded measurement (13–18 ms and 1–5 ms on two runs, 15 s with no reconcile once under load) rather
-  than an assertion; **Design 89**, whose Cmd+G-on-macOS clause needs a leg this project has no way to
+  than an assertion; **Design 89**, whose real-Mac ⌘ clause needs a leg this project has no way to
   run, unchanged by AD18-R31's own decision not to build one.
 
 ## What a driven Obsidian already walks — read this before walking anything
@@ -778,9 +779,9 @@ reaches it.
 **That table stopped being read-only reference on 2026-09-26.** AD18-R26 to AD18-R29 (above) read
 every one of those tables clause by clause and retagged a step out of the human count the moment
 none of its clauses was left open. **Two sentences this replaces are no longer true and are not
-repeated**: "the human pass is those `none —` rows, not the 241 above" — the human pass is now the
-26 steps named above, and it IS drawn from those tables; and "the count above is deliberately NOT
-recomputed from the tables" — recomputing it from exactly those tables, clause by clause, is what
+repeated**: "the human pass is those `none —` rows, not the 241 above" — the human pass is the
+steps the counting command prints (22 on 2026-09-28), and it IS drawn from those tables; and "the
+count above is deliberately NOT recomputed from the tables" — recomputing it from exactly those tables, clause by clause, is what
 AD18-R28's retag did. A step half-automated is still a step somebody opens, which is why the retag
 is per STEP and not per clause — that half of the old sentence still holds.
 

@@ -40,9 +40,19 @@ export async function atPixelRatio<T>(browser: NativeBrowser, ratio: number, rea
  * selector the shipped stylesheet draws it with still matches. Every picture a guard compares is
  * therefore drawn at the same spot and the same device-pixel phase — in its own row, a 1 px line
  * half a pixel off rasterises as two half-strength pixels where a copy one row down draws one full
- * one, which reads as a different drawing (CI run 36345605529 read two copies of one mark 26 px
- * apart; its ratio was not recorded, 1 is expected there). So the picture is the shipped markup
- * under the shipped stylesheet, drawn at a fixed spot rather than in its row.
+ * one, which reads as a different drawing: a copy staged 0.5 px low read 8 px apart from its twin
+ * at a ratio of 1, in a deliberate experiment. That is a MEASURED hazard, not one CI has hit — see
+ * the next paragraph for what CI hit. So the picture is the shipped markup under the shipped
+ * stylesheet, drawn at a fixed spot rather than in its row.
+ *
+ * The copy is taken only while the element matches `state`, checked in the same synchronous step
+ * that clones it and retried until it does (10 s): what is photographed is a static snapshot of
+ * that state, which nothing can re-render afterwards. Without it a mark the library re-reads at the
+ * wrong moment is photographed as *not yet read*, and that is what BOTH of CI's red runs were (runs
+ * 36345605529 and 36476196536, `[0, 26, 0]` each): the Reading chair's unscaled control copy
+ * byte-identical to the case's own held pending capture, after every class had been polled correct.
+ * Replaying it — a re-read held across that one capture — reads `[0, 32, 0]` with no `state` and
+ * passes with it.
  *
  * What the stage does NOT carry, and why none of it can turn a mutation green: the host row's or
  * card's own background (the stage's is `--background-primary`), clipping by an ancestor's
@@ -54,11 +64,11 @@ export async function atPixelRatio<T>(browser: NativeBrowser, ratio: number, rea
  * Captured through CDP's own `Page.captureScreenshot`, clipped to the box (CSS px in, device px
  * out), and written to the case's evidence folder as `<name>.png`; the copy is removed after.
  */
-export async function capture(browser: NativeBrowser, selector: string, directory: string, name: string): Promise<string> {
-	const clip = await browser.execute((sel) => {
+export async function capture(browser: NativeBrowser, selector: string, directory: string, name: string, state = '*'): Promise<string> {
+	const staged = () => browser.execute((sel, wanted) => {
 		const element = document.querySelector(sel);
 		const leaf = element?.closest('.workspace-leaf-content');
-		if (!element?.parentElement || !leaf) return null;
+		if (!element?.parentElement || !leaf || !element.matches(wanted)) return null;
 		const { width, height } = element.getBoundingClientRect();
 		const copy = element.cloneNode(true) as SVGElement | HTMLElement;
 		// Property by property, so an inline style the shipped element carries reaches the copy too.
@@ -83,8 +93,14 @@ export async function capture(browser: NativeBrowser, selector: string, director
 		stage.style.top = `${String(2 * target.y - placed.top)}px`;
 		const landed = stage.getBoundingClientRect();
 		return { x: landed.left, y: landed.top, width: wide, height: tall, scale: 1 };
-	}, selector);
-	if (!clip) throw new Error(`Nothing to capture at ${selector}.`);
+	}, selector, state);
+	const deadline = Date.now() + 10_000;
+	let clip = await staged();
+	while (!clip && Date.now() < deadline) {
+		await browser.pause(100);
+		clip = await staged();
+	}
+	if (!clip) throw new Error(`Nothing matching ${state} to capture at ${selector}.`);
 	try {
 		if (!Number.isInteger(clip.x) || !Number.isInteger(clip.y)) throw new Error(`The stage landed off whole pixels, at ${String(clip.x)}, ${String(clip.y)}.`);
 		const { data } = (await browser.sendCommandAndGetResult('Page.captureScreenshot', { format: 'png', clip })) as { data: string };

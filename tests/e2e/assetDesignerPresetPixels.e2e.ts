@@ -20,9 +20,9 @@ describe('Design an Asset, the vanity\'s card as painted in the real Obsidian ho
 	 * whole-pixel spot (`capture` in `pixels.ts`), and compared as drawings (`difference`: each
 	 * picture's ink against its own background, so a pressed card's colour is not a difference):
 	 * more than `DISTINCT` of the pixels either inks differ, at a device pixel ratio of 1 and of 2
-	 * whatever the machine's own. Staging is what makes the relation hold at 1: in their own cards
-	 * the two sit at different x, and a sub-pixel phase difference alone reads as a different
-	 * drawing. The existing *offers the vanity under Bathroom…* case asserts the two cards' path data
+	 * whatever the machine's own. Staging keeps a sub-pixel phase out of the relation: in their own
+	 * cards the two sit at different x, and at a ratio of 1 a half-pixel phase alone was measured to
+	 * read as a different drawing (`capture`'s docblock). The existing *offers the vanity under Bathroom…* case asserts the two cards' path data
 	 * differ, which two drawings rendering the same pixels also satisfy. WHAT STAYS HUMAN:
 	 * "recognisably" — whether a person tells the vanity from the washbasin at 48 px at a glance,
 	 * which is about what the difference IS (a wider cabinet, a dashed carcass), not how much of it

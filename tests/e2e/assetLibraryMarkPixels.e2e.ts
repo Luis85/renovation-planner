@@ -82,17 +82,19 @@ const releaseRead = (browser: NativeBrowser) =>
 describe('Browse the asset library, the row marks as painted in the real Obsidian host', () => {
 	/*
 	 * Step 3, "five distinguishable pictures … at 20px". GUARD (AD18-R30). Each of §3.4's five
-	 * states taken off a real List row in the same run, STAGED at one whole-pixel spot (`capture` in
-	 * `pixels.ts`) and read at a device pixel ratio of 1 and of 2 whatever the machine's own — measured, unscaled, none and unreadable
-	 * at rest, and not-yet-read HELD by stalling the host's read of one sidecar — and every pair
+	 * states taken off a real List row in the same run, each copied only while its row draws that
+	 * state and STAGED at one whole-pixel spot (`capture` in `pixels.ts`), and read at a device pixel
+	 * ratio of 1 and of 2 whatever the machine's own — measured, unscaled, none and unreadable at
+	 * rest, and not-yet-read HELD by stalling the host's read of one sidecar — and every pair
 	 * compared as drawings (`difference` in `pixels.ts`: each picture's ink against its own
 	 * background, so a colour difference alone does not count, which is §3.4's own rule that the
 	 * states differ in kind and never only in colour): more than `DISTINCT` of the pixels either
 	 * inks differ. Two rows each of measured, unscaled and none are compared too, and must answer the
 	 * same drawing — without that, a capture misaligned between pictures would read as "different"
-	 * and the guard would pass on noise. In their own rows it did: CI run 36345605529 read the two
-	 * unscaled rows 26 px apart (its ratio was not recorded; 1 is expected on xvfb, and each run's
-	 * evidence now records it), which is why every picture is staged. `assetMark.test.ts` asserts
+	 * and the guard would pass on noise. It has caught its own instrument twice: CI runs 36345605529
+	 * and 36476196536 read the two unscaled rows 26 px apart because one copy was taken while a late
+	 * re-read had put that row back to *not yet read* — which is why each copy now waits for its
+	 * state (`capture`'s docblock carries the account). `assetMark.test.ts` asserts
 	 * five distinct classes and the per-state drawings; this is whether they PAINT differently at
 	 * 20px. WHAT STAYS HUMAN: "distinguishable to an eye that has not been told" what to look for,
 	 * which is about what each difference is (a dash, three dots, a cross), not how much of it there
@@ -111,7 +113,9 @@ describe('Browse the asset library, the row marks as painted in the real Obsidia
 		await expect.poll(kinds).toEqual(Object.values(expected).map((kind) => `rp-al-mark rp-al-mark--${kind}`));
 
 		const native = await browser.execute(() => window.devicePixelRatio);
-		const shot = (assetId: string, ratio: number, name = assetId) => capture(browser, mark(assetId), directory, `mark-${name}@${String(ratio)}x`);
+		// Each copy is taken only while its row draws `kind` (`capture`'s `state`), so a late re-read cannot slip a pending mark in.
+		const shot = (assetId: string, ratio: number, kind = expected[assetId] ?? '') =>
+			capture(browser, mark(assetId), directory, `mark-${kind === 'pending' ? 'pending' : assetId}@${String(ratio)}x`, `.rp-al-mark--${kind}`);
 		const rest = (ratio: number) =>
 			atPixelRatio(browser, ratio, async () => {
 				const resting = { measured: await shot(toilet, ratio), unscaled: await shot(SOFA, ratio), none: await shot(VANITY, ratio), unreadable: await shot(PAINT, ratio) };

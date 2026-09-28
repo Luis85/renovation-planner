@@ -19,18 +19,18 @@
  */
 /*
  * **Every class below is on `messageEl` or inside it, and `containerEl` carries none.** The
- * severity label, the message and the dismiss button are appended to Obsidian's `messageEl`,
+ * severity label, the message, any action and the dismiss button are appended to Obsidian's `messageEl`,
  * which is a CHILD of `containerEl` — so `display: flex` on the container would make
- * `messageEl` the only flex item and do nothing for the three elements it was written for.
+ * `messageEl` the only flex item and do nothing for the elements it was written for.
  * `gap` would apply to nothing, the message's `flex: 1` would be inert, and the two adjacent
  * spans carry no whitespace between them, so a warning would render as
  * `Warningcheck the calibration`.
  *
  * `.rp-notice` and `.rp-notice-<severity>` appear here only as ANCESTORS, and they are that
  * same `messageEl` — `notify.ts` moved them off `containerEl`, whose identity Obsidian's
- * typings do not settle, and every rule below survives that because all five styled
- * descendants are appended into it: the label, the message and the dismiss button directly,
- * and the severity mark inside the label. See that module's header for the whole argument.
+ * typings do not settle, and every rule below survives that because every styled
+ * descendant is appended into it: the label, the message, the action when there is one and
+ * the dismiss button directly, and the severity mark inside the label. See that module's header for the whole argument.
  *
  * This repository has that exact rendering defect in its ledger already — the harness index's
  * rows read `ZonePanelprototype` because Vue's whitespace handling removed the separator
@@ -228,8 +228,28 @@
  * Tracker row L-37's action — "Show diagnostics report" on a notice whose sentence names the
  * report. Obsidian's own button chrome and focus ring are kept deliberately, which is why this
  * rule resets nothing: it is the notice's one labelled control and should read as a button.
- * Unverified by anything automated here, for the reasons this file's header gives.
  */
 .rp-notice .rp-notice-action {
 	flex: 0 0 auto;
+}
+
+/*
+ * **A notice carrying an action WRAPS, or a phone loses the message.** Obsidian's `button` is
+ * `white-space: nowrap`, so the action cannot shrink (about 163 px in English, 173 px in
+ * German), and on one row the message's `min-width: 0` let it give up almost everything:
+ * measured in the pinned Chromium against the vendored `obsidian.css`, with this element 300 px
+ * wide and none of Obsidian's `.notice` padding (that sheet has no `.notice` rule), the message
+ * was 36 px wide in English and 22 px in German, one word per line. With these two rules it is
+ * 239 px and 235 px, the two buttons on a row of their own; a notice without an action measured
+ * identical before and after. The message's 60% basis is what forces that second row.
+ *
+ * Scoped with `:has` so a notice with only its `×` keeps the one row it always had. No gate
+ * measures this layout — `noticeAction.test.ts` pins the two declarations, not their effect.
+ */
+.rp-notice-body:has(.rp-notice-action) {
+	flex-wrap: wrap;
+}
+
+.rp-notice-body:has(.rp-notice-action) .rp-notice-message {
+	flex: 1 1 60%;
 }

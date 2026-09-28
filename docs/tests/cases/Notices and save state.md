@@ -93,6 +93,7 @@ the five values and what they do not claim.
 | 22 | `obsidian` | With the calibration tool active (Layers ▸ **Reference plan** ▸ **Set scale**), click **twice in the same place** on the canvas | The anchor marker comes off AND an error notice says the calibration could not be taken. Nothing prompts for a distance | It used to do the first half only: the tool refused a zero-length measurement before prompting — which is right, and stays — and then returned **silently**, discarding a point the user had placed with no reason given. Refusing before the prompt is deliberate: asking someone to measure a segment already known to be meaningless is worse than not asking |
 | 23 | `obsidian` | Break the vault read for the project list (rename the plugin's projects folder from outside Obsidian, say), then open the Renovation project view. Press **Try again**, then fix the folder and press it once more | The pane shows a failure panel with a **Try again** button, not the "create your first project" onboarding copy. The first press re-reads and fails again; after the fix, the panel is replaced by the real list | Slice 14 deferred this case to slice 17 by name and was emphatic why: onboarding copy shown because a read failed is actively misleading. jsdom covers the states; what a vault adds is that the retry really re-reads |
 | 24 | `desktop` | Corrupt `data.json` so the plugin cannot load its settings, reload Obsidian, then open both views | Both show a failure panel with **no** action button, and the settings tab explains what to fix | The bootstrap origin. Nothing that reads a configured location was composed, so there is nothing for a retry to re-run — slice 1 settled that recovery is a reload rather than a repair UI, and a button here would be a live control that does nothing |
+| 25 | `obsidian` | Raise `zone.listing-incomplete`: in a project with two or more rooms, make one room note unreadable from outside Obsidian (break its frontmatter), then in the Plan editor delete a room some requirement references and choose **Reassign**. Read the notice, press `Tab` until its **Show diagnostics report** button is focused, and press `Enter`; raise it again and press `Space`. Repeat with `app.emulateMobile(true)` run in the developer console, which draws the phone layout | The notice reads the sentence ending "Open the diagnostics report to see which notes refused." and carries a **Show diagnostics report** button beside `×`. Focus reaches the button with a visible ring; `Enter` and `Space` each open the diagnostics report once and the notice closes. At phone width the sentence keeps most of the notice's width and the two buttons sit on a row of their own | Tracker row L-37's action (`b493618b8` and its fix). jsdom proves the element, its name, one call and the dismissal; it synthesizes no click from a keydown, lays nothing out, and the harness cannot draw a notice. `asset.listing-incomplete` is the same button on the Asset library's delete; walking one is enough unless they differ. **Not walked** |
 
 ## Deliberately NOT checked
 
@@ -134,6 +135,12 @@ the five values and what they do not claim.
   stops there. A pass on the announcement itself would be a pass on one screen reader in one
   browser engine, and the contract's claim is about the class, so a step here would read as
   more evidence than it is.
+- **The report action on a notice (step 25), in any vault.** Unverified: how the button looks
+  inside Obsidian's `.notice` chrome, whether `Tab` reaches it inside `.notice-container`,
+  what a screen reader announces (the live region carries the sentence and not the button),
+  and the phone-width wrap, which was measured only in the pinned Chromium against the vendored
+  `obsidian.css` with no `.notice` padding. `noticeAction.test.ts` is the whole of what is
+  automated.
 - **Contrast ratios and hit-target sizes as NUMBERS.** Steps 7 and 12 are a legibility
   judgement. `.rp-notice-dismiss` declares a `var(--size-4-6)` floor against WCAG 2.2 2.5.8's
   24px; whether that variable resolves to 24px in a given theme is not asked here.
@@ -210,11 +217,11 @@ announcement. Step 3a is where it is checked by hand.
 
 | Date | Result | Findings |
 | --- | --- | --- |
-| — | — | Not yet run in a vault. Steps 17a–17d were written on 2026-09-16 with the incident-ownership change (`67f5acf9c`, `41d803611`, `2af92f8fd`) and have not been walked; every expectation in them is derived from the code and the node suite, and 17c's two questions are open by construction. Step 15a was written with the ruling-37 Geometry fix (`679b6075f`) and has not been walked either; its expectation is derived from `zeroAreaDrag.test.ts` and the node suite alone. |
+| — | — | Not yet run in a vault. Steps 17a–17d were written on 2026-09-16 with the incident-ownership change (`67f5acf9c`, `41d803611`, `2af92f8fd`) and have not been walked; every expectation in them is derived from the code and the node suite, and 17c's two questions are open by construction. Step 15a was written with the ruling-37 Geometry fix (`679b6075f`) and has not been walked either; its expectation is derived from `zeroAreaDrag.test.ts` and the node suite alone. Step 25 was written with tracker row L-37 (`b493618b8`) and has not been walked. |
 
-Steps 15a and 17a–17d are exceptions to the sentence below: 15a belongs to the ruling-37
-Geometry fix (`679b6075f`) and 17a–17d to the 2026-09-16 incident-ownership change, neither to
-slice 13 itself, and 17c asks a question about Obsidian rather than about this plugin.
+Steps 15a, 17a–17d and 25 are exceptions to the sentence below: 15a belongs to the ruling-37
+Geometry fix (`679b6075f`), 17a–17d to the 2026-09-16 incident-ownership change and 25 to
+tracker row L-37, none to slice 13 itself, and 17c asks a question about Obsidian rather than about this plugin.
 
 Anything on this list which does not work is a slice 13 defect, except the gaps above that
 are still open — item 3 alone, since items 1, 2 and 4 are closed — which are known and

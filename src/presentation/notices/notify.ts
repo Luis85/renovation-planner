@@ -236,7 +236,7 @@ const createObsidianHost = (announceInto: Regions): NoticeHost => ({
 
 		// Obsidian's own GLOBAL helpers rather than `document.createElement`, which the
 		// marketplace ruleset refuses (`obsidianmd/prefer-create-el`) — the same call
-		// `pdfRaster.ts` makes, and detached, since these three are appended below in one go.
+		// `pdfRaster.ts` makes, and detached, since they are appended below in one go.
 		// `createSpan` over `createEl('span', …)` because that ruleset refuses the second
 		// spelling too; both are measured rather than chosen, from what `npx eslint` reported.
 		const label = createSpan({ cls: 'rp-notice-severity' });
@@ -296,6 +296,15 @@ const createObsidianHost = (announceInto: Regions): NoticeHost => ({
 		 * it dismisses the notice FIRST and then runs the action, so the report does not open
 		 * underneath a notice still asking the user to open it. The click also bubbles to the
 		 * element's own dismissal listener, which is idempotent; `run` is called here only.
+		 *
+		 * It holds the notice while focused like `×` does. Every shipped action rides an untimed
+		 * severity, so today that hold is seen only by preemption (a focused warning is not the
+		 * one a new error displaces), which is how `noticeAction.test.ts` drives it.
+		 *
+		 * **Not closed:** disposal hides each notice, but a real `Notice` may fade rather than
+		 * detach at once, and this listener stays. A press in that window after `onunload` would
+		 * open a report of the unloaded session, since the plugin never clears its `root`.
+		 * Unmeasured — hide timing is a vault-only fact.
 		 */
 		const controls: HTMLElement[] = [dismiss];
 		if (view.action !== undefined) {
@@ -339,9 +348,9 @@ const createObsidianHost = (announceInto: Regions): NoticeHost => ({
 		// `grep -n "rp-notice" src/presentation/notices/notify.ts styles/notices.css` in this
 		// edit rather than remembered. The word's own span is the one element here carrying no
 		// class at all, for the reason its docblock gives. Both ancestors are THIS element now rather than `containerEl` (see the
-		// header), which every one of those rules survives because all four descendants are
+		// header), which every one of those rules survives because every descendant is
 		// appended here. The `display: flex` was always going to be here: on `containerEl` it
-		// would have made `messageEl` the only flex item and left the three children
+		// would have made `messageEl` the only flex item and left its children
 		// unseparated. Nothing here can show what they LOOK like: the vendored
 		// `tests/harness/obsidian.css` carries no `.notice` rule at all, so a notice drawn in
 		// the browser harness would have no position, no stacking and no chrome. The manual case

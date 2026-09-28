@@ -285,20 +285,30 @@ export class VaultChangeAdapter {
 	 * so the entity `processNote` had just removed kept receiving the writes. Unqualified,
 	 * the `??` never even reached the index lookup on this path.
 	 *
-	 * **And when neither knows one, it is RESOLVED from the vault** (owner ruling 41's
-	 * review, I1) — the rebuild's own join, through `promotedSidecarMapping`. A plan's
+	 * **And when neither knows one and the entry is NEW, it is RESOLVED from the vault** (owner
+	 * ruling 41's review, I1), through `promotedSidecarMapping`. A plan's
 	 * sidecar is written BEFORE its note, so a `.rpgeo` event processed while the note was
 	 * not yet indexed took `processSidecar`'s "no indexed plan" arm and recorded nothing,
 	 * and this upsert then listed a plan every geometry read refused. A settings swap
 	 * inside that create reaches it in either order (the handed-over list, or a note event
 	 * arriving at the new adapter after the adopted sidecar), which is why it is answered
-	 * here, after the note, rather than by ordering one flush. The cost is one walk of the
-	 * vault's files per plan or asset note that arrives with no known mapping.
+	 * here, after the note, rather than by ordering one flush.
+	 *
+	 * **NEW only, because the resolution is a walk of every file in the vault** inside one
+	 * synchronous flush: an entry already indexed under this id cannot have gained a sidecar
+	 * through an edit of its NOTE (a `.rpgeo` arriving is `processSidecar`'s to record), so a
+	 * sync burst re-touching shapeless assets must not pay a walk per note.
+	 * `sidecarResolutionWalks.test.ts` pins the count.
+	 *
+	 * **It is the rebuild's join only where the answer is unambiguous.** When two sidecars name
+	 * one plan (a copied folder) and its project is not indexed yet, there is no derived path to
+	 * prefer, so this takes the first in vault order where the rebuild takes the derived one —
+	 * exactly what `processSidecar` already does for the same reason. The next rebuild corrects it.
 	 */
 	private sidecarMappingOf(arriving: ProjectIndexEntry, existing: ProjectIndexEntry | undefined): string | undefined {
 		return (existing?.id === arriving.id ? existing.geometrySidecarPath : undefined)
 			?? this.deps.index.getGeometrySidecarPath(arriving.id)
-			?? promotedSidecarMapping(this.deps, arriving);
+			?? (existing?.id === arriving.id ? undefined : promotedSidecarMapping(this.deps, arriving));
 	}
 
 	private processSidecar(path: string): void {
@@ -342,7 +352,10 @@ export class VaultChangeAdapter {
 		// last step the plan is not indexed yet; a debounce landing in that window found our
 		// own sidecar and reported "no indexed plan carries this id" on a save that was
 		// working perfectly. The writer owns the mapping in that case, so there is nothing
-		// here to do and nothing to say.
+		// here to do and nothing to say. **Except across a settings swap** (ruling 41): the
+		// handed-over sidecar meets the NEW root's echo window, which never saw our write, so
+		// that save still logs `sidecar-skipped` here (and the new root's scan logs its own) —
+		// the plan is indexed correctly anyway, since `processNote` resolves the mapping.
 		//
 		// COARSER than the note path's check, and the sentence has to say exactly how: notes
 		// compare a DIGEST of the bytes on disk against the bytes written, while this compares

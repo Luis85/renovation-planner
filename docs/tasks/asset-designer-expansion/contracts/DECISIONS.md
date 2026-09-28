@@ -1839,6 +1839,14 @@ open. The user took four rulings in one batched round, every one as recommended:
 | **AD18-R32** — Design 92, "Obsidian's native menu opens, or nothing" | a disjunct no build can fail | **Reworded to "nothing opens: no designer menu, no Obsidian menu, native or DOM"** and built as one e2e case with the probe's renderer hooks (the `context-menu` event fired, no `Menu.buildFromTemplate`, no `.menu`), selection cleared, points clear of every part, hooks removed after |
 | **AD18-R33** — host pins, host timing and a recorded answer | Recover 2 and Browse 31 stay in the walk "by the mutation gate"; Recover 6/8's host timing is recorded, not asserted; Calibrate 29 clause 1 was answered on 2026-09-19 | **Recover 2 and Browse 31 count as discharged** and are retagged `e2e`; their cases stay as tripwires for a host change. **Recover 6/8's host timing stays a recorded measurement** (no bound asserted), so 6 and 8 stay human. **Calibrate 29 is re-asked in full** on the current build; the 2026-09-19 answer is not carried forward |
 
+**AD18-R34 — a defect the Browse 11 width guard found (2026-09-28).** On Linux CI (E2E run
+36345605529, both 1.13.7 and latest desktop shard 1), at a 568 px library container the Create-your-own
+card's `New asset` button overhangs the rail and the last glyph of its label is cut: the card body is
+`min-width: 0` and the button, under Obsidian's `white-space: nowrap`, neither wraps nor shrinks. Windows
+never reaches that width (a resize jumps 556 to 572), so no local run saw it. **Ruled by the user: fix
+the CSS** in `styles/asset-library-grid.css` so the card's content wraps at that width; the guard then
+passes strictly and pins the fix (reverting it must turn the guard red). No `src/` logic change.
+
 **Not authorized by these rulings, and asked for separately if needed:** a schema change, a stored
 field, a new runtime dependency or devDependency, AD17 or roadmap work, or any element of CLAUDE.md's
 *Deliberately absent* list.

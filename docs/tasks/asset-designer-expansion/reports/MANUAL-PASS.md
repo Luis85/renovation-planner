@@ -19,8 +19,9 @@ overlooked.**
 
 ## What the pass consists of
 
-**This pass now means the human steps only — 26 across seven cases, today. It was 241 before this
-round.** AD18-R26 to AD18-R29 (2026-09-26) audited every clause of every one of the 241 steps
+**This pass now means the human steps only — 22 across seven cases, today. It was 26 immediately
+after AD18-R26 to AD18-R29, and 241 before that round.** AD18-R26 to AD18-R29 (2026-09-26) audited
+every clause of every one of the 241 steps
 against the *Automated in Obsidian* tables, built what a vitest or a real host could still close,
 and retagged a step to a new `e2e` tier the moment none of its clauses is left open — needing
 Obsidian exactly as `obsidian` does, but discharged by a named test (vitest or `npm run test:e2e`)
@@ -30,9 +31,10 @@ a pre-existing test was audited by reading the test body, and only sampled by mu
 were mutated and 7 of those 29 did not go red, all seven since corrected. The counting command below
 has only ever matched `obsidian`, `desktop` and `judgement`, so an `e2e` step falls out of the total
 by construction rather than by anyone re-reading a table and deciding a row felt done. See
-"AD18-R26 to AD18-R29" further down for the per-case accounting and the new test files; the
+"AD18-R26 to AD18-R29" further down for the per-case accounting and the new test files, and
+"AD18-R30 to AD18-R34" beyond it for the second audit round that closed four more steps; the
 paragraphs between here and there are the history of how the count grew to 241 and are unchanged by
-this round.
+either round.
 
 **241**, re-derived on 2026-09-25 against the finished AD18-R24 tree (a second follow-up round
 triaging the AD18-R23 follow-up round's own recorded items at source: a false-refusal fix in core
@@ -40,9 +42,11 @@ geometry, a warning for a typed size that lands away from what was typed, and on
 disclosure-chevron rule), was itself measured rather than remembered, with the command run verbatim
 as it is printed — **do not trust either number; run the command.** The full series: it has been
 84, then 90, then 109, then 145, then 179, then 182, then 205, then 206, then 215, then 232, then
-241, and now **26** — every earlier move on this list was a session that had just shipped a
-feature and grown the walk to match it (or, three times, corrected a wrong count); this is the
-first move the other way, because this round shipped no feature at all, only an audit and a retag:
+241, then 26, and now **22** — every earlier move up to 241 was a session that had just shipped a
+feature and grown the walk to match it (or, three times, corrected a wrong count); the move to 26
+was the first move the other way, because that round shipped no feature at all, only an audit and a
+retag; the move to 22 is the second move the other way, for the same reason — a second clause audit
+(AD18-R30 to AD18-R34) that built proxies, one reworded clause and one CSS fix, not a feature:
 
 ```bash
 for f in "Design an Asset" "Take an asset from the library into a plan" \
@@ -632,6 +636,136 @@ table, and keep their tier for the ONE clause named here.
   history assertion cannot fail until Obsidian 1.13.7 starts recording leaf history for this view
   at all — the assertion PATTERN exists (`assetLibraryState.e2e.ts`) and is vacuous today by
   construction, not by an oversight.
+
+**AD18-R30 to AD18-R34 landed next — a second clause audit against instruments the first round did
+not try, and the reason the total moved once more, from 26 to 22.** This round shipped one CSS fix
+(AD18-R34) and otherwise no `src/` feature: session twenty-one's second audit
+([`MANUAL-PASS-audit-2.md`](MANUAL-PASS-audit-2.md)) read the 26 human steps AD18-R26 to AD18-R29 had
+left, against four candidate instruments a probe measured in a real Obsidian 1.13.7 on Windows —
+Chromium's accessibility tree over CDP (poll-only, since `Accessibility.nodesUpdated` never fired),
+Electron's native-menu hooks, clipped screenshots decoded and diffed in the renderer, and a macOS
+leg's package-level support (read only, nothing run there). It added a bucket, **P**
+(proxy-automatable): a measurement that settles a named part of a clause — a contrast ratio, a
+bounding-rect relation, a live-region property, a pixel difference — without settling the clause as a
+person reads it ("legible", "reads as detached", "distinguishable to an eye"). Whether a P
+discharges its clause was left to the user. Recounted from the per-case clause tables: 56 clauses
+across the 26 steps, 27 already A (two of them host pins no `src/` mutation can redden), 4 B
+(host-only facts), 11 C (no instrument at all), 2 D (a vitest or the browser harness could still
+close) and 12 P.
+
+The user ruled all four items in one batch, every one as the audit recommended (AD18-R30 to
+AD18-R33), plus a fifth ruling the next day once the new Browse 11 guard found a real defect on
+Linux CI (AD18-R34):
+
+- **The 12 P clauses all got built. One of them — Design 88b's AX-tree clause — DISCHARGES**
+  (AD18-R30): no live ancestor anywhere in the document is the clause itself, not a proxy for it, so
+  once a real accessibility tree confirms that, nothing is left over. **Every other P stays a
+  GUARD**: it closes a measurable part of its clause with a real test that has to pass the mutation
+  gate, but the "reads as" judgement stays with a person, so its step keeps its human tier.
+- **Design 89** (AD18-R31) gets a vitest for the ⌘ label with `Platform.isMacOS = true`, and the row
+  is rewritten from "Cmd+G" to "⌘+G" (CONTRARY, the build's own glyph). No macOS E2E leg is built; "a
+  real Mac takes the macOS arm" stays human residue.
+- **Design 92** (AD18-R32) is reworded from an unfalsifiable disjunct ("Obsidian's own native menu
+  opens each time, or nothing") to "nothing opens: no designer menu, no Obsidian menu, native or
+  DOM", and built as one e2e case with three renderer hooks plus a DOM scan. It DISCHARGES.
+- **Recover 2 and Browse 31** (AD18-R33) count as discharged: each is asserted today by a named e2e
+  case that sees exactly what a walker would see, and neither has a `src/` mutation that can turn its
+  test red — a chmod raises `raw` only with no plugin code reading it, and Obsidian 1.13.7 records no
+  leaf back/forward history for either view type at all. Both retag to `e2e`; their cases stay as
+  tripwires for a host change. **Recover 6 and 8's host-timing clause stays a recorded measurement**,
+  not an assertion — no `src/` mutation reaches a fact about the host's own file watcher — so both
+  keep their human tier. **Calibrate 29 is re-asked in full**: the 2026-09-19 walk's answer to its
+  first clause is not carried forward as settled, since the Clearance block has had rounds since.
+- **AD18-R34** (2026-09-28): Task 5's Browse 11 guard, unmutated, went red on real Linux CI (E2E run
+  36345605529, both desktop shards) at a 568px library container Windows never reaches — the
+  Create-your-own card's `New asset` button overhung the rail and its last glyph was cut. Ruled: fix
+  the CSS. `styles/asset-library-grid.css`'s create-card rules now let the button wrap before it can
+  overhang, and the guard's one tolerated fault is gone — it is strict, with nothing exempt, and
+  reverting the fix reddens it again.
+
+Six tasks built what the rulings authorized (`AD18-walk-automation-2-plan.md`), one per instrument
+family; a seventh pair (7a, Design an Asset; 7b, the other five cases) rewrote the case rows and
+retagged the four steps every one of whose clauses now discharges. `AD18-walk-automation-evidence.md`
+carries the mutation each of Tasks 1–6 built or closed, one row per clause, appended below its
+AD18-R26-R29 section.
+
+- **[[Design an Asset]] moved from 11 to 9.** Steps 88b and 92 retag to `e2e`
+  (`assetDesignerAxTree.e2e.ts`'s AX-tree case for 88b; `assetDesignerNoMenu.e2e.ts`'s three-hook case
+  for 92). Steps 7, 56, 57, 70 and 109 gain GUARD citations
+  (`assetDesignerLegibility.e2e.ts`/`assetDesignerGeometry.e2e.ts`/`assetDesignerPresetPixels.e2e.ts`)
+  and keep their tier — each still has a "legible"/"reads as"/"enough room" residue no instrument
+  settles. Step 89's row is corrected from "Cmd+G" to "⌘+G" and cites
+  `designerContextMenuMac.test.ts`'s GUARD; the step stays `obsidian` because a real Mac's Obsidian
+  taking that arm is still unverified here. **Kept human (9):** 7, 56, 57, 70, 89, 103, 104, 109, 121
+  — unchanged from the 11 apart from 88b and 92 leaving.
+- **[[Calibrate a sheet and reserve space]] stays at 2.** Step 29 is re-asked in full under
+  AD18-R33 rather than resting on 2026-09-19's answer; step 32 gains
+  `assetDesignerAxTree.e2e.ts`'s GUARD citation for the AX-tree reading and keeps its tier — the
+  spoken half of the announcement is still nobody's to test.
+- **[[Recover an asset design rather than lose it]] moved from 5 to 4.** Step 2 retags to `e2e`
+  under AD18-R33's host-pin ruling. Step 6's citation is corrected (the bowl's move is
+  `assetDesignerRecovery.e2e.ts`'s own assertion, not `assetDesignerRecoveryWalk.e2e.ts`'s, which
+  never reads `centre-x`); its host-timing clause is unchanged. Step 34 gains
+  `assetDesignerGeometry.e2e.ts`'s GUARD citation for the button's width and placement. **Kept
+  human (4):** 6, 8, 20, 34.
+- **[[Two designers on one asset]] and [[Take an asset from the library into a plan]] are
+  unchanged, at 1 each.** Neither case's sole human step (Two designers 10; Take 23) carries a B, D
+  or P clause — both are pure judgement with no instrument the second audit found either, and neither
+  file needed an edit this round.
+- **[[Browse the asset library]] moved from 6 to 5.** Step 31 retags to `e2e` under AD18-R33's
+  host-pin ruling. Step 3's overclaimed citation is corrected (the four PER-STATE drawing cases, not
+  the class-equality case the audit's M4 left green) and gains
+  `assetLibraryMarkPixels.e2e.ts`'s GUARD citation. Step 11 gains
+  `assetLibraryWidthSweep.e2e.ts`'s GUARD citation, now strict after AD18-R34, and the row records the
+  fix rather than excusing the guard. Step 33's own former citation is corrected — it had claimed the
+  stroke-weight clause was ALREADY asserted equal between the icon and the mark, which neither cited
+  test actually did (each compared its own side to a hand-typed literal); it now cites
+  `assetTileStrokeParity.test.ts`'s real equal-to-each-other discharge for that sub-clause, plus
+  `assetLibraryLegibility.e2e.ts`'s GUARD for "noticeably fainter". **Kept human (5):** 1, 3, 11, 17,
+  33.
+
+**Counting command, run against the tree this round left** (verbatim, from "What the pass consists
+of" above):
+
+```
+Design an Asset                               9
+Take an asset from the library into a plan    1
+Compose an asset from parts                   0
+Calibrate a sheet and reserve space           2
+Recover an asset design rather than lose it   4
+Two designers on one asset                    1
+Browse the asset library                      5
+```
+
+Sum: **22.**
+
+**What stays human, and why — the 22 by kind.** Four steps left this list this round (88b, 92,
+Recover 2, Browse 31); every other step below kept its residue exactly as AD18-R26 to AD18-R29 left
+it, now with a GUARD citation where this round built one.
+
+- **Screen reader (1):** Calibrate 32 — three of its four clauses are closed by real tests (the live
+  region, real Tab reachability, the exact computed name, now also read off Chromium's own
+  accessibility tree); the live announcement itself, to real assistive technology, still has no
+  instrument anywhere.
+- **Legibility and "reads as" (10):** Design 7 (the scale bar's own readability, now with a 3:1 floor
+  beside it), 57 (a preset thumbnail read as "recognisably not" a different one, now with a pixel-diff
+  floor beside it), 70 (whether a crowded dimension number is READABLE, now with a 4.5:1/font-size
+  floor beside it), 103, 104, 109 (whether a layout or an icon "reads as" its reference, 109 now with a
+  label-to-line geometry floor beside it); Browse 1, 3, 17 (an empty shelf reading as room, five marks
+  read as distinguishable at 20px — now with a pixel-diff floor beside it — a long note read whole);
+  Take 23 (two button labels read side by side, with no property any instrument could hold).
+- **Judgement with no pass condition (8):** Design 56 (drawing room at a sidebar width, now with a
+  90%-of-axis floor beside it), Design 121's comparative half; Calibrate 29 (re-asked in full, not
+  carried forward from 2026-09-19); Recover 20, 34 (whether a user would know the vault is
+  inconsistent; whether a button reads as an action, now with a width/placement floor beside it); Two
+  designers 10; Browse 11 ("no intermediate width is unusable", now with a strict clip/overflow/overlap
+  sweep beside it, after AD18-R34's fix), 33 ("noticeably fainter", now with a contrast-relation floor
+  beside it).
+- **Open host clauses, recorded rather than built (3):** **Recover 6 and 8**, each for the plugin's
+  own half being closed and cited while whether the HOST raises the change unprompted at all stays a
+  recorded measurement (13–18 ms and 1–5 ms on two runs, 15 s with no reconcile once under load) rather
+  than an assertion; **Design 89**, whose Cmd+G-on-macOS clause needs a leg this project has no way to
+  run, unchanged by AD18-R31's own decision not to build one.
 
 ## What a driven Obsidian already walks — read this before walking anything
 

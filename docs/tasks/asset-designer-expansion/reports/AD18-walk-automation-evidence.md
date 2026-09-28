@@ -1,4 +1,4 @@
-# AD18 walk-automation evidence (AD18-R26 to AD18-R29)
+# AD18 walk-automation evidence (AD18-R26 to AD18-R29, and round 2: AD18-R30 to AD18-R34)
 
 **What this is.** A compact, per-task, per-clause table of the mutation evidence Tasks 1–8 of this
 round produced, compiled from `.superpowers/sdd/task-{1..8}-report.md` (including each task's own
@@ -6,6 +6,14 @@ fix rounds, appended in the same file). Those reports live under `.superpowers/`
 gitignored (root `.gitignore:70`), so this file is the one committed copy of what they measured.
 It reproduces only what a report actually recorded — no mutation is invented or reconstructed for
 a row that has none.
+
+**A second round is appended below the first.** `MANUAL-PASS-audit-2.md`'s follow-up audit
+(AD18-R30 to AD18-R34) reused the same report paths, `.superpowers/sdd/task-{1..6,7a,7b}-report.md`
+— round 1's own Tasks 1–8 had already been folded into the section above before round 2's tasks
+wrote to those same gitignored filenames. The appended sections carry the same accounting for the
+six tasks `AD18-walk-automation-2-plan.md` built (Tasks 1–6); Task 7 (7a, 7b) retagged case rows and
+cited these tests by name, adding no mutation of its own, matching the convention below for round
+1's Tasks 9–11.
 
 **How to read a row.** *Mutation* is `file · change` (condensed from the report's own wording).
 *Outcome* is the new test's own result under that mutation, plus what the neighbour set did (a
@@ -240,3 +248,84 @@ view). It says nothing new about the far larger set of pre-existing bucket-A cla
 (Task 9–11) carried over from W23-A/W24-A's own tables — those were audited by reading, and
 `MANUAL-PASS-audit.md` records that 29 of them were sampled by mutation, with 7 of the 29 not
 holding (all seven since corrected, per the same audit). This file is not a re-audit of that set.
+
+---
+
+# Round 2: AD18-R30 to AD18-R34
+
+Authority: `MANUAL-PASS-audit-2.md`'s second clause audit and `AD18-walk-automation-2-plan.md`.
+Compiled from `.superpowers/sdd/task-{1..6}-report.md` as this round's own Tasks 1–6 left them
+(including each task's own fix rounds, appended in the same report file). Task 7 (7a, 7b) retagged
+case-file rows and cited these tests by name; it built no mutation of its own and has no table here.
+Every row below tags its clause **GUARD** (the step keeps its human tier; a "reads as"/spoken/real-Mac
+residue stays with a person) or **DISCHARGE** (AD18-R30 or AD18-R32 ruled the whole step retags to
+`e2e` once every clause is closed), per the same task reports' own language.
+
+## Task 1 (round 2) — the two suite gaps: Design 89's macOS label and Browse 33's stroke parity (bucket D)
+
+Commit `9a89cb4e2`. Files: `tests/presentation/designer/designerContextMenuMac.test.ts` (new),
+`tests/presentation/library/assetTileStrokeParity.test.ts` (new).
+
+| Step | Clause | Test | Mutation | Outcome |
+| --- | --- | --- | --- | --- |
+| Design 89 (GUARD) | the menu shows the macOS modifier on macOS | `designerContextMenuMac.test.ts` · *labels Group, Ungroup and Duplicate with ⌘, leaving Delete as Del* | `designerMenu.ts` · the `items` computed's `mod = modifierLabel()` hard-coded to `mod = 'Ctrl'` | **RED** — expected `['⌘+G','⌘+Shift+G','⌘+D','Del']`, got the Ctrl-labelled array. Neighbours `designerContextMenu.test.ts` and `platformModifier.test.ts` stayed GREEN (34 passed). A wider first-pass mutation directly on `modifierLabel()` had also reddened `platformModifier.test.ts`'s own assertion of that function — a different clause sharing the mutated line, not a duplicate of this one — which is why the gate mutation above targets the call site instead. |
+| Browse 33 (GUARD) | same stroke weight as the mark, not thinner | `assetTileStrokeParity.test.ts` · *declares the same stroke weight as the mark, not a separately hand-pinned one* | `styles/asset-library-grid.css` · `.rp-al-mark`'s `stroke-width` `1.5px` → `2px` | **RED** — magnitude 2 against 1.5. Neighbour `assetTileStyles.test.ts`'s own *holds the icon's stroke at the mark's own 1.5px…* case stayed GREEN (it checks each side against the hand-typed literal `'1.5'`, never against each other) — the exact D gap the audit named. |
+
+## Task 2 (round 2) — the accessibility tree: Design 88b (discharge) and Calibrate 32 (guard)
+
+Commit `f25503971`, fix round `53aedcbae`. Files: `tests/e2e/axTree.ts` (new helper),
+`tests/e2e/assetDesignerAxTree.e2e.ts` (new).
+
+| Step | Clause | Test | Mutation | Outcome |
+| --- | --- | --- | --- | --- |
+| Design 88b (DISCHARGE, AD18-R30) | the screen reader announces nothing, from the label's own text up, after a commit and after the minute tick | `assetDesignerAxTree.e2e.ts` · *keeps the save-state label out of every live region, after a commit and after the minute tick* | `DesignerHeader.vue` · `<SaveStateIndicator … role="status" />` | **RED** — `liveChain` expected `[]`, got `["status:polite"]`. Neighbour `assetDesignerParity.e2e.ts`'s DOM-ancestor walk also went RED, on its own "not a live region" A clause — a different instrument, not a duplicate. A second mutation (wrapping the label in `<output>`, an implicit live region) reddened only the new AX case; the DOM-walk neighbour stayed GREEN, since it cannot see an implicit role. A third mutation made only the SECOND moment ("Saved N min ago") a live region; that reddened only the post-tick read, showing the second moment is load-bearing. |
+| Design 88b (DISCHARGE, fix round 1, Minor 1) | announces nothing ANYWHERE in the document, not only the label's own ancestry | same test, widened · the same case's `heard()` check across every live region | `save-state-store.ts` · `settle` given an added `notify('Saved')` call | **RED** — `heard()` returned `['status:Information Saved (×2)']` where `[]` was expected. Neighbour `assetDesignerParity.e2e.ts` stayed GREEN. |
+| Calibrate 32 (GUARD, AD18-R30) | a screen reader receives a polite status and the button's exact computed name | `assetDesignerAxTree.e2e.ts` · *hands a screen reader a polite status and a named button once a resize flags the clearance* | `DesignerClearanceReview.vue` · dropped `role="status"` from the notice `<p>` | **RED** — role `paragraph`, `live` undefined. Neighbour `assetReference.e2e.ts`'s `[role="status"]` locator also went RED (its own, already-A "is a live region" clause). A second mutation (`aria-live="off"` on the notice) reddened only the new AX case (`live` undefined against `polite`); the neighbour stayed GREEN (selector and text still matched). A third mutation (`aria-label="Dismiss"` on the button) reddened the AX case's name assertion; `assetReference.e2e.ts` stayed GREEN (visible-text selector) while `designerClearanceReviewName.test.ts` (jsdom, its own pre-existing A clause) also caught it independently. |
+
+## Task 3 (round 2) — Design 92, "nothing opens" (bucket B, reworded by AD18-R32)
+
+Commit `f88169e1a` (fix round in the same file, no separate commit hash recorded in the report).
+File: `tests/e2e/assetDesignerNoMenu.e2e.ts` (new).
+
+| Step | Clause | Test | Mutation | Outcome |
+| --- | --- | --- | --- | --- |
+| Design 92 (DISCHARGE, AD18-R32) | right-clicking the footprint outline, the anchor dot or the facing arrow opens nothing: no designer menu, no Obsidian menu, native or DOM | `assetDesignerNoMenu.e2e.ts` · *opens nothing, designer or Obsidian, native or DOM, on the footprint outline, the anchor dot and the facing arrow* | `designerMenu.ts` · `show()` opens an Obsidian `Menu` where a non-null part has no ability | **RED**, 6 of 6 soft assertions, at both `nativeMenus` preference values and all three points — `domMenus`/`hostMenuCalls` populated where the case expects none. Neighbour `assetDesignerParityMenu.e2e.ts -t "withholds it over every non-graphic"` stayed GREEN (it asserts only the designer's own, already-A menu clause). A second mutation (`contenteditable="true"` on the canvas, forcing the HOST's own native edit menu on the main-process branch the first mutation cannot reach) also reddened all 6, on the `contextMenuEvents` assertion, at both preference values. |
+
+## Task 4 (round 2) — legibility guards: contrast and size (bucket P)
+
+Commit `ef8fb0c04`, fix round `32483cd11`. Files: `tests/e2e/legibility.ts` (shared helper, new),
+`tests/e2e/assetDesignerLegibility.e2e.ts` (new), `tests/e2e/assetLibraryLegibility.e2e.ts` (new).
+
+| Step | Clause | Test | Mutation | Outcome |
+| --- | --- | --- | --- | --- |
+| Design 7 (GUARD) | the 1000mm scale bar is readable | `assetDesignerLegibility.e2e.ts` · *draws the reference sheet's scale bar at 3:1 or more against its paper, at the layer's own opacity* | `runtime.ts` · `backgroundOpacity = ref(1)` → `ref(0.02)` | **RED** — measured ratio 1.046 against the 3:1 floor. Neighbour `designerReferenceView.test.ts` also went RED, on the layer's opacity PROPERTY at the start of its fade walk (a prerequisite, not a drawn-contrast assertion). A discriminating fix-round mutation on `BackgroundLayer.vue`'s `VImage` opacity prop reddened only the new case; the neighbour stayed GREEN (its own layer node's opacity stayed 1). |
+| Design 57 (GUARD) | legible at thumbnail size | `assetDesignerLegibility.e2e.ts` · *draws every preset card's lines at 3:1 or more in both themes, at a width the thumbnail's scale does not shrink* | `styles/designer.css` · removed `vector-effect: non-scaling-stroke` from the preset preview's `__footprint`/`__detail` rule | **RED** — 42 of 43 lines thinned by the thumbnail's own scale. No neighbour asserts this rule; the width half has no lower bound (a 0.2px non-scaling stroke would still pass), which the docblock now names. |
+| Design 70 (GUARD) | every number is readable | `assetDesignerLegibility.e2e.ts` · *draws every All dimensions number at 4.5:1 or more in both themes, no smaller than the host's smallest UI text* | `styles/designer-dimensions.css` · `.rp-designer-dimension__value` font-size `var(--font-ui-smaller)` → `calc(var(--font-ui-smaller) - 1px)` | **RED** — 26 labels under the floor. A second mutation (`color: var(--text-normal)` → `var(--text-faint)`) reddened the contrast half in both themes. No existing test pins the label's font size or colour against a floor. |
+| Browse 33 (GUARD) | noticeably fainter than a real design's mark | `assetLibraryLegibility.e2e.ts` · *draws a design-less tile's category icon at lower contrast than a designed tile's mark, in both themes* | `styles/asset-library-grid.css` · `.rp-al-tile__category-icon` colour `var(--text-faint)` → `var(--text-muted)` | **RED** — light 6.6869 not less than 6.6869; dark 8.128 not less than 8.128. A discriminating mutation (`opacity: 0.3` added to `.rp-al-mark`) reddened only this guard; the existing *design-less* case (which asserts only that the faint and muted TOKENS differ, not their relative magnitude) stayed GREEN. |
+
+## Task 5 (round 2) — geometry guards (bucket P), and AD18-R34's defect
+
+Commit `1871ad804`, fix rounds `97893193a` and `eca317ae6`. Files:
+`tests/e2e/assetDesignerGeometry.e2e.ts` (new), `tests/e2e/assetLibraryWidthSweep.e2e.ts` (new).
+
+| Step | Clause | Test | Mutation | Outcome |
+| --- | --- | --- | --- | --- |
+| Design 109 (GUARD) | the overall label sits on its own dimension line and off the drawing | `assetDesignerGeometry.e2e.ts` · *draws the overall width on its own line and off the drawing, at the fitted camera and under the ruler* | `dimensionFigures.ts` · `overallSlot`'s slide-along-line step skipped (`false && along(box) \|\| out(box)`) | **RED** — under the ruler, the label landed on the footprint (235.71 against a 206.48 floor). Neighbours `designerDimensionsResting.test.ts` and `restingLabels.test.ts` (pure jsdom placement arithmetic) also went RED, on the model-level rule; the e2e adds the rendered frame (real stage, CSS box, drawn path). A fix-round CSS-only mutation (`translate: 0 50%` added to `.rp-designer-dimension`) reddened ONLY the e2e case, with the full node suite (127 files, 1669 tests) green — proof of an e2e-only gap. |
+| Design 56 (GUARD) | room is left for the drawing at a sidebar-width leaf | `assetDesignerGeometry.e2e.ts` · *leaves at least nine tenths of each canvas axis to the drawing beside the rulers, at a 580 px leaf* | `styles/designer-rulers.css` · `--rp-designer-ruler-size` `18px` → `30px` | **RED** — 0.8966 below the 0.9 floor. Neighbours `designerPolish.test.ts` and `restingLabels.test.ts` also went RED, but as parity pins between two copies of the same constant, not as assertions of "room". |
+| Recover 34 (GUARD) | the retry button reads as an action, not a bar of chrome | `assetDesignerGeometry.e2e.ts` · *keeps the stale notice's Try again narrower than half its notice and its leaf, set against the notice* | `styles/designer-recovery.css` · `align-self: flex-start` removed | **RED** — button 671px against a 339.5px floor (half the leaf). Neighbour `designerRecoveryStyles.test.ts` also went RED, but on the DECLARATION only, not the rendered box — the existing pin the audit already recorded. |
+| Browse 11 (GUARD) | no intermediate width at which the panel is unusable | `assetLibraryWidthSweep.e2e.ts` · *clips, overflows and overlaps no control at every 20px from 460px to a full pane and every 4px above each rung, with an asset selected* | `styles/asset-library-inspector.css` · `min-width: 480px` added to `.rp-al-inspector` | **RED** — 90 faults from 460px on. Neighbour `assetLibraryWalk.e2e.ts` also went RED, but on its own rung-WIDTH clause (a different, already-A fact). **AD18-R34 (2026-09-28):** the guard, unmutated, went RED on real Linux CI (E2E run 36345605529, both desktop shards) at a 568px container Windows never reaches — the Create-your-own card's `New asset` button overhung the rail. Ruled: fix the CSS rather than excuse the guard. `styles/asset-library-grid.css`'s create-card rules were widened to wrap (`flex-wrap`, the body's `flex: 1 1 10rem`, the button's `max-width: 100%` / `white-space: normal`); the guard's prior tolerance for that one fault was removed, so it is now strict with nothing exempt. Reverting the CSS fix (`git checkout -- styles/asset-library-grid.css`) reddens the guard again at 572px (`273–377.34 shows 273–376`), pinning the fix. |
+
+## Task 6 (round 2) — pixel guards: Design 57 and Browse 3 (bucket P)
+
+Commit `aef50af85`, fix rounds `f266d3f9d` and `716fe2646`. Files: `tests/e2e/pixels.ts` (shared
+helper, new), `tests/e2e/assetDesignerPresetPixels.e2e.ts` (new), `tests/e2e/assetLibraryMarkPixels.e2e.ts` (new).
+
+| Step | Clause | Test | Mutation | Outcome |
+| --- | --- | --- | --- | --- |
+| Design 57 (GUARD) | recognisably not the Washbasin card | `assetDesignerPresetPixels.e2e.ts` · *paints the vanity's card differently from the washbasin's in more than a tenth of their ink* | `presetPreview.ts` · `presetThumbnail` returns the washbasin's own thumbnail for `vanity` | **RED**, at both 1x and 2x device-pixel ratio — 0 of their ink differing against the 0.1 floor. Neighbour `assetDesignerDimensionsRulers.e2e.ts -t "offers the vanity"` also went RED, but at a PREREQUISITE (`toHaveLength(4)`, the card's own path count), never reaching a pixel comparison. A narrower, discriminating mutation (the washbasin's picture plus a fourth, respelled-and-dashed path — same painted pixels, different path data) left that neighbour fully GREEN (including its own `d`-differ check) while this guard still went RED at both ratios — the gap the audit named. |
+| Browse 3 (GUARD) | distinguishable at 20px | `assetLibraryMarkPixels.e2e.ts` · *paints the five mark states as five different drawings at 20px, and one state's two rows as the same* | `styles/asset-mark.css` · removed `stroke-dasharray: 2 2` from `.rp-al-mark--unscaled` | **RED** — measured/unscaled painted alike (0 differing). Neighbour `assetMark.test.ts`'s *declares .rp-al-mark--unscaled with the ONE property that distinguishes it from measured* also went RED, on the declaration's EXISTENCE, not the painted result. A narrower mutation (the dasharray declaration kept, its pattern changed from `2 2` to `2 0` so the line paints solid) left that neighbour fully GREEN (32 files, 405 tests) while this guard still went RED. A fix round (after CI run 36345605529 found both clean runs failing on Linux at native DPR) restaged every capture at a fixed, whole-pixel position and re-reads both cases at emulated 1x and 2x, whatever the host's own ratio; the mutations above were re-run and stayed RED at both ratios, with the neighbour still GREEN. |
+
+**Left open (round 2):** none of Tasks 1–6's clauses — every P and D clause the plan assigned was
+built and passed the mutation gate above. Design 89's real-Mac arm and Recover 6/8's host-timing
+half are B clauses the rulings explicitly declined to build (AD18-R31, AD18-R33); they have no
+mutation table because no `src/` change reaches a host fact.

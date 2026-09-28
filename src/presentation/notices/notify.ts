@@ -6,7 +6,13 @@ import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, type ToastSurface } from '../errors/errorSurfacePolicy';
 import { surfaceError, type SurfaceSinks } from '../errors/surfaceError';
 import { tr } from '../i18n/strings';
-import { createNoticeQueue, type NoticeHost, type NoticeQueue, type NoticeView } from './queue';
+import {
+	createNoticeQueue,
+	type NoticeAction,
+	type NoticeHost,
+	type NoticeQueue,
+	type NoticeView,
+} from './queue';
 import { SEVERITY_LABEL_KEYS, type NoticeSeverity } from './severity';
 
 /**
@@ -186,6 +192,12 @@ const createObsidianHost = (announceInto: Regions): NoticeHost => ({
 		 * and degrades to "the slot frees on the next push" rather than to a wedged queue.
 		 */
 		let dismissedHere = false;
+		// Every dismissal this host performs itself: our `×` and the action below.
+		const close = (): void => {
+			dismissedHere = true;
+			notice.hide();
+			callbacks.dismissed();
+		};
 		const sync = (): void => {
 			const next = hovered || focused;
 			if (next === held) return;
@@ -263,19 +275,40 @@ const createObsidianHost = (announceInto: Regions): NoticeHost => ({
 		// `aria-label` below is, and it comes from the string table like every other word here.
 		dismiss.textContent = '×';
 		dismiss.setAttribute('aria-label', tr('notice.dismiss'));
-		dismiss.addEventListener('focus', () => {
-			focused = true;
-			sync();
-		});
-		dismiss.addEventListener('blur', () => {
-			focused = false;
-			sync();
-		});
-		dismiss.addEventListener('click', () => {
-			dismissedHere = true;
-			notice.hide();
-			callbacks.dismissed();
-		});
+		// Every control in the notice holds it while focused, for the timing rule above.
+		const holdWhileFocused = (control: HTMLElement): void => {
+			control.addEventListener('focus', () => {
+				focused = true;
+				sync();
+			});
+			control.addEventListener('blur', () => {
+				focused = false;
+				sync();
+			});
+		};
+		holdWhileFocused(dismiss);
+		dismiss.addEventListener('click', close);
+
+		/**
+		 * **The action, when the notice carries one** — tracker row L-37: a notice whose sentence
+		 * says to open the diagnostics report offers the button that does. A real `<button>`, so
+		 * Enter and Space press it natively, and its visible text is its accessible name. Pressing
+		 * it dismisses the notice FIRST and then runs the action, so the report does not open
+		 * underneath a notice still asking the user to open it. The click also bubbles to the
+		 * element's own dismissal listener, which is idempotent; `run` is called here only.
+		 */
+		const controls: HTMLElement[] = [dismiss];
+		if (view.action !== undefined) {
+			const { label: actionLabel, run } = view.action;
+			const action = createEl('button', { cls: 'rp-notice-action', text: actionLabel });
+			action.type = 'button';
+			holdWhileFocused(action);
+			action.addEventListener('click', () => {
+				close();
+				run();
+			});
+			controls.unshift(action);
+		}
 
 		/**
 		 * `announce` is called from HERE rather than from `open`, so a repeat announces too: the
@@ -295,13 +328,13 @@ const createObsidianHost = (announceInto: Regions): NoticeHost => ({
 		render(view);
 
 		element.textContent = '';
-		// The flex container is THIS element — the three children below are its children, and
-		// flex only reaches direct ones. This host applies SEVEN class names — `rp-notice`,
+		// The flex container is THIS element — the children below are its children, and
+		// flex only reaches direct ones. This host applies EIGHT class names — `rp-notice`,
 		// `rp-notice-<severity>`, `rp-notice-body`, `rp-notice-severity`, `rp-notice-mark`,
-		// `rp-notice-message`, `rp-notice-dismiss` — and `styles/notices.css` names all seven:
-		// five of them (`-body`, `-severity`, `-mark`, `-message`, `-dismiss`) as the element a
-		// rule declares on, and two only as ANCESTORS — `.rp-notice`, which scopes the dismiss
-		// button past Obsidian's `button:not(.clickable-icon)`, and `.rp-notice-<severity>`,
+		// `rp-notice-message`, `rp-notice-action`, `rp-notice-dismiss` — and `styles/notices.css`
+		// names all eight: six of them (`-body`, `-severity`, `-mark`, `-message`, `-action`,
+		// `-dismiss`) as the element a rule declares on, and two only as ANCESTORS —
+		// `.rp-notice`, which scopes both buttons past Obsidian's `button:not(.clickable-icon)`, and `.rp-notice-<severity>`,
 		// which picks the label's colour AND, through it, the mark's shape. Counted with
 		// `grep -n "rp-notice" src/presentation/notices/notify.ts styles/notices.css` in this
 		// edit rather than remembered. The word's own span is the one element here carrying no
@@ -314,7 +347,7 @@ const createObsidianHost = (announceInto: Regions): NoticeHost => ({
 		// the browser harness would have no position, no stacking and no chrome. The manual case
 		// under `docs/tests/cases/` is the only instrument.
 		element.classList.add('rp-notice-body');
-		element.append(label, body, dismiss);
+		element.append(label, body, ...controls);
 
 		return {
 			update: render,
@@ -340,12 +373,38 @@ const createObsidianHost = (announceInto: Regions): NoticeHost => ({
 let queue: NoticeQueue | null = null;
 
 /**
+ * The error codes whose sentence tells the user to open the diagnostics report — both minted by
+ * `ListReassignmentTargets` and reaching a toast through `notifyOperationFailure`. The strips
+ * a VIEW draws with that sentence carry their own report button already.
+ * `tests/presentation/notices/noticeAction.test.ts` derives this set from the `en` table
+ * rather than trusting it, so a new code minted with the sentence arrives there red.
+ */
+const POINTS_AT_REPORT: ReadonlySet<string> = new Set([
+	'zone.listing-incomplete',
+	'asset.listing-incomplete',
+]);
+
+/**
+ * The button those notices carry, built ONCE per activation: the queue folds a repeat only when
+ * its action is the same object. `undefined` when activation was handed no report to open —
+ * then no button is drawn, rather than one that does nothing.
+ */
+let reportAction: NoticeAction | undefined;
+
+/**
  * Called once from `RenovationPlannerPlugin.onload`, before anything can notify. Starting
  * inert rather than active is deliberate: a notice raised before the plugin is loaded would be
  * a sequencing bug, and a module that quietly worked anyway would hide it.
  */
-export function activateNotices(): void {
+export function activateNotices(openDiagnosticsReport?: () => void): void {
 	queue?.dispose();
+	// The composition root's ONE report function (CLAUDE.md's "one action, every input"), handed
+	// in because `presentation/` may not import `plugin/`. The label is the palette command's
+	// own key, as every other report button here uses.
+	reportAction =
+		openDiagnosticsReport === undefined
+			? undefined
+			: { label: tr('command.show-diagnostics-report'), run: openDiagnosticsReport };
 	// The regions are BUILT here and handed to the host, so a notice announces into a pair it was
 	// constructed with rather than into one it has to look up and check for. `openRegions` closes
 	// any pair a previous activation left, so a second call replaces rather than accumulates.
@@ -452,7 +511,11 @@ export function notifyWarning(message: string): void {
  * table was measured with a grep that excluded this file.
  */
 export function notifyError(error: AppError, routed: ToastSurface): void {
-	queue?.push(routed.level, trError(error));
+	queue?.push(
+		routed.level,
+		trError(error),
+		POINTS_AT_REPORT.has(error.code) ? reportAction : undefined,
+	);
 }
 
 /**

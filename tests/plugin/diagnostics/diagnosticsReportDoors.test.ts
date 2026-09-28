@@ -21,8 +21,10 @@
  * **What a "door" is here, because the word is doing real work.** It is a SEAM that reaches the
  * report, not a control a user can press: the case drives the palette command's callback, the
  * settings row's action, and each view bundle's injected member read off the REGISTERED
- * factory. No warning row and no button is clicked here — the Plan Editor's row has never been.
- * Which controls press which member is each surface's own case.
+ * factory. One button IS clicked: a notice pointing at the report (tracker row L-37) has no
+ * member to read off a factory — its seam is the function `activateNotices` was handed at load —
+ * so the case raises one and presses it. No warning row is clicked here — the Plan Editor's row
+ * has never been. Which controls press which member is each surface's own case.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 // From the MOCK module by path, not from `'obsidian'`. `tests/**` is type-checked against the
@@ -48,6 +50,7 @@ import { FakeLeaf } from '../../helpers/workspace';
 import { expectDefined } from '../../helpers/domain';
 import type { PluginCommandHost } from '../../../src/plugin/commandHost';
 import type { DiagnosticsSnapshot } from '../../../src/application/queries/GetDiagnosticsSnapshot';
+import { notifyOperationFailure } from '../../../src/presentation/notices/notify';
 
 vi.mock('../../../src/infrastructure/logging/consoleLogger', async () =>
 	(await import('../../helpers/logger')).consoleLoggerMock(),
@@ -124,6 +127,14 @@ describe('the doors into the diagnostics report', () => {
 			() => viewDeps<PlanEditorDeps>(PLAN_EDITOR_VIEW).openDiagnosticsReport(),
 			() => viewDeps<RenovationProjectDeps>(RENOVATION_PROJECT_VIEW).openDiagnosticsReport(),
 			() => viewDeps<AssetLibraryDeps>(ASSET_LIBRARY_VIEW).openDiagnosticsReport(),
+			() => {
+				notifyOperationFailure({
+					category: 'Persistence',
+					code: 'zone.listing-incomplete',
+					message: 'developer English',
+				});
+				document.querySelector<HTMLButtonElement>('.rp-notice-action')?.click();
+			},
 		];
 
 		for (const open of doors) {

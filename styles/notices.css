@@ -223,3 +223,13 @@
 	outline-offset: 2px;
 	border-radius: var(--radius-s);
 }
+
+/*
+ * Tracker row L-37's action — "Show diagnostics report" on a notice whose sentence names the
+ * report. Obsidian's own button chrome and focus ring are kept deliberately, which is why this
+ * rule resets nothing: it is the notice's one labelled control and should read as a button.
+ * Unverified by anything automated here, for the reasons this file's header gives.
+ */
+.rp-notice .rp-notice-action {
+	flex: 0 0 auto;
+}

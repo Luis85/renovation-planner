@@ -185,7 +185,10 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// BOTH halves, and in this order. The queue is inert until activated, so without the
 		// first line nothing ever shows a notice; without the second, a promise resolving after
 		// unload attaches one to a vault with no plugin left to remove it.
-		activateNotices();
+		// The closure reads `this.root` only when pressed, so handing it over this early is safe.
+		activateNotices(() => {
+			this.openDiagnosticsReport();
+		});
 		this.disposers.push(disposeNotices);
 		this.disposers.push(registerEditorIcons());
 

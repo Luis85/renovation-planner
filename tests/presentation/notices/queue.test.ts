@@ -467,4 +467,26 @@ describe('the notice queue', () => {
 		queue.push('error', 'after');
 		expect(opened.at(-1)?.view.message).toBe('after');
 	});
+
+	/**
+	 * **An action is part of what the user sees, so it is part of what makes two notices one.**
+	 * A repeat folds only when the message AND the action object are identical; the same words
+	 * with a different control, or with none, open a notice of their own. `notify.ts` builds its
+	 * one report action once per activation, which is what lets a real repeat fold.
+	 */
+	it('folds a repeat only when its action is the same object', () => {
+		const { host, opened } = recordingHost();
+		const queue = createNoticeQueue(host);
+		const action = { label: 'Open', run: () => undefined };
+
+		queue.push('error', 'same', action);
+		queue.push('error', 'same', action);
+		expect(opened).toHaveLength(1);
+		expect(opened[0]?.view).toMatchObject({ count: 2, action });
+
+		queue.push('error', 'same', { label: 'Open', run: () => undefined });
+		queue.push('error', 'same');
+		expect(opened).toHaveLength(3);
+		expect(opened[2]?.view.action).toBeUndefined();
+	});
 });

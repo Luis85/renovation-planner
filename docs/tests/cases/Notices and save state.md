@@ -79,6 +79,7 @@ the five values and what they do not claim.
 | 13a | `suite` | With a plan open, assign an asset to a zone, then assign **the same asset to the same zone again**. Watch the save-state region through both | The first shows *Saving* then *Saved*. The second returns to *Saved* too — but if a **Save error** was standing before you started, the second assignment must LEAVE it standing | **A success that wrote nothing must not clear a save error**, which is the rule `SaveStateStore`'s header states and which this slice shipped broken. `AssignAssetCommand` answers `ok` from a READ when the link already exists, having saved nothing, and the tracker read that as a successful write. The command reports a `DispatchOutcome` now. Reproducing the standing error needs step 16's failure injection first, which is why this step is written as a conditional rather than a sequence — the node tests prove the settlement, and what a vault adds is that the second assignment really does take the idempotent path |
 | 14 | `suite` | Add a room — **Add ▸ Room**, drag a rectangle, press **Create room** — and watch that region | It shows **Saving**, then settles on **Saved** | The tracked dispatcher. `withSaveStateTracking` sits inside `wrapDispatcher` and outside the refresh decorator, so **Saved** never appears while the canvas still shows the pre-command state. A fast write may make **Saving** hard to catch; the contract's own Open question 2 asks whether that state should be shown at all. **This row said "draw a zone" until 2026-09-05**, and that is not a wording change: the Add Room increment repointed Add ▸ Room to `'draw-room'`, so the polygon tool has no door in the Plan Editor at all and the write now happens at Create rather than on a closing vertex. Watch the region across the CREATE press |
 | 15 | `suite` | Press Undo, then Redo | The region passes through **Saving** each way | An undo is a write like any other — slice 8's reversible delete writes a snapshot back through the repository. A decorator over `run` alone would leave the indicator reading **Saved** through an in-flight undo |
+| 15a | `obsidian` | **(a)** With the Room from step 14 selected and the indicator resting on **Saved**, drag one of its corners onto the line joining the other two, until the tool refuses the drop. **(b)** Hand-edit a Room note's geometry outside Obsidian to three collinear points (mirroring `zeroAreaDrag.test.ts`'s `SLIVER_POINTS`), reopen the plan, drag that corner off the line so the room gains area — the indicator settles **Saved** — then press **Undo** | Both gestures raise a notice reading "A geometry value is invalid." and leave the indicator exactly as it read going in — **Saved** stays **Saved**, never **Save error** | **`resolveNeutral`, the settlement `SaveStateStore` reserves for a pre-write refusal raised from a resting state.** Until `679b6075f` no hand-reachable trigger for it was known and the outcome was proven by node tests alone (`saveStateStore.test.ts`, `withSaveStateTracking.test.ts`); owner ruling 37 made `Geometry` pre-write, and `zeroAreaDrag.test.ts`'s two cases are what (a) and (b) repeat by hand — a drag that would leave a room with no area, and separately the undo of a drag that fixed one, since the outline it would restore is exactly the one that can no longer be saved |
 | 16 | `desktop` | Make a write fail: with the plan open, make the plugin's `Geometry/` folder unwritable from outside Obsidian, then move a zone | The region reads **Save error**, in the error colour, and stays there | Two things. `affectsSaveState` answering true for a `PersistenceError` — and the colour applying at all, which it did not: the selector shipped one word short (`rp-save-state-error` against the emitted `rp-save-state-save-error`) and no gate here could see it, because jsdom resolves no CSS |
 | 17 | `desktop` | Make the folder writable again and move a zone | The region returns to **Saved** | The error clearing on the one thing entitled to clear it |
 | 17a | `desktop` | **Stage an UNRECOVERED-write incident, which is not step 16's save error.** It needs a write that lands half-way AND a compensation that also fails, so the filesystem has to allow the write and refuse the undo: make the plugin's `Geometry/` folder unwritable while leaving the zone note's folder writable but its files UNDELETABLE (a Windows ACL denying Delete, or a Linux directory with the sticky bit and no write permission), then add a room. **If your platform cannot hold those two permissions apart, say so and stop here** — the node suite covers the stamp itself; 17b onward are what only a vault can answer | The status region reads **Save error** AND a persistent warning stands saying the geometry entry could not be written and the note could not be removed again. Further edits in that tab are refused | `ObsidianZoneRepository.compensateFailedSidecarWrite`'s `zone.sidecar-insert-uncompensated` arm — the one stamped by `markUncompensated`, which is what `withSaveStateTracking` turns into the incident. Step 16's single unwritable folder does NOT produce one: its compensation succeeds, so it stamps `zone.sidecar-update-failed` (step 16 moves an existing zone, which takes the update arm) and is an ordinary save error |
@@ -105,21 +106,25 @@ the five values and what they do not claim.
   two in `notify.test.ts`, the latter pushing through the real door — and step 1 covers the
   auto-dismiss MECHANISM through the reachable `info` tier.
 - **The store's third settlement outcome, `resolveNeutral`, and this is a step that USED to be
-  here.** It read "with **Save error** showing, clear a Requirement's override field to a value
-  the domain rejects — the region does NOT return to **Saved**", and it could not prove what it
-  claimed: a domain refusal settles the indicator at `save-error` under BOTH `resolveErr` and
-  `resolveNeutral`, so the pass condition cannot tell the two apart. Distinguishing them needs
-  the same refusal from a resting **Saved** state, where `resolveNeutral` leaves **Saved** and
-  `resolveErr` would show **Save error**. **No hand-reachable trigger for that is known in a
-  vault this build can produce**, measured rather than assumed: every pre-write refusal the
-  editor's dispatcher can raise sits behind a Requirement — the two override commands and the
-  assign adapter — and nothing in this build creates an Asset or a Requirement.
-  `create-sample-project` seeds a project, a plan and five zones and no more; the creation
-  forms are slice 16's. A refused polygon never reaches the dispatcher at all (`createPolygon`
-  refuses inside the tool), and a geometry refusal is category `Geometry`, which affects the
-  indicator by design. So the outcome is proven by node tests alone —
+  here for a different route into it.** It read "with **Save error** showing, clear a
+  Requirement's override field to a value the domain rejects — the region does NOT return to
+  **Saved**", and it could not prove what it claimed: a domain refusal settles the indicator at
+  `save-error` under BOTH `resolveErr` and `resolveNeutral`, so the pass condition cannot tell
+  the two apart. Distinguishing them needs the same refusal from a resting **Saved** state, where
+  `resolveNeutral` leaves **Saved** and `resolveErr` would show **Save error**. Through a
+  REQUIREMENT, no hand-reachable trigger for that is still known in a vault this build can
+  produce: every pre-write refusal the editor's dispatcher can raise through one sits behind an
+  Asset or a Requirement — the two override commands and the assign adapter — and nothing in
+  this build creates either; `create-sample-project` seeds a project, a plan and five zones and
+  no more, and the creation forms are slice 16's. That half is still proven by node tests alone —
   `tests/presentation/editor/saveState/saveStateStore.test.ts` and
-  `withSaveStateTracking.test.ts` — and a step here would read as more evidence than it is.
+  `withSaveStateTracking.test.ts`.
+  **Since `679b6075f` there is a second route, and it IS hand-reachable — see step 15a.** Owner
+  ruling 37 moved `Geometry` into the pre-write set, so a vertex drag that would leave a room
+  with no area now settles `resolveNeutral` rather than affecting the indicator: draw a triangle
+  and drag one corner onto the opposite edge, from a resting **Saved**, and the badge stays
+  **Saved** behind a notice reading "A geometry value is invalid." instead of moving to **Save
+  error**.
 - **`Unsaved changes`.** Unreachable through `SaveStateStore`'s action surface by design —
   slice 6's transaction boundary leaves no moment where an edit is decided and no command
   dispatched. `saveStateStore.test.ts` walks the transitions exhaustively and proves it, so
@@ -205,11 +210,11 @@ announcement. Step 3a is where it is checked by hand.
 
 | Date | Result | Findings |
 | --- | --- | --- |
-| — | — | Not yet run in a vault. Steps 17a–17d were written on 2026-09-16 with the incident-ownership change (`67f5acf9c`, `41d803611`, `2af92f8fd`) and have not been walked; every expectation in them is derived from the code and the node suite, and 17c's two questions are open by construction. |
+| — | — | Not yet run in a vault. Steps 17a–17d were written on 2026-09-16 with the incident-ownership change (`67f5acf9c`, `41d803611`, `2af92f8fd`) and have not been walked; every expectation in them is derived from the code and the node suite, and 17c's two questions are open by construction. Step 15a was written with the ruling-37 Geometry fix (`679b6075f`) and has not been walked either; its expectation is derived from `zeroAreaDrag.test.ts` and the node suite alone. |
 
-Steps 17a–17d are the exception to the sentence below: they belong to the 2026-09-16
-incident-ownership change rather than to slice 13, and 17c asks a question about Obsidian
-rather than about this plugin.
+Steps 15a and 17a–17d are exceptions to the sentence below: 15a belongs to the ruling-37
+Geometry fix (`679b6075f`) and 17a–17d to the 2026-09-16 incident-ownership change, neither to
+slice 13 itself, and 17c asks a question about Obsidian rather than about this plugin.
 
 Anything on this list which does not work is a slice 13 defect, except the gaps above that
 are still open — item 3 alone, since items 1, 2 and 4 are closed — which are known and

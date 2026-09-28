@@ -209,7 +209,8 @@ describe('affectsSaveState', () => {
 	 * **Owner ruling 37: a `Geometry` refusal is raised before anything is written.** Every raise
 	 * site is a pure function; every repository port answers `RepositoryError`, which has no
 	 * `Geometry` arm. The two a drag reaches — L-23's no-area outline and its overflow twin — are
-	 * transcribed from `Zone.ts`'s `enclosingOutline` and `operations.ts`'s `polygonArea`. The one
+	 * transcribed from `Zone.ts`'s `enclosingOutline` and `operations.ts`'s `area` (imported into
+	 * `Zone.ts` as `polygonArea`). The one
 	 * shape that can follow a write, a composed paste or delete whose later step refuses, is the
 	 * stamped case above: `restoreSteps` marks it when putting the earlier steps back fails.
 	 */

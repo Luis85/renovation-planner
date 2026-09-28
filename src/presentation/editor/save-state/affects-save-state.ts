@@ -104,8 +104,7 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * the category is pre-write by the resolution's error union rather than by anything here, and
  * a later widening of that union is the change that would falsify this paragraph.
  *
- * **`Geometry`**, owner ruling 37, and the first category here that is pre-write by a TYPE
- * rather than by an enumeration. It was left out as one of the categories "whose whole subject
+ * **`Geometry`**, owner ruling 37. It was left out as one of the categories "whose whole subject
  * IS the write" — a default nobody had measured, and one a sweep of the code refutes: every
  * `category: 'Geometry'` literal is in a pure function (`core/geometry/`, `Zone.ts`,
  * `AssetShape.ts`, the editor's own `areaOutline`/`simpleOutline`), and every repository port's
@@ -113,14 +112,24 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * so no write can return one; the infrastructure re-labels what it meets on a read
  * (`zone.entity-invalid`, `plan-geometry.curve-invalid`). The one port that DOES answer one,
  * `ZoneGeometryVersions.versionFor`, is a pure computation `GroupGeometryCommand` asks before
- * `geometry.write`. So within one command a `Geometry` refusal precedes that command's first
- * write: L-23's `polygon-zero-area` and `polygon-area-overflow` from `withGeometry`, the curve
- * codes from `preservePointCurves`, both before `zones.save`. The one shape that can follow a
- * write is a COMPOSED command (`PasteCommand`, `DeleteSelectionCommand`) whose later step
- * refuses after an earlier step wrote — and `restoreSteps` puts those back and stamps the
- * refusal when it cannot, which is the stamp below answering exactly as it does for the other
- * four. Before this, a drag leaving a room with no area put a sticky "Save error" over a vault
- * nothing had touched, with no sentence naming why.
+ * `geometry.write`. **That much IS a type guarantee — no write can return one — and it is
+ * narrower than the category being pre-write.** Nothing in the port types stops a future command
+ * from writing first and calling a pure geometry function afterward, returning its raw error; a
+ * command shaped that way still type-checks. That within one command today's `Geometry` refusal
+ * precedes that command's first write holds by ENUMERATION of the commands that raise it:
+ * `MoveSpatialObject` (`preservePointCurves`/`withGeometry` before `zones.save`), `CreateZone`
+ * (`Zone.create`, which runs `enclosingOutline`, before its own `zones.save`),
+ * `GroupGeometryCommand` (`zoneReceipts`'s `versionFor` before `geometry.write`), and
+ * `PasteCommand`'s pre-check (`enclosingOutline` over every Room before anything is written) —
+ * L-23's `polygon-zero-area` and `polygon-area-overflow` from `withGeometry`, the curve codes
+ * from `preservePointCurves`. The one shape that can follow a write is a COMPOSED command
+ * (`PasteCommand`, `DeleteSelectionCommand`) whose later step refuses after an earlier step wrote
+ * — and `restoreSteps` puts those back and stamps the refusal when it cannot, which is the stamp
+ * below answering exactly as it does for the other four. **Nothing checks the ordering for a
+ * command not yet written** — a new command that saves and only then asks a pure geometry
+ * function would type-check and would under-report exactly as described below. Before this, a
+ * drag leaving a room with no area put a sticky "Save error" over a vault nothing had touched,
+ * with no sentence naming why.
  *
  * That set is REACHABLE, not theoretical, and each widening was one keystroke or one click
  * away. The Inspector's two override fields are `type="text"` (`RequirementRow.vue`), so
@@ -174,19 +183,18 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * deliberately.** A new `AppError` category added by a later slice defaults to AFFECTING the
  * indicator, because "we might not have written your data" is the safe answer to give while
  * nobody has thought about it. The unsafe default is silence. **Five of the eight are in the
- * pre-write set now and three are not** (`Persistence`, `Import`, `Migration`). The fifth was
- * argued against the paragraph below rather than against the nuisance of a badge: `Geometry`
- * joined because a port type keeps it pre-write and the stamp covers the composed commands, not
- * because the badge annoyed anyone. What remains outside it is the three categories whose whole
- * subject IS the write — two of them, `Import` and `Migration`, having no dispatched raise site
- * at all today. The
- * further this widens the more the indicator depends on every enumerated raise site STAYING
+ * pre-write set now and three are not** (`Persistence`, `Import`, `Migration`). `Geometry` was
+ * admitted as the fifth, on the enumeration in the paragraph above, not because the badge
+ * annoyed anyone. What remains outside it is the three categories whose whole subject IS the
+ * write — two of them, `Import` and `Migration`, having no dispatched raise site at all today.
+ * The further this widens the more the indicator depends on every enumerated raise site STAYING
  * pre-write, with nothing checking that; the next widening should be argued against that
- * rather than against the nuisance of a badge, and if a fifth is ever proposed the honest
+ * rather than against the nuisance of a badge, and if a SIXTH is ever proposed the honest
  * answer is probably that the CATEGORY is the wrong axis and the command should report
- * whether it wrote. **That last sentence has since come true and is no longer a prediction**
- * — see the stamp below, which is the category axis being overruled by a report at the one
- * place a report was available.
+ * whether it wrote. **That last sentence has since come true and is no longer only a
+ * prediction about some future sixth** — see the stamp below, which is the category axis
+ * already being overruled by a report, at the one place (the composed commands) a report was
+ * available.
  *
  * **The exposure this creates is the unsafe direction, and the part of it that was REACHABLE
  * is now closed by a report rather than by this predicate.** A `Domain`, `Validation`,

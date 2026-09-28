@@ -132,13 +132,23 @@ it('saves a hatched area and a boundary line on Finish, and refuses a hatch outl
 
 function click(rig: Rig, x: number, y: number): void { rig.runtime.toolManager.pointerDown(pointerAt(x, y)); rig.runtime.toolManager.pointerUp(pointerAt(x, y)); }
 const type = (rig: Rig, field: string, value: string) => rig.wrapper.get(`.rp-element-task input[name="${field}"]`).setValue(value);
-/** What each kind drafts here without saving: a view's second point and a grid point typed but not added, a text's words before Finish, a hatch's dragged rectangle and a boundary's two points before Finish. */
+/**
+ * What each kind drafts here without saving: typed but not added, a view's and a beam's second point and a grid or post point; before Finish, a
+ * text's words, a hatch's dragged rectangle, and a boundary's, a measurement's, a fence's and a section line's points; and a dimension chain's
+ * points, ended by the task bar's Finish with its line not yet placed.
+ */
 const DRAFTS: [string, ElementToolId, (rig: Rig) => void | Promise<void>][] = [
 	['view', 'place-view', async rig => { click(rig, -1500, 1000); await type(rig, 'element-x', '-0,8'); await type(rig, 'element-y', '1'); }],
 	['hatch', 'draw-hatch', rig => { const tools = rig.runtime.toolManager; tools.pointerDown(pointerAt(500, 5000)); tools.pointerMove(pointerAt(3000, 7000)); tools.pointerUp(pointerAt(3000, 7000)); }],
 	['text', 'place-text', async rig => { click(rig, 1500, 1200); await settle(); await type(rig, 'element-name', 'Wintergarten'); }],
 	['boundary', 'draw-boundary', rig => { click(rig, -2000, -1000); click(rig, 2000, -1200); }],
 	['grid', 'place-grid', async rig => { await type(rig, 'element-x', '6'); await type(rig, 'element-y', '0'); }],
+	['fence', 'draw-fence', rig => { click(rig, 0, -3000); click(rig, 4000, -3000); click(rig, 4000, 0); }],
+	['measurement', 'measure', rig => { click(rig, 500, 500); click(rig, 3000, 500); }],
+	['post', 'place-post', async rig => { await type(rig, 'element-x', '2'); await type(rig, 'element-y', '3'); }],
+	['beam', 'draw-beam', async rig => { click(rig, 0, 4000); await type(rig, 'element-x', '5'); await type(rig, 'element-y', '4'); }],
+	['dimension', 'draw-dimension', async rig => { click(rig, 0, 0); click(rig, 1190, 0); click(rig, 4560, 0); await rig.wrapper.get('.rp-task-banner__finish').trigger('click'); }],
+	['section', 'draw-section', rig => { click(rig, 0, 2000); click(rig, 5000, 2000); click(rig, 5000, 6000); }],
 ];
 
 // One param per kind, so a Hatch failure cannot hide a Boundary one. Door: the task bar's Cancel, which leaves the task in one gesture (`createCancelActiveTask`).

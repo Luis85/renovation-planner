@@ -1855,6 +1855,46 @@ passes strictly and pins the fix (reverting it must turn the guard red). No `src
 field, a new runtime dependency or devDependency, AD17 or roadmap work, or any element of CLAUDE.md's
 *Deliberately absent* list.
 
+**AD18-R30 to AD18-R34 delivered 2026-09-28.** Session twenty-one audited the 26 human steps a second
+time, against instruments the first audit had not tried ([`MANUAL-PASS-audit-2.md`](../reports/MANUAL-PASS-audit-2.md)),
+and built what the rulings asked for ([`AD18-walk-automation-2-plan.md`](../reports/AD18-walk-automation-2-plan.md)):
+six build tasks, two case-rewrite tasks, the index and evidence task and the hand-off, run subagent-driven.
+Each build and case-rewrite task had its own independent review; the index, the evidence file and the
+hand-off were reviewed by the whole-round review.
+
+**What is claimed, narrowly:**
+- **The manual pass is 22 human steps, from 26.** Per case, by MANUAL-PASS's own counting command:
+  9 / 1 / 0 / 2 / 4 / 1 / 5.
+- **Four steps left the walk.** Design 88b and 92 because every clause is now discharged by a named test
+  (88b's through Chromium's accessibility tree, the one proxy AD18-R30 let discharge; 92 through the
+  renderer-side menu hooks AD18-R32 asked for). Recover 2 and Browse 31 as host pins under AD18-R33: their
+  e2e cases see what a walker sees, and no `src/` mutation can redden them.
+- **The evidence file's round-2 section has 16 clause rows**
+  ([`AD18-walk-automation-evidence.md`](../reports/AD18-walk-automation-evidence.md)): 5 tagged DISCHARGE
+  and 11 GUARD. The tag is per clause. A GUARD is a real test that went red under a mutation of its
+  clause, standing beside a "reads as" judgement that stays human, so its step keeps its human tier.
+- **One defect was found and fixed:** the Browse 11 width guard found the Create-your-own card's
+  `New asset` label cut at a 568 px library container on Linux (AD18-R34). The CSS fix is pinned by that
+  guard; reverting it turns the guard red.
+- **The Browse 3 pixel guard failed twice on Linux before it held.** The cause was a row captured while a
+  late re-read showed it as *not yet read*, not the pixel-ratio noise the first fix assumed. The guard now
+  copies a mark only while its row draws the expected state. The flash itself is recorded in RESUME as
+  known behaviour, for the user to rule on.
+
+**Reviews.** Task 1 and both case rewrites passed first time. Tasks 2, 3 and 4 took one fix round each
+(minor findings applied before push); Task 5 took three (a mutation that reddened a same-clause
+neighbour, a tolerance that was an exemption, then the AD18-R34 fix); Task 6 took three (a Linux-only
+failure misdiagnosed first, then minors, then the root cause). The whole-round review found one Critical
+(the Browse 3 failure above) and four Important, all in documentation, and two fix waves closed them.
+
+**Not closed by this round:** Recover 6 and 8's host timing (recorded, not asserted, by AD18-R33); Design
+89's real-Mac arm (no macOS leg, by AD18-R31); the "not yet read" flash (open for the user); and the minor
+items RESUME lists as recorded.
+
+**CI 36484052178 and E2E 36484052031 are GREEN on `969684a02`**, which carries every build task, the
+AD18-R34 fix, the Browse 3 root-cause fix and both documentation fix waves: `verify` x4 plus `audit`, and
+five E2E jobs. Both were read by run id. PR #230 stays a draft.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

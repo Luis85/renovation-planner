@@ -61,7 +61,9 @@ kept as history.
   reloads (rulings 13, 19, 20, 21 and 22).
 - **Q2 was measured warm**, 3 of 3, by the owner's automated run in a real Obsidian 1.13.7 on
   Windows over the test vault (section 4), so by ruling 3 it ships as is. A run in the owner's
-  own vault has not happened.
+  own vault has not happened. *2026-09-28:* CI then observed the cold arm once, on the `latest`
+  leg; its cause was found and fixed by owner ruling 41, and the fix is verified in CI (section
+  4). A note whose parse outlasts the ~500 ms debounce is still not covered.
 - **Q3 is decided by ruling 16, "Keep the record alive"**, which supersedes ruling 4's costing
   of view teardown after the owner's measurement refuted that option's premise; it is built
   (section 5).
@@ -385,6 +387,51 @@ beta until the plugin's indexing is fixed. The owner cannot do that run soon, so
 is conditional and unresolved, and G1 cannot be evaluated until the run happens. **Q2 remains
 open.** *Superseded 2026-09-25:* the run happened, automated rather than by hand, and measured the
 warm arm, 3 of 3 (see "The deciding experiment" above). By this ruling Q2 ships as is.
+
+### The cold arm, found in CI on 2026-09-28, and owner ruling 41's fix
+
+**Found.** On 2026-09-28 the E2E run `36462205808`, attempt 2, failed on its `latest` desktop
+leg in `settingsDuringCreate.e2e.ts`'s Q2 case with `[ true, false, true ]` against
+`[ true, true, true ]`: one of three iterations did not list the new project without a reload.
+It was the first observation of the cold arm anywhere, in CI on Linux, not in a vault.
+
+**Cause**, from an investigation of three dispatched E2E runs on throwaway branches (`36470438857`,
+`36471212931`, `36471926146`, the branches deleted after), established by a forced reproduction
+and a control. A settings apply landing between Obsidian's vault `create` event for the plugin's
+note and Obsidian's metadata parse of it (2 to 19 ms in CI) flushed the outgoing index adapter's
+pending path against a null cache and an empty echo window, so the note was dropped as "not
+ours"; the new root's scan also ran before the parse, and nothing re-read the note after it.
+Forced inside the `create` event: 0 of 20 listed, all 20 recovered by a reload; forced after the
+parse: 20 of 20 listed. In the test, the trigger was the folder text control saving on every
+keystroke, each save queuing a settings apply, with the create released while later applies
+were still queued. The E2E stale-element failures in settings-window cases share that upstream
+cause (trailing applies remount the view while WebDriver holds its elements); which element went
+stale was inferred, not proven.
+
+**Owner ruling 41 ("Fix product + tests") and its fix**, at `710ae3541`, `4c0953cd5`, `d6f3da245`
+and `0f9fa51e5`. At a settings swap the outgoing adapter hands its pending paths, unprocessed,
+to the incoming one (`VaultChangeAdapter.handOver` and `adopt`), which processes them after its
+own debounce against a parsed cache. A plan created across the swap needed a second change: its
+sidecar can arrive before its note, so `processNote` now resolves a missing sidecar mapping from
+the vault, walking the vault's files once for a NEW index entry only. Both e2e cases wait for
+the settings writes to settle, and a new case forces the race and expects the project listed.
+
+**Verification, in CI and not in a vault.** The new e2e cases over the pre-fix swap path, on a
+throwaway branch (run `36479247196`), failed the forced case on both desktop legs, `[false ×5]`
+against `[true ×5]`; the same cases on the fixed path passed (run `36479214036` at `4c0953cd5`),
+and every completed E2E run on the branch since, to `3d85db7a0`, has passed.
+
+**The residual.** The hand-over gives a note one debounce (~500 ms) for Obsidian to parse it. A
+note whose parse takes longer is still read against a null cache and dropped until the next
+full rebuild, as before; nothing listens for the parse itself. A large vault or a slow disk is
+where that could happen, and none has been measured.
+
+**Owner ruling 42 ("Investigate + fix"), answered 2026-09-28.** The `latest` E2E leg installs
+1.13.7 correctly: the newest public release, 1.13.8 (2026-08-21), is Android-only, and
+Obsidian's own desktop release feed names 1.13.7 as the latest stable desktop build. The version
+resolution is not wrong, so nothing was fixed there; the leg duplicates 1.13.7 until a newer
+desktop build ships. Its cache key, which never re-saved, was changed separately under owner
+ruling 48 (`171eeb571`).
 
 ## 5. Q3 — may a still-mounted view write to the vault after `onunload`? (tracker L-21)
 
@@ -799,3 +846,98 @@ chat.** Numbered as in the session's record of rulings, which continues the twel
   (2026-09-27). "'Not found' is accurate for a deleted asset; record as accepted." The undo
   answers `asset.not-found`, a toast with the save badge unchanged, not the superseded copy
   (census §7).
+
+**Decided 2026-09-27 to 2026-09-29 (session 21, continued), by the release owner in the same
+chat.** Numbered as in the session's record of rulings, continuing from 33. Quoted words are the
+chosen option's label and description as the owner saw them; where the record carries the
+approved text instead of a description, that text is quoted, and a line marked *summary* is not
+a quotation.
+
+- **Ruling 34, L-23's guard placement — "Create + edit, separate load"** (2026-09-27). "One check
+  in the Room entity for both creating and changing an outline; loading from the vault gets its
+  own unchecked entry so old vaults still load. Covers paste, drawing, Add Room, every drag and
+  form. Small structural change in the domain." Asked because the recorded remedy,
+  `Zone.withGeometry` (R-S12-8), is not a chokepoint: creation goes through `Zone.create`, which
+  loading shared. Built at `c75d21b47`: `Zone.create` and `withGeometry` refuse, and the unchecked
+  `Zone.fromStored` is used only by `zoneFromPersistence`, pinned by
+  `tests/gates/zone-load-entry.test.ts`. Tracker row L-23.
+- **Ruling 35, edits on an existing zero-area room — "Keep as described"** (2026-09-27).
+  "Outline-touching edits refused; rename, details, lock, delete still allowed (lets you find and
+  delete it). Recorded as what 'refuses further edits' means."
+- **Ruling 36, L-23's near-zero case — "Refuse near-zero"** (2026-09-27). "Treat an outline whose
+  area is negligible relative to its size (e.g. below a millionth of its bounding box) as zero.
+  Closes the slanted-edge case. Small change + tests; a genuinely thin but real room (e.g. 1 cm ×
+  10 m) still passes." Built at `2b9a667cc` (`isNegligibleArea`, a millionth of the corners'
+  bounding box) and made overflow-safe for the box's width at `543513d53`.
+- **Ruling 37, the "Save error" badge on a geometry refusal from a drag — "Message, badge
+  unchanged"** (2026-09-27). "Show the existing 'A geometry value is invalid.' message and leave
+  the badge alone, like the 'undo superseded' case. Existing copy in both languages. The agent
+  first checks why the code deliberately treats geometry as maybe-written, and stops if that
+  reason holds." The check found no such reason, and the implementer did not stop: `Geometry` had
+  been left out of the pre-write set by grouping, not by measurement. Built at `679b6075f`, its
+  comments narrowed at `096fee008`: the ordering (every geometry refusal before the first write)
+  holds by enumeration of the commands that exist, and nothing checks it for a command not yet
+  written.
+- **Ruling 38, the near-zero rule's reach into objects, posts and hatches — "Keep it"**
+  (2026-09-27). "Same rule for rooms and drawn elements; slanted-snap slivers of hatches/objects
+  are refused too. Record as extending ruling 36."
+- **Ruling 39, a mixed paste holding a zero-area room — "Check before writing"** (2026-09-27).
+  "Paste checks every room's area first and refuses the whole paste without writing anything.
+  Small change + test." Built at `ce0e532cc`.
+- **Ruling 40, pasting an old near-zero object or hatch — "Record, leave it"** (2026-09-27).
+  "Only reachable by copying an old sliver element; harmless (a near-invisible hatch/object).
+  Recorded as a known gap." Elements have no area rule in the domain, so such a paste is still
+  written. **A known gap, not closed.**
+- **Ruling 41, Q2's cold arm — "Fix product + tests"** (2026-09-28). "Hand pending notes to the
+  new index instead of dropping them (small change in the settings-swap path, own review), wait
+  for settings to finish in the two e2e tests, and add a test that forces the race and expects
+  the project to appear." Built and verified in CI; section 4.
+- **Ruling 42, the E2E `latest` leg installing 1.13.7 — "Investigate + fix"** (2026-09-28). "Find
+  why 'latest' resolves to 1.13.7 (maybe 1.13.7 truly is the newest public build, or a cache) and
+  fix the workflow if it's wrong; record the answer." Answered in section 4: 1.13.7 is the newest
+  desktop build, so there was nothing to fix.
+- **Ruling 43, BP-06's page-out-of-range copy — "Approve both"** (2026-09-28). EN "This PDF has
+  no page {page}. Its last page is {count}." / DE "Diese PDF-Datei hat keine Seite {page}. Die
+  letzte Seite ist {count}." Built at `cac179940`; the page field's `max`, added in the same
+  commit, is dropped at `62f164a75` because native validation silently blocked Continue.
+- **Ruling 44, BP-10's fictional sample label — "Approve both"** (2026-09-28).
+  `sample.project.name`: EN "Sample renovation (fictional)" / DE "Beispiel-Renovierung (fiktiv)".
+  Built at `5a7b9c4a9`.
+- **Ruling 45, L-33's residue — "Approve both"** (2026-09-28). A new `editor.outline.invalid` on
+  the outline form only: EN "These positions do not form a valid shape. Correct any marked field,
+  and check for lines that cross or overlap or for two neighbouring points in the same place." /
+  DE "Diese Positionen ergeben keine gültige Form. Korrigieren Sie markierte Felder und prüfen
+  Sie, ob sich Linien kreuzen oder überlappen oder zwei benachbarte Punkte an derselben Stelle
+  liegen." Built at `71843d284`.
+- **Ruling 46, L-36's axis labels — "Start X / Start Y"** (2026-09-28). "Both English forms become
+  'Start X (m)' / 'Start Y (m)' and 'Start X' / 'Start Y', matching German. No German change."
+  Built at `d81c1b95f`.
+- **Ruling 47, BP-10's help entry — "In-plugin guide view"** (2026-09-28). "Agent writes a short
+  getting-started guide (EN + DE draft for your approval) shown in a plugin modal; the command
+  opens it. No web access." Built at `3d85db7a0`.
+- **Ruling 48, the E2E cache-key fix from a side session — "Land it on this branch"**
+  (2026-09-29). "An agent here applies the exact 4-line change to .github/workflows/e2e.yml,
+  commits, pushes after the running E2E finishes, and I check one E2E log shows the new cache
+  save. PR #231 stays a draft; nothing is merged into main." Asked because the request arrived
+  from another session claiming the owner's instruction; the session did not act on that claim
+  until the owner answered. Landed at `171eeb571`: E2E `36601456699` saved under the new
+  run-unique key, and the next run, `36607127922`, restored from its prefix.
+- **Ruling 49, the getting-started guide — "Approve as drafted"** (2026-09-29). *Summary:* the
+  guide's title, seven steps and reopen line in English and German as drafted, with control names
+  filled from the controls' own keys; the command "Open getting-started help" / "Einstiegshilfe
+  öffnen", id `open-help`; "Befehlspalette" and "Menüband" accepted as drafted, not checked
+  against a German Obsidian. Built at `3d85db7a0`.
+- **Ruling 50, the German library button and spelling — "Button 'Objekt-Bibliothek', one
+  spelling"** (2026-09-29). "German button becomes 'Objekt-Bibliothek'; the two editor labels use
+  the same hyphenated spelling." Built at `11dc9d332`.
+- **Ruling 51, the planned-geometry form's end labels — "'End X' / 'End Y'"** (2026-09-29).
+  "English end labels become 'End X' / 'End Y', matching German 'Ende X' / 'Ende Y'. No German
+  change." Built at `564847249`.
+- **Ruling 52, the third German library spelling — "Change to Objekt-Bibliothek"** (2026-09-29).
+  "One German name everywhere; the test is widened to catch any 'Bibliothek' spelling." Built at
+  `2412a4657`. The widened test catches a word joined to „Bibliothek“ (such as
+  „Asset-Bibliothek“), not the plain noun „Bibliothek“ or a compound beginning with it (such as
+  „Zurück zur Bibliothek“ or „Bibliothekspreis“), which the session read as not being names for
+  the library; whether the owner meant those too is not asked.
+- **Ruling 53, guide step 6 on mobile — "Leave as approved"** (2026-09-29). "The mobile line
+  covers it; record it as a known note." Step 6 names the sample command, which is desktop-only.

@@ -142,6 +142,9 @@ describe('what onload registers', () => {
 			// Scaffolding, and it still has to obey the id rule — a user who binds a hotkey to
 			// it has bound it to this string. `sampleProject.ts` names what deletes it.
 			'create-sample-project',
+			// Owner rulings 47 and 49: the getting-started guide. A plain callback gated on nothing —
+			// reading it needs no settings, no index and no desktop.
+			'open-help',
 		]);
 	});
 

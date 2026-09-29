@@ -25,6 +25,7 @@ import { registerPlanEditorCommands } from './planEditorCommands';
 import { registerEditorIcons } from './editorIconRegistration';
 import { registerAssetDesignerCommands } from './assetDesignerCommands';
 import { registerSampleProjectCommand } from './sampleProject';
+import { registerHelpCommand } from './help/GettingStartedModal';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
 import { activateNotices, disposeNotices, noticeOnlySinks, notifyFault } from '../presentation/notices/notify';
 import { surfaceError } from '../presentation/errors/surfaceError';
@@ -271,9 +272,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// remember. Where that answering LIVES moved a review round later: into
 		// `revealCandidate`, so one failed activation is one report however many clicks
 		// joined it.
-		this.addRibbonIcon(RENOVATION_PROJECT_ICON, tr('command.open-project'), () => {
-			this.openProject();
-		});
+		this.addRibbonIcon(RENOVATION_PROJECT_ICON, tr('command.open-project'), () => { this.openProject(); });
 
 		this.addCommand({
 			id: 'open-project',
@@ -387,6 +386,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// creation forms are what remove it — slice 15 built the dialog framework they mount in,
 		// which is not the same thing as being able to name a project.
 		registerSampleProjectCommand(this);
+
+		// Owner rulings 47 and 49: the getting-started guide, one modal behind one command.
+		registerHelpCommand(this);
 
 		// The index scan runs from `onLayoutReady`, NOT here: a vault-wide scan in `onload`
 		// competes with workspace restoration, and `MetadataCache` is incomplete until

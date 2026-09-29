@@ -443,6 +443,19 @@ describe('the reworded zone labels use the split ADR-0016 actually draws', () =>
 	});
 });
 
+/**
+ * L-36 (owner ruling 46): both wall forms name a start coordinate "Start X" / "Start Y", in the
+ * same register as each other and as German — one was "Starting horizontal coordinate (m)"
+ * beside "Start Y (m)", the other "Horizontal start" where German read "Start X".
+ */
+describe('the start-coordinate labels are one symmetric pair in both locales', () => {
+	it('reads Start X and Start Y on the wall form and the planned-geometry form', () => {
+		const keys = ['editor.structure.x', 'editor.structure.y', 'renovation.measurement.x', 'renovation.measurement.y'] as const;
+		expect(keys.map(key => en[key])).toEqual(['Start X (m)', 'Start Y (m)', 'Start X', 'Start Y']);
+		expect(keys.map(key => de[key])).toEqual(keys.map(key => en[key]));
+	});
+});
+
 describe('the delete flow the editor opens speaks the same vocabulary as the editor', () => {
 	const DELETE_FLOW_KEYS = ['reference.no-reassignment-target', 'zone.listing-incomplete'] as const;
 

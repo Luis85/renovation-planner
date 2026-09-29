@@ -14,7 +14,7 @@ export const structureEn = {
 	'editor.structure.wall-number': 'Wall {n}',
 	'editor.structure.length': 'Length (m)',
 	'editor.structure.angle': 'Angle (° clockwise; 0 is right)',
-	'editor.structure.x': 'Starting horizontal coordinate (m)',
+	'editor.structure.x': 'Start X (m)',
 	'editor.structure.y': 'Start Y (m)',
 	'editor.structure.height': 'Height (m)',
 	'editor.structure.thickness': 'Thickness (m)',

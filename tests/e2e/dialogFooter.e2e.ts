@@ -1,6 +1,7 @@
 import { describe, expect } from 'vitest';
 import { test } from './fixture';
-import { createDesignerPage } from './designer';
+import { createDesignerPage, type ObsidianPage } from './designer';
+import type { PlannerPage } from './helpers';
 import { contrastOf } from './designerParity';
 import { writeEvidence } from './diagnostics';
 import { inBothThemes, TEXT_CONTRAST } from './legibility';
@@ -97,6 +98,14 @@ const narrowTo = async (browser: NativeBrowser, width: number): Promise<void> =>
 	await browser.pause(400);
 };
 
+/** A new asset in the designer, and its preset dialog open. */
+const openPresetDialog = async (browser: NativeBrowser, page: ObsidianPage, ui: PlannerPage, name: string): Promise<void> => {
+	const designer = createDesignerPage(browser, page, ui);
+	await designer.createAsset(name);
+	await designer.designer().$('.rp-designer-start-preset').click();
+	await expect.poll(() => browser.$('.rp-dialog .rp-asset-preset-form').isDisplayed()).toBe(true);
+};
+
 describe('a form dialog’s one action row in the real Obsidian host', () => {
 	test('New asset draws Cancel then a primary Save on one row, at the default window and a sidebar-width leaf, and Enter submits', async ({
 		native: { browser, ui, directory },
@@ -108,15 +117,28 @@ describe('a form dialog’s one action row in the real Obsidian host', () => {
 		const wide = await layout(browser);
 		expectOneRow(wide);
 
-		const contrast = await inBothThemes(browser, async () => contrastOf(await submitPaint(browser)).ratio);
+		const submit = browser.$('.rp-dialog button[type="submit"]');
+		const read = async () => {
+			const paint = await submitPaint(browser);
+			return { ratio: contrastOf(paint).ratio, fill: paint.backgrounds[0] };
+		};
+		const contrast = await inBothThemes(browser, read);
+		// Hovered, the fill darkens (light) or lightens (dark) further; the label must still clear 4.5:1.
+		await submit.moveTo();
+		const hovered = await inBothThemes(browser, read);
+		await browser.$('.rp-dialog-title').moveTo();
+		expect(hovered.light.fill).not.toBe(contrast.light.fill);
+		expect(hovered.dark.fill).not.toBe(contrast.dark.fill);
+		expect(hovered.light.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST);
+		expect(hovered.dark.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST);
 
 		await narrowTo(browser, 360);
 		const narrow = await layout(browser);
-		await writeEvidence(directory, 'dialog-footer', { wide, narrow, contrast });
+		await writeEvidence(directory, 'dialog-footer', { wide, narrow, contrast, hovered });
 		expectOneRow(narrow);
 		expect(narrow.panel && narrow.panel.right - narrow.panel.left).toBeLessThan(wide.panel ? wide.panel.right - wide.panel.left : 0);
-		expect(contrast.light).toBeGreaterThanOrEqual(TEXT_CONTRAST);
-		expect(contrast.dark).toBeGreaterThanOrEqual(TEXT_CONTRAST);
+		expect(contrast.light.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST);
+		expect(contrast.dark.ratio).toBeGreaterThanOrEqual(TEXT_CONTRAST);
 
 		// The submit is still the FORM's: Enter in a field submits through it.
 		const name = ui.dialog().$('[data-field="name"]');
@@ -129,10 +151,7 @@ describe('a form dialog’s one action row in the real Obsidian host', () => {
 	desktop('the preset dialog keeps Apply and the chosen preset’s width field in view after a card low in the gallery is chosen', async ({
 		native: { browser, page, ui, directory },
 	}) => {
-		const designer = createDesignerPage(browser, page, ui);
-		await designer.createAsset('Preset probe');
-		await designer.designer().$('.rp-designer-start-preset').click();
-		await expect.poll(() => browser.$('.rp-dialog .rp-asset-preset-form').isDisplayed()).toBe(true);
+		await openPresetDialog(browser, page, ui, 'Preset probe');
 
 		const viewport = await browser.execute(() => window.innerHeight);
 		// Apply is in view BEFORE anything is chosen, with the gallery at its top: the row is pinned at
@@ -165,8 +184,8 @@ describe('a form dialog’s one action row in the real Obsidian host', () => {
 			preview: '.rp-asset-preset-chosen > svg.rp-asset-preset-preview',
 		});
 		await writeEvidence(directory, 'preset-footer', measured);
-		const { panel, body, footer, apply, width } = measured;
-		if (!panel || !body || !footer || !apply || !width) throw new Error(`Preset dialog parts missing: ${JSON.stringify(measured)}`);
+		const { panel, body, footer, apply, width, preview } = measured;
+		if (!panel || !body || !footer || !apply || !width || !preview) throw new Error(`Preset dialog parts missing: ${JSON.stringify(measured)}`);
 
 		// Apply sits inside the panel and inside the window.
 		expect(apply.top).toBeGreaterThanOrEqual(panel.top);
@@ -174,5 +193,47 @@ describe('a form dialog’s one action row in the real Obsidian host', () => {
 		// The width field is inside the scroller's visible area and not under the pinned row.
 		expect(width.top).toBeGreaterThanOrEqual(body.top);
 		expect(width.bottom).toBeLessThanOrEqual(footer.top);
+		// And so is the chosen preset's preview, below the fields.
+		expect(preview.top).toBeGreaterThanOrEqual(body.top);
+		expect(preview.bottom).toBeLessThanOrEqual(footer.top);
+
+		// A REFUSED Apply takes no hover fill: a width out of range makes it inoperative.
+		await browser.$('.rp-dialog input[name="width"]').setValue('1');
+		await expect.poll(() => browser.$('.rp-dialog button[type="submit"]').getAttribute('aria-disabled')).toBe('true');
+		const refusedFill = async () => (await submitPaint(browser)).backgrounds[0];
+		const resting = await refusedFill();
+		await browser.$('.rp-dialog button[type="submit"]').moveTo();
+		expect(await refusedFill()).toBe(resting);
+	});
+
+	desktop('Tab onto a field scrolled under the pinned row brings it out from under the row', async ({ native: { browser, page, ui, directory } }) => {
+		await openPresetDialog(browser, page, ui, 'Focus probe');
+
+		// The default preset's width field, scrolled so it sits wholly UNDER the row (which is taller
+		// than the field), with focus on the control before it — the gallery's one tab stop — placed
+		// without scrolling anything.
+		const placed = await browser.execute(() => {
+			const body = document.querySelector('.rp-dialog-body');
+			const field = document.querySelector<HTMLElement>('.rp-dialog input[name="width"]');
+			const row = document.querySelector('.rp-dialog .rp-dialog-actions');
+			const stop = document.querySelector<HTMLElement>('.rp-preset-choice[tabindex="0"]');
+			if (!body || !field || !row || !stop) throw new Error('No preset dialog to arrange.');
+			body.scrollTop += field.getBoundingClientRect().top - row.getBoundingClientRect().top - 4;
+			stop.focus({ preventScroll: true });
+			const fieldBox = field.getBoundingClientRect();
+			const rowBox = row.getBoundingClientRect();
+			return { covered: fieldBox.top >= rowBox.top && fieldBox.bottom <= rowBox.bottom, focused: document.activeElement === stop };
+		});
+		expect(placed).toEqual({ covered: true, focused: true });
+
+		await browser.keys('Tab');
+		await expect.poll(() => browser.execute(() => document.activeElement?.getAttribute('name'))).toBe('width');
+		await browser.pause(300);
+		const after = await boxes(browser, { field: '.rp-dialog input[name="width"]', row: '.rp-dialog .rp-dialog-actions', body: '.rp-dialog-body' });
+		await writeEvidence(directory, 'focus-not-obscured', after);
+		const { field, row, body } = after;
+		if (!field || !row || !body) throw new Error(`Preset dialog parts missing: ${JSON.stringify(after)}`);
+		expect(field.top).toBeGreaterThanOrEqual(body.top);
+		expect(field.bottom).toBeLessThanOrEqual(row.top + 1);
 	});
 });

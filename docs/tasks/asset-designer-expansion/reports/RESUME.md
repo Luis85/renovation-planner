@@ -185,7 +185,10 @@ Carried forward, still open:
   an asset's `ProjectIndexEntryChanged`) do invalidate; the no-event cases (a hand-edited id, a note
   turned unreadable) keep the old mark, so a same-id recreation reached that way draws the old
   footprint for the life of the view. Fix: diff the previous listing's ids against the new one in
-  `hydrate` and invalidate the departed ones. Its own task.
+  `hydrate` and invalidate the departed ones. Its own task. **Closed (2026-09-29):** `hydrate`
+  FORGETS the departed ids (`ViewportMarks.forget` — ticket bumped, value dropped, no longer drawn,
+  no read), so a returning id is read afresh; `assetLibraryMarkLeaving.test.ts`, each case watched
+  red under its clause's mutation. §5.4's amendment records the decision.
 
 **This round's own items** (`round7-minors.md`, reconciled by the final review dispatched on
 `cecb332b7..7bb94a45b`: two items were fixed in that review's fix wave and two were found not to be

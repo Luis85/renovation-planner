@@ -1362,11 +1362,19 @@ The contract, so a builder does not invent one:
   the answer replaces it in one step. The held value is bounded by that one read: its answer
   replaces it, a failed read drops it back to *not yet read*, a further invalidation re-reads or
   drops it — so an INVALIDATED drawn row can show the previous footprint (a deleted asset's, when
-  its id is recreated) for one read's duration at most. That bound covers the event arms only: the
+  its id is recreated) for one read's duration at most. That bound covers the event arms; the
   no-event case (a hand-edited id, a note turned unreadable) is the "entry LEAVING the listing"
-  rule's above, and that rule is **not implemented for marks** as of this amendment —
-  `AssetLibraryStore.hydrate` invalidates no mark — so there a recreated row still draws the old
-  footprint for the life of the view. A known gap, recorded rather than closed here.
+  rule's above. **That rule was not implemented for marks when this amendment was first written,
+  and is now (2026-09-29):** `AssetLibraryStore.hydrate` diffs each APPLIED listing's ids
+  against the previous applied listing's — so a superseded (§5.5), refused or pre-scan read
+  forgets nothing — and FORGETS every id that left: the mark's ticket is bumped (a read still out
+  for it is dropped when it lands), its value is dropped, and it stops counting as drawn. It is
+  not re-read, and not held: the listing just applied draws no row for it, so a held value could
+  only outlive the entry it described and be drawn if the id came back. **An id that comes back
+  is read afresh**, by the caller's next drawn-set pass, never from a mark kept across its
+  absence. What the diff still cannot see is an id replaced WITHIN one refresh — delete and
+  recreate before either listing is applied — which is the case this section already assigns to
+  the `AssetDeleted` and `ProjectIndexEntryChanged` arms.
 - The **inspector** refetches its own asset on the same events, since `dimensions` and the shape
   note come from the same read.
 

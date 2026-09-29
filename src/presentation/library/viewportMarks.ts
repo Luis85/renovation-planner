@@ -57,7 +57,9 @@ import type { AssetLibraryQueryServices } from '../read-models/assetLibraryQueri
  * What bounds a held mark is that every one has a current read out: its answer replaces it, its
  * failure drops it, a further `invalidate` re-reads or drops it, and `reset` clears it — so an
  * old footprint (an asset deleted and recreated under the same id, say) outlives one read at
- * most, whether or not its row is still drawn when the answer lands.
+ * most, whether or not its row is still drawn when the answer lands. An entry LEAVING the
+ * listing holds nothing at all: `AssetLibraryStore.hydrate` hands it to `forget`, which drops
+ * the value and the read out for it, so an id that comes back is read afresh.
  *
  * **There is no timer and no microtask coalescing, and the batch boundary is the CALLER's
  * call.** A scheduler here would be a second batching mechanism layered over the caller's own,
@@ -83,6 +85,13 @@ export interface ViewportMarks {
 	 * once and keep drawing their held mark until the answer replaces it; the rest are forgotten.
 	 */
 	invalidate(assetIds: readonly AssetId[], queries: AssetLibraryQueryServices): Promise<void>;
+	/**
+	 * §5.4's *an entry LEAVING the listing*: a new ticket for each of these marks, the value
+	 * dropped and the id no longer counted as drawn — whatever the caller last said — because the
+	 * listing just applied has no row for it. Nothing is read, so no held mark survives the leave:
+	 * an id that comes back is read afresh by the caller's next `setVisible`.
+	 */
+	forget(assetIds: readonly AssetId[]): void;
 	reset(): void;
 }
 
@@ -184,6 +193,13 @@ export function createViewportMarks(): ViewportMarks {
 				assetIds.filter((assetId) => visible.has(assetId)),
 				queries,
 			);
+		},
+
+		forget(assetIds) {
+			bump(assetIds);
+			const left = new Set(assetIds);
+			visible = new Set([...visible].filter((assetId) => !left.has(assetId)));
+			for (const assetId of assetIds) marks.value.delete(assetId);
 		},
 
 		/**

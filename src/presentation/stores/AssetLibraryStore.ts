@@ -181,6 +181,13 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 			return;
 		}
 
+		// §5.4's *an entry LEAVING the listing invalidates its mark* — the half no event reaches (a
+		// note turned unreadable, a hand-edited id). Diffed against the last APPLIED listing, so
+		// a superseded, refused or pre-scan read forgets nothing. `forget` rather than
+		// `invalidate`: the entry has no row in this listing, so a held mark would only outlive it
+		// and be drawn if the id came back.
+		const listed = new Set(found.value.entries.map((entry) => entry.assetId));
+		marks.forget(entries.value.map((entry) => entry.assetId).filter((assetId) => !listed.has(assetId)));
 		entries.value = found.value.entries;
 		unreadable.value = found.value.unreadable;
 		status.value = 'ready';

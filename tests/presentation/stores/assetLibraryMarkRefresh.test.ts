@@ -137,9 +137,10 @@ describe('a drawn mark across its re-read', () => {
 	});
 
 	/**
-	 * Same-id replacement: a row that stops being drawn while its re-read is out — an asset
-	 * deleted, the catalogue refresh taking its row away — still has that read's answer replace
-	 * the held mark, so the old footprint outlives one read at most. Invalidated again while
+	 * Same-id replacement: a row that stops being drawn while its re-read is out — its shelf
+	 * collapsed, say — still has that read's answer replace the held mark, so the old footprint
+	 * outlives one read at most. (A catalogue refresh taking the ENTRY away forgets the mark
+	 * outright instead; `assetLibraryMarkLeaving.test.ts`.) Invalidated again while
 	 * undrawn (the same id recreated), it is dropped, and drawn again it is read afresh.
 	 */
 	it('holds the old footprint for one read at most, drawn or not', async () => {

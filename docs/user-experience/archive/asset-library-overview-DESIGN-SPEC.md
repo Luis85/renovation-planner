@@ -413,6 +413,20 @@ reach.
 The mark is `aria-hidden`; the shape's state is written in words in the inspector, so nothing is
 carried by the drawing alone.
 
+**Amendment (2026-09-30, ruling AD18-R39): a Grid tile and the inspector's Shape preview draw the
+asset's DETAILS inside its footprint; the 20px row mark does not.** The paragraph above keeps its
+force at 20px, where details are mush, and only there. AD18-R18 reused this mark at tile size and at
+preview size, where a vanity drew as a bare rectangle and a toilet as a bare U while the designer's
+own asset card drew basin, tap hole, bowl and tank. So at those two sizes the mark draws each detail
+after the footprint, placed by the FOOTPRINT's fit (a detail sits where it sits in the object, not
+fitted on its own), dashed where the detail is dashed (overhead or hidden), and **thinner than the
+footprint in the footprint's own colour** — thinner rather than fainter, because the tile's
+legibility guard holds every line of a designed tile above the design-less placeholder's faint
+colour. The five states are unchanged: details draw only on a `measured` or `unscaled` outline, an
+`unscaled` one dashes them with its footprint, and `pending`, `none` and `unreadable` draw exactly
+what the table above says. The design-less tile's category icon (AD18-R21) is unchanged. The clearance,
+the anchor and the facing are still not drawn at any of the three sizes.
+
 **The struck box covers TWO causes and deliberately does not distinguish them.** A damaged
 sidecar and an id that cannot name a file (`asset-geometry.unusable-id`, refused before the disk
 is touched at all) both mean *no shape, and not because there is none to have*. An earlier
@@ -1245,6 +1259,18 @@ already exists and already joins the note and the sidecar into one DTO — dimen
 `dimensionsUnscaled` flag, the calibration, the background reference and both versions. The
 designer reads exactly this. Reported by a review bot; the batch and the panel were specified in
 different sections and neither said which fed the other.
+
+**Amendment (2026-09-30, ruling AD18-R39): the batch carries each outline's DETAILS too**, flattened
+in the footprint's own millimetres, so a Grid tile can draw them (§3.4's amendment). They come from the
+sidecar parse the batch already pays for — the details sit in the same `.rpgeo` as the footprint — so
+this adds no read, no second cache and no new invalidation path: §5.4's rules and §5.5's tickets
+apply to the widened value unchanged, a drawn row still keeps its held mark (details included) until
+the re-read answers, and an entry leaving the listing still forgets it. A per-visible-tile read was the
+alternative and was refused: it would read every drawn sidecar a SECOND time and need a cache of its
+own, with its own pending and unreadable states, beside the one §5.4 already keeps honest. The 20px
+row mark receives the same value and does not draw the details. The inspector still reads through
+`GetAssetDesign` as this section says; its preview maps that design's shape through the same function
+the batch uses, so the two cannot draw one asset differently.
 
 **And the batch settles per entry, never as a whole.** One damaged sidecar must not fail the
 shelf it is in, and it must not leave the other rows loading either. So the query answers a

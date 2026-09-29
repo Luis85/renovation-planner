@@ -53,7 +53,7 @@ export interface OutlineDetail {
 
 /**
  * A shape whose extent has already been measured, as the mark draws it — the batch's and the
- * inspector preview's one mapping, so a tile and its preview cannot disagree about what they draw.
+ * inspector preview's one mapping, so the two map a shape the same way (each still draws whatever its own read answered).
  * Arcs flattened at 1 mm: the mark draws straight segments (symbols spec, Rendering).
  */
 export function outlineOf(shape: AssetShape, extent: Dimensions): AssetOutline {

@@ -1270,7 +1270,7 @@ alternative and was refused: it would read every drawn sidecar a SECOND time and
 own, with its own pending and unreadable states, beside the one §5.4 already keeps honest. The 20px
 row mark receives the same value and does not draw the details. The inspector still reads through
 `GetAssetDesign` as this section says; its preview maps that design's shape through the same function
-the batch uses, so the two cannot draw one asset differently.
+the batch uses, so the two map a shape identically — what each draws is still whatever its own read answered.
 
 **And the batch settles per entry, never as a whole.** One damaged sidecar must not fail the
 shelf it is in, and it must not leave the other rows loading either. So the query answers a

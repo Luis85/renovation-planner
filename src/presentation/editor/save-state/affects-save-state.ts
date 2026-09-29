@@ -122,7 +122,10 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * `GroupGeometryCommand` (`zoneReceipts`'s `versionFor` before `geometry.write`), and
  * `PasteCommand`'s pre-check (`enclosingOutline` over every Room before anything is written) —
  * L-23's `polygon-zero-area` and `polygon-area-overflow` from `withGeometry`, the curve codes
- * from `preservePointCurves`. The one shape that can follow a write is a COMPOSED command
+ * from `preservePointCurves`. The same ordering holds for the asset designer's writers,
+ * reaching this predicate through `designer/runtime.ts`'s own `withSaveStateTracking`:
+ * `updateAssetShape` runs `validateAssetShape` before `sidecar.write`, `CalibrateAsset`
+ * likewise. The one shape that can follow a write is a COMPOSED command
  * (`PasteCommand`, `DeleteSelectionCommand`) whose later step refuses after an earlier step wrote
  * — and `restoreSteps` puts those back and stamps the refusal when it cannot, which is the stamp
  * below answering exactly as it does for the other four. **Nothing checks the ordering for a

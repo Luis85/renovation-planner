@@ -395,9 +395,11 @@ leg in `settingsDuringCreate.e2e.ts`'s Q2 case with `[ true, false, true ]` agai
 `[ true, true, true ]`: one of three iterations did not list the new project without a reload.
 It was the first observation of the cold arm anywhere, in CI on Linux, not in a vault.
 
-**Cause**, from an investigation of three dispatched E2E runs on throwaway branches (`36470438857`,
-`36471212931`, `36471926146`, the branches deleted after), established by a forced reproduction
-and a control. A settings apply landing between Obsidian's vault `create` event for the plugin's
+**The mechanism**, from an investigation of three dispatched E2E runs on throwaway branches
+(`36470438857`, `36471212931`, `36471926146`, the branches deleted after), established by a
+forced reproduction and a control; that it is what failed `36462205808` is inferred from the
+matching result and warnings, since that run's artifact was not read.
+A settings apply landing between Obsidian's vault `create` event for the plugin's
 note and Obsidian's metadata parse of it (2 to 19 ms in CI) flushed the outgoing index adapter's
 pending path against a null cache and an empty echo window, so the note was dropped as "not
 ours"; the new root's scan also ran before the parse, and nothing re-read the note after it.
@@ -413,7 +415,9 @@ and `0f9fa51e5`. At a settings swap the outgoing adapter hands its pending paths
 to the incoming one (`VaultChangeAdapter.handOver` and `adopt`), which processes them after its
 own debounce against a parsed cache. A plan created across the swap needed a second change: its
 sidecar can arrive before its note, so `processNote` now resolves a missing sidecar mapping from
-the vault, walking the vault's files once for a NEW index entry only. Both e2e cases wait for
+the vault — for every new plan or asset note the pipeline meets with no known mapping, not only
+across a swap; one walk of the vault's files each (a reviewer's estimate: ~1.8 ms at 10 000
+files) — which owner ruling 55 accepts. Both e2e cases wait for
 the settings writes to settle, and a new case forces the race and expects the project listed.
 
 **Verification, in CI and not in a vault.** The new e2e cases over the pre-fix swap path, on a
@@ -938,6 +942,24 @@ a quotation.
   `2412a4657`. The widened test catches a word joined to „Bibliothek“ (such as
   „Asset-Bibliothek“), not the plain noun „Bibliothek“ or a compound beginning with it (such as
   „Zurück zur Bibliothek“ or „Bibliothekspreis“), which the session read as not being names for
-  the library; whether the owner meant those too is not asked.
+  the library; whether the owner meant those too was then asked, and ruling 56 below leaves
+  them as they are.
 - **Ruling 53, guide step 6 on mobile — "Leave as approved"** (2026-09-29). "The mobile line
   covers it; record it as a known note." Step 6 names the sample command, which is desktop-only.
+
+**Decided 2026-09-29 (session 21, continued), from final whole-branch review 4**, by the release
+owner in the same chat. Quoted words are the chosen option's label and description as the owner
+saw them.
+
+- **Ruling 54, L-37's button label — "Keep 'Show diagnostics report'"** (2026-09-29). "Consistent
+  with the other report buttons; record as your choice." Ruling 10's option text had said "Open
+  report"; the button built at `b493618b8` reuses the palette command's label, "Show diagnostics
+  report" / "Diagnosebericht anzeigen".
+- **Ruling 55, the Q2 fix's wider reach — "Accept"** (2026-09-29). "It matches what a full rebuild
+  does and fixed the plan case; record it." The reach: the vault lookup of a missing geometry
+  mapping for every new plan or asset note the index pipeline meets, not only across a settings
+  swap (`d6f3da245`, narrowed to new entries at `0f9fa51e5`); section 4.
+- **Ruling 56, ruling 52 and the plain noun „Bibliothek“ — "Leave plain 'Bibliothek'"**
+  (2026-09-29). "Short form in context is fine; only the name/compounds are unified." The plain
+  noun stays where it stands in the German copy, and the widened test at `2412a4657` is left as
+  it is.

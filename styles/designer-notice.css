@@ -1,0 +1,26 @@
+/*
+ * The stale-data strip, split out of `designer.css` at the 400-line cap (UI critique round,
+ * Task 1): a read that failed while real content is still on screen. Styled as
+ * `.rp-warning-strip__item` is rather than as a failure panel, because that is what it means —
+ * the design beside it is real and was true a moment ago, so replacing the canvas would hide the
+ * thing the user is being told may be out of date.
+ *
+ * `--text-warning` sat as the TEXT colour here, on `--background-secondary`, the exact pair
+ * `.rp-designer-unscaled`'s own comment (`designer.css`) and `.rp-dialog-warning`'s
+ * (`dialogs.css`) measured at about 2.73:1 in the light theme — under the 4.5:1 AA floor for text
+ * this size (WCAG 2.x SC 1.4.3). The same fix as both siblings: the sentence carries the meaning
+ * in `--text-normal`, and the warning colour moves to a `border-inline-start` rule on the strip's
+ * leading edge, which is decoration rather than the thing a screen reader or a colour-blind
+ * reader has to read. `border-top` stays: it is a DIFFERENT rule, the separator between this strip
+ * and the canvas above it, not the warning indicator, and the two are independent declarations on
+ * the same element.
+ */
+.rp-designer-notice {
+	margin: 0;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-normal);
+	background-color: var(--background-secondary);
+	border-top: 1px solid var(--background-modifier-border);
+	border-inline-start: 2px solid var(--text-warning);
+}

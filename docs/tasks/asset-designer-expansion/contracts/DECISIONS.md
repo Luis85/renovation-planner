@@ -1900,6 +1900,36 @@ request (`0a0f8b7e1`).** Rule, design spec §5.4 as amended that day: a DRAWN ro
 re-read answers and the answer replaces it in one step; an undrawn row drops it. The Browse 3 guard now
 reaches *not yet read* through a first read in a reopened library.
 
+### AD18-R35 to AD18-R38 — what else could leave the walk, after six research levers. (2026-09-29)
+
+**Context.** Session twenty-two researched six levers against the 22 human steps (9 / 1 / 0 / 2 / 4 / 1 / 5,
+re-derived with MANUAL-PASS's counting command on `a01997695`), with read-only agents, and ranked them in
+[`walk-automation-options.md`](../reports/walk-automation-options.md) (`9f4fad37c`): retire by ruling, a
+Windows host-timing job, a CI-image gallery, the Calibrate 32 live-region pattern, visual baselines, and
+three not recommended (a macOS job, a real screen reader, a model as judge). A probe on Windows found
+Calibrate 32's review notice emits no live-region event at all. The user took four rulings in one batched
+round:
+
+| Item | Shipped before | Ruled |
+|---|---|---|
+| **AD18-R35** — five steps no instrument would help | Design 89, Design 121, Take 23, Browse 17 and Recover 20 stay in the walk | **All five retire by ruling**, each with a re-open trigger. **Design 89** (amends AD18-R31): its Windows walk never takes the Mac clause, and the clauses it does take are asserted; re-open with a macOS leg or a macOS walker. **Design 121**: its third clause is "inconsistent by design" (AD18-R23 Task 10) and the other two are asserted; re-open if either key's claiming rule changes. **Take 23**: "Edit shape" and "Open in designer" are the intended names for one destination; re-open if either string changes. **Browse 17**: the single-line Notes `<input>` that truncates a long note is the shipped decision; re-open if the control or the rail width changes. **Recover 20**: the answer is recorded as **no, a user would not know** — a known gap against U05's recovery-instructions clause, not a pass; re-open on any new cue near the header or the Reference tab, or if `unrecoveredWrite` is drawn in the designer. The rows are retagged and the count recomputed in the build session, not here |
+| **AD18-R36** — judging from a CI image | live vault only; teardown screenshots show the right frame for about nine steps, by accident, in one theme | **The gallery is built**: the guards that stage a step's state save `walk-<case>-<step>-<theme>.png` in both themes, and a stdlib script turns a downloaded `e2e-results/` into a local `walk.html`. **A Runs row may record a judgement made from a CI image**, citing the run id and head sha, and saying the image is Linux, DPR 1, default themes. The steps stay counted: this cuts setup, not the walk. No baselines |
+| **AD18-R37** — Calibrate 32's live region | `role="status"` is inserted together with its text (`v-if` on the section); on Windows 1.13.7 Chromium emits no live-region event for it (probe, two runs) | **Fix the pattern**: the status element renders always, and `v-if` moves to its text and the button. `assetDesignerAxTree.e2e.ts` also asserts that an empty polite status exists before the resize, red on the old pattern. **Step 32 stays human**: "a screen reader announces it" is still a person's to hear |
+| **AD18-R38** — Recover 6 and 8's host timing | recorded, not asserted (AD18-R33) | **AD18-R33 stands.** 6 and 8 stay human. Linux CI's 105 of 105 unprompted readings (0–4 ms) are recorded in the options document as context: Linux runs a different watcher path from the Windows walk |
+
+**Not taken:** visual baselines, a macOS job, a Windows e2e job, a real screen reader, and a model as judge.
+**No new dependency or devDependency is authorized by these rulings.** Also not authorized, and asked for
+separately if needed: a schema change, a stored field, AD17 or roadmap work, or any element of CLAUDE.md's
+*Deliberately absent* list.
+
+**Found false by the research, fixed under the standing AD18-R27 rule rather than a new ruling:** Two
+designers steps 9 and 10 still ask about a **Save error** badge that step 8, rewritten CONTRARY under
+AD18-R27, says the build never draws. Step 10 cannot be walked as worded until both rows are rewritten to
+the build.
+
+**Expected walk after the build:** 22 → **17** (7 / 0 / 0 / 2 / 3 / 1 / 4), to be re-derived with the
+counting command, not trusted from this line.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

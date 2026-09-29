@@ -176,6 +176,72 @@ their guards discharge would reverse AD18-R30 with no new evidence.
 8. **Design 104's "Add rail tiles"** carry visible text labels (`designerAddRail.test.ts` *labels each
    tile with the shape's own short name…*, verified). "On sight" really bites on the Arrange icons alone.
 
+## Rulings (2026-09-29) and the build outline
+
+Ruled by the user in one batched round, recorded as **AD18-R35 to AD18-R38** in
+[`DECISIONS.md`](../contracts/DECISIONS.md) and `execution/state.json`:
+
+- **R35:** retire Design 89, Design 121, Take 23, Browse 17 and Recover 20 by ruling, each with the
+  re-open trigger in the rank-1 table above. Recover 20's answer is recorded as **no**, a known gap
+  against U05, not a pass.
+- **R36:** build the gallery. A Runs row may cite a CI image by run id and head sha. No baselines.
+- **R37:** fix Calibrate 32's live-region pattern. The step stays human.
+- **R38:** AD18-R33 stands for Recover 6 and 8.
+
+**Expected walk after the build: 22 → 17 (7 / 0 / 0 / 2 / 3 / 1 / 4).** Re-derive it with the counting
+command; do not trust this line.
+
+**Build outline, for a later session.** It is not a plan yet: `superpowers:writing-plans` turns it into
+one. Each task is reviewed independently.
+
+1. **Calibrate 32 pattern fix (R37), test first.**
+   - Add to `assetDesignerAxTree.e2e.ts` an assertion that an empty polite `role="status"` exists in the
+     Object tab before the resize. Watch it go red on today's code.
+   - Then change `DesignerClearanceReview.vue`: the status element always renders, with no visible box
+     while empty, and `v-if` moves to its text and the button.
+   - Pass the mutation gate: restoring the old `v-if` must turn only the new assertion red.
+   - Keep the jsdom name test (`designerClearanceReviewName.test.ts`) green. Re-run the Windows WinEvent
+     probe once to confirm `0x8019` now fires (the method is in `C-screen-reader.md` §3; it needs no
+     dependency).
+   - **A read-only census, not a fix:** `role="status"` appears in 20+ `src/` components. List which ones
+     insert the region together with its text, and record the list for the user. Fixing them is not
+     authorized by R37.
+2. **Gallery helper (R36).**
+   - Add `walkShot` beside `captureBrowser` in `tests/e2e/diagnostics.ts`. It uses both themes via
+     `legibility.ts`'s `inBothThemes`, and try/catches into `diagnostic-errors.json` so a capture never
+     reddens a guard.
+   - Add the call sites, after each guard's own assertions, at the places `F-artifact-gallery.md` §2
+     names. That covers 16 steps, including Browse 11's filmstrip and Design 7 at the opening camera, and
+     names Browse 3's clips by state.
+   - Add one new staging: a long `notes:` fixture for Browse 17. Its step is retired now, so this is
+     optional; drop it.
+   - Drop the call sites for the other steps R35 retired too.
+   - A Linux-only question to settle by running CI: Design 109's 1280 px frame may not fit the 1280×1024
+     xvfb screen.
+3. **`scripts/walk-gallery.mjs` (R36).**
+   - node stdlib only. It globs `**/walk-*.png` in a `gh run download` directory, groups by case and step,
+     pulls each case directory's evidence JSON and the `system-out` lines in `junit.xml`, and writes
+     `walk.html` with relative image paths.
+   - It dedupes legs by `environment.json`'s `appVersion`, since `latest` is 1.13.7 today.
+   - Add a gate test in `tests/gates/` over a fixture directory, watched red.
+   - Record the image's head sha from the run, not from `environment.json`'s `commit`, which is the merge
+     commit.
+4. **Case rewrites (R35, R36, R27).**
+   - Retag the five retired rows to a tier the counting regex does not match. No gate constrains the tier
+     vocabulary, and `ruled` citing AD18-R35 is the proposal. The build session confirms the name before
+     using it.
+   - Each retired row states its answer and its re-open trigger.
+   - Rewrite Two designers 9 and 10 to the build (plain **Saved**, no badge) under AD18-R27.
+   - Say in each case's Runs preamble that a row may cite a CI image (run id, head sha, Linux DPR 1,
+     default themes).
+5. **Index and hand-off.**
+   - Re-derive the count in `MANUAL-PASS.md`.
+   - Add R37's mutation row to `AD18-walk-automation-evidence.md`.
+   - Rewrite `RESUME.md` wholesale. Carry these recorded findings: the `latest` legs run 1.13.7;
+     `designer.ts`'s `reconcile` docblock overclaims; the pixel guards set no theme; `environment.json`'s
+     commit is the merge commit; the `role="status"` census.
+   - CI and E2E green, read by run id. PR #230 stays a draft.
+
 ## What no lever reaches
 
 After every option: Design 7, 56, 57, 70, 103, 104 and 109, Calibrate 29 and 32, Recover 34, Two

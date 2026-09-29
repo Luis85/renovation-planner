@@ -184,11 +184,12 @@ function clearPalette(): void {
  * palette is threaded through.
  *
  * Narrower than "every node the canvas draws", deliberately, and the difference is greppable:
- * `grep -oE "name: '[a-z-]+'" src/presentation/designer/DesignerCanvas.vue | sort -u` prints ten
- * names, and these are that ten less `asset-selection-outline`, `asset-selection-handle` and
- * `asset-rotate-stem`. Those three are the SELECTION's marks and the case below selects nothing,
- * so they draw nothing here — they are `SELECTION_NODES`, asserted across the same flip by a case
- * that does select something, and the two lists together name all ten. The background and the
+ * `grep -oE "name: '[a-z-]+'" src/presentation/designer/DesignerCanvas.vue | sort -u` prints eleven
+ * names, and these are that eleven less `asset-selection-outline`, `asset-selection-handle`,
+ * `asset-rotate-stem` and `asset-selection-bounds`. Those four are the SELECTION's marks and the case
+ * below selects nothing, so they draw nothing here — the first three are `SELECTION_NODES`, asserted
+ * across the same flip by a case that does select something; `SELECTION_NODES`' own docblock says why
+ * the fourth is in neither list. The background and the
  * gesture layer name their nodes in their own components, so they are outside that grep's
  * universe — the gesture's one name is `GESTURE_NODES`; `CanvasGrid.vue` is outside it for a
  * DIFFERENT reason — it names no Konva node at all, being a `<div class="rp-canvas-grid">`
@@ -398,11 +399,14 @@ describe('the designer palette and a theme change', () => {
  * The SELECTION's own marks, which the case above cannot reach because it selects nothing.
  *
  * Written from the grep `GEOMETRY_NODES`'s docblock carries rather than from memory. Run again
- * after this list was added, it prints the same ten names — `asset-anchor-mark`,
+ * after this list was added, it printed ten names — `asset-anchor-mark`,
  * `asset-clearance-outline`, `asset-detail`, `asset-facing-head`, `asset-facing-shaft`,
  * `asset-footprint-edge`, `asset-footprint-outline`, `asset-rotate-stem`,
- * `asset-selection-handle`, `asset-selection-outline` — and the two lists together now name all
- * ten, where `GEOMETRY_NODES` alone named seven.
+ * `asset-selection-handle`, `asset-selection-outline` — and the two lists together named all
+ * ten, where `GEOMETRY_NODES` alone named seven. **The eleventh, `asset-selection-bounds` (AD18 UI
+ * critique Task 2), is in NEITHER list**: it is a multi-selection's frame, drawn only round two or more
+ * members, and the case below selects the footprint, which never joins a set — listed here, it would be
+ * the entry empty on both sides that `emptySelectors` refuses. Its palette-follows-theme is not covered.
  *
  * Two names here are NOT in that grep's universe, because they are drawn in another file:
  * `grep -oE "name: '[a-z-]+'" src/presentation/editor/elements/RotateArrowIcon.vue | sort -u`

@@ -63,7 +63,7 @@ import { footprintOutline } from './layers/footprintLayer';
 import { clearanceOutline } from './layers/clearanceLayer';
 import { detailOutlines, footprintEdge } from './layers/detailsLayer';
 import { anchorMark, facingArrow } from './layers/anchorLayer';
-import { selectionFrame, selectionMarks } from './layers/selectionLayer';
+import { selectionFrame, selectionMarks, selectionSetMarks } from './layers/selectionLayer';
 import { isOutlineSelection } from './selection/designerSelection';
 import { drawnSelection } from './selection/hitTest';
 import DesignerGestureLayer from './layers/DesignerGestureLayer.vue';
@@ -99,7 +99,7 @@ const editor = useEditorStore();
 const editorRefs = storeToRefs(editor);
 const viewport = editorRefs.viewport;
 const designStore = useAssetDesignStore();
-const { design, selection, mode, preview } = storeToRefs(designStore);
+const { design, selected, selection, mode, preview } = storeToRefs(designStore);
 
 const { tokens } = useThemeTokens(ref(null), context.onThemeChange);
 // The LEAF's manager, so the toolbar in the shell above and the gestures on this canvas drive
@@ -159,8 +159,16 @@ const footprintEdgeLine = computed(() => footprintEdge(shape.value, tokens.value
  * A selected part that is not drawn — the clearance while `Show clearance` is off, a Parts-hidden
  * graphic — draws no marks at all (AD18-R20, `drawnSelection`, the rule `hitDesign` asks too). `drawnPart`
  * is this component's one reading, and the rulers' extent band and `Shift+2` below take it too (AD18-R23).
+ *
+ * A SET draws every drawn member, each asked of the same rule (`setMarks`, AD18 UI critique Task 2): the
+ * others restroked, and a dashed frame round two or more. Handles stay the primary's, as `hitDesign` hits.
  */
-const drawnPart = computed(() => drawnSelection(selection.value, { hidden: partView.hidden.value, clearanceHidden: !showClearance.value }));
+const drawnView = computed(() => ({ hidden: partView.hidden.value, clearanceHidden: !showClearance.value }));
+const drawnPart = computed(() => drawnSelection(selection.value, drawnView.value));
+const setMarks = computed(() => {
+	const members = selected.value.map((member) => drawnSelection(member, drawnView.value)).filter((member) => isOutlineSelection(member));
+	return selectionSetMarks(shape.value, members, drawnPart.value, tokens.value, worldPerPixel.value);
+});
 const marks = computed(() => {
 	const drawn = selectionMarks(shape.value, drawnPart.value, mode.value, tokens.value, worldPerPixel.value);
 	return activeToolId.value === 'select' || !isOutlineSelection(selection.value) ? drawn : { outline: drawn.outline, handles: [], rotate: null };
@@ -323,6 +331,15 @@ onBeforeUnmount(() => stopPixelRatio());
 					The selection: above every committed part it can be drawn across, below the gesture.
 				-->
 				<VLayer :config="designerLayerConfig('asset-selection', transform)">
+					<VLine
+						v-if="setMarks.bounds !== null"
+						:config="{ ...setMarks.bounds, name: 'asset-selection-bounds' }"
+					/>
+					<VLine
+						v-for="(outline, index) in setMarks.outlines"
+						:key="index"
+						:config="{ ...outline, name: 'asset-selection-outline' }"
+					/>
 					<VLine
 						v-if="marks.outline !== null"
 						:config="{ ...marks.outline, name: 'asset-selection-outline' }"

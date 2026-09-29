@@ -7,7 +7,8 @@ import { outlineOf, type OutlinePart } from '../../../domain/asset/shapeEdits';
 import { ROTATION_HANDLE_OFFSET_PX, VERTEX_GRAB_RADIUS_PX, VERTEX_HANDLE_RADIUS_PX } from '../../editor/handleMetrics';
 import type { ThemeTokens } from '../../editor/theme/themeTokens';
 import { boundsOfZones } from '../../editor/viewport/zoneExtent';
-import { isOutlineSelection, type DesignerSelection, type SelectionMode } from '../selection/designerSelection';
+import { isOutlineSelection, sameSelection, type DesignerSelection, type SelectionMode } from '../selection/designerSelection';
+import { partMeasure, type PartBox } from '../selection/partExtent';
 import { selectionHandles, type HandleRole } from '../selection/handles';
 import { facingTip } from './anchorLayer';
 import { CLEARANCE_DASH_PX } from './clearanceLayer';
@@ -149,6 +150,23 @@ function selectedRun(
 	return outline === null ? null : { points: polygonPolyline(outline, tolerance), closed: true };
 }
 
+/** `part` restroked in the accent, in its own dash, or `null` when the shape has not got it. */
+function restroke(shape: AssetShape, part: OutlinePart, tokens: ThemeTokens, worldPerPixel: number): SelectedOutlineConfig | null {
+	const run = selectedRun(shape, part, worldPerPixel);
+	if (run === null) return null;
+	const dash = outlineDash(shape, part);
+	return {
+		points: flatPoints(run.points),
+		closed: run.closed,
+		stroke: tokens.accent,
+		strokeWidth: SELECTED_STROKE_PX,
+		strokeScaleEnabled: false,
+		listening: false,
+		perfectDrawEnabled: false,
+		...(dash === null ? {} : { dash: [...dash] }),
+	};
+}
+
 export function selectionMarks(
 	shape: AssetShape | null,
 	selection: DesignerSelection | null,
@@ -161,23 +179,10 @@ export function selectionMarks(
 		const at = pointOf(shape, selection, worldPerPixel);
 		return { outline: null, handles: [mark(at, HALO_RADIUS_PX * worldPerPixel, 'halo', tokens), mark(at, RING_RADIUS_PX * worldPerPixel, 'ring', tokens)], rotate: null };
 	}
-	const run = selectedRun(shape, selection, worldPerPixel);
-	const dash = outlineDash(shape, selection);
 	const handles = selectionHandles(shape, selection, mode, worldPerPixel);
 	const rotate = handles.find((handle) => handle.role.kind === 'rotate');
 	return {
-		outline: run === null
-			? null
-			: {
-				points: flatPoints(run.points),
-				closed: run.closed,
-				stroke: tokens.accent,
-				strokeWidth: SELECTED_STROKE_PX,
-				strokeScaleEnabled: false,
-				listening: false,
-				perfectDrawEnabled: false,
-				...(dash === null ? {} : { dash: [...dash] }),
-			},
+		outline: restroke(shape, selection, tokens, worldPerPixel),
 		handles: handles.flatMap((handle) =>
 			handle.role.kind === 'rotate' ? [] : [mark(handle.at, VERTEX_HANDLE_RADIUS_PX * worldPerPixel, HANDLE_STYLE[handle.role.kind], tokens)],
 		),
@@ -194,6 +199,59 @@ export function selectionMarks(
 					perfectDrawEnabled: false,
 				},
 			},
+	};
+}
+
+/**
+ * The Plan Editor's transform-box outline (`TransformBoxHandles.vue`): 1 px, dashed 4/3, in the accent. So a
+ * set's frame reads as the box an arrangement acts on, and never as a part.
+ */
+const BOUNDS_STROKE_PX = 1;
+const BOUNDS_DASH_PX: readonly number[] = [4, 3];
+
+/**
+ * What a MULTI-selection draws beyond `selectionMarks` (AD08's set, AD18 UI critique Task 2): every drawn
+ * member but the primary restroked exactly as it is restroked alone, and, while two or more are drawn, one
+ * dashed frame round their combined curve-aware box, measured by the `partMeasure` the inspector reads, which
+ * goes through the `detailBox` `Align to: The selection bounds` unions — so with every member drawn the frame
+ * IS that box. A hidden member is in the alignment and not in the frame. Handles stay the primary's alone, drawn by
+ * `selectionMarks` and hit by `hitDesign`, so no gesture changes with the size of the set.
+ *
+ * `members` are the set's DRAWN members: the canvas asks `drawnSelection` of each (AD18-R20), so a hidden
+ * member is neither restroked nor framed. `primary` is the drawn primary, or `null` when it is not drawn,
+ * in which case every member here is restroked, since `selectionMarks` restrokes nothing.
+ *
+ * A member the shape has not got (a refresh in flight) is skipped in both, and a frame round what is left
+ * of a set needs two members still standing.
+ */
+export function selectionSetMarks(
+	shape: AssetShape | null,
+	members: readonly OutlinePart[],
+	primary: DesignerSelection | null,
+	tokens: ThemeTokens,
+	worldPerPixel: number,
+): { readonly outlines: readonly SelectedOutlineConfig[]; readonly bounds: OutlineConfig | null } {
+	if (shape === null) return { outlines: [], bounds: null };
+	const outlines = members.flatMap((member) => {
+		const drawn = sameSelection(member, primary) ? null : restroke(shape, member, tokens, worldPerPixel);
+		return drawn === null ? [] : [drawn];
+	});
+	const boxes = members.flatMap((member) => partMeasure(shape, member) ?? []);
+	return { outlines, bounds: boxes.length < 2 ? null : boundsFrame(boxes, tokens) };
+}
+
+function boundsFrame(boxes: readonly PartBox[], tokens: ThemeTokens): OutlineConfig {
+	const minX = Math.min(...boxes.map((box) => box.centre.x - box.width / 2)), maxX = Math.max(...boxes.map((box) => box.centre.x + box.width / 2));
+	const minY = Math.min(...boxes.map((box) => box.centre.y - box.depth / 2)), maxY = Math.max(...boxes.map((box) => box.centre.y + box.depth / 2));
+	return {
+		points: [minX, minY, maxX, minY, maxX, maxY, minX, maxY],
+		closed: true,
+		stroke: tokens.accent,
+		strokeWidth: BOUNDS_STROKE_PX,
+		strokeScaleEnabled: false,
+		listening: false,
+		perfectDrawEnabled: false,
+		dash: [...BOUNDS_DASH_PX],
 	};
 }
 

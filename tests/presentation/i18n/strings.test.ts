@@ -464,13 +464,16 @@ describe('the start-coordinate labels are one symmetric pair in both locales', (
 });
 
 /**
- * Owner ruling 50: the German asset library has one name, „Objekt-Bibliothek“ — on its door, its
- * title, its command and the two editor labels that had spelled it „Objektbibliothek“. Asked of
- * every German value rather than of a key list, so a sixth spelling site is covered unnamed.
+ * Owner rulings 50 and 52: the German asset library has one name, „Objekt-Bibliothek“. What this
+ * checks is every COMPOUND NAME for it — a word joined to „Bibliothek“ with or without a hyphen
+ * („Objektbibliothek“, „Asset-Bibliothek“) — in every German value, and that the door reads it.
+ * A bare „Bibliothek“ (`Zurück zur Bibliothek`) and a compound that STARTS with it
+ * (`Bibliotheksordner`, `Bibliotheksobjekt`) are outside it: those are short references and other
+ * nouns, not a second name for the library.
  */
 describe('the asset library has one German name', () => {
 	it('spells it Objekt-Bibliothek everywhere, the door included', () => {
-		const spellings = Object.values(de).flatMap(value => value.match(/Objekt-?[Bb]ibliothek/g) ?? []);
+		const spellings = Object.values(de).flatMap(value => value.match(/\p{L}+-?[Bb]ibliothek/gu) ?? []);
 		expect(new Set(spellings)).toEqual(new Set(['Objekt-Bibliothek']));
 		expect(de['view.asset-library.door']).toBe('Objekt-Bibliothek');
 	});

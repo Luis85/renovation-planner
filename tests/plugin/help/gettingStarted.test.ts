@@ -17,7 +17,7 @@ import { Modal, Platform, setLanguage } from '../../helpers/obsidian-mock';
 import { installObsidianDom } from '../../helpers/dom';
 import { loadedPlugin, type LoadedPlugin } from '../../helpers/plugin';
 import { DEFAULT_SETTINGS } from '../../../src/plugin/settings/settings';
-import { GettingStartedModal, gettingStartedGuide } from '../../../src/plugin/help/GettingStartedModal';
+import { GUIDE_CONTROLS, GettingStartedModal, gettingStartedGuide } from '../../../src/plugin/help/GettingStartedModal';
 import { t } from '../../../src/presentation/i18n/strings';
 
 installObsidianDom();
@@ -54,6 +54,33 @@ const APPROVED = {
 describe('the getting-started guide text', () => {
 	it.each(['en', 'de'] as const)('resolves every %s string to the approved text', (language) => {
 		expect(gettingStartedGuide(language)).toEqual(APPROVED[language]);
+	});
+
+	/**
+	 * WHICH key fills each hole, pinned as the §2 map itself. The resolved text cannot tell: the
+	 * library door and the library title share a value, and so do `editor.primary.add` and
+	 * `editor.add.menu` — a hole pointed at the wrong one of a pair reads identically today and
+	 * drifts the day the two are moved apart.
+	 */
+	it('fills each hole from the control §2 names', () => {
+		expect(GUIDE_CONTROLS).toEqual({
+			openProject: 'command.open-project',
+			createProject: 'empty.project.no-projects.action',
+			newProject: 'view.project.create',
+			createFirstPlan: 'view.project.entry-plan-create',
+			newPlan: 'view.project.create-plan',
+			addRooms: 'editor.reference.rooms',
+			add: 'editor.primary.add',
+			room: 'editor.add.room.label',
+			createRoom: 'editor.room.create',
+			upload: 'editor.reference.upload',
+			newAsset: 'view.asset.create',
+			library: 'view.asset-library.door',
+			asset: 'editor.add.asset.label',
+			sample: 'command.create-sample-project',
+			diagnostics: 'command.show-diagnostics-report',
+			openHelp: 'command.open-help',
+		});
 	});
 
 	it('names the command as approved', () => {

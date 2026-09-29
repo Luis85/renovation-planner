@@ -23,9 +23,10 @@ const STEPS = [
 /**
  * Every control the guide quotes, by the key that control renders its own label from. The guide
  * never spells a label itself: a renamed button renames its mention here, which is how ruling 50's
- * German door rename reached step 5 with no edit to the step.
+ * German door rename reached step 5 with no edit to the step. Exported for its test, which pins
+ * this map key by key: two keys sharing a value today would resolve identically either way.
  */
-const CONTROLS = {
+export const GUIDE_CONTROLS = {
 	openProject: 'command.open-project',
 	createProject: 'empty.project.no-projects.action',
 	newProject: 'view.project.create',
@@ -46,7 +47,7 @@ const CONTROLS = {
 
 /** The guide as a reader sees it, every hole filled. Takes the language so a test can ask for any. */
 export function gettingStartedGuide(language: string): { title: string; steps: readonly string[]; reopen: string } {
-	const labels = Object.fromEntries(Object.entries(CONTROLS).map(([hole, key]) => [hole, t(language, key)]));
+	const labels = Object.fromEntries(Object.entries(GUIDE_CONTROLS).map(([hole, key]) => [hole, t(language, key)]));
 	return {
 		title: t(language, 'help.guide.title'),
 		steps: STEPS.map((key) => t(language, key, labels)),

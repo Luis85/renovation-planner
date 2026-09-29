@@ -1361,8 +1361,12 @@ The contract, so a builder does not invent one:
   stale shape. A DRAWN row re-requests immediately as before, keeps drawing the value it has, and
   the answer replaces it in one step. The held value is bounded by that one read: its answer
   replaces it, a failed read drops it back to *not yet read*, a further invalidation re-reads or
-  drops it — so a recreated asset's row can show the deleted asset's footprint for one read's
-  duration at most, and never indefinitely.
+  drops it — so an INVALIDATED drawn row can show the previous footprint (a deleted asset's, when
+  its id is recreated) for one read's duration at most. That bound covers the event arms only: the
+  no-event case (a hand-edited id, a note turned unreadable) is the "entry LEAVING the listing"
+  rule's above, and that rule is **not implemented for marks** as of this amendment —
+  `AssetLibraryStore.hydrate` invalidates no mark — so there a recreated row still draws the old
+  footprint for the life of the view. A known gap, recorded rather than closed here.
 - The **inspector** refetches its own asset on the same events, since `dimensions` and the shape
   note come from the same read.
 

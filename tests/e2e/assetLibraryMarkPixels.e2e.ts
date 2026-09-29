@@ -2,7 +2,7 @@ import { describe, expect } from 'vitest';
 import { test } from './fixture';
 import { LIBRARY } from './designer';
 import { writeEvidence } from './diagnostics';
-import { openCatalogue } from './library';
+import { CATALOGUE, openCatalogue } from './library';
 import { atPixelRatio, capture, difference, DISTINCT, RATIOS } from './pixels';
 import { mobileEmulation, type NativeBrowser } from './session';
 
@@ -136,7 +136,7 @@ describe('Browse the asset library, the row marks as painted in the real Obsidia
 		try {
 			await holdRead(browser, `${GEOMETRY}/${SOFA}.rpgeo`);
 			await browser.executeObsidian(({ app }, type) => { app.workspace.detachLeavesOfType(type); }, LIBRARY);
-			await lib.open(Object.keys(expected).length);
+			await lib.open(CATALOGUE.length + 1);
 			await lib.layout('List');
 			await openShelves();
 			await expect.poll(() => browser.$(mark(SOFA)).getAttribute('class')).toBe('rp-al-mark rp-al-mark--pending');

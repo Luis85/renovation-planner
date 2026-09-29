@@ -151,17 +151,20 @@ at the end), each pinned by a test that turns red the day the behaviour changes:
   icon and the `New asset` button wraps to two lines instead of clipping — that wrapped state has not
   itself been looked at in a real vault, per Task 5's own report, so file a NEW defect only if the
   button still overhangs or clips there, not for the wrap itself.
-- **New this round (Task 6 re-review 2): a library row can flash back to "not yet read" (the pending
-  three dots) after already drawing its mark, with nothing about it edited.** `viewportMarks.ts`'s
-  `invalidate` forgets a drawn mark and re-requests it immediately; until that read answers, the row
-  draws the pending picture again. This is what CI's two red Browse 3 runs actually caught (see "The
-  rule this session paid for" above) — a row already drawn as *unscaled* went back to *not yet read*
-  for a moment, with nobody having touched its sidecar since the test created it, on Linux, after the
-  guard's own class poll. **What re-announced a once-created file is unidentified**; the likeliest
-  lead, not verified, is the Linux file watcher reconciling a `vault.create` write late. Whether this
-  flash is itself a defect worth fixing (a stale-while-revalidate approach would keep the old mark
-  drawn until the new read lands) is open for the user — file it as a product question, not as a new
-  defect a walker found on their own.
+- **FIXED 2026-09-29, at the user's request (`0a0f8b7e1`): a library row no longer flashes back to
+  "not yet read" (the pending three dots) when its mark is re-read.** Recorded here first by Task 6's
+  re-review 2: `viewportMarks.ts`'s `invalidate` forgot a drawn mark before re-requesting it, so a
+  re-announced sidecar or index entry drew the pending picture until the read answered — what CI's
+  two red Browse 3 runs actually caught (see "The rule this session paid for" above). **What
+  re-announced a once-created file on Linux is still unidentified** (likeliest lead, not verified: the
+  watcher reconciling a `vault.create` write late); it no longer shows. The fix is stale-while-
+  revalidate for DRAWN rows only (design spec §5.4, amended 2026-09-29): a drawn row keeps its mark
+  until the re-read answers and the answer replaces it in one step; an undrawn row still drops it;
+  a failed re-read drops the held mark back to *not yet read*. Pinned by
+  `assetLibraryMarkRefresh.test.ts` and the real-host `assetLibraryMarkRefresh.e2e.ts`. **A walker
+  can no longer reach *not yet read* by editing a sidecar under an open library** — the Browse 3
+  guard now reaches it through a first read in a closed-and-reopened library with the sidecar read
+  held.
 
 ## Recorded, not fixed
 
@@ -176,6 +179,13 @@ Carried forward, still open:
   under an unrelated mutation, in an earlier round. Watch it as a possible flake.
 - Still open from earlier rounds: `unrecoveredWrite` is drawn on no designer surface; the browser
   harness never calls `activateNotices()`; `arcArc`'s residual cusp class; the held-drag ceiling.
+- **Found by the flash fix's review (2026-09-29), pre-existing:** design spec §5.4's "An entry LEAVING
+  the listing invalidates its mark" is not implemented for marks — `AssetLibraryStore.hydrate`
+  invalidates none. The event arms (`AssetDeleted`, `AssetDesignChanged`, `GeometrySidecarChanged`,
+  an asset's `ProjectIndexEntryChanged`) do invalidate; the no-event cases (a hand-edited id, a note
+  turned unreadable) keep the old mark, so a same-id recreation reached that way draws the old
+  footprint for the life of the view. Fix: diff the previous listing's ids against the new one in
+  `hydrate` and invalidate the departed ones. Its own task.
 
 **This round's own items** (`round7-minors.md`, reconciled by the final review dispatched on
 `cecb332b7..7bb94a45b`: two items were fixed in that review's fix wave and two were found not to be

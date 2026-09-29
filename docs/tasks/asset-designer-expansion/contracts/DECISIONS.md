@@ -1895,6 +1895,11 @@ items RESUME lists as recorded.
 AD18-R34 fix, the Browse 3 root-cause fix and both documentation fix waves: `verify` x4 plus `audit`, and
 five E2E jobs. Both were read by run id. PR #230 stays a draft.
 
+**2026-09-29 — the "not yet read" flash this delivery note records as open was fixed at the user's
+request (`0a0f8b7e1`).** Rule, design spec §5.4 as amended that day: a DRAWN row keeps its mark until the
+re-read answers and the answer replaces it in one step; an undrawn row drops it. The Browse 3 guard now
+reaches *not yet read* through a first read in a reopened library.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

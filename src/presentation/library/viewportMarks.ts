@@ -94,10 +94,10 @@ export function createViewportMarks(): ViewportMarks {
 	 */
 	const marks = ref(new Map<AssetId, AssetOutline>());
 	/**
-	 * The per-asset ticket. Bumped by `invalidate` and `reset` alone, so an answer is applied only if the
-	 * mark it describes has not been invalidated since the read was issued — successes AND
-	 * refusals alike, per §5.5: an old `refused` outline painting §3.4's struck box over a
-	 * footprint just read is the same defect wearing the other face.
+	 * The per-asset ticket. Bumped by `invalidate` and `reset` alone, so an answer is applied
+	 * only if the mark it describes has not been invalidated since the read was issued —
+	 * successes AND refusals alike, per §5.5: an old `refused` outline painting §3.4's struck
+	 * box over a footprint just read is the same defect wearing the other face.
 	 *
 	 * A plain `Map` and not reactive: nothing renders a generation.
 	 */

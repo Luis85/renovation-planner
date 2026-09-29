@@ -20,6 +20,10 @@
 	  non-finite span as `refused` before this component ever sees it), so only the bounding
 	  box's MINIMUM corner is still needed here, to place each point relative to it.
 
+	AD18-R39: with `withDetails` (a Grid tile, the inspector's Shape preview) the outline's details
+	are drawn after the footprint, placed by the footprint's own fit, as thinner lines
+	(`styles/asset-mark.css`). The footprint stays the FIRST path, which the row-to-tile e2e compares.
+
 	`aria-hidden`, always: the shape's state and extent are carried in words by the row's own
 	hidden span (`AssetRow.vue`), never by this drawing — a drawn outline that is the only
 	statement of a fact would be the colour-alone failure this mark exists to avoid, in a
@@ -41,7 +45,18 @@ import { extentOf } from '../../core/geometry/operations';
  */
 const props = defineProps<{
 	outline: AssetOutline | null;
+	/**
+	 * AD18-R39: draw the outline's details inside the footprint, as a Grid tile and the inspector's
+	 * Shape preview do. Absent on the 20px row mark, where §3.4 keeps them out as "mush at 20px".
+	 */
+	withDetails?: boolean;
 }>();
+
+/** One placed detail: its path, and whether it is drawn dashed (overhead or hidden). */
+interface PlacedDetail {
+	readonly d: string;
+	readonly dashed: boolean;
+}
 
 /** §3.4's fifth state — `null` meaning "the query has not answered for this asset yet". */
 type MarkKind = 'measured' | 'unscaled' | 'none' | 'pending' | 'unreadable';
@@ -79,14 +94,11 @@ const INSET = 2;
  * case as `refused` before answering `measured`/`unscaled` at all) draws nothing rather than
  * a malformed path full of `NaN`.
  */
-const path = computed((): string => {
+const drawn = computed((): { readonly footprint: string; readonly details: readonly PlacedDetail[] } | null => {
 	const outline = props.outline;
-	// A TYPE-NARROWING guard rather than a runtime one, and coverage says so: the template
-	// reads `:d="path"` only under `v-if="kind === 'measured' || kind === 'unscaled'"`, so this
-	// branch is unreachable from any mount and costs the one uncovered statement/branch this
-	// file has. It stays because `outline.extent` below does not exist on the `none`/`refused`
-	// members, and `computed` has no narrower signature to ask for instead.
-	if (outline === null || (outline.kind !== 'measured' && outline.kind !== 'unscaled')) return '';
+	// The template draws the outline only when this answers, so every other state — pending,
+	// none and unreadable — reaches this arm from a mount.
+	if (outline === null || (outline.kind !== 'measured' && outline.kind !== 'unscaled')) return null;
 
 	const { width, depth } = outline.extent;
 	const span = BOX_SIZE - INSET * 2;
@@ -106,14 +118,19 @@ const path = computed((): string => {
 	// fallow-ignore-next-line code-duplication
 	const scales = [width > 0 ? span / width : Infinity, depth > 0 ? span / depth : Infinity];
 	const scale = Math.min(...scales);
-	if (!Number.isFinite(scale)) return '';
+	if (!Number.isFinite(scale)) return { footprint: '', details: [] };
 
 	const { x: minX, y: minY } = minimumOf(outline.points);
 	const left = INSET + (span - width * scale) / 2;
 	const top = INSET + (span - depth * scale) / 2;
 	const place = (point: Point): string =>
 		`${(left + (point.x - minX) * scale).toFixed(2)} ${(top + (point.y - minY) * scale).toFixed(2)}`;
-	return `M${outline.points.map(place).join(' L')} Z`;
+	// A detail is placed by the FOOTPRINT's fit, never its own, so it sits where it sits in the object.
+	const run = (points: readonly Point[], closed: boolean): string => `M${points.map((point) => place(point)).join(' L')}${closed ? ' Z' : ''}`;
+	return {
+		footprint: run(outline.points, true),
+		details: props.withDetails ? (outline.details ?? []).map((detail) => ({ d: run(detail.points, detail.closed), dashed: detail.dashed })) : [],
+	};
 });
 </script>
 
@@ -124,10 +141,16 @@ const path = computed((): string => {
 		viewBox="0 0 20 20"
 		aria-hidden="true"
 	>
-		<path
-			v-if="kind === 'measured' || kind === 'unscaled'"
-			:d="path"
-		/>
+		<template v-if="drawn !== null">
+			<path :d="drawn.footprint" />
+			<path
+				v-for="(detail, index) in drawn.details"
+				:key="index"
+				class="rp-al-mark__detail"
+				:class="{ 'rp-al-mark__detail--dashed': detail.dashed }"
+				:d="detail.d"
+			/>
+		</template>
 		<circle
 			v-for="x in (kind === 'pending' ? [5, 10, 15] : [])"
 			:key="x"

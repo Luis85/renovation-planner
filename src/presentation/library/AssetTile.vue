@@ -1,6 +1,7 @@
 <!--
 	One tile of the Asset library's Grid view (AD18-R18, board 01's right-hand column): the asset's
-	own footprint mark at tile size, its name and its measured size.
+	own footprint mark at tile size, with its details inside it (AD18-R39 — the row's 20px mark stays
+	footprint-only), its name and its measured size.
 
 	`AssetRow.vue`'s twin in every rule that is about the ASSET rather than about the row's slots:
 	- the same flattened `<button>`, carrying `data-asset-id` so §6.2's Back-to-library handoff and
@@ -57,6 +58,7 @@ const descriptionId = computed((): string => `${baseId}-mark-${String(props.ordi
 			<AssetMark
 				v-if="outline?.kind !== 'none'"
 				:outline="outline"
+				with-details
 			/>
 			<HostIcon
 				v-else

@@ -103,7 +103,7 @@ export function createViewportMarks(): ViewportMarks {
 	 */
 	const marks = ref(new Map<AssetId, AssetOutline>());
 	/**
-	 * The per-asset ticket. Bumped by `invalidate` and `reset` alone, so an answer is applied
+	 * The per-asset ticket. Bumped by `invalidate`, `forget` and `reset`, so an answer is applied
 	 * only if the mark it describes has not been invalidated since the read was issued —
 	 * successes AND refusals alike, per §5.5: an old `refused` outline painting §3.4's struck
 	 * box over a footprint just read is the same defect wearing the other face.
@@ -114,7 +114,7 @@ export function createViewportMarks(): ViewportMarks {
 	/**
 	 * The ids a read is out for. Two roles, and only the first is an optimisation: it stops a
 	 * second viewport pass re-reading a sidecar the first pass is already reading, and it is
-	 * what `invalidate` clears so an invalidated id can be asked for AGAIN while the answer it
+	 * what `invalidate` and `forget` clear so an id can be asked for AGAIN while the answer it
 	 * has given up on is still in flight.
 	 */
 	const inFlight = new Set<AssetId>();

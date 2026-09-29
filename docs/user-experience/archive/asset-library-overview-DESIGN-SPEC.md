@@ -1373,7 +1373,7 @@ The contract, so a builder does not invent one:
   only outlive the entry it described and be drawn if the id came back. **An id that comes back
   is read afresh**, by the caller's next drawn-set pass, never from a mark kept across its
   absence. What the diff still cannot see is an id replaced WITHIN one refresh — delete and
-  recreate before either listing is applied — which is the case this section already assigns to
+  recreate before the next listing is applied — which is the case this section already assigns to
   the `AssetDeleted` and `ProjectIndexEntryChanged` arms.
 - The **inspector** refetches its own asset on the same events, since `dimensions` and the shape
   note come from the same read.

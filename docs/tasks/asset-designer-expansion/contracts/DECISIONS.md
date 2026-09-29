@@ -1930,6 +1930,25 @@ the build.
 **Expected walk after the build:** 22 → **17** (7 / 0 / 0 / 2 / 3 / 1 / 4), to be re-derived with the
 counting command, not trusted from this line.
 
+### AD18-R39 — library tiles and the inspector preview draw the asset's details, not the footprint alone. (2026-09-29)
+
+**Context.** A UI critique run live in Obsidian 1.13.7 against both concept boards (impeccable `critique`, snapshot
+`.impeccable/critique/2026-09-29T20-55-56Z__src-presentation-designer.md`, 25/40) found the library's Grid tile and
+inspector Shape preview draw only the footprint outline: a vanity is a bare rectangle and a toilet a bare U, while the
+designer's own asset card draws basin, tap hole, bowl and tank. That was by decision: design spec §3.4 specifies a
+20 px row mark of the footprint, and AD18-R18 reused that mark at tile size. Board 01 promises "Recognizable visuals".
+
+| Item | Shipped before | Ruled |
+|---|---|---|
+| **AD18-R39** — what a tile and the inspector preview draw | the §3.4 20 px footprint mark, reused at tile and preview size | **Tile and inspector preview draw footprint plus details**, as the designer's asset card does. **The 20 px list-row mark stays as §3.4 specifies** (details there are "mush at 20px"). The listing's batch outline read carries no details today, so the build adds them to it or reads them per visible tile; which is a build decision |
+
+Also taken in the same round, as build priorities rather than rulings: the stale notice's text contrast
+(`.rp-designer-notice`, `--text-warning` on `--background-secondary`, the pair measured ~2.73:1) and a multi-selection
+drawing only its last member on the canvas come first; then the shared dialog footer, the clearance's signed "-600 mm"
+under All dimensions (**its positive-per-side wording still needs a ruling at build time**, since AD18-R22 kept `0 mm`
+in the resting state), and the missing plural forms ("1 assets", "note(s)"). **Not authorized by this ruling:** a
+schema change, a stored field, a new dependency or devDependency, AD17 or roadmap work, or a *Deliberately absent* element.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

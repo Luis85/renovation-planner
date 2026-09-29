@@ -92,6 +92,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	"editor.reference.loading": "Quelle wird gelesen…",
 	"editor.reference.missing": "Die Quelldatei fehlt. Korrigieren Sie den Pfad oder wählen Sie einen Ersatz und laden Sie erneut.",
 	"editor.reference.unreadable": "Bild oder PDF-Seite nicht lesbar. Prüfen Sie die Seitennummer, versuchen Sie es erneut oder wählen Sie eine andere Datei.",
+	"editor.reference.page-out-of-range": "Diese PDF-Datei hat keine Seite {page}. Die letzte Seite ist {count}.",
 	"editor.reference.source-changed": "Die Quelle wurde geändert. Kehren Sie zur Vorbereitung zurück und laden Sie erneut.",
 	"editor.reference.crop-x": "Zuschnitt links (px)",
 	"editor.reference.crop-y": "Zuschnitt oben (px)",

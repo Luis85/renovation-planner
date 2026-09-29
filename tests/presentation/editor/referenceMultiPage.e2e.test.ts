@@ -97,8 +97,8 @@ async function leaveRefusedOverCommitted(leave: (r: Awaited<ReturnType<typeof ri
 	const geometry = await r.geometry.read(r.plan.id), from = r.stack.vault.operations.length; compose.mockClear();
 
 	await choosePage(r.harness, '3');
-	expect(await lastDecoded(r.load)).toEqual({ kind: 'unavailable', reason: 'unreadable' });
-	expect(r.harness.wrapper.text()).toContain('Cannot read this image or PDF page');
+	expect(await lastDecoded(r.load)).toEqual({ kind: 'unavailable', reason: 'page-out-of-range', page: 3, count: 2 });
+	expect(r.harness.wrapper.text()).toContain('This PDF has no page 3. Its last page is 2.');
 	const decodes = r.load.mock.calls.length;
 	await leave(r);
 	await settleUntil(() => !r.harness.wrapper.find(FORM).exists(), 'left');
@@ -125,10 +125,36 @@ describe('a PDF reference whose chosen page is not page 1', () => {
 	it('refuses page 3 of a two-page PDF after page 2 drew, and leaves no preview behind', async () => {
 		const r = await rig(); await choosePage(r.harness, '2');
 		await settleUntil(() => r.harness.wrapper.find('.rp-reference-preview').exists(), 'the page-2 preview');
+		// BP-06: the page field is bounded by the count the page-2 read learned.
+		expect(r.harness.wrapper.get(`${FORM} input[name="page"]`).attributes('max')).toBe('2');
 		await field(r.harness, 'page', '3'); await r.harness.wrapper.get('[data-rp-action="load-reference"]').trigger('click'); await settle();
-		expect(await lastDecoded(r.load)).toEqual({ kind: 'unavailable', reason: 'unreadable' });
-		expect(r.harness.wrapper.text()).toContain('Cannot read this image or PDF page');
+		expect(await lastDecoded(r.load)).toEqual({ kind: 'unavailable', reason: 'page-out-of-range', page: 3, count: 2 });
+		expect(r.harness.wrapper.get(`${FORM} [role="alert"]`).text()).toBe('This PDF has no page 3. Its last page is 2.');
 		expect(r.harness.wrapper.find('.rp-reference-preview').exists()).toBe(false);
+	});
+
+	// BP-06's canvas half: a committed page 2 whose PDF was replaced by a one-page file takes the
+	// EXISTING unreadable warning — no copy of its own (the page-missing warning was not approved).
+	it('shows the unreadable background warning when a committed page is past a shrunk PDF', async () => {
+		const r = await rig(); await choosePage(r.harness, '2');
+		await settleUntil(() => r.harness.wrapper.find('.rp-reference-preview').exists(), 'the page-2 preview');
+		await commitMeasured(r.harness);
+		const shrunk = pdfFixture(); r.deps.vault.readBinary = () => Promise.resolve(shrunk.slice().buffer);
+		r.harness.unmount(); r.load.mockClear();
+		const reopened = await r.mount();
+		await settleUntil(() => r.load.mock.calls.some(([ref]) => ref !== null), 'the reopened editor loads its background');
+		expect(await lastDecoded(r.load)).toEqual({ kind: 'unavailable', reason: 'page-out-of-range', page: 2, count: 1 });
+		await settleUntil(() => reopened.wrapper.text().includes('The background for this plan could not be rendered.'), 'the unreadable warning');
+	});
+
+	// BP-06 at the one-page bound: the count reads 1, and the field is bounded by it.
+	it('names page 1 as the last page of a one-page PDF when page 2 is asked for', async () => {
+		const r = await rig(); const bytes = pdfFixture();
+		r.deps.vault.readBinary = () => Promise.resolve(bytes.slice().buffer);
+		await choosePage(r.harness, '2');
+		expect(await lastDecoded(r.load)).toEqual({ kind: 'unavailable', reason: 'page-out-of-range', page: 2, count: 1 });
+		expect(r.harness.wrapper.get(`${FORM} [role="alert"]`).text()).toBe('This PDF has no page 2. Its last page is 1.');
+		expect(r.harness.wrapper.get(`${FORM} input[name="page"]`).attributes('max')).toBe('1');
 	});
 
 	// A04's error half: a refused page over a COMMITTED reference, left by the Cancel a user presses.

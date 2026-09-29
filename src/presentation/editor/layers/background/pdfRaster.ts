@@ -55,6 +55,7 @@ interface PdfPage {
 }
 
 interface PdfDocument {
+	readonly numPages: number;
 	getPage(pageNumber: number): Promise<PdfPage>;
 }
 
@@ -87,6 +88,21 @@ export interface RasterizedPage {
 	readonly worldScale: number;
 	readonly width: number;
 	readonly height: number;
+	/** How many pages the document has, so a caller can bound its page field. */
+	readonly pageCount: number;
+}
+
+/**
+ * A page past the document's last, refused BEFORE pdf.js is asked for it, so the caller can
+ * name both numbers rather than reporting pdf.js's own `Invalid page request.` as unreadable.
+ */
+export class PdfPageOutOfRange extends Error {
+	constructor(
+		readonly page: number,
+		readonly count: number,
+	) {
+		super(`PDF page ${page} requested; the document has ${count}.`);
+	}
 }
 
 function createCanvas(width: number, height: number): HTMLCanvasElement {
@@ -125,6 +141,7 @@ export async function renderPdfPage(bytes: ArrayBuffer, pageNumber: number): Pro
 	const task = pdfjs.getDocument({ data: new Uint8Array(bytes.slice(0)), useWasm: false });
 	try {
 		const document_ = await task.promise;
+		if (pageNumber > document_.numPages) throw new PdfPageOutOfRange(pageNumber, document_.numPages);
 		const page = await document_.getPage(pageNumber);
 		const viewport = page.getViewport({ scale: RASTER_SCALE });
 		const canvas = createCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
@@ -138,6 +155,7 @@ export async function renderPdfPage(bytes: ArrayBuffer, pageNumber: number): Pro
 			worldScale: MM_PER_POINT / RASTER_SCALE,
 			width: canvas.width,
 			height: canvas.height,
+			pageCount: document_.numPages,
 		};
 	} finally {
 		// Always, including on the throw above: the loading task holds the parsed document,

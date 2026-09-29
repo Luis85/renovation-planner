@@ -7,6 +7,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { TFile } from 'obsidian';
 import {
+	backgroundStatus,
 	loadBackground,
 	PLACEHOLDER_WORLD_SCALE,
 	type BackgroundVault,
@@ -137,7 +138,7 @@ describe('loading a plan background', () => {
 		expect(model).toEqual({ kind: 'unavailable', reason: 'unreadable' });
 	});
 
-	it('reports a PDF page that does not exist as unreadable', async () => {
+	it('reports a page past the last of a one-page PDF with both numbers', async () => {
 		const bytes = pdfFixture();
 
 		const model = await loadBackground(
@@ -145,7 +146,7 @@ describe('loading a plan background', () => {
 			fakeVault({ 'Plans/ground.pdf': bytes }),
 		);
 
-		expect(model).toEqual({ kind: 'unavailable', reason: 'unreadable' });
+		expect(model).toEqual({ kind: 'unavailable', reason: 'page-out-of-range', page: 9, count: 1 });
 	});
 
 	it('puts no base64 into the render model', async () => {
@@ -175,19 +176,21 @@ describe('loading a plan background', () => {
 			const scale = model.width / TWO_PAGE_PDF[page - 1].width;
 			const pixel = backingCanvas(model.image as HTMLCanvasElement)?.getContext('2d')
 				.getImageData(Math.round(50 * scale), Math.round((TWO_PAGE_PDF[page - 1].height - 40) * scale), 1, 1).data;
-			return { width: model.width, height: model.height, rgba: [...(pixel ?? [])] };
+			return { width: model.width, height: model.height, pageCount: model.pageCount, rgba: [...(pixel ?? [])] };
 		}));
 
 		expect(decoded).toEqual([
-			{ width: 400, height: 200, rgba: [0, 0, 255, 255] },
-			{ width: 600, height: 300, rgba: [255, 0, 0, 255] },
+			{ width: 400, height: 200, pageCount: 2, rgba: [0, 0, 255, 255] },
+			{ width: 600, height: 300, pageCount: 2, rgba: [255, 0, 0, 255] },
 		]);
 	});
 
-	it('reports page 3 of a two-page PDF as unreadable', async () => {
+	it('reports page 3 of a two-page PDF as out of range, and the canvas reads it as unreadable', async () => {
 		const model = await loadBackground({ path: 'Plans/two.pdf', kind: 'pdf', page: 3 }, fakeVault({ 'Plans/two.pdf': pdfFixture(TWO_PAGE_PDF) }));
 
-		expect(model).toEqual({ kind: 'unavailable', reason: 'unreadable' });
+		expect(model).toEqual({ kind: 'unavailable', reason: 'page-out-of-range', page: 3, count: 2 });
+		// A committed reference whose PDF shrank takes the existing `background-unreadable` warning.
+		expect(backgroundStatus(model)).toBe('unreadable');
 	});
 });
 

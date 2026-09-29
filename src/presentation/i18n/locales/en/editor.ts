@@ -104,6 +104,7 @@ export const editorEn = {
 	"editor.reference.loading": "Reading source…",
 	"editor.reference.missing": "Source file is missing. Correct the path or choose a replacement, then load again.",
 	"editor.reference.unreadable": "Cannot read this image or PDF page. Check the page number, retry, or choose another file.",
+	"editor.reference.page-out-of-range": "This PDF has no page {page}. Its last page is {count}.",
 	"editor.reference.source-changed": "The source changed. Return to preparation and load it again.",
 	"editor.reference.crop-x": "Crop left (px)",
 	"editor.reference.crop-y": "Crop top (px)",

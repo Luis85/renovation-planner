@@ -1,7 +1,7 @@
 import type { ReferenceAppearance } from '../../../../domain/plan/ReferenceAppearance';
 import { normalizePath, TFile, type Vault } from 'obsidian';
 import type { Point } from '../../../../core/geometry/Point';
-import { renderPdfPage } from './pdfRaster';
+import { PdfPageOutOfRange, renderPdfPage } from './pdfRaster';
 
 /**
  * What this pipeline needs of a background REFERENCE, and nothing about whose background it
@@ -57,8 +57,11 @@ export type BackgroundRenderModel =
 			/** Source pixels — what `<v-image>`'s own width/height are set from. */
 			readonly width: number;
 			readonly height: number;
+			/** A PDF's page count, which bounds the reference form's page field; absent for an image. */
+			readonly pageCount?: number;
 	  }
-	| { readonly kind: 'unavailable'; readonly reason: 'missing' | 'unreadable' };
+	| { readonly kind: 'unavailable'; readonly reason: 'missing' | 'unreadable' }
+	| { readonly kind: 'unavailable'; readonly reason: 'page-out-of-range'; readonly page: number; readonly count: number };
 
 /**
  * Exactly the three Vault members this module calls, spelled as a slice of Obsidian's own
@@ -123,7 +126,10 @@ export const NO_BACKGROUND = { kind: 'none' } as const;
 export type BackgroundStatus = 'none' | 'raster' | 'missing' | 'unreadable';
 
 export function backgroundStatus(model: BackgroundRenderModel): BackgroundStatus {
-	return model.kind === 'unavailable' ? model.reason : model.kind;
+	// A committed page its PDF no longer has (the file was replaced by a shorter one) is
+	// `unreadable` on the canvas: the reference form is where the two numbers are worth naming.
+	if (model.kind !== 'unavailable') return model.kind;
+	return model.reason === 'page-out-of-range' ? 'unreadable' : model.reason;
 }
 
 /**
@@ -161,6 +167,7 @@ async function loadPdf(
 		worldScale: rendered.worldScale,
 		width: rendered.width,
 		height: rendered.height,
+		pageCount: rendered.pageCount,
 	};
 }
 
@@ -180,12 +187,13 @@ export async function loadBackground(
 
 	try {
 		return ref.kind === 'pdf' ? await loadPdf(ref, file, vault) : await loadImage(file, vault);
-	} catch {
-		// A corrupt PNG, a PDF whose page does not exist, a read that failed — all of them
-		// are "this file cannot be a background right now", and none of them is a reason for
-		// a view to throw during a render. The cause is deliberately not carried into the
-		// model: it is a pdf.js or DOM error object, and slice 17 owns turning a failure
-		// into something a user reads.
+	} catch (cause) {
+		// A page past the PDF's last carries its two numbers (BP-06), and nothing else of the
+		// error. Everything else — a corrupt PNG, a read that failed — is "this file cannot be a
+		// background right now", and none of them is a reason for a view to throw during a
+		// render. That cause is deliberately not carried into the model: it is a pdf.js or DOM
+		// error object, and slice 17 owns turning a failure into something a user reads.
+		if (cause instanceof PdfPageOutOfRange) return { kind: 'unavailable', reason: 'page-out-of-range', page: cause.page, count: cause.count };
 		return UNAVAILABLE_UNREADABLE;
 	}
 }

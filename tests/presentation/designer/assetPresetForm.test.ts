@@ -26,7 +26,7 @@ describe('AssetPresetForm', () => {
 	it('submits the first preset at its default values', async () => {
 		const wrapper = mount(AssetPresetForm, { props: { replaces: false } });
 
-		expect(wrapper.find('form > svg.rp-asset-preset-preview').exists()).toBe(true);
+		expect(wrapper.find('.rp-asset-preset-chosen > svg.rp-asset-preset-preview').exists()).toBe(true);
 		await wrapper.find('form').trigger('submit');
 
 		const [[shape]] = wrapper.emitted('submit') as [[AssetShape]];
@@ -53,7 +53,7 @@ describe('AssetPresetForm', () => {
 		expect(wrapper.find('input[name="width"]').attributes('inputmode')).toBe('decimal');
 		// Scoped to the LIVE preview, not to the whole form: since AD07 every gallery thumbnail
 		// draws its own details too, so an unscoped count passes whatever the live preview does.
-		const live = wrapper.find('form > svg.rp-asset-preset-preview');
+		const live = wrapper.find('.rp-asset-preset-chosen > svg.rp-asset-preset-preview');
 		expect(live.findAll('.rp-asset-preset-preview__detail').length).toBeGreaterThan(0);
 	});
 
@@ -184,7 +184,7 @@ describe('the preset gallery AD07 put in place of the select', () => {
 		const wrapper = mount(AssetPresetForm, { props: { replaces: false } });
 		await wrapper.find('input[name="width"]').setValue('1800');
 
-		const rendered = wrapper.find('form > svg.rp-asset-preset-preview');
+		const rendered = wrapper.find('.rp-asset-preset-chosen > svg.rp-asset-preset-preview');
 		await wrapper.find('form').trigger('submit');
 
 		const [[shape]] = wrapper.emitted('submit') as [[AssetShape]];

@@ -139,14 +139,20 @@
  * with no rule behind it is exactly what this sheet's header calls invisible in the
  * harness.
  *
- * A plain column, deliberately. `.rp-dialog` owns `overflow-y` and `max-height`, so the
- * PANEL is what scrolls; a `flex: 1` with `min-height: 0` here would nest a second scroll
- * container inside the first and give a tall form two scrollbars.
+ * It is the form dialog's SCROLLER (AD18 UI critique, Task 4). `min-height: 0` lets it shrink
+ * inside the panel's `max-height`, so the panel itself stops overflowing and this scrolls instead —
+ * one scrollbar, not two — while the title stays put above it and `.rp-dialog-footer` pins to its
+ * foot. The inset padding, cancelled by an equal negative margin, is room for the focus rings a
+ * scroller would otherwise clip at its edges: `overflow-y: auto` makes `overflow-x` clip too.
  */
 .rp-dialog-body {
 	display: flex;
 	flex-direction: column;
 	gap: var(--size-4-2);
+	min-height: 0;
+	overflow-y: auto;
+	padding: var(--size-4-1);
+	margin: calc(-1 * var(--size-4-1));
 }
 
 .rp-dialog-actions {
@@ -154,6 +160,19 @@
 	flex-wrap: wrap;
 	justify-content: flex-end;
 	gap: var(--size-4-2);
+}
+
+/*
+ * A form dialog's ONE action row (`FormSubmitRow.vue`: Cancel, then the submit), pinned at the foot
+ * of the scrolling `.rp-dialog-body` so a long form — the preset gallery — scrolls above it rather
+ * than carrying the submit off below the fold. Opaque, since the body scrolls underneath it, and
+ * padded below by the body's own inset so the submit's focus ring is not clipped at the edge.
+ */
+.rp-dialog-footer {
+	position: sticky;
+	bottom: 0;
+	padding-block: var(--size-4-2) var(--size-4-1);
+	background-color: var(--background-primary);
 }
 
 /*
@@ -202,6 +221,28 @@
 
 .rp-dialog-button:hover {
 	background-color: var(--interactive-hover);
+}
+
+/*
+ * THE PRIMARY SUBMIT, and why it does not keep Obsidian's own `mod-cta` paint. `FormSubmitRow`'s
+ * submit wears `mod-cta` — Obsidian's primary-action class, what a theme styles — but the host's
+ * pairing, `--text-on-accent` on `--interactive-accent`, measured **3.43:1 in the light theme and
+ * 4.26:1 in the dark** on this button in Obsidian 1.13.7 on Windows (`tests/e2e/dialogFooter.e2e.ts`), both
+ * under WCAG 1.4.3's 4.5:1 — the same failure `styles/editor-shell.css` records for the pairing.
+ * So the accent is mixed toward `--text-normal` (darker in light, lighter in dark) and the label
+ * takes `--background-primary`, the recipe `styles/editor-visual-records.css` already ships.
+ *
+ * Qualified to (0,3,0) because it must beat `button.mod-cta` (0,1,1), its (0,2,1) hover and
+ * Obsidian's `button:not(.clickable-icon)` colour; `box-shadow` is left alone, so the host's focus
+ * ring and the `aria-disabled` dimming both still apply.
+ */
+.rp-dialog .rp-dialog-button.mod-cta {
+	background-color: color-mix(in srgb, var(--interactive-accent) 70%, var(--text-normal));
+	color: var(--background-primary);
+}
+
+.rp-dialog .rp-dialog-button.mod-cta:hover {
+	background-color: color-mix(in srgb, var(--interactive-accent) 60%, var(--text-normal));
 }
 
 /*

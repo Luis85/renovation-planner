@@ -7,8 +7,9 @@
  * It dispatches nothing: `submit` hands the built `AssetShape` to `AssetDesignerRoot`, which writes
  * it through the reversible `setShape` edit — the split `AssetDimensionsDialog` already draws.
  */
-import { computed, ref, shallowRef } from 'vue';
+import { computed, nextTick, ref, shallowRef } from 'vue';
 import { rovingIndex } from '../../components/rovingIndex';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 import AssetPresetGallery from './AssetPresetGallery.vue';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { ASSET_PRESETS, PRESET_GROUPS } from '../../../domain/asset/presets/catalogue';
@@ -78,6 +79,9 @@ const focusedId = ref<string | null>(null);
 /** The form's own element, which is how a key pressed in one group finds a button in another. */
 const root = ref<HTMLElement | null>(null);
 
+/** The chosen preset's fields, preview and refusal: what choosing a card scrolls into view. */
+const chosen = ref<HTMLElement | null>(null);
+
 /** Every drawn choice, flattened into the order the arrows walk — which is the order the DOM is in. */
 const choosable = computed(() => groups.value.flatMap((entry) => entry.choices.map((choice) => choice.preset.id)));
 
@@ -128,6 +132,11 @@ function choose(next: AssetPreset): void {
 	preset.value = next;
 	typed.value = { ...defaultValues(next) };
 	focusedId.value = next.id;
+	// AD18 UI critique, Task 4: the fields sit below the whole gallery, so a card chosen from it
+	// left them — and the preview — off screen. `start` rather than `nearest`: from below, `nearest`
+	// aligns their foot with the body's, which is where the pinned action row sits. Optional because jsdom
+	// implements no `scrollIntoView`; Obsidian's Chromium always does.
+	void nextTick(() => (chosen.value as HTMLElement).scrollIntoView?.({ block: 'start' }));
 }
 
 // Every field is filled by `defaultValues` on each choice; an emptied input is `''`, which `Number`
@@ -184,55 +193,55 @@ function onSubmit(): void {
 		>
 			{{ tr('designer.preset.no-matches') }}
 		</p>
-		<label
-			v-for="field in preset.fields"
-			:key="`${preset.id}-${field.key}`"
-			class="rp-dialog-field"
+		<div
+			ref="chosen"
+			class="rp-asset-preset-chosen"
 		>
-			{{ tr(`designer.preset.field.${field.key}`) }}
-			<input
-				v-model="typed[field.key]"
-				type="number"
-				:name="field.key"
-				:min="field.min"
-				:max="field.max"
-				:step="field.kind === 'count' ? 1 : 'any'"
-				:inputmode="field.kind === 'count' ? 'numeric' : 'decimal'"
+			<label
+				v-for="field in preset.fields"
+				:key="`${preset.id}-${field.key}`"
+				class="rp-dialog-field"
 			>
-		</label>
-		<svg
-			v-if="preview !== null"
-			class="rp-asset-preset-preview"
-			:viewBox="preview.viewBox"
-			role="img"
-			:aria-label="tr('designer.preset.preview')"
-		>
-			<path
-				class="rp-asset-preset-preview__footprint"
-				:d="preview.footprint"
-			/>
-			<path
-				v-for="(detail, index) in preview.details"
-				:key="index"
-				class="rp-asset-preset-preview__detail"
-				:class="{ 'rp-asset-preset-preview__detail--dashed': detail.dashed }"
-				:d="detail.d"
-			/>
-		</svg>
-		<p
-			v-if="refusal !== null"
-			class="rp-dialog-warning"
-		>
-			{{ refusal }}
-		</p>
-		<div class="rp-dialog-actions">
-			<button
-				type="submit"
-				class="rp-dialog-button"
-				:aria-disabled="!built.ok"
+				{{ tr(`designer.preset.field.${field.key}`) }}
+				<input
+					v-model="typed[field.key]"
+					type="number"
+					:name="field.key"
+					:min="field.min"
+					:max="field.max"
+					:step="field.kind === 'count' ? 1 : 'any'"
+					:inputmode="field.kind === 'count' ? 'numeric' : 'decimal'"
+				>
+			</label>
+			<svg
+				v-if="preview !== null"
+				class="rp-asset-preset-preview"
+				:viewBox="preview.viewBox"
+				role="img"
+				:aria-label="tr('designer.preset.preview')"
 			>
-				{{ tr('designer.preset.apply') }}
-			</button>
+				<path
+					class="rp-asset-preset-preview__footprint"
+					:d="preview.footprint"
+				/>
+				<path
+					v-for="(detail, index) in preview.details"
+					:key="index"
+					class="rp-asset-preset-preview__detail"
+					:class="{ 'rp-asset-preset-preview__detail--dashed': detail.dashed }"
+					:d="detail.d"
+				/>
+			</svg>
+			<p
+				v-if="refusal !== null"
+				class="rp-dialog-warning"
+			>
+				{{ refusal }}
+			</p>
 		</div>
+		<FormSubmitRow
+			:submitting="!built.ok"
+			:label="tr('designer.preset.apply')"
+		/>
 	</form>
 </template>

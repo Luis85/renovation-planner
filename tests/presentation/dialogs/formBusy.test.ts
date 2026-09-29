@@ -362,12 +362,12 @@ describe('a form dialog whose fields freeze while it is open', () => {
 		// drive the trap over an ordinary form and pass for the wrong reason.
 		expect(harness.wrapper.find('.rp-new-asset__created').exists()).toBe(true);
 
-		// Stand on the LAST focusable — Cancel, which `FormDialog` renders unconditionally —
-		// and Tab off the end, which is the one edge `onKeydown` handles itself.
-		const cancel = harness.wrapper.get('[data-rp-action="cancel"]').element as HTMLElement;
-		cancel.focus();
-		expect(document.activeElement).toBe(cancel);
-		pressKey(cancel, 'Tab');
+		// Stand on the LAST focusable — the submit, which ends the one action row `FormSubmitRow`
+		// draws after Cancel — and Tab off the end, which is the one edge `onKeydown` handles itself.
+		const submit = harness.wrapper.get('button[type="submit"]').element as HTMLElement;
+		submit.focus();
+		expect(document.activeElement).toBe(submit);
+		pressKey(submit, 'Tab');
 
 		// The frozen NAME input, not the width input three controls past it: `:disabled` would
 		// have taken all six catalogue controls out of `focusableWithin()` at once.

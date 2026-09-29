@@ -93,3 +93,14 @@
 	height: 48px;
 	flex: none;
 }
+
+/*
+ * The chosen preset's fields, preview and refusal, grouped so choosing a card can scroll them into
+ * view as one (`AssetPresetForm.vue`'s `choose`). The column and gap are `.rp-dialog-form`'s, so the
+ * grouping moves no pixel.
+ */
+.rp-asset-preset-chosen {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+}

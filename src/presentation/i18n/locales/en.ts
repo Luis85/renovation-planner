@@ -110,7 +110,7 @@ export const en = {
 	// not sixteen. No default hotkey: see `view.project.keys` below for why.
 	'command.new-project': 'New project',
 	'asset.none': 'This vault has no assets yet.',
-	'sample.project.name': 'Sample renovation',
+	'sample.project.name': 'Sample renovation (fictional)',
 	'sample.plan.name': 'Ground floor',
 	'sample.zone.kitchen': 'Kitchen',
 	'sample.zone.bathroom': 'Bathroom',

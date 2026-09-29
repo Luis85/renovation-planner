@@ -138,7 +138,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'command.create-sample-project': 'Beispielprojekt anlegen',
 	'command.new-project': 'Neues Projekt',
 	'asset.none': 'In diesem Vault gibt es noch keine Objekte.',
-	'sample.project.name': 'Beispiel-Renovierung',
+	'sample.project.name': 'Beispiel-Renovierung (fiktiv)',
 	'sample.plan.name': 'Erdgeschoss',
 	'sample.zone.kitchen': 'Küche',
 	'sample.zone.bathroom': 'Badezimmer',

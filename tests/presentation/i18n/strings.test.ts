@@ -454,6 +454,13 @@ describe('the start-coordinate labels are one symmetric pair in both locales', (
 		expect(keys.map(key => en[key])).toEqual(['Start X (m)', 'Start Y (m)', 'Start X', 'Start Y']);
 		expect(keys.map(key => de[key])).toEqual(keys.map(key => en[key]));
 	});
+
+	// Owner ruling 51: the end pair follows, "End X" / "End Y" beside German "Ende X" / "Ende Y".
+	it('reads End X and End Y on the planned-geometry form', () => {
+		const keys = ['renovation.measurement.endX', 'renovation.measurement.endY'] as const;
+		expect(keys.map(key => en[key])).toEqual(['End X', 'End Y']);
+		expect(keys.map(key => de[key])).toEqual(['Ende X', 'Ende Y']);
+	});
 });
 
 /**

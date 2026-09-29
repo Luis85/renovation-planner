@@ -24,7 +24,7 @@ import type { StringKey } from './en';
 export const deAssetLibrary = {
 	'view.asset-library.title': 'Objekt-Bibliothek',
 	'command.open-asset-library': 'Objekt-Bibliothek öffnen',
-	'view.asset-library.door': 'Objekte',
+	'view.asset-library.door': 'Objekt-Bibliothek',
 	'view.asset-library.search.label': 'Objekte durchsuchen',
 	'view.asset-library.search.placeholder': 'Nach Name, Lieferant oder SKU suchen',
 	'view.asset-library.search.results': '{count} passende Objekte',

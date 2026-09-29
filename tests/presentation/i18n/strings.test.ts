@@ -456,6 +456,19 @@ describe('the start-coordinate labels are one symmetric pair in both locales', (
 	});
 });
 
+/**
+ * Owner ruling 50: the German asset library has one name, „Objekt-Bibliothek“ — on its door, its
+ * title, its command and the two editor labels that had spelled it „Objektbibliothek“. Asked of
+ * every German value rather than of a key list, so a sixth spelling site is covered unnamed.
+ */
+describe('the asset library has one German name', () => {
+	it('spells it Objekt-Bibliothek everywhere, the door included', () => {
+		const spellings = Object.values(de).flatMap(value => value.match(/Objekt-?[Bb]ibliothek/g) ?? []);
+		expect(new Set(spellings)).toEqual(new Set(['Objekt-Bibliothek']));
+		expect(de['view.asset-library.door']).toBe('Objekt-Bibliothek');
+	});
+});
+
 describe('the delete flow the editor opens speaks the same vocabulary as the editor', () => {
 	const DELETE_FLOW_KEYS = ['reference.no-reassignment-target', 'zone.listing-incomplete'] as const;
 

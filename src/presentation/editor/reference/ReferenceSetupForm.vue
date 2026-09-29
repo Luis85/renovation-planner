@@ -31,9 +31,6 @@ const path = ref(previous.background?.path ?? ''), page = ref(previous.backgroun
 // spelling `BackgroundLayer` would never match either (a Codex P2 on pull request #85).
 const sourcePath = computed(() => normalizePath(path.value.trim()));
 const raster = ref<Extract<BackgroundRenderModel, { kind: 'raster' }> | null>(null);
-// The last-read PDF's page count, bounding the page field; kept across a page change, dropped with the source.
-const pageCount = ref<number | null>(null);
-watch(sourcePath, () => { pageCount.value = null; });
 const submitting = ref(false);
 useDialogFormBusy(submitting, props.busy);
 const loading = ref(false), error = ref(''), conflict = ref(false), acknowledged = ref(false);
@@ -71,7 +68,7 @@ const submitLabel = computed(() => tr(step.value === 3 ? 'editor.reference.finis
 const stageLabel = computed(() => tr(step.value === 1 ? 'editor.reference.prepare' : step.value === 2 ? 'editor.reference.scale' : 'editor.reference.review'));
 function invalidate(): void { generation++; raster.value = null; loading.value = false; }
 watch([path, page], invalidate);
-onBeforeUnmount(props.fileChanges(changed => { if (changed === sourcePath.value) { invalidate(); pageCount.value = null; error.value = tr('editor.reference.source-changed'); } }));
+onBeforeUnmount(props.fileChanges(changed => { if (changed === sourcePath.value) { invalidate(); error.value = tr('editor.reference.source-changed'); } }));
 onBeforeUnmount(() => { alive = false; invalidate(); });
 function anotherDistance(): void { Object.assign(coordinates, { ax: '', ay: '', bx: '', by: '' }); length.value = ''; nextPoint = 0; acknowledged.value = false; }
 function initialise(model: Extract<BackgroundRenderModel, { kind: 'raster' }>): void {
@@ -89,7 +86,6 @@ function initialise(model: Extract<BackgroundRenderModel, { kind: 'raster' }>): 
 function refuse(model: Exclude<BackgroundRenderModel, { kind: 'raster' }>): void {
 	raster.value = null;
 	if (model.kind === 'unavailable' && model.reason === 'page-out-of-range') {
-		pageCount.value = model.count;
 		error.value = tr('editor.reference.page-out-of-range', { page: String(model.page), count: String(model.count) });
 	} else error.value = tr(model.kind === 'unavailable' && model.reason === 'missing' ? 'editor.reference.missing' : 'editor.reference.unreadable');
 }
@@ -105,7 +101,7 @@ async function load(): Promise<void> {
 	if (!alive || token !== generation) return;
 	loading.value = false;
 	if (model.kind !== 'raster') { refuse(model); return; }
-	pageCount.value = model.pageCount ?? null; raster.value = model; initialise(model);
+	raster.value = model; initialise(model);
 }
 
 function pick(point: Point): void {
@@ -192,7 +188,6 @@ onMounted(() => { if (path.value) void load(); });
 					v-model:crop="appearance.crop"
 					:sources="candidates"
 					:pdf="kind === 'pdf'"
-					:page-count="pageCount"
 					:paused="paused"
 					:loading="loading"
 					:has-raster="raster !== null"

@@ -17,6 +17,7 @@ import { harnessDeps, HARNESS_PLAN } from '../../harness/planEditor';
 import { referenceWorkspace } from '../../harness/referenceWorkspace';
 import { expectDefined, expectFound } from '../../helpers/domain';
 import { pdfFixture, TWO_PAGE_PDF } from '../../helpers/backgroundFixtures';
+import { t } from '../../../src/presentation/i18n/strings';
 import * as backgrounds from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
 
 beforeEach(() => { installObsidianDom(); activateNotices(); });
@@ -125,8 +126,6 @@ describe('a PDF reference whose chosen page is not page 1', () => {
 	it('refuses page 3 of a two-page PDF after page 2 drew, and leaves no preview behind', async () => {
 		const r = await rig(); await choosePage(r.harness, '2');
 		await settleUntil(() => r.harness.wrapper.find('.rp-reference-preview').exists(), 'the page-2 preview');
-		// BP-06: the page field is bounded by the count the page-2 read learned.
-		expect(r.harness.wrapper.get(`${FORM} input[name="page"]`).attributes('max')).toBe('2');
 		await field(r.harness, 'page', '3'); await r.harness.wrapper.get('[data-rp-action="load-reference"]').trigger('click'); await settle();
 		expect(await lastDecoded(r.load)).toEqual({ kind: 'unavailable', reason: 'page-out-of-range', page: 3, count: 2 });
 		expect(r.harness.wrapper.get(`${FORM} [role="alert"]`).text()).toBe('This PDF has no page 3. Its last page is 2.');
@@ -147,14 +146,35 @@ describe('a PDF reference whose chosen page is not page 1', () => {
 		await settleUntil(() => reopened.wrapper.text().includes('The background for this plan could not be rendered.'), 'the unreadable warning');
 	});
 
-	// BP-06 at the one-page bound: the count reads 1, and the field is bounded by it.
+	// BP-06 at the one-page bound: the count reads 1.
 	it('names page 1 as the last page of a one-page PDF when page 2 is asked for', async () => {
 		const r = await rig(); const bytes = pdfFixture();
 		r.deps.vault.readBinary = () => Promise.resolve(bytes.slice().buffer);
 		await choosePage(r.harness, '2');
 		expect(await lastDecoded(r.load)).toEqual({ kind: 'unavailable', reason: 'page-out-of-range', page: 2, count: 1 });
 		expect(r.harness.wrapper.get(`${FORM} [role="alert"]`).text()).toBe('This PDF has no page 2. Its last page is 1.');
-		expect(r.harness.wrapper.get(`${FORM} input[name="page"]`).attributes('max')).toBe('1');
+	});
+
+	/**
+	 * The refusal sentence is the ONLY guard on the page number, and a native bound is refused.
+	 * A `max` on the page field makes the browser block Continue by itself when the field holds a
+	 * page past it — silently, because the field sits in a `<details>` that is closed by default
+	 * ("An invalid form control with name='page' is not focusable", measured by the review in a
+	 * Chromium-family browser), where the form used to answer `editor.reference.invalid-prepare`.
+	 * jsdom's `trigger('submit')` runs no native validation, so this asserts the precondition
+	 * for that block instead: no `max` on the field, and a form the browser would let submit.
+	 */
+	it('puts no native bound on the page field, so a refused page cannot silently block Continue', async () => {
+		const r = await rig(); await choosePage(r.harness, '2');
+		await settleUntil(() => r.harness.wrapper.find('.rp-reference-preview').exists(), 'the page-2 preview');
+		await field(r.harness, 'page', '3'); await r.harness.wrapper.get('[data-rp-action="load-reference"]').trigger('click'); await settle();
+		expect(r.harness.wrapper.get(`${FORM} [role="alert"]`).text()).toBe('This PDF has no page 3. Its last page is 2.');
+		const page = r.harness.wrapper.get(`${FORM} input[name="page"]`);
+		expect(page.attributes('max')).toBeUndefined();
+		expect(page.attributes('min')).toBe('1');
+		expect(r.harness.wrapper.get<HTMLFormElement>(FORM).element.checkValidity()).toBe(true);
+		await submit(r.harness);
+		expect(r.harness.wrapper.get(`${FORM} [role="alert"]`).text()).toBe(t('en', 'editor.reference.invalid-prepare'));
 	});
 
 	// A04's error half: a refused page over a COMMITTED reference, left by the Cancel a user presses.

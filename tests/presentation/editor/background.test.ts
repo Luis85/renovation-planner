@@ -176,12 +176,12 @@ describe('loading a plan background', () => {
 			const scale = model.width / TWO_PAGE_PDF[page - 1].width;
 			const pixel = backingCanvas(model.image as HTMLCanvasElement)?.getContext('2d')
 				.getImageData(Math.round(50 * scale), Math.round((TWO_PAGE_PDF[page - 1].height - 40) * scale), 1, 1).data;
-			return { width: model.width, height: model.height, pageCount: model.pageCount, rgba: [...(pixel ?? [])] };
+			return { width: model.width, height: model.height, rgba: [...(pixel ?? [])] };
 		}));
 
 		expect(decoded).toEqual([
-			{ width: 400, height: 200, pageCount: 2, rgba: [0, 0, 255, 255] },
-			{ width: 600, height: 300, pageCount: 2, rgba: [255, 0, 0, 255] },
+			{ width: 400, height: 200, rgba: [0, 0, 255, 255] },
+			{ width: 600, height: 300, rgba: [255, 0, 0, 255] },
 		]);
 	});
 

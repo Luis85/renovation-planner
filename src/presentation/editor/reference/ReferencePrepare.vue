@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue';
 import { tr } from '../../i18n/strings';
-const props = defineProps<{ sources: readonly string[]; pdf: boolean; pageCount?: number | null; paused: boolean; loading: boolean; hasRaster: boolean }>();
+const props = defineProps<{ sources: readonly string[]; pdf: boolean; paused: boolean; loading: boolean; hasRaster: boolean }>();
 const path = defineModel<string>('path', { required: true });
 const page = defineModel<number>('page', { required: true });
 const rotation = defineModel<number>('rotation', { required: true });
@@ -97,7 +97,6 @@ function choose(source: string): void {
 				name="page"
 				type="number"
 				min="1"
-				:max="pageCount ?? undefined"
 				:readonly="paused"
 			></label>
 		</details>

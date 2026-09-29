@@ -57,8 +57,6 @@ export type BackgroundRenderModel =
 			/** Source pixels — what `<v-image>`'s own width/height are set from. */
 			readonly width: number;
 			readonly height: number;
-			/** A PDF's page count, which bounds the reference form's page field; absent for an image. */
-			readonly pageCount?: number;
 	  }
 	| { readonly kind: 'unavailable'; readonly reason: 'missing' | 'unreadable' }
 	| { readonly kind: 'unavailable'; readonly reason: 'page-out-of-range'; readonly page: number; readonly count: number };
@@ -167,7 +165,6 @@ async function loadPdf(
 		worldScale: rendered.worldScale,
 		width: rendered.width,
 		height: rendered.height,
-		pageCount: rendered.pageCount,
 	};
 }
 

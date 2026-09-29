@@ -88,8 +88,6 @@ export interface RasterizedPage {
 	readonly worldScale: number;
 	readonly width: number;
 	readonly height: number;
-	/** How many pages the document has, so a caller can bound its page field. */
-	readonly pageCount: number;
 }
 
 /**
@@ -155,7 +153,6 @@ export async function renderPdfPage(bytes: ArrayBuffer, pageNumber: number): Pro
 			worldScale: MM_PER_POINT / RASTER_SCALE,
 			width: canvas.width,
 			height: canvas.height,
-			pageCount: document_.numPages,
 		};
 	} finally {
 		// Always, including on the throw above: the loading task holds the parsed document,

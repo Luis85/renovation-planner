@@ -1949,6 +1949,15 @@ under All dimensions (**its positive-per-side wording still needs a ruling at bu
 in the resting state), and the missing plural forms ("1 assets", "note(s)"). **Not authorized by this ruling:** a
 schema change, a stored field, a new dependency or devDependency, AD17 or roadmap work, or a *Deliberately absent* element.
 
+### AD18-R40 — the clearance's reach reads as a positive distance per side. (2026-09-29)
+
+The critique's action list said the clearance wording "needs a ruling from you first"; the user answered "push it and
+run all of them", which is recorded here as approving the proposal as written. **Ruled:** wherever the CLEARANCE's
+offsets are drawn — under All dimensions, and (a build-scope reading, since `measuredParts` draws the same figures there)
+when the clearance itself is selected — each side reads its reach outward from the footprint as a positive figure, and a
+side with no reach draws no label. Details keep their signed gaps and their `0 mm` labels (AD18-R22 unchanged). Plan:
+[`AD18-ui-critique-round-plan.md`](../reports/AD18-ui-critique-round-plan.md).
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

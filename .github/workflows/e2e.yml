@@ -45,7 +45,11 @@ jobs:
         uses: actions/cache@v6
         with:
           path: node_modules/.cache/obsidian
-          key: obsidian-${{ matrix.version }}-${{ runner.os }}
+          # A fixed key is never re-saved after its first hit, so the entry would freeze on the
+          # first build cached and re-download every newer `latest`. Unique key, prefix restore.
+          key: obsidian-${{ matrix.version }}-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: |
+            obsidian-${{ matrix.version }}-${{ runner.os }}-
 
       - name: Install virtual display
         run: sudo apt-get update -q && sudo apt-get install -y xvfb herbstluftwm x11-xserver-utils libnss3 libasound2t64 libgbm1

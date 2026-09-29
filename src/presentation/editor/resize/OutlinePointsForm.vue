@@ -154,21 +154,17 @@ async function submit(): Promise<void> {
 			</FieldError>
 		</fieldset>
 		<!--
-			`error.category.geometry` is a declared FALLBACK tier (`en/errorFallback.ts`), and this
-			is a deliberate departure from picking one as copy — recorded, not ideal. It is here
-			because `editor.resize.invalid` ("enter valid dimensions … this room") is false at this
-			mount: the fields are coordinates, and `elementEditPresentation.ts` mounts this same
-			form over a fence, a path, an asset placement or a one-point text label. That key stays
-			as it is — it is CORRECT at its two other render sites, the room width/depth dialog.
-			Correct-but-generic beats specific-but-false; it also matches what `draw-polygon`
-			already toasts for the same two codes. The honest answer is a minted sentence in both
-			locales, which L-15 blocks an agent from writing.
+			Its own sentence, true at BOTH mounts of this shared form (a zone's corners, and the
+			element mount `elementEditPresentation.ts` uses for a fence, a path, an asset placement or a
+			one-point text label) and for every cause: a field that did not parse, an outline that
+			crosses or has no area, or two neighbouring points in one place. `editor.resize.invalid`
+			("… this room") stays with the room width/depth dialog, where it is correct.
 		-->
 		<p
 			v-if="proposal.polygon === null"
 			role="alert"
 		>
-			{{ tr('error.category.geometry') }}
+			{{ tr('editor.outline.invalid') }}
 		</p>
 		<div class="rp-dialog-actions">
 			<button

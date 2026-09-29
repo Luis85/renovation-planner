@@ -164,8 +164,8 @@ describe('the numeric outline editor over every zone type', () => {
 			expect(form(r).get('.rp-field-error__message').text()).toContain(field);
 			// The alert's own TEXT, not merely its role. This form takes COORDINATES, on a zone
 			// or — at its element mount — on a fence, a path or a one-point text label, so the
-			// room width/depth sentence `editor.resize.invalid` carries was false here.
-			expect(form(r).get('[role="alert"]').text()).toBe('A geometry value is invalid.');
+			// room width/depth sentence `editor.resize.invalid` carries was false here; it has its own.
+			expect(form(r).get('[role="alert"]').text()).toBe('These positions do not form a valid shape. Correct any marked field, and check for lines that cross or overlap or for two neighbouring points in the same place.');
 			expect(runtimeOf(r.harness).renderState.previewPolygon).toBeNull();
 		}
 		expect(dispatch).not.toHaveBeenCalled();

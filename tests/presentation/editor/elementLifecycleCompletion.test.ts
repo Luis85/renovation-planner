@@ -68,7 +68,7 @@ describe('element editing finishes safely after source and leaf changes', () => 
 		// Its TEXT, at the SECOND mount of this shared form and under a cause that carries no
 		// per-field message beside it: every coordinate here parsed, and it is the resulting
 		// figure that was refused. The Object is not a room and has no width/depth fields.
-		expect(form.get('[role="alert"]').text()).toBe('A geometry value is invalid.');
+		expect(form.get('[role="alert"]').text()).toBe('These positions do not form a valid shape. Correct any marked field, and check for lines that cross or overlap or for two neighbouring points in the same place.');
 		expect(form.get<HTMLInputElement>('[name="3.x"]').element.value).toBe('4.5');
 		expect(rig.runtime.elementActions.preview.value).toBeNull(); expect(run).not.toHaveBeenCalled();
 		expect([...rig.stack.vault.entries]).toEqual(bytes);

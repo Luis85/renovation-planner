@@ -130,6 +130,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.resize.anchor': 'Die linke obere Ecke bleibt fest. Die Breite wächst nach rechts, die Tiefe nach unten. Werte in Metern. Der gestrichelte Umriss ist eine Vorschau; erst Anwenden ändert den Raum. Unabhängige Wände bleiben unverändert.',
 	'editor.resize.preview': 'Vorschau: {width} m × {depth} m — {area}',
 	'editor.resize.invalid': 'Geben Sie gültige Maße ein, die diesen Raum beschreiben können.',
+	'editor.outline.invalid': 'Diese Positionen ergeben keine gültige Form. Korrigieren Sie markierte Felder und prüfen Sie, ob sich Linien kreuzen oder überlappen oder zwei benachbarte Punkte an derselben Stelle liegen.',
 	'editor.resize.paused': 'Der Grundriss wird gespeichert oder aktualisiert. Änderungen können derzeit nicht angewendet werden.',
 	'editor.resize.apply': 'Maße anwenden',
 	'editor.resize.unsupported': 'Breite und Tiefe lassen sich nur bei Rechtecken entlang der Grundrissachsen ändern. Gedrehte und andere Umrisse können über ihre vorhandenen Eckgriffe bearbeitet werden.',

@@ -143,6 +143,7 @@ export const editorEn = {
 	'editor.resize.anchor': 'The top-left corner stays fixed. Width extends to the right; depth extends downwards. Values are in metres. The dashed outline is a preview; the room changes only when you apply it. Independent walls stay unchanged.',
 	'editor.resize.preview': 'Preview: {width} m × {depth} m — {area}',
 	'editor.resize.invalid': 'Enter valid dimensions that can describe this room.',
+	'editor.outline.invalid': 'These positions do not form a valid shape. Correct any marked field, and check for lines that cross or overlap or for two neighbouring points in the same place.',
 	'editor.resize.paused': 'Saving or refreshing this floor. Changes cannot be applied now.',
 	'editor.resize.apply': 'Apply dimensions',
 	'editor.resize.unsupported': 'Width and depth editing supports only rectangles aligned with the floor axes. Rotated and other outlines can be edited using their existing corner handles.',

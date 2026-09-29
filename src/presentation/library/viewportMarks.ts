@@ -50,6 +50,15 @@ import type { AssetLibraryQueryServices } from '../read-models/assetLibraryQueri
  * `invalidate` re-requests exactly its intersection with it, which is a fact the caller already
  * has to supply for `setVisible` and would otherwise have to remember to supply twice.
  *
+ * **And a drawn row KEEPS its mark until that re-read answers** (§5.4, amended 2026-09-29).
+ * Dropping it first, then reading, still blanked the row to *not yet read* for one read's
+ * duration — the flash the Browse 3 pixel guard caught on Linux CI. So `invalidate` drops only
+ * the marks nothing draws, and the answer for a drawn one REPLACES the held mark in one step.
+ * What bounds a held mark is that every one has a current read out: its answer replaces it, its
+ * failure drops it, a further `invalidate` re-reads or drops it, and `reset` clears it — so an
+ * old footprint (an asset deleted and recreated under the same id, say) outlives one read at
+ * most, whether or not its row is still drawn when the answer lands.
+ *
  * **There is no timer and no microtask coalescing, and the batch boundary is the CALLER's
  * call.** A scheduler here would be a second batching mechanism layered over the caller's own,
  * and it would put every test of this module on a hop count that is a fact about today's
@@ -69,7 +78,10 @@ export interface ViewportMarks {
 	 * is what decides which invalidated marks re-read at once.
 	 */
 	setVisible(assetIds: readonly AssetId[], queries: AssetLibraryQueryServices): Promise<void>;
-	/** Forget these marks, and re-read at once exactly the ones a row is currently drawing. */
+	/**
+	 * A new ticket for each of these marks: the ones a row is currently drawing are re-read at
+	 * once and keep drawing their held mark until the answer replaces it; the rest are forgotten.
+	 */
 	invalidate(assetIds: readonly AssetId[], queries: AssetLibraryQueryServices): Promise<void>;
 	reset(): void;
 }
@@ -82,7 +94,7 @@ export function createViewportMarks(): ViewportMarks {
 	 */
 	const marks = ref(new Map<AssetId, AssetOutline>());
 	/**
-	 * The per-asset ticket. Bumped by `invalidate` alone, so an answer is applied only if the
+	 * The per-asset ticket. Bumped by `invalidate` and `reset` alone, so an answer is applied only if the
 	 * mark it describes has not been invalidated since the read was issued — successes AND
 	 * refusals alike, per §5.5: an old `refused` outline painting §3.4's struck box over a
 	 * footprint just read is the same defect wearing the other face.
@@ -106,33 +118,52 @@ export function createViewportMarks(): ViewportMarks {
 
 	const generationOf = (assetId: AssetId): number => generations.get(assetId) ?? 0;
 
-	async function read(
-		assetIds: readonly AssetId[],
-		queries: AssetLibraryQueryServices,
-	): Promise<void> {
-		const batch = assetIds.filter((assetId) => !marks.value.has(assetId) && !inFlight.has(assetId));
+	/** The ids nothing has read yet, and nothing is reading — what a pass asks for. */
+	function read(assetIds: readonly AssetId[], queries: AssetLibraryQueryServices): Promise<void> {
+		return issue(
+			assetIds.filter((assetId) => !marks.value.has(assetId) && !inFlight.has(assetId)),
+			queries,
+		);
+	}
+
+	async function issue(batch: readonly AssetId[], queries: AssetLibraryQueryServices): Promise<void> {
 		if (batch.length === 0) return;
 
 		const issued = new Map(batch.map((assetId) => [assetId, generationOf(assetId)]));
+		const current = (assetId: AssetId): boolean => generationOf(assetId) === issued.get(assetId);
 		for (const assetId of batch) inFlight.add(assetId);
 
-		const answered = await queries.listOutlines(batch);
+		let answered: ReadonlyMap<AssetId, AssetOutline>;
+		try {
+			answered = await queries.listOutlines(batch);
+		} catch (error) {
+			// A held mark whose re-read failed must not stay drawn as if it were current, so it
+			// goes back to *not yet read*, and the id stops counting as in flight so the next pass
+			// asks again. Only for ids this read still owns: one invalidated since belongs to the
+			// read `invalidate` armed, and dropping its held mark here would be the flash again.
+			for (const assetId of batch.filter((each) => current(each))) {
+				inFlight.delete(assetId);
+				marks.value.delete(assetId);
+			}
+			throw error;
+		}
 		for (const [assetId, outline] of answered) {
 			// Two things at once, and deliberately: an id whose generation has moved was
 			// invalidated while this read was out, so its answer is dropped AND its in-flight
 			// record is left alone — that record belongs to the re-request `invalidate` armed,
 			// not to this read. Clearing it here would let this answer's own staleness cancel
 			// the fresh read that replaced it.
-			if (generationOf(assetId) !== issued.get(assetId)) continue;
+			if (!current(assetId)) continue;
 			inFlight.delete(assetId);
+			// A SET, never a delete-then-set: a drawn row's held mark is replaced in one step.
 			marks.value.set(assetId, outline);
 		}
 	}
 
-	function forget(assetIds: readonly AssetId[]): void {
+	/** A new ticket for each id, so every read already out for it is dropped when it lands. */
+	function bump(assetIds: readonly AssetId[]): void {
 		for (const assetId of assetIds) {
 			generations.set(assetId, generationOf(assetId) + 1);
-			marks.value.delete(assetId);
 			inFlight.delete(assetId);
 		}
 	}
@@ -146,8 +177,10 @@ export function createViewportMarks(): ViewportMarks {
 		},
 
 		invalidate(assetIds, queries) {
-			forget(assetIds);
-			return read(
+			bump(assetIds);
+			for (const assetId of assetIds) if (!visible.has(assetId)) marks.value.delete(assetId);
+			// Past `read`'s filter on purpose: a drawn id still HOLDS its mark, and is read anyway.
+			return issue(
 				assetIds.filter((assetId) => visible.has(assetId)),
 				queries,
 			);
@@ -161,7 +194,7 @@ export function createViewportMarks(): ViewportMarks {
 		 */
 		reset(): void {
 			visible = new Set();
-			forget([...inFlight]);
+			bump([...inFlight]);
 			marks.value = new Map();
 		},
 	};

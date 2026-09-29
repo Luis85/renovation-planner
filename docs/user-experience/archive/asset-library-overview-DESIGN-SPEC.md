@@ -1349,6 +1349,20 @@ The contract, so a builder does not invent one:
   choose between a stale outline held for ever and an eager offscreen read. Reported by a review
   bot; **it is §5.3's bound change not carrying into §5.4**, which is the third time this document
   has changed one section and left a neighbour describing the old one.
+
+  **Amendment (2026-09-29, user request): a drawn row keeps its mark until the re-read answers; a
+  row that is not drawn drops it.** "Drops the cached value" above was literal, and for a row on
+  screen it meant the row drew *not yet read* for the whole of its own re-read, then the answer —
+  a flash of three dots on every sidecar or index re-announcement (sync, a peer designer leaf, a
+  watcher catching up late). The Browse 3 pixel guard caught it twice on Linux CI (E2E runs
+  36345605529 and 36476196536), capturing a drawn row mid-flash. So invalidation now bumps the
+  mark's ticket (§5.5) in both cases, but only an UNDRAWN row's value is dropped — it still
+  re-reads when it next enters the viewport, and never before, so it can never reappear showing a
+  stale shape. A DRAWN row re-requests immediately as before, keeps drawing the value it has, and
+  the answer replaces it in one step. The held value is bounded by that one read: its answer
+  replaces it, a failed read drops it back to *not yet read*, a further invalidation re-reads or
+  drops it — so a recreated asset's row can show the deleted asset's footprint for one read's
+  duration at most, and never indefinitely.
 - The **inspector** refetches its own asset on the same events, since `dimensions` and the shape
   note come from the same read.
 

@@ -1,5 +1,6 @@
 import { describe, expect } from 'vitest';
 import { test } from './fixture';
+import { LIBRARY } from './designer';
 import { writeEvidence } from './diagnostics';
 import { openCatalogue } from './library';
 import { atPixelRatio, capture, difference, DISTINCT, RATIOS } from './pixels';
@@ -48,12 +49,15 @@ const seedSidecars = (browser: NativeBrowser) =>
 
 /**
  * §3.4's fifth state, *not yet read*, HELD: the host's `vault.read` answers nothing for `path` until
- * `releaseRead` runs, and the sidecar is then modified, so the library forgets that row's mark and
- * asks again. `releaseRead` takes the patch off and answers what it held.
+ * `releaseRead` runs, and the library is then closed and opened again, so a fresh view asks for that
+ * row's mark for the first time. `releaseRead` takes the patch off and answers what it held.
+ *
+ * A FIRST read, and no longer a sidecar modified under an open library: since §5.4's 2026-09-29
+ * amendment a drawn row keeps its mark while it is re-read, so a re-read cannot show this state.
  */
 const holdRead = (browser: NativeBrowser, path: string) =>
-	browser.executeObsidian(async ({ app }, file) => {
-		const vault = app.vault as unknown as { read(file: { path: string }): Promise<string>; modify(file: object, data: string): Promise<void> };
+	browser.executeObsidian(({ app }, file) => {
+		const vault = app.vault as unknown as { read(file: { path: string }): Promise<string> };
 		const original = vault.read;
 		const own = Object.prototype.hasOwnProperty.call(vault, 'read');
 		const held: (() => void)[] = [];
@@ -67,9 +71,6 @@ const holdRead = (browser: NativeBrowser, path: string) =>
 			const read = () => original.call(this, target);
 			return target.path === file ? new Promise<string>((resolve) => { held.push(() => { resolve(read()); }); }) : read();
 		};
-		const sidecar = app.vault.getFileByPath(file);
-		if (!sidecar) throw new Error(`No sidecar at ${file}.`);
-		await vault.modify(sidecar, `${await original.call(app.vault, sidecar)}\n`);
 	}, path);
 
 const releaseRead = (browser: NativeBrowser) =>
@@ -85,7 +86,7 @@ describe('Browse the asset library, the row marks as painted in the real Obsidia
 	 * states taken off a real List row in the same run, each copied only while its row draws that
 	 * state and STAGED at one whole-pixel spot (`capture` in `pixels.ts`), and read at a device pixel
 	 * ratio of 1 and of 2 whatever the machine's own — measured, unscaled, none and unreadable at
-	 * rest, and not-yet-read HELD by stalling the host's read of one sidecar — and every pair
+	 * rest, and not-yet-read HELD by stalling the host's read of one sidecar across a reopened library — and every pair
 	 * compared as drawings (`difference` in `pixels.ts`: each picture's ink against its own
 	 * background, so a colour difference alone does not count, which is §3.4's own rule that the
 	 * states differ in kind and never only in colour): more than `DISTINCT` of the pixels either
@@ -107,7 +108,10 @@ describe('Browse the asset library, the row marks as painted in the real Obsidia
 	}) => {
 		const lib = await openCatalogue(browser, page, ui, { designed: true, layout: 'List' });
 		const toilet = await seedSidecars(browser);
-		for (const head of await lib.library().$$('button.rp-al-shelf__head[aria-expanded="false"]')) await head.click();
+		const openShelves = async () => {
+			for (const head of await lib.library().$$('button.rp-al-shelf__head[aria-expanded="false"]')) await head.click();
+		};
+		await openShelves();
 		const expected = { [toilet]: 'measured', [PLANK]: 'measured', [SOFA]: 'unscaled', [CHAIR]: 'unscaled', [VANITY]: 'none', [CUTTER]: 'none', [PAINT]: 'unreadable' };
 		const kinds = () => browser.execute((ids, sel) => ids.map((id) => document.querySelector(sel.replace('ID', id))?.getAttribute('class') ?? ''), Object.keys(expected), mark('ID'));
 		await expect.poll(kinds).toEqual(Object.values(expected).map((kind) => `rp-al-mark rp-al-mark--${kind}`));
@@ -131,6 +135,10 @@ describe('Browse the asset library, the row marks as painted in the real Obsidia
 		const pending: string[] = [];
 		try {
 			await holdRead(browser, `${GEOMETRY}/${SOFA}.rpgeo`);
+			await browser.executeObsidian(({ app }, type) => { app.workspace.detachLeavesOfType(type); }, LIBRARY);
+			await lib.open(Object.keys(expected).length);
+			await lib.layout('List');
+			await openShelves();
 			await expect.poll(() => browser.$(mark(SOFA)).getAttribute('class')).toBe('rp-al-mark rp-al-mark--pending');
 			for (const ratio of RATIOS) pending.push(await atPixelRatio(browser, ratio, () => shot(SOFA, ratio, 'pending')));
 		} finally {

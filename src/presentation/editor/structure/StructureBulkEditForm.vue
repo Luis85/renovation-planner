@@ -8,6 +8,7 @@ import { tr } from '../../i18n/strings';
 import { formatMetres, parseCoordinateMetres, parseMetres } from '../shell/formatLength';
 import StructureReviewNotices from './StructureReviewNotices.vue';
 import { useStructureReview } from './useStructureReview';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 const props = defineProps<{ structure: Structure; ids: readonly string[]; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; dispatch: (structure: Structure) => Promise<DispatchResult>; preview: (structure: Structure | null) => void }>();
 const emit = defineEmits<{ submit: [] }>();
 const HEADINGS = { wall: 'editor.structure.bulk.walls', window: 'editor.structure.bulk.windows', door: 'editor.structure.bulk.doors' } as const;
@@ -90,11 +91,9 @@ function impact(next: Structure): string {
 		>
 			{{ impact(proposal) }}
 		</p>
-		<button
-			type="submit"
-			:aria-disabled="unavailable"
-		>
-			{{ tr(reviewed ? 'editor.structure.apply' : 'editor.structure.preview') }}
-		</button>
+		<FormSubmitRow
+			:submitting="unavailable"
+			:label="tr(reviewed ? 'editor.structure.apply' : 'editor.structure.preview')"
+		/>
 	</form>
 </template>

@@ -14,6 +14,7 @@ import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { zoneTypeLabel } from '../shell/zoneTypeLabel';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 const props = defineProps<{ value: ZoneDetails; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>;
 	latest: Readonly<Ref<string | null>>; dispatch: (details: ZoneDetails) => Promise<DispatchResult>; logger: Logger }>();
 const emit = defineEmits<{ submit: [] }>();
@@ -80,14 +81,9 @@ async function submit(): Promise<void> {
 				</select>
 			</label>
 		</FieldError>
-		<div class="rp-dialog-actions">
-			<button
-				type="submit"
-				class="rp-dialog-button"
-				:aria-disabled="disabled"
-			>
-				{{ tr('editor.rename.apply') }}
-			</button>
-		</div>
+		<FormSubmitRow
+			:submitting="disabled"
+			:label="tr('editor.rename.apply')"
+		/>
 	</form>
 </template>

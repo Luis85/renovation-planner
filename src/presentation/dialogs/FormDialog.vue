@@ -4,8 +4,9 @@
  * `Escape` semantics and the resolution Promise; it holds no field knowledge, which is why
  * the descriptor names a component rather than describing fields.
  *
- * The form component owns its own fields, its own validation and its own submit control,
- * and lives with whoever owns the form — `presentation/editor/shell/KnownDistanceForm.vue`
+ * The form component owns its own fields, its own validation and its own submit control —
+ * drawn through `FormSubmitRow`, the one action row every shipped dialog form ends with
+ * (`tests/presentation/dialogs/dialogFormSubmitRow.test.ts`) — and lives with whoever owns the form — `presentation/editor/shell/KnownDistanceForm.vue`
  * is this slice's own caller, and slice 16's creation forms will be others. What a resolved
  * `'submit'` means is `FormDialogResult`'s own docblock to state (`dialog-store.ts`), not
  * repeated here — a caller-dispatches form and a form that owns its dispatch answer that
@@ -59,8 +60,8 @@ function onCancel(): void {
 /**
  * Whether the mounted form drew the dialog's one action row (`FormSubmitRow`, via `formFooter.ts`).
  * When it did, the Cancel below is not drawn: a second row under the form's own submit is the
- * stacked Save-over-Cancel the UI critique found. A form with its own markup and no
- * `FormSubmitRow` claims nothing and keeps this row.
+ * stacked Save-over-Cancel the UI critique found. A component with no `FormSubmitRow` claims
+ * nothing and keeps this row, so a dialog is never left with no way out; no shipped form is one.
  */
 const claimed = ref(false);
 provide(FORM_FOOTER, {

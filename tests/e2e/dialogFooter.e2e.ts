@@ -108,6 +108,34 @@ const openPresetDialog = async (browser: NativeBrowser, page: ObsidianPage, ui: 
 	await expect.poll(() => browser.$('.rp-dialog .rp-asset-preset-form').isDisplayed()).toBe(true);
 };
 
+/**
+ * The window made SHORT (sidebars left alone), so even a few-field dialog overflows its panel and the
+ * body scrolls. Electron sizes it; Obsidian's chromedriver refuses `setWindowSize`.
+ */
+const shortenTo = async (browser: NativeBrowser, height: number): Promise<void> => {
+	await browser.executeObsidian((_obsidian, px) => {
+		const electron = window as unknown as { require(id: string): { getCurrentWindow(): { getSize(): number[]; setSize(w: number, h: number): void } } };
+		const current = electron.require('@electron/remote').getCurrentWindow();
+		current.setSize(current.getSize()[0], px);
+	}, height);
+	await browser.pause(400);
+};
+
+/** A new project's schedule section, reached through the view state the pane itself keeps. */
+const openSchedule = async (browser: NativeBrowser, ui: PlannerPage, name: string): Promise<void> => {
+	await ui.openProjectView();
+	await ui.projectView().$('.rp-empty-state__action').click();
+	await ui.submitForm(name);
+	await expect.poll(() => ui.projectView().$('.rp-project-detail__name').getText()).toBe(name);
+	await browser.executeObsidian(async ({ app }) => {
+		const leaf = app.workspace.getLeavesOfType('renovation-project')[0];
+		if (!leaf) throw new Error('No project view to route.');
+		const { projectId } = leaf.view.getState() as { projectId?: string };
+		await leaf.setViewState({ type: 'renovation-project', active: true, state: { projectId, section: 'schedule' } });
+	});
+	await expect.poll(() => ui.projectView().$('.rp-project-work').isDisplayed()).toBe(true);
+};
+
 describe('a form dialog’s one action row in the real Obsidian host', () => {
 	desktop('New asset draws Cancel then a primary Save on one row, at the default window and a sidebar-width leaf, and Enter submits', async ({
 		native: { browser, ui, directory },
@@ -237,5 +265,41 @@ describe('a form dialog’s one action row in the real Obsidian host', () => {
 		if (!field || !row || !body) throw new Error(`Preset dialog parts missing: ${JSON.stringify(after)}`);
 		expect(field.top).toBeGreaterThanOrEqual(body.top);
 		expect(field.bottom).toBeLessThanOrEqual(row.top + 1);
+	});
+	desktop('a form that used to draw its own submit keeps it in view, on the one row, while a short window scrolls its body', async ({
+		native: { browser, ui, directory },
+	}) => {
+		// Add trade opens `NamedCatalogueForm`, one of the forms that drew its own bare submit inside the
+		// scroller until the open-issues round's Task 3 gave every dialog form `FormSubmitRow`.
+		await openSchedule(browser, ui, 'Scroll probe');
+		await ui.projectView().$('button=Add trade').click();
+		await expect.poll(() => browser.$('.rp-dialog .rp-dialog-form').isDisplayed()).toBe(true);
+		await shortenTo(browser, 240);
+
+		const at = async (where: 'top' | 'bottom') => {
+			const scroll = await browser.execute((edge) => {
+				const body = document.querySelector('.rp-dialog-body');
+				if (!body) throw new Error('No dialog body to scroll.');
+				body.scrollTop = edge === 'top' ? 0 : body.scrollHeight;
+				return { overflow: body.scrollHeight - body.clientHeight, scrollTop: body.scrollTop, viewport: window.innerHeight };
+			}, where);
+			await browser.pause(150);
+			return { ...scroll, ...(await layout(browser)) };
+		};
+		const top = await at('top');
+		const bottom = await at('bottom');
+		await writeEvidence(directory, 'dialog-footer-short', { top, bottom });
+
+		// The precondition, or the case passes on a body that never scrolled.
+		expect(top.overflow).toBeGreaterThan(20);
+		expect(bottom.scrollTop).toBeGreaterThan(20);
+		for (const measured of [top, bottom]) {
+			const { panel, submit } = measured;
+			if (!panel || !submit) throw new Error(`Dialog parts missing: ${JSON.stringify(measured)}`);
+			// The submit is inside what the dialog SHOWS: its panel, clipped by the window.
+			expect(submit.top).toBeGreaterThanOrEqual(panel.top);
+			expect(submit.bottom).toBeLessThanOrEqual(Math.min(panel.bottom, measured.viewport));
+			expectOneRow(measured);
+		}
 	});
 });

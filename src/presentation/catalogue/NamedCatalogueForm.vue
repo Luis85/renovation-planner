@@ -9,6 +9,7 @@ import { useDialogFormBusy } from '../composables/use-dialog-form-busy';
 import { nativeSubmitKey } from '../editor/forms/nativeSubmitKey';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
+import FormSubmitRow from '../dialogs/FormSubmitRow.vue';
 const props = defineProps<{ kind: 'trade' | 'supplier'; busy: Ref<boolean>; create: (input: NamedCatalogueCreate) => Promise<Result<unknown, AppError>> }>();
 const emit = defineEmits<{ submit: [] }>();
 const id = createEntityId(props.kind), name = ref(''), saving = ref(false), error = ref<AppError | null>(null);
@@ -45,11 +46,9 @@ async function submit(): Promise<void> {
 		>
 			{{ trError(error) }}
 		</p>
-		<button
-			type="submit"
-			:aria-disabled="saving"
-		>
-			{{ tr('catalogue.create') }}
-		</button>
+		<FormSubmitRow
+			:submitting="saving"
+			:label="tr('catalogue.create')"
+		/>
 	</form>
 </template>

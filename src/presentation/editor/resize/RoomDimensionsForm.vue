@@ -16,6 +16,7 @@ import { trError } from '../../i18n/toUserMessage';
 import { formatMetres } from '../shell/formatLength';
 import { formatArea } from '../shell/formatArea';
 import { dimensionTexts, dimensionProposal, type DimensionsText } from './roomDimensions';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 
 const props = defineProps<{
 	points: readonly Point[]; box: BoundingBox; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; latest: Readonly<Ref<string | null>>;
@@ -131,14 +132,9 @@ async function submit(): Promise<void> {
 		>
 			{{ tr('editor.resize.paused') }}
 		</p>
-		<div class="rp-dialog-actions">
-			<button
-				type="submit"
-				class="rp-dialog-button"
-				:aria-disabled="blocked || latest.value !== null || !changed"
-			>
-				{{ tr('editor.resize.apply') }}
-			</button>
-		</div>
+		<FormSubmitRow
+			:submitting="blocked || latest.value !== null || !changed"
+			:label="tr('editor.resize.apply')"
+		/>
 	</form>
 </template>

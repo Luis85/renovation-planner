@@ -26,11 +26,20 @@
  * `submitting` is what marks the submit inoperative; the preset form passes its build refusal
  * through it. The label defaults to `dialog.form.submit`, the string every creation form's submit
  * says; a form whose submit says something else (the preset form's Apply) passes its own.
+ *
+ * **Every form `FormDialog` hosts ends with this row** (open-issues round, Task 3), because a form
+ * drawing its own submit inside the scrolling body lost it below the fold while `FormDialog`'s
+ * Cancel stayed pinned. `tests/presentation/dialogs/dialogFormSubmitRow.test.ts` holds that for
+ * every `<form class="rp-dialog-form">` in `src/`. Two doors keep a form's own submit details:
+ * attributes and listeners set on this component land on the SUBMIT, not the row
+ * (`inheritAttrs: false`), so a `data-*` hook or a capture-phase refusal survives; and the default
+ * slot draws between Cancel and the submit, for a secondary step such as the reference setup's Back.
  */
 import { inject } from 'vue';
 import { tr } from '../i18n/strings';
 import { FORM_FOOTER } from './formFooter';
 
+defineOptions({ inheritAttrs: false });
 defineProps<{ submitting: boolean; label?: string }>();
 
 const footer = inject(FORM_FOOTER, null);
@@ -49,7 +58,9 @@ footer?.claim();
 		>
 			{{ tr('dialog.cancel') }}
 		</button>
+		<slot />
 		<button
+			v-bind="$attrs"
 			type="submit"
 			class="rp-dialog-button mod-cta"
 			:aria-disabled="submitting"

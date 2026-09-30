@@ -4,14 +4,16 @@
  * AD18 UI critique, Task 4: a form dialog draws ONE action row — Cancel, then the submit, the submit
  * carrying Obsidian's `mod-cta` — where it used to draw the form's submit row and then `FormDialog`'s
  * own Cancel row under it. The submit stays inside the form, which is what keeps Enter in a field a
- * submit; a form with no `FormSubmitRow` keeps the dialog's own Cancel row.
+ * submit; a form with no `FormSubmitRow` keeps the dialog's own Cancel row, and since the open-issues
+ * round's Task 3 every shipped dialog form draws one (`dialogFormSubmitRow.test.ts`).
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { nextTick, ref } from 'vue';
+import { defineComponent, h, nextTick, ref } from 'vue';
 import { flushPromises, mount } from '@vue/test-utils';
 import { mountDialogHost, type DialogHarness } from '../../helpers/dialogs';
 import NewProjectForm from '../../../src/presentation/views/NewProjectForm.vue';
 import KnownDistanceForm from '../../../src/presentation/editor/shell/KnownDistanceForm.vue';
+import FormSubmitRow from '../../../src/presentation/dialogs/FormSubmitRow.vue';
 import AssetPresetForm from '../../../src/presentation/designer/presets/AssetPresetForm.vue';
 import type { Logger } from '../../../src/application/ports/Logger';
 
@@ -85,13 +87,45 @@ describe('a form dialog’s one action row', () => {
 	});
 
 	it('keeps the dialog’s own Cancel row under a form that draws no FormSubmitRow', async () => {
+		// No shipped form is one any more (`dialogFormSubmitRow.test.ts` holds that); this is the
+		// fallback for a component that is not, so the dialog is never left with no way out.
+		const bare = defineComponent({ emits: ['submit'], render: () => h('form', [h('button', { type: 'submit' }, 'Save')]) });
 		harness = mountDialogHost();
-		void harness.store.openDialog({ kind: 'form', title: 'Known distance', component: KnownDistanceForm, props: { measured: 120 } });
+		void harness.store.openDialog({ kind: 'form', title: 'Bare', component: bare });
 		await nextTick();
 
 		const dialog = harness.wrapper.get('.rp-dialog');
 		expect(dialog.findAll('[data-rp-action="cancel"]')).toHaveLength(1);
 		expect(dialog.get('.rp-dialog-body ~ .rp-dialog-actions').find('[data-rp-action="cancel"]').exists()).toBe(true);
+	});
+
+	it('draws an editor form that used to carry its own submit as the same one row', async () => {
+		harness = mountDialogHost();
+		void harness.store.openDialog({ kind: 'form', title: 'Known distance', component: KnownDistanceForm, props: { measured: 120 } });
+		await nextTick();
+
+		const rows = harness.wrapper.findAll('.rp-dialog .rp-dialog-actions');
+		expect(rows).toHaveLength(1);
+		expect(rows[0].classes()).toContain('rp-dialog-footer');
+		expect(rows[0].findAll('button').map((button) => button.attributes('data-rp-action') ?? button.attributes('type'))).toEqual(['cancel', 'submit']);
+	});
+
+	it('puts a form’s own attributes on the submit, and its slot between Cancel and the submit', async () => {
+		const withBack = defineComponent({
+			emits: ['submit'],
+			render: () =>
+				h('form', { class: 'rp-dialog-form' }, [
+					h(FormSubmitRow, { submitting: false, 'data-probe': '' }, { default: () => h('button', { type: 'button', 'data-rp-action': 'back' }, 'Back') }),
+				]),
+		});
+		harness = mountDialogHost();
+		void harness.store.openDialog({ kind: 'form', title: 'Steps', component: withBack });
+		await nextTick();
+
+		const row = harness.wrapper.get('.rp-dialog .rp-dialog-actions');
+		expect(row.findAll('button').map((button) => button.attributes('data-rp-action') ?? button.attributes('type'))).toEqual(['cancel', 'back', 'submit']);
+		expect(row.get('[data-probe]').attributes('type')).toBe('submit');
+		expect(row.attributes('data-probe')).toBeUndefined();
 	});
 
 	it('draws the submit alone when no dialog is around the form', () => {

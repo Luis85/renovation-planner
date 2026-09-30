@@ -15,6 +15,7 @@
  */
 import { computed, ref } from 'vue';
 import { tr } from '../../i18n/strings';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 
 const props = defineProps<{ measured: number }>();
 const emit = defineEmits<{ submit: [millimetres: number] }>();
@@ -61,14 +62,8 @@ function onSubmit(): void {
 				inputmode="decimal"
 			>
 		</label>
-		<div class="rp-dialog-actions">
-			<button
-				type="submit"
-				class="rp-dialog-button"
-				:aria-disabled="parsed === null"
-			>
-				{{ tr('dialog.form.submit') }}
-			</button>
-		</div>
+		<FormSubmitRow
+			:submitting="parsed === null"
+		/>
 	</form>
 </template>

@@ -185,9 +185,9 @@
  * WRAPS onto a second line (two buttons wider than the panel) is taller than this; the narrowest
  * window measured, 360 px, keeps one line.
  *
- * Scoped with `:has()` to a body that holds a pinned row: a form drawing its own submit and no
- * `FormSubmitRow` pins nothing inside the scroller — `FormDialog`'s Cancel row sits below it — so
- * nothing there can be covered and no padding is owed.
+ * Scoped with `:has()` to a body that holds a pinned row: a component with no `FormSubmitRow` (none
+ * ships; `FormDialog`'s fallback Cancel row sits below the scroller for one) pins nothing inside it,
+ * so nothing there can be covered and no padding is owed.
  */
 .rp-dialog-body:has(> * > .rp-dialog-footer) {
 	scroll-padding-block-end: calc(var(--input-height) + var(--size-4-2) + 2 * var(--size-4-1));

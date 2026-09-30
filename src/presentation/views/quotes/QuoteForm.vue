@@ -15,6 +15,7 @@ import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { newQuoteItem, quoteDraft, quoteInput } from './quoteDraft';
 import QuoteItemFields from './QuoteItemFields.vue';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 const props = defineProps<{ read: QuoteComparisonRead; choices: Readonly<Ref<QuoteComparisonRead | null>>; original?: Loaded<Quote>; busy: Ref<boolean>; paused: Readonly<Ref<boolean>>; retry: () => Promise<void>; save: (input: QuoteInput) => Promise<Result<Loaded<Quote>, AppError>> }>();
 const emit = defineEmits<{ submit: [] }>();
 const draft = ref(quoteDraft(props.read.work.project.id, props.read.work.project.currency, props.original?.entity));
@@ -161,11 +162,9 @@ function changed(): void { if (!frozen.value) reviewed.value = false; }
 		>
 			{{ tr('quote.confirm') }}
 		</p>
-		<button
-			type="submit"
-			:aria-disabled="applyBlocked"
-		>
-			{{ tr(reviewed ? 'renovation.apply' : 'renovation.preview') }}
-		</button>
+		<FormSubmitRow
+			:submitting="applyBlocked"
+			:label="tr(reviewed ? 'renovation.apply' : 'renovation.preview')"
+		/>
 	</form>
 </template>

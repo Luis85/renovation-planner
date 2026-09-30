@@ -1,6 +1,5 @@
 /* The source image owns the working area; the existing guarded form owns calibration. */
 .renovation-plan-editor .rp-dialog:has(.rp-reference-setup) { width: min(84rem, 100%); overflow: hidden; }
-.renovation-plan-editor .rp-dialog:has(.rp-reference-setup) > .rp-dialog-body { min-height: 0; overflow-y: auto; }
 .renovation-plan-editor .rp-reference-setup { display: flex; flex-direction: column; gap: 12px; }
 .renovation-plan-editor .rp-reference-workspace { min-width: 0; }
 .renovation-plan-editor .rp-reference-workspace.has-preview { display: grid; grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem); gap: 16px; align-items: start; }

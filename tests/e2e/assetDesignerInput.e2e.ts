@@ -108,7 +108,8 @@ describe('Design an Asset and Calibrate, the input and layout clauses only the r
 		await createParityPage(browser, designer).setLeafWidth(680);
 		await createCanvasPage(browser, designer).zoomBy('zoom-fit');
 		await f.allDimensions(true);
-		await expect.poll(async () => (await f.dimensionNames()).length).toBe(26);
+		// 23 since AD18-R40: the clearance's three flush sides draw no `0 mm` reach.
+		await expect.poll(async () => (await f.dimensionNames()).length).toBe(23);
 		// Until the labels stop moving: two reads of every box that agree.
 		let last = '';
 		await expect

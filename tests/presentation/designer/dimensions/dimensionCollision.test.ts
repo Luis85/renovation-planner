@@ -269,6 +269,11 @@ describe('where the designer puts a label that another one would cover', () => {
 	 * neighbours. This case reconstructs that frame from the real preset and the real `fitViewport`,
 	 * asserts the defect is present without the rule, and asserts every label keeps a strip with it.
 	 *
+	 * **23 labels since AD18-R40, and one blind anchor rather than two**: the clearance's three flush
+	 * sides — its back, left and right, each a `0 mm` reach — draw no label now, and
+	 * `clearance-offset-top` was one of them. The detail's top offset is still blind without the
+	 * rule, so the case still drives it.
+	 *
 	 * It is also the case that holds the SCORED FALLBACK at the cap: the smaller pure cases above
 	 * all pass with the older "take the last slot stepped to", and only at this density does the
 	 * difference between the two show up as a label nobody can press.
@@ -290,8 +295,8 @@ describe('where the designer puts a label that another one would cover', () => {
 			.filter(([, clear]) => clear === 0)
 			.map(([name]) => name);
 
-		expect(figures).toHaveLength(26);
-		expect(blind(anchors.map((one) => one.at))).toEqual(['detail-detail-1-offset-top', 'clearance-offset-top']);
+		expect(figures).toHaveLength(23);
+		expect(blind(anchors.map((one) => one.at))).toEqual(['detail-detail-1-offset-top']);
 		expect(blind(spreadLabels(anchors, stage))).toEqual([]);
 	});
 
@@ -355,9 +360,9 @@ describe('what the mounted overlay draws once the rule has run', () => {
 	 * overall pair — appended last by `dimensionFigures`, which is why it was the label on top —
 	 * steps down into the canvas.
 	 *
-	 * **TWO boxes rather than one, and that is the cascade rather than a surprise.** The row below
-	 * the anchor was already taken by the clearance's own top offset, which had been pushed to
-	 * (48, 48) for the same reason. Written from the run rather than from arithmetic: the first
+	 * **ONE box since AD18-R40, where it was two.** The row below the anchor used to be taken by the
+	 * clearance's own top offset, pushed to (48, 48) for the same reason, which cascaded the overall
+	 * width one box further; that side is flush, a `0 mm` reach, so it draws no label now. Written from the run rather than from arithmetic: the first
 	 * draft of this case predicted one step, and hand-walking a greedy sweep over fourteen labels is
 	 * exactly the arithmetic a person gets wrong. (It read THREE boxes while `SAME_COLUMN_PX` was
 	 * the label's own width rather than the containment bound.)
@@ -368,7 +373,7 @@ describe('what the mounted overlay draws once the rule has run', () => {
 			await rig.wrapper.get('.rp-designer-tools [data-rp-view="all-dimensions"]').setValue(true);
 
 			expect(drawn(rig)).toContainEqual(['clearance-width', '48px', '18px']);
-			expect(drawn(rig)).toContainEqual(['overall-width', '48px', '78px']);
+			expect(drawn(rig)).toContainEqual(['overall-width', '48px', '48px']);
 		} finally {
 			rig.unmount();
 		}

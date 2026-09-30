@@ -58,7 +58,8 @@ export interface DimensionFigure {
 	/**
 	 * What the figure's dimension LINE spans (AD18-R17, board 01): the axis it runs along, and a
 	 * point on each of the two edges it measures, on the row or column `at` sits on. `to` minus
-	 * `from` along the axis is the signed `value`, so a gap a part overhangs runs BACKWARDS.
+	 * `from` along the axis is the signed GAP, so a gap a part overhangs runs BACKWARDS — a detail's
+	 * `value`, and the clearance's `value` negated, since that figure reads its reach (AD18-R40).
 	 */
 	readonly axis: 'x' | 'y';
 	readonly from: Point;
@@ -221,9 +222,18 @@ function gapOf(box: Corners, outer: Corners, spec: OffsetSpec): number {
  * this render saw, which is `DesignerSelectionInspector`'s standing rule: `editShape` hands each
  * edit the shape the previous write left, so a gap captured at render would quietly undo a commit
  * still in flight.
+ *
+ * **The CLEARANCE reads its REACH instead (AD18-R40, R41)**: how far each side stands OUTSIDE the
+ * footprint's edge, so a clearance reaching 600 in front reads `600` where its gap is `-600`. For a
+ * generated rectangle that is the setback the Inspector's Generate was typed with, not a field it
+ * reads back (C07: those start empty). A side that reaches INWARD — a traced boundary, a negative setback — reads signed
+ * negative, and a side whose reach its button would show as `0` draws NO figure: a homeowner's view
+ * has no "0 mm" of reach to press. Typing one moves that edge alone (`reached`). Details keep their
+ * signed gaps and their `0 mm` labels (AD18-R22).
  */
 function offsetFigures(part: OutlinePart, key: string, box: Corners, outer: Corners): DimensionFigure[] {
-	return OFFSETS.map((spec) => {
+	const reach = part.kind === 'clearance';
+	return OFFSETS.map((spec): DimensionFigure => {
 		const near = spec.sign === 1 ? outer.min[spec.axis] : box.max[spec.axis];
 		const drawn = gapOf(box, outer, spec);
 		const across = spec.axis === 'x' ? box.centre.y : box.centre.x;
@@ -236,16 +246,61 @@ function offsetFigures(part: OutlinePart, key: string, box: Corners, outer: Corn
 			axis: spec.axis,
 			from: point(near),
 			to: point(near + drawn),
-			value: drawn,
-			edit: (typed: number) => (shape: AssetShape) => {
-				const current = partMeasure(shape, part);
-				if (current === null) return err(partNotFound(part));
-				const gap = gapOf(corners(current), footprintCorners(shape), spec);
-				if (unchanged(typed, gap)) return null;
-				return moveOutline(shape, part, spec.axis === 'x' ? { dx: spec.sign * (typed - gap), dy: 0 } : { dx: 0, dy: spec.sign * (typed - gap) });
-			},
+			value: reach ? -drawn : drawn,
+			edit: (typed: number) => (shape: AssetShape) => (reach ? reached(shape, spec, typed) : shifted(shape, part, spec, typed)),
 		};
-	});
+	}).filter((figure) => !reach || Math.round(figure.value) !== 0);
+}
+
+/** A detail's typed gap: the part TRANSLATES, keeping its size — see `offsetFigures`. */
+function shifted(shape: AssetShape, part: OutlinePart, spec: OffsetSpec, typed: number): Result<AssetShape, ValidationError> | null {
+	const current = partMeasure(shape, part);
+	if (current === null) return err(partNotFound(part));
+	const gap = gapOf(corners(current), footprintCorners(shape), spec);
+	if (unchanged(typed, gap)) return null;
+	return moveOutline(shape, part, spec.axis === 'x' ? { dx: spec.sign * (typed - gap), dy: 0 } : { dx: 0, dy: spec.sign * (typed - gap) });
+}
+
+/**
+ * What typing a clearance's REACH writes (AD18-R41): **that edge moves and the opposite one stays**,
+ * so the other three sides keep their reach and the clearance's own width or depth takes the change
+ * — which for a clearance is the intent, where a detail's gap translates to keep its size.
+ * Translating here would slide the boundary: 800 typed over a vanity's 600 mm front would push its
+ * back edge 200 inside the footprint, an inward side manufactured by the label itself.
+ *
+ * Resized through `resizeToExtent` — the Inspector's own door, so a curved boundary is solved the
+ * same way — along, ACROSS, then along again, `scaleDesignToDimensions`' three passes and for its
+ * reason: an arc keeps its bulge, so stretching one axis moves the other's extent with it (by 100 mm
+ * on the oval table's clearance and about 1.1 on the round table's, for a reach typed 200 further out,
+ * measured with one pass). Then
+ * SHIFTED so the fixed edge and the across pair land where they were measured, which a solved box
+ * need not do on its own. A straight-sided boundary lands on the first pass and the others change
+ * nothing; a curved one lands CLOSE rather than exact, as that function's docblock says of its own.
+ * Re-measured off the shape the edit is HANDED, for `offsetFigures`' reason.
+ */
+function reached(shape: AssetShape, spec: OffsetSpec, typed: number): Result<AssetShape, ValidationError> | null {
+	const current = partMeasure(shape, CLEARANCE);
+	if (current === null) return err(partNotFound(CLEARANCE));
+	const box = corners(current);
+	const reach = -gapOf(box, footprintCorners(shape), spec);
+	if (unchanged(typed, reach)) return null;
+	const along = spec.axis === 'x' ? 'width' : 'depth';
+	const across = spec.axis === 'x' ? 'depth' : 'width';
+	const target = current[along] + typed - reach;
+	let solved = shape;
+	for (const [axis, extent] of [[along, target], [across, current[across]], [along, target]] as const) {
+		const next = resizeToExtent(solved, CLEARANCE, axis, extent);
+		if (!next.ok) return next;
+		solved = next.value;
+	}
+	// The clearance is there: `resizeToExtent` just resized it.
+	const got = corners(partMeasure(solved, CLEARANCE) as PartBox);
+	const other = spec.axis === 'x' ? 'y' : 'x';
+	// A left or top reach moves the MIN edge, so the max edge is the one that stays; and the reverse.
+	const fixed = (of: Corners): number => (spec.sign === 1 ? of.max[spec.axis] : of.min[spec.axis]);
+	const held = fixed(box) - fixed(got);
+	const kept = box.min[other] - got.min[other];
+	return moveOutline(solved, CLEARANCE, spec.axis === 'x' ? { dx: held, dy: kept } : { dx: kept, dy: held });
 }
 
 const PART_LABELS: readonly [StringKey, StringKey] = ['designer.dimension.width', 'designer.dimension.depth'];

@@ -215,18 +215,26 @@ describe('Design an Asset, where a size lands, in the real Obsidian host', () =>
 		await expectSize(f, 360, 270);
 		await noticesCleared(browser, designer);
 		await f.allDimensions(true);
-		// A finding, pinned: the basin's Width figure sits UNDER the clearance's top offset, which takes
-		// a press aimed at it, at the default 1023 x 800 window and at 1400 x 900 alike — so the figure
-		// is opened from the KEYBOARD, the one way still left to it.
+		// AD18-R40, in the rendered DOM: the clearance reads its one reach, the 600 mm front, as a
+		// positive figure, and its three flush sides draw nothing.
+		const reaches = () =>
+			browser.execute(() => [...document.querySelectorAll<HTMLElement>('.workspace-leaf.mod-active [data-rp-dimension^="clearance-offset-"]')]
+				.map((label) => `${label.dataset.rpDimension ?? ''} ${label.textContent?.trim() ?? ''}`));
+		await expect.poll(reaches).toEqual(['clearance-offset-bottom 600 mm']);
+		// The finding this case used to pin — the basin's Width figure under the clearance's `0 mm` top
+		// offset, at both windows — went with that label (AD18-R40). The figure is still covered: by
+		// `clearance-width` at 1023 x 800 and `detail-detail-3-depth` at 1400 x 900, measured on Windows
+		// on 2026-09-30 and not pinned, since which label lands there is the platform's font. So it is
+		// still opened from the KEYBOARD, which reaches it covered or not.
 		const covering = () =>
 			browser.execute(() => {
 				const box = document.querySelector('.workspace-leaf.mod-active [data-rp-dimension="detail-detail-2-width"]')?.getBoundingClientRect();
 				return box ? (document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2) as HTMLElement | null)?.dataset.rpDimension : 'none';
 			});
-		expect(await covering()).toBe('clearance-offset-top');
+		expect(await covering()).not.toBe('clearance-offset-top');
 		await f.setWindowSize(1400, 900);
 		await refit(browser, designer);
-		expect(await covering()).toBe('clearance-offset-top');
+		expect(await covering()).not.toBe('clearance-offset-top');
 		await f.typeFigure('detail-detail-2-width', 191, 'keyboard');
 		await expect.poll(designer.notices).toEqual([landed(270, 270)]);
 		await expectSize(f, 270, 270);

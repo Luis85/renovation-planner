@@ -150,14 +150,16 @@ describe('Design an Asset, legibility guards in the real Obsidian host', () => {
 	});
 
 	/*
-	 * Step 70, "whether every number is readable". GUARD (AD18-R30). Each of the 26 labels the
+	 * Step 70, "whether every number is readable". GUARD (AD18-R30). Each of the 23 labels (26 before
+	 * AD18-R40 dropped the clearance's three flush `0 mm` sides) the
 	 * clickability walk (`assetDesignerInput.e2e.ts`) finds, at the same leaf width and camera:
 	 * its text at WCAG 2.x SC 1.4.3's 4.5:1 against what is drawn under it — the label's own box,
 	 * asserted opaque first, since that is what makes the box the thing under the text — in both
 	 * themes; and its computed font size no smaller than the host's `--font-ui-smaller`, resolved in
 	 * the same run on `document.body`, so a plugin-scoped redefinition of that variable around the
 	 * labels would lower the label and never the floor. WHAT STAYS HUMAN: whether a number stays readable
-	 * where labels overlap (the case counts 15 pairs, left overlapping by design), which is crowding
+	 * where labels overlap (some pairs are left overlapping by design; 15 were counted at 26 labels,
+	 * before AD18-R40, and nothing here recounts them), which is crowding
 	 * rather than ink.
 	 */
 	desktop('draws every All dimensions number at 4.5:1 or more in both themes, no smaller than the host\'s smallest UI text', async ({
@@ -170,7 +172,7 @@ describe('Design an Asset, legibility guards in the real Obsidian host', () => {
 		await createParityPage(browser, designer).setLeafWidth(680);
 		await createCanvasPage(browser, designer).zoomBy('zoom-fit');
 		await followups.allDimensions(true);
-		await expect.poll(async () => (await followups.dimensionNames()).length).toBe(26);
+		await expect.poll(async () => (await followups.dimensionNames()).length).toBe(23);
 
 		const labels = `${ACTIVE_DESIGNER} [data-rp-dimension]`;
 		const measured = await inBothThemes(browser, () => paints(browser, labels, 'color', 'data-rp-dimension'));
@@ -186,7 +188,7 @@ describe('Design an Asset, legibility guards in the real Obsidian host', () => {
 		const dark = measured.dark.map(report);
 		await writeEvidence(directory, 'dimension-legibility', { floor, light, dark });
 
-		expect(light).toHaveLength(26);
+		expect(light).toHaveLength(23);
 		expect([...light, ...dark].filter((label) => !label.box.startsWith('rgb(')), 'labels with a see-through box').toEqual([]);
 		expect(floor).toBeGreaterThan(0);
 		expect(light.filter((label) => label.size < floor), `labels under --font-ui-smaller (${String(floor)} px)`).toEqual([]);

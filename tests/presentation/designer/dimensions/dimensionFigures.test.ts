@@ -20,7 +20,7 @@ import type { DesignerSelection } from '../../../../src/presentation/designer/se
 import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
 import type { OutlinePart } from '../../../../src/domain/asset/shapeEdits';
 import { footprintFromDimensions } from '../../../../src/domain/asset/AssetShape';
-import { roundedRect } from '../../../../src/domain/asset/presets/presetGeometry';
+import { rect, roundedRect } from '../../../../src/domain/asset/presets/presetGeometry';
 import { editableShape, shapeWithRoundedRect } from '../../../helpers/assetShapes';
 import { expectOk } from '../../../helpers/domain';
 
@@ -123,20 +123,20 @@ describe('which figures the designer draws over a design', () => {
 	});
 
 	/**
-	 * **A gap is SIGNED, and the clearance is why that is not a nicety.** It reaches 200 outside the
-	 * footprint on the left, 200 on the right and 400 below, which is what a clearance is FOR. An
-	 * unsigned distance would read 200 for a part standing 200 inside the edge and 200 for one
-	 * hanging 200 over it — the same number for opposite designs — and would not round-trip, since
-	 * typing it back would have to guess which one the user meant.
+	 * **A DETAIL's gap is SIGNED.** An unsigned distance would read 300 for a part standing 300 inside
+	 * the edge and 300 for one hanging 300 over it — the same number for opposite designs — and would
+	 * not round-trip. **The clearance reads its REACH instead (AD18-R40)**, positive outward, because
+	 * reaching outside is what a clearance is FOR: 200 left, 200 right, 400 below, and its top edge,
+	 * the footprint's own, draws nothing. `clearanceReach.test.ts` owns the rest of that rule.
 	 */
-	it('reads a gap as negative where the part reaches outside the footprint', () => {
+	it('reads a detail’s overhang as a negative gap, and the clearance’s reach as positive', () => {
+		const overhang = editableShape({ details: [{ id: 'detail-1', name: 'top', outline: rect(400, 200, -600, 0), line: 'solid', pending: false }] });
 		const drawn = figures({ kind: 'clearance' });
 
-		expect(named(drawn, 'clearance-offset-left').value).toBe(-200);
-		expect(named(drawn, 'clearance-offset-right').value).toBe(-200);
-		// The clearance's top edge is the footprint's own, so that gap is exactly zero.
-		expect(named(drawn, 'clearance-offset-top').value).toBe(0);
-		expect(named(drawn, 'clearance-offset-bottom').value).toBe(-400);
+		expect(named(figures(TOP, false, overhang), 'detail-detail-1-offset-left').value).toBe(-300);
+		expect(drawn.filter((figure) => figure.name.startsWith('clearance-offset-')).map((figure) => [figure.name, figure.value])).toEqual([
+			['clearance-offset-left', 200], ['clearance-offset-right', 200], ['clearance-offset-bottom', 400],
+		]);
 	});
 
 	/**
@@ -156,8 +156,8 @@ describe('which figures the designer draws over a design', () => {
 			'detail-detail-1-offset-left', 'detail-detail-1-offset-right',
 			'detail-detail-1-offset-top', 'detail-detail-1-offset-bottom',
 			'clearance-width', 'clearance-depth',
-			'clearance-offset-left', 'clearance-offset-right',
-			'clearance-offset-top', 'clearance-offset-bottom',
+			// No `clearance-offset-top`: that side is flush, a reach of 0, which draws nothing (AD18-R40).
+			'clearance-offset-left', 'clearance-offset-right', 'clearance-offset-bottom',
 			'overall-width', 'overall-depth',
 		]);
 	});

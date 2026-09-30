@@ -1968,6 +1968,31 @@ took this ruling, and it amends this document in the places listed here and nowh
 control. The Grid carries no totals, no bulk edit and no multi-select, and nothing on this surface
 places an asset.
 
+**Amendment 8 (2026-09-30, AD18 UI critique round, Task 6 and ruling AD18-R42): six existing counts
+gain a singular form, and the inventory grows by six keys — no ordinal assigned, per Amendment 4.**
+This amendment is a different SHAPE from the six before it: nothing drawn here gains new copy or a
+new state, and no rendered sentence's wording changes at either count. What moves is which KEY a
+caller reaches for a given count — a bare `{count}` key becomes a `.one`/`.other` pair, the house
+pattern `editor.unsupported-width.body.{one,other,partial}` already uses, chosen at the caller rather
+than inside `t`. The reported defect was cosmetic ("1 assets", "{count} placement(s)") and every
+fixed string is a smaller change than the mechanism that carries it; this entry exists only so the
+pin's own count is never read as moving without a record.
+
+- **Task 6 split four bare keys**, taking the pin **113 → 117**: `view.asset-library.assets`
+  ("1 asset" / "{count} assets"), `.search.results` ("1 matching asset" / "{count} matching assets"),
+  `.some-unreadable` ("1 asset note could not be read…" / "{count} asset notes could not be read…")
+  and `.used-in.project` ("{name} — 1 requirement" / "{name} — {count} requirements").
+- **Ruling AD18-R42** (amending AD18-R7, which had kept the `(s)` shorthand deliberately) split the
+  two remaining counts the same way, taking the pin **117 → 119**:
+  `view.asset-library.used-in-plans.plan` ("{name} ({project}) — 1 placement" /
+  "{name} ({project}) — {count} placements") and `.used-in-plans.unreadable` ("1 note could not be
+  read, so this list may be incomplete" / "{count} notes could not be read, so this list may be
+  incomplete"). Both live in `{en,de}/assetDuplicate.ts`, per Amendment 6, and carry this surface's
+  own `view.asset-library.` prefix for the same reason Amendment 6 gives.
+
+`tests/presentation/i18n/strings.test.ts`'s own docblock carries the same two moves against its pin,
+which is the count this section's inventory is checked against.
+
 ---
 
 ## 9. Accessibility

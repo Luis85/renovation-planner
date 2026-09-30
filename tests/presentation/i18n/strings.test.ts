@@ -481,12 +481,14 @@ describe('interpolation', () => {
 	 * 113 → 117: Task 6 of the AD18 UI critique round gave four `{count}` keys with no singular
 	 * form a `.one`/`.other` split, replacing each bare key with two —
 	 * `view.asset-library.assets`, `.search.results`, `.some-unreadable` and `.used-in.project`
-	 * — net +4, not a spec amendment (the spec's own wording is unchanged; only which KEY a
-	 * caller reaches for a given count moved).
+	 * — net +4. The spec's own WORDING is unchanged at either count; only which KEY a caller
+	 * reaches for a given count moved, which is a different shape of change from the six before
+	 * it — but the spec is still amended, because the pin the amendment exists to track moved:
+	 * `asset-library-overview-DESIGN-SPEC.md`'s Amendment 8 carries this move and the next one.
 	 *
 	 * 117 → 119: ruling AD18-R42 (amending AD18-R7) split the two remaining "(s)" counts,
 	 * `view.asset-library.used-in-plans.plan` and `.unreadable`, into `.one`/`.other` the same way —
-	 * net +2, and again not a spec amendment: only which key a caller reaches for moved.
+	 * net +2, recorded in the same Amendment 8.
 	 */
 	it('pins the Asset library inventory at 119 keys in both locales', () => {
 		expect(assetLibraryKeys(en)).toHaveLength(119);

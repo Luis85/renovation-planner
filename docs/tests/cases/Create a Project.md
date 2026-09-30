@@ -35,21 +35,29 @@ there are any left over from a previous run of `Create sample renovation project
 gate's reach, the same three shapes CLAUDE.md's harness section names for the rest of the
 plugin:
 
-- **A specificity fight jsdom cannot referee.** `.rp-dialog-button` (Save and Cancel both
-  use it, and neither carries a `-danger` variant on this form) states the same
-  `background-color` Obsidian's own `button:not(.clickable-icon)` rule already sets at
-  higher specificity — `dialogs.css`'s own comment calls that redundancy harmless, since
-  Obsidian's rule would apply the identical value anyway — but nothing has ever looked at
-  THIS component's two buttons in a live vault to confirm the claim holds rather than
-  assumed. `.rp-empty-state__action` and
+- **A specificity fight jsdom cannot referee, and the two buttons no longer fight the same
+  way.** `.rp-dialog-button` (Cancel's own class, with no `-danger` variant on this form)
+  still states the same `background-color` Obsidian's own `button:not(.clickable-icon)` rule
+  already sets at higher specificity — `dialogs.css`'s own comment calls that redundancy
+  harmless for a PLAIN button, since Obsidian's rule would apply the identical value anyway —
+  but nothing has ever looked at Cancel in a live vault to confirm the claim holds rather than
+  assumed. **Save does not fight that battle any more: it is the UI critique round's shared
+  `FormSubmitRow` submit, and `dialogs.css`'s `.rp-dialog .rp-dialog-button.mod-cta` rule
+  deliberately OUTRANKS the theme at (0,3,0)**, because the host's own `mod-cta` pairing
+  measured 3.43:1 (light) / 4.26:1 (dark) on this exact button in Obsidian 1.13.7
+  (`tests/e2e/dialogFooter.e2e.ts`), under WCAG 1.4.3's 4.5:1 floor — so the plugin mixes the
+  theme's own accent toward `--text-normal`/`--background-primary` rather than deferring to
+  it, measuring 5.33:1 (light) / 5.64:1 (dark) at rest and 6.78:1 / 6.72:1 hovered in that same
+  e2e file, both real-host assertions rather than jsdom's usual `var()`-blind guess. Jsdom
+  still cannot referee the ONE fight that remains real here — whether a theme's own selector
+  could still outrank the qualified `(0,3,0)` rule, the same class of defect Calibrate a
+  Plan's case already found once for `.rp-dialog-button-danger`. `.rp-empty-state__action` and
   `.rp-project-list__create` carry no colour rule of their own — their AT-REST appearance is
   Obsidian's theme entirely. They each carry one `:focus-visible` rule and nothing else, added
   after a real Chromium measured the inherited focus shadow at 2.29:1 (dark) and 1.88:1
   (light) against the surface behind it, both under WCAG 1.4.11's 3:1. Step 3
-  is where an eye is the only instrument, and the exact class of defect to be suspicious of
-  is the one Calibrate a Plan's case already found once for `.rp-dialog-button-danger` — a
-  future edit giving one of these buttons its own colour without the `.rp-dialog` qualifier
-  would only be caught here.
+  is where an eye is the only instrument for what is left unmeasured — the theme-outranking
+  question above, and whether Cancel's own redundant rule is truly harmless.
 - **This is not an Obsidian `Modal`, and nothing here proves that from inside jsdom.**
   `DialogHost`'s own header states it plainly: no `Scope` is pushed anywhere in the
   framework, and `onKeydown` calls `preventDefault()` without `stopPropagation()`, so a key
@@ -77,12 +85,12 @@ the five values and what they do not claim.
 | # | Reachable by | Do this | It passes when | It exists to catch |
 | --- | --- | --- | --- | --- |
 | 1 | `browser` | With no renovation projects in the vault, open the Renovation project view (ribbon or command) | A centred panel reads "No renovation projects yet", with a "Create a project" button below the body text | The empty state's action arriving with this slice (Task 7) — `renovationProject.noProjects` had no button through design slice 14 |
-| 2 | `suite` | Click that button | A dialog opens, titled "New renovation project", with labelled Name, Status, Description, Start and Target completion controls, and Save/Cancel buttons | `DialogHost` mounting a real `FormDescriptor.component` for the first time in this plugin — every earlier `form`-kind caller was a test stub |
-| 3 | `browser` | Look at the Save and Cancel buttons | Both render as ordinary themed Obsidian buttons — matching the vault's own button chrome, not plain, unbordered or unstyled | See "Why a human still matters" above. jsdom never resolves `var()` to a colour, so this is the only place this claim can be confirmed for this component |
+| 2 | `suite` | Click that button | A dialog opens, titled "New renovation project", with labelled Name, Status, Description, Start and Target completion controls, and **one footer row carrying Cancel then Save** — not two stacked rows | `DialogHost` mounting a real `FormDescriptor.component` for the first time in this plugin — every earlier `form`-kind caller was a test stub. The one-row, Cancel-then-Save order is `FormSubmitRow`'s own shape (UI critique round), pinned by `tests/presentation/dialogs/formFooter.test.ts`'s *"draws one row: Cancel then the submit"*-shaped cases and measured on the sibling New asset dialog by `tests/e2e/dialogFooter.e2e.ts` — this form was not given its own e2e case, so the real-host measurement is by the SHARED component rather than by this dialog directly |
+| 3 | `browser` | Look at the Save and Cancel buttons | **Cancel** renders as an ordinary themed Obsidian button — matching the vault's own button chrome, not plain, unbordered or unstyled. **Save does not**: it wears `mod-cta` with the plugin's own deliberate fill, a colour mix of the theme's accent toward `--text-normal`/`--background-primary` that outranks the theme's own `.mod-cta` pairing on purpose (WCAG 1.4.3 — see "Why a human still matters" above) | **Corrected**: "Both render as ordinary themed Obsidian buttons" is false for Save since the UI critique round's dialog-footer work. jsdom never resolves `var()` to a colour, so this is the only place this claim can be confirmed for THIS dialog; the fill recipe itself is measured on the sibling New asset dialog by `tests/e2e/dialogFooter.e2e.ts` (5.33:1 light / 5.64:1 dark at rest) |
 | 4 | `browser` | Leave Name empty and click Save | The dialog stays open; an inline error with a non-colour glyph appears under the Name field; the field still shows its (empty) value; and the caret is IN the Name field — the rejected submit moved focus there | `project.empty-name` routes to the `name` field (Task 6's error map), a rejected submit never closes the dialog (Task 3's `useFormCommit`), and the focus move is what announces the error to a screen reader at all — `FieldError`'s `<p>` is no live region, so without it the press produced no spoken feedback (WCAG 2.2 AA, PRD §44) |
 | 5 | `suite` | Type a Start date **after** the Target completion date and click Save | ONE inline error appears under **both** the Start and Target completion fields together, not under either alone, and the caret lands on **Start** — the EARLIER of the pair in the form, not whichever the error map lists first | The cross-field routing case: `project.target-before-start` maps to `['start', 'targetCompletion']` — a single claim about a pair, not two independent messages |
 | 6 | `suite` | With that error showing, edit **only** the Target completion date (leave Start alone) and do **not** press Save | Both errors vanish the moment you edit that one field — the message under Start goes too, before any submit | `setField`'s per-key clearing retires the WHOLE routed group. "They clear on the next accepted submit" would have passed with the group-clearing deleted, since `submit` resets `fieldErrors` to a fresh `Map` before every dispatch — so the only condition that can fail is the one that reads the errors BEFORE a submit |
-| 7 | `browser` | Type a valid Name and click Save, watching the dialog while the write is in flight | Every field, and both Save and Cancel, become visibly inert and dimmed for the moment the write takes — nothing can be typed or chosen until it resolves | `FormDescriptor.busy`/`submitting`: jsdom can assert the `readonly`/`aria-disabled` attributes exist but cannot show what a held-still form actually looks like, that the dimming reads as inert at all, or that a real vault write takes long enough to see it |
+| 7 | `browser` | Type a valid Name and click Save, watching the dialog while the write is in flight | Every field, and both Save and Cancel, become visibly inert and dimmed for the moment the write takes — nothing can be typed or chosen until it resolves. **Re-confirmed for Save's new `mod-cta` fill**: the dimming is Obsidian's own `button[aria-disabled="true"]` opacity rule, which the UI critique round's AA-fill selector does not touch (it sets `background-color`/`color` only, never `box-shadow` or `opacity`), so a dimmed Save should look like a faded version of its OWN fill, not a faded ordinary button | `FormDescriptor.busy`/`submitting`: jsdom can assert the `readonly`/`aria-disabled` attributes exist but cannot show what a held-still form actually looks like, that the dimming reads as inert at all, or that a real vault write takes long enough to see it. `styles/dialogs.css`'s own docblock for the `mod-cta` rule records leaving `box-shadow` alone "so the host's focus ring and the `aria-disabled` dimming both still apply" — asserted at source, not yet looked at on this dialog |
 | 7a | `obsidian` | Do step 7 again on a vault big enough for the write to be visible, and press `Escape` WHILE it is in flight | The dialog stays open and nothing is cancelled — and, if this vault binds a hotkey to `Escape`, that hotkey fires (see step 11's note on what "modal" means here) | The defect this step exists for: no control may be `:disabled` while busy, because Chromium blurs the disabled focused element to `<body>`, which `.rp-dialog` does not contain — so `DialogHost`'s `Escape` handler stopped receiving keys for the whole write window and the deliberate refusal became an accidental one. Nothing in jsdom models focus-loss-on-disable, so a live vault is the only instrument for the SYMPTOM; the suite pins the condition (`newProjectForm.test.ts`, `formBusy.test.ts`) |
 | 7b | `browser` | Still during a write in flight, press `Tab` several times | Focus cycles inside the dialog and never leaves it | The other half of the same defect: a dialog whose controls are all `:disabled` holds nothing the Tab trap can walk, so `Tab` walked straight out into the pane behind it |
 | 8 | `suite` | Wait for successful creation | The dialog closes and the returned project ID opens directly in details, including when another project has the same name | Use the command result as the destination |

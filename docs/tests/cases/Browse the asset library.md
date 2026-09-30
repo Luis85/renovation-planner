@@ -68,7 +68,7 @@ placement) stand over both views.
 | # | Reachable by | Do this | It passes when | It exists to catch |
 | --- | --- | --- | --- | --- |
 | 19 | `suite` | Open the library fresh, then look at the toolbar's view toggle | Two buttons, **Grid** and **List**, each carrying its own icon and word; **List** is pressed | `libraryBrowse.ts`'s `DEFAULT_BROWSE`: List stays the default, unchanged by this round |
-| 20 | `e2e` | Press **Grid** | The shelves are replaced by a tile grid: one tile per asset, each showing the SAME geometry mark the list row draws (at tile size), the asset's name, and its measured size in the SAME wording the list row uses (e.g. "800 × 400 mm") | The tile and the row share one rendering function (`markWords.ts`) for the mark and the size text, so the two surfaces cannot say two different things about one shape. Closed by `assetLibrary.e2e.ts`'s *replaces the shelves with one tile per asset, drawing the list row's own mark and size words* |
+| 20 | `e2e` | Press **Grid** | The shelves are replaced by a tile grid: one tile per asset, each showing the asset's geometry mark at TILE size — **its footprint plus its DETAILS, not the footprint-only mark the 20px list row draws** (AD18-R39; §3.4's row mark is unchanged) — the asset's name, and its measured size in the SAME wording the list row uses (e.g. "800 × 400 mm") | The tile and the row share one size-wording function (`markWords.ts`) and draw an IDENTICAL footprint, so the two surfaces never disagree about the shape's outline — but the tile's `AssetMark` also takes a `with-details` prop the row withholds, so a vanity's tile draws its carcass, basin and tap hole where its list row draws a bare rectangle. Closed by `assetLibrary.e2e.ts`'s *replaces the shelves with one tile per asset, drawing the list row's own mark and size words* (footprint and size) and `assetLibraryTileDetails.e2e.ts` (the details half, real host) |
 | 21 | `suite` | Select a tile | The SAME inspector opens that a list row's press would — same selected asset, same fields | Tile and row both emit the identical `select` event into the identical handler; two selection models would be two answers to "which asset did you mean" |
 | 22 | `e2e` | Look at the new sidebar down the left of the grid | It lists **All** plus all seven DECLARED categories — a CLOSED vocabulary, not an open one — each with its own icon (a grid for All, layered sheets for material, an armchair for furniture, a bath for fixture, a sprout for plant, a hammer for equipment, a brick wall for a building element, a pencil for custom), whether this vault's assets use them or not; a category the build does not declare (e.g. `lighting`) never reaches this sidebar at all — the note it belongs to goes to the repair strip instead | **CONTRARY, rewritten under AD18-R27**: §1a describes an open vocabulary; the build shipped a closed one. `assetLibrary.e2e.ts`'s *lists All and every DECLARED category with its icon, and refuses a category the build does not declare* pins it — Plant, Building element and Custom hold nothing in this vault and are still listed. The generic-tag fallback is real but is reachable only at the component, never through the real note-parsing pipeline: `assetLibraryCategories.test.ts`'s *marks a category the build does not declare with the tag icon* drives `AssetCategoryNav` directly with `category: 'insulation'` |
 | 23 | `e2e` | Click a category in the sidebar | Both the grid AND the shelves (switch to List to check) narrow to that category alone; the search count and the empty state (if the category is now empty of matches) follow the SAME filter | One filter reaching both views (§10) — not a Grid-only affordance. Closed by `assetLibrary.e2e.ts`'s *narrows the grid AND the shelves to the chosen category, and counts only what it draws* and *words each empty state for the narrowed set, and Show all categories clears only the filter, landing on All* |
@@ -155,10 +155,13 @@ and 26, real host) and, for step 32's RULING, the node-environment stylesheet re
 found and pinned the AD18-R34 fix) and `assetLibraryLegibility.e2e.ts` (step 33's contrast
 relation) — and one node-environment discharge, `assetTileStrokeParity.test.ts` (step 33's stroke
 weight, closing a D gap the earlier citations only looked like they closed). Step 31 is retagged
-`e2e` under AD18-R33 as a discharged host pin. Every case was watched red against a
-one-clause mutation of `src/` or `styles/`, except step 31's (see its row) and the stylesheet
-reads, which read parsed CSS rather than a mutated build. One row per clause, cited by the case's
-name.
+`e2e` under AD18-R33 as a discharged host pin. **Extended 2026-09-30 (AD18-R39, UI critique
+round)** with `assetLibraryTileDetails.e2e.ts` (real host) and, node-environment,
+`assetMarkDetails.test.ts` — step 20's tile and inspector-preview details, which narrow the
+earlier single-path citation for step 20's own footprint clause (see below). Every case was
+watched red against a one-clause mutation of `src/` or `styles/`, except step 31's (see its row)
+and the stylesheet reads, which read parsed CSS rather than a mutated build. One row per clause,
+cited by the case's name.
 
 | Step | Clause | Discharged by |
 | --- | --- | --- |
@@ -173,7 +176,10 @@ name.
 | 16 | the expanded set comes back after a restart | same case |
 | 17 | the whole note is readable, or it is obvious how to read it | none — `judgement` |
 | 20 | the shelves are replaced by a tile grid, one tile per asset | *replaces the shelves with one tile per asset, drawing the list row's own mark and size words* |
-| 20 | the tile draws the SAME mark the list row draws | same case — the path `d` equals the row's |
+| 20 | the tile's FOOTPRINT matches the row's | same case — the tile mark's **FIRST** path `d` equals the row's; the tile draws further paths the row does not (see the two rows below) — **narrowed**: the earlier citation read "the path `d` equals the row's" as though the tile drew exactly one path, which stopped being true under AD18-R39 |
+| 20 | the tile also draws the asset's DETAILS, footprint plus details rather than footprint alone (AD18-R39) | `assetMarkDetails.test.ts` *"vanity tile draws 4 paths and table tile 1"* (jsdom) and `assetLibraryTileDetails.e2e.ts` (real host) — tile path counts `[4, 1, 3]` for the vanity (3 details), the table (0) and the toilet (2 details); each detail sits inside the footprint's own client rect (±1px), is thinner than the footprint, shares its colour, and only the carcass (the dashed detail) carries the dashed class |
+| 20 | the 20px list row keeps drawing the footprint alone, unchanged by AD18-R39 | `assetMarkDetails.test.ts` *"the row mark (no prop) draws 1 path even when the outline carries details"* and `assetLibraryTileDetails.e2e.ts` — the List row's own mark draws 1 path |
+| 20 | the inspector's Shape preview draws the footprint plus details too, like the tile | `assetMarkDetails.test.ts` *"the inspector preview draws the vanity's footprint plus 3 details and the table's footprint alone"* and `assetLibraryTileDetails.e2e.ts` — the inspector preview draws 3 details for the vanity |
 | 20 | the tile shows the asset's name | same case |
 | 20 | the measured size uses the list row's wording | same case — `380 × 700 mm` is the row's text minus its prefix |
 | 22 | lists All plus the categories, each with its own icon | *lists All and every DECLARED category with its icon, and refuses a category the build does not declare* |

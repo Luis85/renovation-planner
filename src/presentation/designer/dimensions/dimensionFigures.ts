@@ -191,16 +191,18 @@ interface OffsetSpec {
 	readonly label: StringKey;
 	/** The CLEARANCE's name for the same side (AD18-R40): a reach beyond the edge, not an offset from it. */
 	readonly reach: StringKey;
+	/** The warning a typed reach on this side raises when it cannot land (`landTyped`), naming the side. */
+	readonly missed: StringKey;
 	readonly axis: 'x' | 'y';
 	readonly sign: 1 | -1;
 }
 
 /** In the order a reader scans them, which is also the order the Inspector lists an axis pair. */
 const OFFSETS: readonly OffsetSpec[] = [
-	{ key: 'offset-left', label: 'designer.dimension.offset-left', reach: 'designer.dimension.reach-left', axis: 'x', sign: 1 },
-	{ key: 'offset-right', label: 'designer.dimension.offset-right', reach: 'designer.dimension.reach-right', axis: 'x', sign: -1 },
-	{ key: 'offset-top', label: 'designer.dimension.offset-top', reach: 'designer.dimension.reach-top', axis: 'y', sign: 1 },
-	{ key: 'offset-bottom', label: 'designer.dimension.offset-bottom', reach: 'designer.dimension.reach-bottom', axis: 'y', sign: -1 },
+	{ key: 'offset-left', label: 'designer.dimension.offset-left', reach: 'designer.dimension.reach-left', missed: 'designer.typed-reach.landed-left', axis: 'x', sign: 1 },
+	{ key: 'offset-right', label: 'designer.dimension.offset-right', reach: 'designer.dimension.reach-right', missed: 'designer.typed-reach.landed-right', axis: 'x', sign: -1 },
+	{ key: 'offset-top', label: 'designer.dimension.offset-top', reach: 'designer.dimension.reach-top', missed: 'designer.typed-reach.landed-top', axis: 'y', sign: 1 },
+	{ key: 'offset-bottom', label: 'designer.dimension.offset-bottom', reach: 'designer.dimension.reach-bottom', missed: 'designer.typed-reach.landed-bottom', axis: 'y', sign: -1 },
 ];
 
 /**
@@ -253,7 +255,7 @@ function offsetFigures(part: OutlinePart, key: string, box: Corners, outer: Corn
 			to: point(near + drawn),
 			value: reach ? -drawn : drawn,
 			edit: (typed: number) => (shape: AssetShape) => (reach ? reached(shape, spec, typed) : shifted(shape, part, spec, typed)),
-			...(reach ? { typed: (typed: number) => reachExtents(box, spec.axis, typed + drawn) } : {}),
+			...(reach ? { typed: (typed: number) => reachExtents(box, spec, typed + drawn) } : {}),
 		};
 	}).filter((figure) => !reach || Math.round(figure.value) !== 0);
 }
@@ -263,12 +265,15 @@ function offsetFigures(part: OutlinePart, key: string, box: Corners, outer: Corn
  * reach the kept bulges cannot land warns exactly as a typed Width does (AD18-R24). `grow` is the typed
  * reach less the drawn one; the across extent is asked to stay, so a drift there warns too. Read off the
  * render's box, where `reached` re-measures the shape it is handed: a commit landing in between would
- * be compared against the render's numbers — the same frame every figure's text is drawn from.
+ * be compared against the render's numbers — the same frame every figure's text is drawn from. A miss
+ * warns in the reach's own words, naming the reach the LANDED shape stands at on this side.
  */
-function reachExtents(box: Corners, axis: 'x' | 'y', grow: number): TypedSize {
-	const width = box.max.x - box.min.x + (axis === 'x' ? grow : 0);
-	const depth = box.max.y - box.min.y + (axis === 'y' ? grow : 0);
-	return { part: CLEARANCE, width, depth };
+function reachExtents(box: Corners, spec: OffsetSpec, grow: number): TypedSize {
+	const width = box.max.x - box.min.x + (spec.axis === 'x' ? grow : 0);
+	const depth = box.max.y - box.min.y + (spec.axis === 'y' ? grow : 0);
+	// The landed shape holds the clearance the typed reach just resized, so it is there to measure.
+	const measure = (landed: AssetShape): number => -gapOf(corners(partMeasure(landed, CLEARANCE) as PartBox), footprintCorners(landed), spec);
+	return { part: CLEARANCE, width, depth, reach: { landed: spec.missed, measure } };
 }
 
 /** A detail's typed gap: the part TRANSLATES, keeping its size — see `offsetFigures`. */

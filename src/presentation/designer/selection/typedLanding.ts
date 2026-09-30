@@ -1,6 +1,7 @@
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { scaleDesignToDimensions, type OutlinePart } from '../../../domain/asset/shapeEdits';
+import type { StringKey } from '../../i18n/locales/en';
 import { tr } from '../../i18n/strings';
 import { notifyWarning } from '../../notices/notify';
 import type { EditShape } from './editShape';
@@ -11,7 +12,7 @@ import { partMeasure, type PartBox } from './partExtent';
  * where `solveScale` leaves it, which is not the typed value, and before this nothing said so beyond the
  * figures reading back a different number. Each door that types a Width, a Depth or a whole-design size
  * dispatches through `landTyped`: the inspector's Width and Depth, the canvas's size labels, the canvas's
- * clearance-reach labels (a typed reach asks the clearance for a size), and Set dimensions' scaling path.
+ * clearance-reach labels (a typed reach asks the clearance for a size, and warns in its own words), and Set dimensions' scaling path.
  * Set dimensions' other path writes a rectangle at the typed numbers, which has nothing to miss. A box-handle drag does not come here, because the pointer is its feedback, so a drag and a
  * typed size still land the same numbers (AD18-R23) and the typed one alone warns.
  *
@@ -19,6 +20,9 @@ import { partMeasure, type PartBox } from './partExtent';
  * door measured the part it resized (`partMeasure`, the curve-aware box), per typed axis, and only after the
  * write resolved ok. A refusal keeps its own message, and an edit that answered `null` (C03's no-op) wrote
  * nothing, so it has nothing to report.
+ *
+ * A typed clearance REACH warns in its own sentence (`reach`), naming the side and the reach that landed there
+ * before the size, because what was typed was a reach and not a size; every other door keeps the size sentence.
  */
 
 /** A typed size: the part it resizes, and the extent typed for each axis the door types. */
@@ -26,6 +30,8 @@ export interface TypedSize {
 	readonly part: OutlinePart;
 	readonly width?: number;
 	readonly depth?: number;
+	/** A clearance reach's side (AD18-R40): its own miss sentence, and the reach the landed shape stands at there. */
+	readonly reach?: { readonly landed: StringKey; readonly measure: (landed: AssetShape) => number };
 }
 
 /** How far a landed extent may sit from the typed one unremarked: the inspector shows whole millimetres. */
@@ -46,7 +52,9 @@ export async function landTyped(editShape: EditShape, typed: TypedSize, edit: Pa
 	// The edit just resized this part on this very shape, so it is there to measure.
 	const box = partMeasure(landed.shape, typed.part) as PartBox;
 	if (AXES.some((axis) => typed[axis] !== undefined && Math.abs(box[axis] - typed[axis]) > MISS_MM)) {
-		notifyWarning(tr('designer.typed-size.landed', { width: String(Math.round(box.width)), depth: String(Math.round(box.depth)) }));
+		const size = { width: String(Math.round(box.width)), depth: String(Math.round(box.depth)) };
+		const { reach } = typed;
+		notifyWarning(reach === undefined ? tr('designer.typed-size.landed', size) : tr(reach.landed, { ...size, reach: String(Math.round(reach.measure(landed.shape))) }));
 	}
 	return result;
 }

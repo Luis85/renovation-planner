@@ -133,7 +133,9 @@ describe('the clearance reads its reach per side (AD18-R40)', () => {
 	it('asks landTyped for the grown extent and the unchanged across one', () => {
 		const figure = expectDefined(clearanceOffsets(dimensionFigures(editableShape(), null, true, NOTHING_HIDDEN)).find((one) => one.name === 'clearance-offset-bottom'), 'bottom');
 
-		expect(figure.typed?.(650)).toEqual({ part: { kind: 'clearance' }, width: 1400, depth: 1250 });
+		expect(figure.typed?.(650)).toEqual({
+			part: { kind: 'clearance' }, width: 1400, depth: 1250, reach: { landed: 'designer.typed-reach.landed-bottom', measure: expect.any(Function) },
+		});
 	});
 
 	/** AD18-R22 unchanged: a detail flush with the footprint keeps its `0 mm`, and an overhang its sign. */

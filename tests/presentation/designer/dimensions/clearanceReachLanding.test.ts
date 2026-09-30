@@ -2,7 +2,8 @@
  * @vitest-environment jsdom
  *
  * A typed clearance REACH that lands away from the number typed says so (AD18-R41's fix round), through
- * the same `landTyped` warning a typed Width gets (AD18-R24) — not silently, which is what the first
+ * the same `landTyped` door a typed Width takes (AD18-R24) but in the reach's own sentence, naming the side
+ * and the reach that landed there before the size — the user typed a reach, not a size. Not silently, which is what the first
  * version of `reached` did: a curved boundary whose kept bulges cannot reach the asked extent lands at
  * `solveScale`'s nearest, and the label read back a different number with nothing said.
  *
@@ -53,14 +54,19 @@ async function typeReach(rig: DesignerRig, side: string, value: string): Promise
 }
 
 describe('a typed clearance reach that cannot land', () => {
-	it('warns with the size the clearance landed at, as a typed Width does', async () => {
+	it('warns with the reach and the size the clearance landed at, in a reach’s words rather than a size’s', async () => {
 		const rig = await designerRig({ shape: traced(), camera: 'opened' });
 		try {
 			const box = await typeReach(rig, 'right', '2270');
+			// The circle's right edge is at 450, so the landed right reach is the box's right edge less that.
+			const reach = Math.round(box.centre.x + box.width / 2 - 450);
 
 			expect(box.width).toBeGreaterThan(2600);
 			expect(box.width).toBeLessThan(3000);
-			expect(raised()).toEqual([t('en', 'designer.typed-size.landed', { width: String(Math.round(box.width)), depth: String(Math.round(box.depth)) })]);
+			expect(reach).toBeLessThan(2270);
+			const [width, depth] = [box.width, box.depth].map((extent) => String(Math.round(extent)));
+			expect(raised()).toEqual([t('en', 'designer.typed-reach.landed-right', { reach: String(reach), width, depth })]);
+			expect(raised()[0]).toBe(`The typed reach cannot land on this shape, so the clearance now reaches ${String(reach)} mm beyond the right edge and measures ${width} × ${depth} mm.`);
 		} finally {
 			rig.unmount();
 		}

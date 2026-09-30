@@ -1,4 +1,5 @@
 import { describe, expect } from 'vitest';
+import { Key } from 'webdriverio';
 import { test } from './fixture';
 import { BOWL, createDesignerPage, type DesignerPage } from './designer';
 import { createFollowupsPage, outlineOn } from './designerFollowups';
@@ -199,6 +200,36 @@ describe('Design an Asset, the history chords, in the real Obsidian host', () =>
 		await designer.focusCanvas();
 		await chord(browser, 'z');
 		await expect.poll(() => designer.readSidecar(assetId).revision).toBe(4);
+		expect(designer.readSidecar(assetId).shape?.details.length).toBe(2);
+	});
+
+	// Step 120 in the order a hand makes it: Escape while the button is still down, THEN the release,
+	// THEN Ctrl+Z. `designerHistoryKeysWalk.test.ts` presses the chord before the release, and says why;
+	// this is the other order, with a real Escape key rather than a dispatched one.
+	desktop('draws nothing on the release after Escape cancelled a held rectangle, and Ctrl+Z then undoes the edit before it', async ({
+		native: { browser, page, ui },
+	}) => {
+		const designer = createDesignerPage(browser, page, ui);
+		const f = createFollowupsPage(browser, designer);
+		const assetId = await designer.createToilet('Cancelled toilet');
+		await expect.poll(() => designer.readSidecar(assetId).revision).toBe(1);
+		const original = outlineOn(designer.readSidecar(assetId), BOWL);
+		await designer.nudgeTo(assetId, 2);
+		await f.tool('Draw rectangle');
+		const canvas = await f.canvasBox();
+		const at = { x: Math.round(canvas.left + canvas.width * 0.35), y: Math.round(canvas.top + canvas.height * 0.6) };
+		// ONE actions call, two sources tick by tick: WebDriver serialises separate commands, so a key sent
+		// on its own could never land between this press and its release (the case above).
+		await browser.actions([
+			browser.action('pointer').move({ ...at, origin: 'viewport' }).down().move({ x: at.x + 60, y: at.y + 40, duration: 150, origin: 'viewport' }).pause(400).pause(400).up(),
+			browser.action('key').pause(10).pause(10).pause(150).down(Key.Escape).up(Key.Escape).pause(10),
+		]);
+		await browser.pause(SETTLE_MS);
+		expect(designer.readSidecar(assetId).revision).toBe(2);
+		expect(designer.readSidecar(assetId).shape?.details.length).toBe(2);
+		await chord(browser, 'z');
+		await expect.poll(() => designer.readSidecar(assetId).revision).toBe(3);
+		expect(outlineOn(designer.readSidecar(assetId), BOWL)).toEqual(original);
 		expect(designer.readSidecar(assetId).shape?.details.length).toBe(2);
 	});
 

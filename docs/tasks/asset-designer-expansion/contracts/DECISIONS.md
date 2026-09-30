@@ -1959,7 +1959,7 @@ badge is replaced with the absence itself, citing `twoDesigners.e2e.ts`'s own pi
 step 8. **Step 12, found carrying the identical false premise ("still carrying Save error from step
 8"), is now in scope and fixed the same way**: its own precondition (a leftover badge from step 8)
 no longer exists in this case's own sequence, so its clause is marked unreachable from this case's
-steps in the Automated-in-Obsidian table, while the invariant it named stays asserted directly by
+steps in the pass-condition column of its own step row (no Automated table carries a step-12 row), while the invariant it named stays asserted directly by
 `setAssetFootprint.test.ts`, `withSaveStateTracking.test.ts` and `saveStateStore.test.ts` on their
 own fixtures rather than on this case's step 8. **Not touched, and worth a separate look**: step 13
 ("leaf B's header returns to Saved... the contrast that makes step 12 mean something") inherits a

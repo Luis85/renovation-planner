@@ -220,6 +220,7 @@ describe('Design an Asset, the history chords, in the real Obsidian host', () =>
 		const at = { x: Math.round(canvas.left + canvas.width * 0.35), y: Math.round(canvas.top + canvas.height * 0.6) };
 		// ONE actions call, two sources tick by tick: WebDriver serialises separate commands, so a key sent
 		// on its own could never land between this press and its release (the case above).
+		// The key source's .pause(10).pause(10).pause(150) is load-bearing: tick-matched to the pointer's move/down/150ms-move so Escape down lands on tick 4, before pointer up on tick 6.
 		await browser.actions([
 			browser.action('pointer').move({ ...at, origin: 'viewport' }).down().move({ x: at.x + 60, y: at.y + 40, duration: 150, origin: 'viewport' }).pause(400).pause(400).up(),
 			browser.action('key').pause(10).pause(10).pause(150).down(Key.Escape).up(Key.Escape).pause(10),

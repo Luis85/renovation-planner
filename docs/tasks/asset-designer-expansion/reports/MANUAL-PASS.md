@@ -838,7 +838,7 @@ case file's tier column confirms the six-then-seven-value vocabulary before and 
   the build never draws in the held-drag scenario — both rewritten to record the absence itself,
   citing `twoDesigners.e2e.ts`'s existing pinning citation. Step 12 carried the identical false
   premise ("still carrying Save error from step 8") and is corrected the same way, marked `none —
-  unreachable from this case's own steps` in its Automated-in-Obsidian clause row since no badge
+  unreachable from this case's own steps` in the pass-condition column of its own step row (the case has no step-12 row in any Automated table) since no badge
   survives step 8 to test persistence of; the underlying invariant it named stays asserted by
   `setAssetFootprint.test.ts`, `withSaveStateTracking.test.ts` and `saveStateStore.test.ts` on their
   own fixtures. None of the three changes a tier tag, so the case's human count is unchanged.

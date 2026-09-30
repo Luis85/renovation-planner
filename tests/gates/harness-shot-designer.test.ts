@@ -103,12 +103,6 @@ describe('the asset designer shots', () => {
 	});
 
 	/**
-	 * F1's own instrument: the View menu used to open off-screen below 900px container width because
-	 * the designer had no positioned ancestor for it at that width — a sidebar leaf's own 460px is
-	 * exactly where the defect showed. `width: 460` is what makes this shot different from a resting
-	 * one; losing it would silently photograph the menu at the width it never broke at.
-	 */
-	/**
 	 * The two surfaces a harness look went looking for and could not reach (open-issues Task 8): a
 	 * designer SET, whose dashed frame the Plan Editor's multi-selection never draws, and the inspector's
 	 * Shape preview drawing an asset's details. Each waits on a mark only that state draws.
@@ -128,6 +122,12 @@ describe('the asset designer shots', () => {
 		expect(query('asset-library-selected-details-dark').get('theme')).toBeNull();
 	});
 
+	/**
+	 * F1's own instrument: the View menu used to open off-screen below 900px container width because
+	 * the designer had no positioned ancestor for it at that width — a sidebar leaf's own 460px is
+	 * exactly where the defect showed. `width: 460` is what makes this shot different from a resting
+	 * one; losing it would silently photograph the menu at the width it never broke at.
+	 */
 	it('takes the View menu open at a sidebar width', () => {
 		expect(shot('asset-designer-view-menu-narrow').width).toBe(460);
 	});

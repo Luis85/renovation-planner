@@ -62,7 +62,9 @@ section; this is the summary a walker needs before touching any of the affected 
 - **One dialog footer, Cancel then a primary Save/Submit, Task 4 (`202f172d9`, fix round
   `97382122b`).** `FormSubmitRow` (used by `NewProjectForm`, `NewPlanForm`, `NewAssetForm` and the
   asset-preset gallery) now draws one sticky row; the submit wears `mod-cta` with a deliberate AA-fill
-  colour mix that outranks the theme's own pairing (measured failing at 3.43:1/4.26:1 on this button).
+  colour mix that outranks the theme's own pairing (the test asserts ≥4.5:1 in both themes; the
+  host's own pairing was measured LOCALLY on Windows DPR-2 failing at 3.43:1/4.26:1 on this
+  button — a local reading, not a number the test pins).
   **About 18 other Plan-editor forms are NOT converted** (`KnownDistanceForm`, `RoomNameForm`,
   `RoomDimensionsForm`, `AreaDetailsForm`, `ReferenceSetupForm`, the `StructureTaskForm` family and
   others) — they still draw their OWN submit markup, stacked under `FormDialog`'s own Cancel row, two

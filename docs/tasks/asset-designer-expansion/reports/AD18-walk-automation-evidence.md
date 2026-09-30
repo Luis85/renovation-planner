@@ -361,8 +361,8 @@ Commit `452afd2a5`. File: `tests/e2e/designerRecoveryLegibility.e2e.ts` (new).
 
 | Step | Clause | Test | Mutation | Outcome |
 | --- | --- | --- | --- | --- |
-| — | `.rp-designer-notice` text reads at 4.5:1 or more against its background, both themes | *draws the stale notice's text at 4.5:1 or more against its background, in both themes* | `styles/designer-notice.css` · `color: var(--text-normal)` → `var(--text-warning)` | **RED** — light 2.7326:1 (matches the rule's own prior "~2.73:1" comment). Restored: light 14.72:1, dark 10.55:1. |
-| — | `.rp-asset-price-orphan`/`.rp-asset-price-unreadable` text reads at 4.5:1 or more, both themes | *draws `--text-warning` at 4.5:1 or more against the price row's real, inherited background, in both themes* | `styles/asset-prices.css` · same `color` revert | **RED** — light 2.9531:1 for both classes (measured failing before the fix, not assumed). Restored: light 15.91:1, dark 12.19:1. The notice case stayed GREEN in this run, proving the mutation was isolated to its own clause. |
+| — | `.rp-designer-notice` text reads at 4.5:1 or more against its background, both themes | *draws the stale notice’s text at 4.5:1 or more against its background, in both themes* | `styles/designer-notice.css` · `color: var(--text-normal)` → `var(--text-warning)` | **RED** — light 2.7326:1 (matches the rule's own prior "~2.73:1" comment). Restored: light 14.72:1, dark 10.55:1. |
+| — | `.rp-asset-price-orphan`/`.rp-asset-price-unreadable` text reads at 4.5:1 or more, both themes | *draws `--text-warning` at 4.5:1 or more against the price row’s real, inherited background, in both themes* | `styles/asset-prices.css` · same `color` revert | **RED** — light 2.9531:1 for both classes (measured failing before the fix, not assumed). Restored: light 15.91:1, dark 12.19:1. The notice case stayed GREEN in this run, proving the mutation was isolated to its own clause. |
 
 ### Task 2 — a multi-selection draws every member, with one frame round the bounds
 
@@ -455,20 +455,20 @@ Commits `613032f2e` (ruling recorded), `e809f3a77` (reach read and single-edge e
 | Step | Clause | Test | Mutation | Outcome |
 | --- | --- | --- | --- | --- |
 | — | the clearance's offset reads as a positive reach, not a signed gap | `clearanceReach.test.ts` | `value: drawn` (signed value restored) | **RED** — 24 of the directory's cases, e.g. `rect-table: each side reads its positive reach…`. |
-| — | a flush (0mm reach) side draws no label | same | the zero-reach filter removed | **RED** — 18 cases, including *draws every drawable part under the toggle*. |
-| — | a typed reach moves only that edge, not the whole clearance | same | typed reach translated via `shifted(…, -typed)` (the old whole-clearance move) | **RED** — 18 cases, including *takes the vanity's front from 600 to 800…* and every preset's *moves each drawn side alone*. |
+| — | a flush (0mm reach) side draws no label | same | the zero-reach filter removed | **RED** — 18 cases, including `dimensionFigures.test.ts`'s *draws every drawable part under the toggle, each exactly as a selection draws it*. |
+| — | a typed reach moves only that edge, not the whole clearance | same | typed reach translated via `shifted(…, -typed)` (the old whole-clearance move) | **RED** — 18 cases, including *takes the vanity’s front from 600 to 800 and leaves its back flush with the footprint* and every preset's *`{preset}`: moves each drawn side alone, out and in*. |
 | — | the solve passes are along/across/along, not one pass | same | one pass only | **RED** — 3 cases: round-table, oval-table, curved-on-one-side (the sides that actually drift under one stretch). |
 | — | the fixed edge stays exactly where it was | same | fixed edge swapped for the moving one | **RED** — 18 cases. |
 | — | a reach is omitted below 0.5mm rounding, kept at 0.6mm | same | rounding check `!== 0` instead of `Math.round(...) === 0` | **RED** — 2 cases: reach 0.4 and −0.4. |
 | — | other sides settle within `SETTLED_MM` (fix round) | `clearanceReach.test.ts`/`dimensionFigures.test.ts` | `typed` dropped from the reach figures | **RED** — 2 cases (the typed-extents unit case and the warn-on-miss case). |
 | — | `MAX_ROUNDS` actually bounds the loop at the measured precision (fix round) | same | `MAX_ROUNDS = 2` (the original three-pass shape) | **RED** — 2 cases (a rounded-reading case and a `QUAD` refusal case). |
-| — | the clearance's locale label names a reach, not an offset (fix round) | `tests/presentation/i18n` | offset label kept on the clearance | **RED** — 2 cases: *names the clearance's sides as reaches*, and the aria-label check. |
+| — | the clearance's locale label names a reach, not an offset (fix round) | `tests/presentation/i18n` | offset label kept on the clearance | **RED** — 2 cases: `clearanceReach.test.ts`'s *names the clearance’s sides as reaches and leaves a detail’s as offsets*, and the aria-label check. |
 | — | the along-only extent request is not enough on its own (fix round) | `clearanceReach.test.ts` | `typed` asks for the along extent only | **RED** — 1 case, the typed-extents case. |
 | — | a restore-stretch refusal is not swallowed (fix round) | same | restore refusal swallowed | **RED** — 1 case. |
 | — | `MAX_ROUNDS = 1` is not enough (fix round) | same | `MAX_ROUNDS = 1` | **RED** — 5 cases: round table, oval table, curved-on-one-side, rounded-reading, `QUAD` refusal. |
 | — | the vanity's rendered label reads `clearance-offset-bottom 600 mm` (real host) | `clearanceReachLanding.test.ts` route (landing e2e) | `value: drawn` (M1 above) | **RED** (e2e) — `expected [ 'clearance-offset-bottom -600 mm' ] to deeply equal [ 'clearance-offset-bottom 600 mm' ]`. |
 | — | flush sides draw no label (real host) | same | zero-reach filter removed (M2 above) | **RED** (e2e) — `expected [ 'clearance-offset-left 0 mm', …(3) ] …`. |
-| — | a reach that cannot land WARNS with the landed size (fix round) | `clearanceReachLanding.test.ts` | `typed` dropped from the reach figures (F1 above) | **RED** — *warns with the size the clearance landed at*: `expected [] to deeply equal [ Array(1) ]`. |
+| — | a reach that cannot land WARNS with the landed size (fix round) | `clearanceReachLanding.test.ts` | `typed` dropped from the reach figures (F1 above) | **RED** — *warns with the size the clearance landed at, as a typed Width does*: `expected [] to deeply equal [ Array(1) ]`. |
 | — | untouched sides stay within 0.01mm under `MAX_ROUNDS = 2` (fix round) | same | `MAX_ROUNDS = 2` | **RED** — `- "bottom": 629, + "bottom": 635` (a rounded-reading fixture). |
 
 ### Task 6 — locale counts gain singular forms
@@ -502,8 +502,11 @@ M-d, M-g, T5-M3, T5-M4).
 | — | I1: after extracting `usedInPlansLabels.ts`, the shared helper is what the caller relies on | same | `=== 1` mutated inside `usedInPlansLabels.ts` | **RED** — 5 cases, the same as the per-caller mutation, proving the helper is load-bearing rather than decorative. |
 | — | M-f: Set dimensions' submit and a plain confirm's confirm both wear the AA-fill `mod-cta` selector; a `danger` confirm never does | `formFooter.test.ts` (new jsdom block, real `DialogHost`) | the `mod-cta` class removed and the old (no-`mod-cta`-on-plain-confirm) `ConfirmDialog` binding restored | **RED** — `expected null to be <button …>`, for both Set dimensions and the plain confirm; the `danger` case stayed correctly `null` throughout. |
 
-**Left open (this round):** the harness fixture (`tests/harness/assetLibrary.ts`) still builds
-outlines with no details, so `npm run harness`/`harness-shot` draw the old footprint-only tiles —
-Task 3's own concern, unmutated because the harness is out of scope for a `src/` mutation. The
-multi-selection frame's palette-follows-theme is asserted nowhere (Task 2's own concern). Neither
-clause has a test to redden.
+**Left open (this round):** Task 3's own report said the harness fixture
+(`tests/harness/assetLibrary.ts`) built outlines with no details, so `npm run harness`/`harness-shot`
+would draw the old footprint-only tiles — **that is now stale**: the fix wave's T3-M2
+(`82d3970f0`) gave `measured()` a `details` parameter (default `[]`) and two seeds now carry them
+(the worktop, the scaffold tower), so the harness draws details too. Neither the harness nor a real
+vault's tiles has been LOOKED AT by anyone, mutated or not — that half of the concern stands. The
+multi-selection frame's palette-follows-theme is asserted nowhere (Task 2's own concern) either.
+Neither clause has a test to redden.

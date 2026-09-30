@@ -6,7 +6,7 @@
  * properties of a store that really keeps a revision and really replaces a whole document,
  * and a hand-written fake sidecar would have answered whatever it was told to.
  *
- * All five design commands write through `updateAssetShape`, so the cases here that look like
+ * All six design commands write through `updateAssetShape`, so the cases here that look like
  * repeats of the footprint suite's are not: each one holds the shared path's guarantee FOR
  * THIS COMMAND. Three copies of the write path satisfy every other case in this file and lose
  * the announcement silently, which is what the per-command no-write cases exist to catch.

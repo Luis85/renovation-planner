@@ -117,9 +117,9 @@ export type VersionedDispatchResult = Result<VersionedDispatch, AppError>;
  * the shape `SetRequirementQuantityOverrideCommand.execute` already takes over its own
  * `executeWithVersion`.
  *
- * One function rather than eight copies of `if (!x.ok) return x; return ok(x.value.outcome)`,
- * so the eight design commands (five shape, height, calibrate, and Task B7's background)
- * cannot drift on what `execute` means, and so a ninth has one obvious thing to call.
+ * One function rather than nine copies of `if (!x.ok) return x; return ok(x.value.outcome)`,
+ * so the nine design commands (six shape, height, calibrate, and Task B7's background)
+ * cannot drift on what `execute` means, and so a tenth has one obvious thing to call.
  */
 export async function plainDispatch(versioned: Promise<VersionedDispatchResult>): Promise<DispatchResult> {
 	const done = await versioned;

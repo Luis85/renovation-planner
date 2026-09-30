@@ -97,9 +97,9 @@ export interface SetAssetBackgroundInput {
 export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInput, DispatchResult> {
 	/**
 	 * `files` is a SECOND constructor parameter rather than a member of `AssetShapeDeps`, which
-	 * is the shape `SetPlanBackgroundCommand` already takes. The other seven design commands
+	 * is the shape `SetPlanBackgroundCommand` already takes. The other eight design commands
 	 * write geometry or a height and have no raw file to ask about; folding the probe into the
-	 * bundle they share would state a dependency seven of them do not have, and every fixture
+	 * bundle they share would state a dependency eight of them do not have, and every fixture
 	 * that builds one would then supply a port it never reaches.
 	 */
 	constructor(

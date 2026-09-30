@@ -59,12 +59,12 @@ export type ShapeUnchanged = (current: AssetShape, next: AssetShape) => boolean;
  * let the command propose a shape over what is already there, validate the WHOLE shape, and
  * replace the document conditionally.
  *
- * **It is a function and not a convention.** The property being kept is that a sixth design
+ * **It is a function and not a convention.** The property being kept is that a seventh design
  * command cannot forget to announce, and that is only true while there is one function it
- * must call in order to write at all. Five commands go through it across four files — the two
- * footprint ones, the clearance, the anchor and the facing — and each hands in only the two
- * things that differ: WHAT it proposes, and WHICH fields it owns for the purpose of deciding
- * whether anything moved.
+ * must call in order to write at all. Six commands go through it across five files — the two
+ * footprint ones, the shape, the clearance, the anchor and the facing — and each hands in only
+ * the two things that differ: WHAT it proposes, and WHICH fields it owns for the purpose of
+ * deciding whether anything moved.
  *
  * **`expected ?? version` and never `undefined`.** An unconditional whole-document replace is
  * a lost update the moment two designer leaves show one asset: both read revision N, one sets
@@ -97,7 +97,7 @@ export type ShapeUnchanged = (current: AssetShape, next: AssetShape) => boolean;
  * **What it ANSWERS is `VersionedDispatch`, not a bare outcome.** The version a write
  * produced is known here and nowhere cheaper: a caller rediscovering it with a second read
  * has a window a peer can land in, and the peer's version is then indistinguishable from this
- * gesture's own. The five commands above narrow it back to a plain `DispatchResult` at their
+ * gesture's own. The six commands above narrow it back to a plain `DispatchResult` at their
  * `execute` door and hand the whole thing out at `executeWithVersion`, which is the pair
  * `SetRequirementQuantityOverrideCommand` already spells.
  *
@@ -123,10 +123,10 @@ export type ShapeUnchanged = (current: AssetShape, next: AssetShape) => boolean;
  *
  * **And the narrower claim this paragraph used to end on has ALSO stopped being true.** It read
  * "a sixth geometry command cannot forget to announce, because this is the only path by which
- * it can write at all", and Task B6's `CalibrateAssetCommand` is a sixth sidecar writer that
+ * it can write at all", and Task B6's `CalibrateAssetCommand` is a sidecar writer that
  * does not take this path: this function replaces the `shape` of the document it read, while a
  * calibration replaces the `calibration` beside it in the same file operation. So the
- * guarantee is now scoped to the five commands that DO come through here — a `ShapeChange` can
+ * guarantee is now scoped to the six commands that DO come through here — a `ShapeChange` can
  * only reach the port through this function — and a writer that composes its own document owes
  * the announcement itself, as `CalibrateAsset` does. Generalising this function to a whole
  * DOCUMENT change was the alternative and is deliberately not taken: `unchanged` is asked of
@@ -143,7 +143,7 @@ export type ShapeUnchanged = (current: AssetShape, next: AssetShape) => boolean;
  *
  * An object rather than three parameters because adding the repository took this function to six
  * and `max-params` is five — the same fold `trashNoteBackedEntity` made at the same limit. It also
- * reads better at the five call sites: the DEPENDENCIES are one argument and the OPERATION is the
+ * reads better at the six call sites: the DEPENDENCIES are one argument and the OPERATION is the
  * other three.
  */
 export interface AssetShapeDeps {

@@ -47,7 +47,7 @@ export interface VersionedDesignCommand<TInput> {
 }
 
 /**
- * The eight design commands this module inverts, as DOORS rather than as classes.
+ * The nine design commands this module inverts, as DOORS rather than as classes.
  *
  * Structural on purpose: the composition root hands presentation a GUARDED facade (design
  * slice 11), which is a wrapper object and never an instance, so naming the concrete command
@@ -62,11 +62,11 @@ export interface VersionedDesignCommand<TInput> {
  * doors for that reason, and `tests/plugin/guardCategory.test.ts` drives every door the root
  * hands out rather than trusting anyone to remember.
  *
- * EIGHT doors and THREE mechanisms: six doors — both footprint commands, the clearance, the
- * anchor, the facing and Task B6's calibration — are inverted by the same geometry adapter,
- * because what an inverse restores is the sidecar's whole document; the height is the note
- * adapter's; and Task B7's background is its own, `ReversibleAssetBackgroundEdit`, being the
- * one door that spans both resources.
+ * NINE doors and THREE mechanisms: seven doors — both footprint commands, the shape, the
+ * clearance, the anchor, the facing and Task B6's calibration — are inverted by the same
+ * geometry adapter, because what an inverse restores is the sidecar's whole document; the height
+ * is the note adapter's; and Task B7's background is its own, `ReversibleAssetBackgroundEdit`,
+ * being the one door that spans both resources.
  */
 export interface AssetDesignCommandBundle {
 	readonly setFootprintFromDimensions: VersionedDesignCommand<SetAssetFootprintFromDimensionsInput>;
@@ -77,7 +77,7 @@ export interface AssetDesignCommandBundle {
 	readonly setFacing: VersionedDesignCommand<SetAssetFacingInput>;
 	readonly setHeight: VersionedDesignCommand<SetAssetHeightInput>;
 	readonly calibrate: VersionedDesignCommand<CalibrateAssetInput>;
-	/** Task B7's, the eighth door and the first that writes both resources in one gesture. */
+	/** Task B7's, the ninth door and the first that writes both resources in one gesture. */
 	readonly setBackground: VersionedDesignCommand<SetAssetBackgroundInput>;
 }
 
@@ -104,7 +104,7 @@ export interface ReversibleAssetDesignDeps {
 	readonly events: EventBus;
 	/** For `SetAssetHeight`, and for Task B7's background — every adapter that writes the NOTE. */
 	readonly noteLedger: WriteLedger;
-	/** For the five geometry commands and for Task B6's calibration — every sidecar write. */
+	/** For the six geometry commands, Task B6's calibration and Task B7's background — every sidecar write. */
 	readonly geometryLedger: WriteLedger;
 }
 
@@ -654,7 +654,7 @@ class ReversibleAssetBackgroundEdit
  * with the document as it was — and "as it was" has to be captured BEFORE the forward write,
  * by the gesture itself, because a later reader cannot reconstruct it.
  *
- * **NONE of the eight factories below carries a `fallow-ignore-next-line unused-class-member`
+ * **NONE of the nine factories below carries a `fallow-ignore-next-line unused-class-member`
  * mark any longer — it was four, then one, and Task B8's `setFootprintFromDimensions` call is
  * what cleared the last of them, exactly the exit condition this paragraph documented three
  * tasks early.** Fallow resolves a class's members through the annotation where the CONSUMING

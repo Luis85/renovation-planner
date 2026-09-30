@@ -24,7 +24,7 @@
  *   published `PlanBackgroundChanged` on every successful write — pre-existing, untouched by
  *   this increment. The carve-out is `undo()` alone: it restores straight through
  *   `PlanRepository.save`, past the command, and — by design decision, not by oversight — no
- *   publish was added there, unlike its eight reversible-asset-design siblings. The table's
+ *   publish was added there, unlike its nine reversible-asset-design siblings. The table's
  *   single "execute, undo | nothing" row conflated the two.
  *
  * The override adapters' `execute` rows are an ADDITION over the plan's own table, made in

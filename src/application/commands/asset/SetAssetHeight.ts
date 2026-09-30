@@ -27,7 +27,7 @@ export interface SetAssetHeightInput {
  * reader without this plugin for no gain, while the note's frontmatter is exactly where a
  * plain fact about a catalogue entry belongs. The cost of the split is real and is paid
  * here: this command re-derives, from scratch, the four guarantees `updateAssetShape` holds
- * for its five callers.
+ * for its six callers.
  *
  * 1. **Validate through the entity, never beside it.** `withChanges` re-runs the whole smart
  *    constructor, so a height is refused by the same gate that refuses one arriving from a

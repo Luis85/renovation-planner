@@ -241,7 +241,7 @@ const specSheetProbe: VaultFileProbe = { fileExists: (path) => SPEC_SHEETS.inclu
  * The real designer over the real in-memory persistence stack.
  *
  * Everything below the view is genuine: `ObsidianAssetGeometrySidecar` over the fake vault's
- * bytes, `ObsidianAssetRepository` for the note, the six real design commands, the real
+ * bytes, `ObsidianAssetRepository` for the note, the nine real design commands, the real
  * reversible adapters minted per leaf, and `GetAssetDesignQuery` joining the two back for the
  * read. What is faked is the vault and Obsidian's DOM, which is the line every other harness
  * here draws.

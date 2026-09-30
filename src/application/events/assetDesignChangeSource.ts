@@ -31,7 +31,7 @@ import { changedEntry, changedSidecar, disposeAll, subscribeAll } from './subscr
  * was saved. A leaf waiting for its subject to appear is the two index arms' question, below.
  *
  * A per-FIELD list would still be the wrong shape, which is the half of the original argument
- * that survives: it goes stale the day a ninth command is added, silently and in the direction
+ * that survives: it goes stale the day a tenth command is added, silently and in the direction
  * of a stale surface. This list is per-LIFECYCLE, and there are no other lifecycles.
  *
  * It takes an `assetId` like `createPlanChangeSource` does, rather than being unfiltered like

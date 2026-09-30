@@ -621,6 +621,11 @@ what it buys is cosmetic on a surface whose job is to state a blast radius accur
 current spelling already does. **If it is ever taken, it must take all three keys**, and this
 paragraph is what it has to answer.
 
+**Amended by AD18-R42 (2026-09-30), below.** The `used-in-plans.plan` and `.unreadable` counts —
+two of this ruling's three keys — get the same `.one`/`.other` split `used-in.project` took in the
+UI critique round's plural task; this paragraph is not rewritten, and its losing side stands as the
+argument AD18-R42's own text answers.
+
 ### AD15-R1 — three matrix rows are regraded rather than given tests. (2026-09-21)
 
 **Taken by the user**, asked before wave 14 was dispatched, after the integrator split AD15's
@@ -1977,6 +1982,70 @@ into `.one`/`.other` (the house pattern: a separate key chosen at the caller), w
 "1 requirement" beside `{count} placement(s)` and `{count} note(s) could not be read`. **Ruled by the user:** amend
 AD18-R7 — split `view.asset-library.used-in-plans.plan` and `.unreadable` the same way, English and German, chosen at the
 caller, so the convention is consistent again.
+
+**AD18-R39 to AD18-R42 delivered 2026-09-30.** The UI critique round's plan
+([`AD18-ui-critique-round-plan.md`](../reports/AD18-ui-critique-round-plan.md)) ran seven tasks
+subagent-driven, base `2c55b9c9d`, each independently reviewed, followed by a whole-round review and
+one fix wave.
+
+- **Task 1** (`452afd2a5`) fixed the stale notice's and the asset-prices' text contrast (WCAG
+  1.4.3), `--text-warning` on `--background-secondary` measured ~2.73:1, now ≥4.5:1 in both themes
+  (`designerRecoveryLegibility.e2e.ts`). No fix round.
+- **Task 2** (`c70f031da`) draws every member of a multi-selection — a restroke per member and one
+  dashed frame round the combined bounds — where the canvas used to draw only the LAST member
+  selected. No fix round.
+- **Task 3** (`e9914dcb0`, `298e733de`, `f91019d6b`) is AD18-R39 itself: the library's Grid tile and
+  the inspector's Shape preview now draw the asset's details, not the footprint alone; the 20px list
+  row keeps the footprint-only mark per design spec §3.4. The spec's own amendment is in
+  `asset-library-overview-DESIGN-SPEC.md`. No independent-review fix round; the task narrowed one of
+  its own claims (`f91019d6b`) after re-reading the code.
+- **Task 4** (`202f172d9`, fix round `97382122b`) draws one dialog footer — Cancel then a primary
+  `mod-cta` Save/Submit, on one sticky row — across `FormDialog`/`FormSubmitRow` and the preset
+  gallery. The fix round added `scroll-padding-block-end` so a field scrolled under the pinned row
+  is not left hidden after Tab (WCAG 2.2 SC 2.4.11), plus a hover-contrast assertion and a
+  refused-preset fill check.
+- **Task 5** is AD18-R41: `613032f2e` records the ruling, `e809f3a77` reads the clearance's reach per
+  side as a positive figure and edits that one edge alone, and fix round `649eb4489` is the part of
+  R41 the first pass left open — **a typed reach that cannot be reached now WARNS**, the same way a
+  typed size does, rather than refusing or landing silently: it reuses the size-landed sentence
+  (`designer.typed-size.landed`), not a reach-specific one, because a reach-specific string needs a
+  locale module this task does not own (recorded as a concern in `uic-task-5-report.md`). The same
+  fix round also tightened the other sides' settle tolerance from three fixed passes to a
+  6-round/0.01mm loop (`reached`/`settled` in `dimensionFigures.ts` — see the `execution/state.json`
+  correction entry below, which replaces this file's own earlier "resizeBox with a pivot" phrasing
+  with what the code holds).
+- **Task 6** (`f5cf4472f`, fix round `d61f98693`) gave the four bare-count locale keys
+  `.one`/`.other` singular forms, fixing the reported "1 assets" and "1 note(s)" bugs. The fix round
+  anchored the sentence-case exemption pattern to the three exact strings it was meant to cover,
+  after a reviewer found the unanchored version exempted every later sentence in a string that opens
+  "digits, space, lowercase".
+- **The whole-round review returned DONE_WITH_CONCERNS** and one fix wave (`75b4a9551`,
+  `8b3259571`, `82d3970f0`, `518721058`) closed its Critical and Important findings:
+  - **C1**: the New asset dialog is unreachable on mobile (`Platform.isMobile` disables the door in
+    both places it is offered), so Task 4's `dialogFooter.e2e.ts` cases run desktop-only.
+  - **I1**: AD18-R42 itself — `used-in-plans.plan` and `.unreadable` get the same `.one`/`.other`
+    split as Task 6's four keys, through one shared helper (`usedInPlansLabels.ts`) rather than a
+    per-caller ternary, after `fallow dupes` flagged the ternary version as a clone.
+  - **I2, M-b through M-g, T3-M2, T5-M3, T5-M4**: docblock corrections (no behaviour change) plus
+    **R42's plugin-wide consequence** — `ConfirmDialog`'s confirm button now wears `mod-cta`
+    whenever it is not the `danger` variant (`descriptor.danger === true ? 'rp-dialog-button-danger'
+    : 'mod-cta'`), so **every plain (non-destructive) confirm dialog in the plugin, not only the
+    asset designer's, is now primary-styled** — `ConfirmDialog` is a shared component with callers
+    outside this package. `AssetOutline`'s `details` field was also made required on both outline
+    arms (T3-M2), closing the dead `?? []` fallback Task 3 had left in `AssetMark.vue`.
+- **Not closed by this round, per the fix wave's own Concerns**: the new asset-library tile and
+  inspector-preview details have not been looked at in `npm run harness`/`harness-shot` (no browser
+  available to the implementing tasks — a prediction from the code path, not a measurement); the
+  vanity's detail tap-hole is about 3×3 px on a 4rem tile, close to a dot, left for the integrator's
+  eye; the multi-selection frame's appearance (dashed, under the restrokes, palette-follows-theme)
+  is unjudged by eye.
+- **CI and E2E run ids: to be filled by the integrator.** No run covering this round's final commit
+  was available to this task. A concurrent, separate investigation
+  (`.superpowers/sdd/notice-investigation-report.md`) found `assetDesignerBasics.e2e.ts`'s
+  empty-catalogue notice case failing on the 1.13.7 desktop shard across several recent commits on
+  this branch, including one inside this round (`649eb4489`) — unrelated to any change this round
+  made, per that investigation's own mechanism analysis, but the reason CI should not be read as
+  green here without checking the run directly.
 
 ## C01 — Boundaries and source of truth
 

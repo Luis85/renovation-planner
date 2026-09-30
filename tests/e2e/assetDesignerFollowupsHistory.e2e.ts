@@ -206,9 +206,7 @@ describe('Design an Asset, the history chords, in the real Obsidian host', () =>
 	// Step 120 in the order a hand makes it: Escape while the button is still down, THEN the release,
 	// THEN Ctrl+Z. `designerHistoryKeysWalk.test.ts` presses the chord before the release, and says why;
 	// this is the other order, with a real Escape key rather than a dispatched one.
-	desktop('draws nothing on the release after Escape cancelled a held rectangle, and Ctrl+Z then undoes the edit before it', async ({
-		native: { browser, page, ui },
-	}) => {
+	desktop('draws nothing on the release after Escape cancelled a held rectangle, and Ctrl+Z then undoes the edit before it', async ({ native: { browser, page, ui } }) => {
 		const designer = createDesignerPage(browser, page, ui);
 		const f = createFollowupsPage(browser, designer);
 		const assetId = await designer.createToilet('Cancelled toilet');

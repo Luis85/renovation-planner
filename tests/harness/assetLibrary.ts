@@ -12,10 +12,9 @@ import type {
 	UnreadableEntry,
 } from '../../src/application/queries/ListCatalogueEntries';
 import { outlineOf, type AssetOutline } from '../../src/application/queries/ListAssetOutlines';
-import type { AssetShape, Dimensions } from '../../src/domain/asset/AssetShape';
+import { dimensionsOf, type AssetShape, type Dimensions } from '../../src/domain/asset/AssetShape';
 import type { AssetDetail } from '../../src/domain/asset/AssetDetail';
 import { createCurvedPath } from '../../src/core/geometry/CurvedPath';
-import { extentOf } from '../../src/core/geometry/operations';
 import type { AssetDesignDto } from '../../src/application/queries/GetAssetDesign';
 import type { ReferencingGroup } from '../../src/application/queries/ListRequirementsReferencing';
 import type { ObservationToken } from '../../src/application/ports/versioning';
@@ -314,7 +313,6 @@ function designFor(assetId: AssetId): AssetDesignDto {
 	const named = SEEDS.find((seed) => seed.id === assetId);
 	const drawn = named?.drawn ?? null;
 	const clearance = drawn?.shape.clearance ?? null;
-	const reach = clearance === null ? null : extentOf(clearance.points);
 	return {
 		assetId,
 		name: named?.name ?? '',
@@ -328,7 +326,8 @@ function designFor(assetId: AssetId): AssetDesignDto {
 		calibration: null,
 		shape: drawn?.shape ?? null,
 		dimensions: drawn?.extent ?? null,
-		clearanceExtent: reach === null ? null : { width: reach.maxX - reach.minX, depth: reach.maxY - reach.minY },
+		// `GetAssetDesign`'s own derivation, not a second one.
+		clearanceExtent: clearance === null ? null : unwrap(dimensionsOf(clearance)),
 		dimensionsUnscaled: drawn?.shape.footprintPending ?? false,
 		noteVersion: HARNESS_VERSION,
 		geometryVersion: HARNESS_VERSION,

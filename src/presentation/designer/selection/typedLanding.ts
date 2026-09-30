@@ -10,9 +10,9 @@ import { partMeasure, type PartBox } from './partExtent';
  * A TYPED size that lands away from the number typed says so (AD18-R24). A size a part cannot reach lands
  * where `solveScale` leaves it, which is not the typed value, and before this nothing said so beyond the
  * figures reading back a different number. Each door that types a Width, a Depth or a whole-design size
- * dispatches through `landTyped`: the inspector's Width and Depth, the canvas's size labels, and Set
- * dimensions' scaling path. Set dimensions' other path writes a rectangle at the typed numbers, which has
- * nothing to miss. A box-handle drag does not come here, because the pointer is its feedback, so a drag and a
+ * dispatches through `landTyped`: the inspector's Width and Depth, the canvas's size labels, the canvas's
+ * clearance-reach labels (a typed reach asks the clearance for a size), and Set dimensions' scaling path.
+ * Set dimensions' other path writes a rectangle at the typed numbers, which has nothing to miss. A box-handle drag does not come here, because the pointer is its feedback, so a drag and a
  * typed size still land the same numbers (AD18-R23) and the typed one alone warns.
  *
  * The warning OBSERVES what landed and changes nothing about it: the landed shape is measured the way the

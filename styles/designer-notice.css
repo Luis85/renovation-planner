@@ -5,10 +5,11 @@
  * the design beside it is real and was true a moment ago, so replacing the canvas would hide the
  * thing the user is being told may be out of date.
  *
- * `--text-warning` sat as the TEXT colour here, on `--background-secondary`, the exact pair
- * `.rp-designer-unscaled`'s own comment (`designer.css`) and `.rp-dialog-warning`'s
- * (`dialogs.css`) measured at about 2.73:1 in the light theme — under the 4.5:1 AA floor for text
- * this size (WCAG 2.x SC 1.4.3). The same fix as both siblings: the sentence carries the meaning
+ * `--text-warning` sat as the TEXT colour here, on `--background-secondary`: the exact pair
+ * `.rp-designer-unscaled`'s own comment (`designer.css`) measured at about 2.73:1 in the light
+ * theme, and the same text colour `.rp-dialog-warning`'s (`dialogs.css`) measured at about that on
+ * the dialog's `--background-primary` — under the 4.5:1 AA floor for text this size (WCAG 2.x SC
+ * 1.4.3). The same fix as both siblings: the sentence carries the meaning
  * in `--text-normal`, and the warning colour moves to a `border-inline-start` rule on the strip's
  * leading edge, which is decoration rather than the thing a screen reader or a colour-blind
  * reader has to read. `border-top` stays: it is a DIFFERENT rule, the separator between this strip

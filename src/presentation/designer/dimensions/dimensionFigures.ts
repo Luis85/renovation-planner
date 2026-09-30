@@ -73,7 +73,10 @@ export interface DimensionFigure {
 	 * `no-write` and therefore dispatches nothing and pushes no undo entry. See `unchanged`.
 	 */
 	readonly edit: (typed: number) => (shape: AssetShape) => Result<AssetShape, ValidationError> | null;
-	/** A size figure's typed extent, which `landTyped` checks the landed size against (AD18-R24); a gap has none. */
+	/**
+	 * The typed extent `landTyped` checks the landed size against (AD18-R24): a size figure's, and a
+	 * clearance reach's (`reachExtents`). A detail's gap has none.
+	 */
 	readonly typed?: (typed: number) => TypedSize;
 }
 
@@ -242,7 +245,7 @@ function offsetFigures(part: OutlinePart, key: string, box: Corners, outer: Corn
 		const point = (along: number): Point => (spec.axis === 'x' ? { x: along, y: across } : { x: across, y: along });
 		return {
 			name: `${key}-${spec.key}`,
-			label: spec.label,
+			label: reach ? spec.reach : spec.label,
 			at: point(near + drawn / 2),
 			outside: false,
 			axis: spec.axis,
@@ -250,7 +253,7 @@ function offsetFigures(part: OutlinePart, key: string, box: Corners, outer: Corn
 			to: point(near + drawn),
 			value: reach ? -drawn : drawn,
 			edit: (typed: number) => (shape: AssetShape) => (reach ? reached(shape, spec, typed) : shifted(shape, part, spec, typed)),
-			...(reach ? { label: spec.reach, typed: (typed: number) => reachExtents(box, spec.axis, typed + drawn) } : {}),
+			...(reach ? { typed: (typed: number) => reachExtents(box, spec.axis, typed + drawn) } : {}),
 		};
 	}).filter((figure) => !reach || Math.round(figure.value) !== 0);
 }
@@ -966,9 +969,9 @@ function overallSlot(
  * handle nobody can grab is the defect this rule exists for; the offset slides one of its widths
  * sideways instead, which carries its line with it on extension lines, as any moved offset does.
  *
- * `spreadLabels` stays the rule for `All dimensions`, whose floor is a different one: 26 labels
- * cannot all be kept apart at the camera the designer opens with, and AD18-R14 asks only that none
- * is impossible to click. It is handed no handles.
+ * `spreadLabels` stays the rule for `All dimensions`, whose floor is a different one: the vanity's
+ * 23 labels (26 before AD18-R40 dropped the clearance's flush sides) cannot all be kept apart at the
+ * camera the designer opens with, and AD18-R14 asks only that none is impossible to click. It is handed no handles.
  */
 export function separateLabels(labels: readonly LabelAnchor[], stage: StageSize, handles: readonly ScreenPoint[] = []): ScreenPoint[] {
 	const placed: LabelBox[] = [];

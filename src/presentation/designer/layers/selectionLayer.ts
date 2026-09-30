@@ -204,7 +204,9 @@ export function selectionMarks(
 
 /**
  * The Plan Editor's transform-box outline (`TransformBoxHandles.vue`): 1 px, dashed 4/3, in the accent. So a
- * set's frame reads as the box an arrangement acts on, and never as a part.
+ * set's frame reads as the box an arrangement acts on rather than as a part — though the dash alone does
+ * not say so: a selected dashed detail restrokes in the same accent and the same 4/3 dash (`DETAIL_DASH_PX`),
+ * so its stroke differs from this frame's in width only, 2 px against 1.
  */
 const BOUNDS_STROKE_PX = 1;
 const BOUNDS_DASH_PX: readonly number[] = [4, 3];

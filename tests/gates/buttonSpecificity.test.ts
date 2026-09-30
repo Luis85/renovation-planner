@@ -44,15 +44,21 @@ import { buttonClassGroups, buttonClasses, buttonClassesOn, sheets, targetsAButt
  * first pass at this measurement went wrong — the vendored sheet holds **15** rules that outrank
  * (0,1,1) while touching a contested property. Every one of them targets a component of Obsidian's
  * own: `.mod-cta`, `.canvas-card-menu`, `.combobox-button`, `.modal-close-button` and the like. This
- * rule is the only one that reaches EVERY button, which is why it is the only one compared against,
- * and no element this plugin renders wears any of those classes — the two `mod-cta` mentions in
- * `styles/` are both prose, in comments explaining why this project refuses that pairing on contrast
- * grounds.
+ * rule is the only one that reaches EVERY button, which is why it is the only one compared against.
  *
- * So the narrow scope is latent by construction rather than by luck. It would stop being so the day
- * a plugin element adopts a host component class, and the ceiling above it is the vendored sheet
- * itself: it is a REDUCTION of `app.css`, so a more specific rule may exist that this measurement
- * cannot see.
+ * **Plugin elements DO wear one of those classes, and this gate does not see that contest.**
+ * `mod-cta` is on `FormSubmitRow`'s submit, `ContinueRow`'s resume and a dozen or so editor
+ * buttons (`git grep -n 'mod-cta' -- src` is the list), because it is Obsidian's primary-action class
+ * and wearing it is how a theme's primary styling reaches them. Where this project restyles one,
+ * the rule is qualified past the host's `.mod-cta` rules by hand — `.rp-dialog
+ * .rp-dialog-button.mod-cta` in `styles/dialogs.css`, the `.mod-cta` rules in
+ * `styles/editor-visual-records.css` and `styles/renovation.css`. This gate does not compare
+ * their specificity against the host's `.mod-cta` rules (`tests/e2e/dialogFooter.e2e.ts` measures
+ * the dialog one's painted contrast in the real host).
+ *
+ * So the narrow scope is a choice with a known gap rather than latent by construction. The ceiling
+ * above it is the vendored sheet itself: it is a REDUCTION of `app.css`, so a more specific rule may
+ * exist that this measurement cannot see.
  */
 const OBSIDIAN_BUTTON = [0, 1, 1] as const;
 

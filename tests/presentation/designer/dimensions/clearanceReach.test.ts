@@ -218,7 +218,7 @@ describe('typing a reach moves that edge alone (AD18-R41)', () => {
 		const shape = { ...presetShape('washbasin'), clearance: { points: [{ x: 1162, y: 532 }, { x: -399, y: 633 }, { x: -203, y: -1163 }], bulges: [0.345, 0.296, -0.074] } };
 		const was = drawnReaches(expectOk(validateAssetShape(shape)));
 		const next = drawnReaches(typed(expectOk(validateAssetShape(shape)), 'left', Math.round(was.left) + 1500));
-		
+
 		expect(rounded(next)).toEqual({ ...rounded(was), left: Math.round(was.left) + 1500 });
 	});
 

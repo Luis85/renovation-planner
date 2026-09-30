@@ -14,6 +14,9 @@ import type { assetDimensionsOnCanvasEn } from '../en/assetDimensionsOnCanvas';
  * The refusal addresses the user formally, as every neighbouring instruction in this table does
  * (`editor.drafting.offset-invalid`, `editor.reference.measure-help`).
  *
+ * The clearance's four sides say "Freiraum", `designer.clearance`'s own word, and "über … hinaus"
+ * for a reach BEYOND the edge (AD18-R40), where a detail's gap is an "Abstand zur" it.
+ *
  * `designer.dimension.value` keeps the English order because it is a number with a unit after a
  * noun in both languages, and "mm" is the SI symbol rather than a translated word.
  */
@@ -26,6 +29,10 @@ export const assetDimensionsOnCanvasDe: Record<keyof typeof assetDimensionsOnCan
 	'designer.dimension.offset-right': 'Abstand zur rechten Kante',
 	'designer.dimension.offset-top': 'Abstand zur oberen Kante',
 	'designer.dimension.offset-bottom': 'Abstand zur unteren Kante',
+	'designer.dimension.reach-left': 'Freiraum über die linke Kante hinaus',
+	'designer.dimension.reach-right': 'Freiraum über die rechte Kante hinaus',
+	'designer.dimension.reach-top': 'Freiraum über die obere Kante hinaus',
+	'designer.dimension.reach-bottom': 'Freiraum über die untere Kante hinaus',
 	'designer.dimension.value': '{name} {value} mm',
 	'designer.dimension.label': '{value} mm',
 	'designer.dimension.edit': '{name} bearbeiten',

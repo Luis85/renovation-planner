@@ -44,6 +44,8 @@ const clearanceOffsets = (list: readonly DimensionFigure[]): DimensionFigure[] =
 const drawnReaches = (shape: AssetShape, all = true): Record<string, number> =>
 	Object.fromEntries(clearanceOffsets(dimensionFigures(shape, all ? null : { kind: 'clearance' }, all, NOTHING_HIDDEN)).map((figure) => [figure.name.slice('clearance-offset-'.length), figure.value]));
 
+const rounded = (all: Record<string, number>): Record<string, number> => Object.fromEntries(Object.entries(all).map(([side, reach]) => [side, Math.round(reach)]));
+
 function typed(shape: AssetShape, side: Side, value: number): AssetShape {
 	const figure = expectDefined(clearanceOffsets(dimensionFigures(shape, { kind: 'clearance' }, false, NOTHING_HIDDEN)).find((one) => one.name === `clearance-offset-${side}`), side);
 	const result = figure.edit(value)(shape);
@@ -108,6 +110,32 @@ describe('the clearance reads its reach per side (AD18-R40)', () => {
 		expect('top' in drawnReaches(shape)).toBe(drawn);
 	});
 
+	/**
+	 * **Named as a reach, not an offset** (fix round 1): "Offset from the bottom edge" over a number
+	 * that says how far the clearance reaches BEYOND it names the figure backwards. A detail's gap keeps
+	 * its offset name.
+	 */
+	it('names the clearance’s sides as reaches and leaves a detail’s as offsets', () => {
+		const drawn = dimensionFigures(editableShape(), null, true, NOTHING_HIDDEN);
+		const labelOf = (name: string): string => expectDefined(drawn.find((figure) => figure.name === name), name).label;
+
+		expect(clearanceOffsets(drawn).map((figure) => figure.label)).toEqual([
+			'designer.dimension.reach-left', 'designer.dimension.reach-right', 'designer.dimension.reach-bottom',
+		]);
+		expect(labelOf('detail-detail-1-offset-bottom')).toBe('designer.dimension.offset-bottom');
+	});
+
+	/**
+	 * **What `landTyped` checks a reach against**: the extent the typed reach asks for along its axis,
+	 * AND the across extent it must leave alone — so a curved boundary whose across axis did not settle
+	 * warns too, rather than only one whose typed side missed.
+	 */
+	it('asks landTyped for the grown extent and the unchanged across one', () => {
+		const figure = expectDefined(clearanceOffsets(dimensionFigures(editableShape(), null, true, NOTHING_HIDDEN)).find((one) => one.name === 'clearance-offset-bottom'), 'bottom');
+
+		expect(figure.typed?.(650)).toEqual({ part: { kind: 'clearance' }, width: 1400, depth: 1250 });
+	});
+
 	/** AD18-R22 unchanged: a detail flush with the footprint keeps its `0 mm`, and an overhang its sign. */
 	it('leaves a detail’s signed gaps and 0 mm labels alone', () => {
 		const vanity = dimensionFigures(presetShape('vanity'), null, true, NOTHING_HIDDEN);
@@ -168,12 +196,30 @@ describe('typing a reach moves that edge alone (AD18-R41)', () => {
 		for (const side of ['right', 'top', 'bottom'] as const) expect(next[side]).toBeCloseTo(was[side], 6);
 	});
 
-	/** The left and top arms fix the MAX edge, the right and bottom the MIN one: all four, on the fixture. */
+	/**
+	 * The left arm fixes the MAX edge, the right and bottom the MIN one. The fixture's top is flush and
+	 * draws no label, so the top arm is driven by the inward-reach case below, not here.
+	 */
 	it.each(SIDES.filter((side) => side !== 'top'))('moves the %s edge on the fixture and nothing else', (side: Side) => {
 		const was = reaches(editableShape());
 		const next = reaches(typed(editableShape(), side, 450));
 
 		expect(next).toEqual({ ...was, [side]: 450 });
+	});
+
+	/**
+	 * **The untouched sides still READ what they read on a boundary curved on every edge** (fix round 1).
+	 * A traced triangle around the washbasin, all three edges bulged — a shape the review's random sweep
+	 * finds and no preset has: with a fixed three stretches its bottom reach drifted 6.1 mm (629 → 635,
+	 * measured), because each restoring stretch of the depth moves the width again. Iterated until the
+	 * depth settles, every other side keeps its rounded reading.
+	 */
+	it('keeps the rounded reading of every untouched side on a boundary curved on every edge', () => {
+		const shape = { ...presetShape('washbasin'), clearance: { points: [{ x: 1162, y: 532 }, { x: -399, y: 633 }, { x: -203, y: -1163 }], bulges: [0.345, 0.296, -0.074] } };
+		const was = drawnReaches(expectOk(validateAssetShape(shape)));
+		const next = drawnReaches(typed(expectOk(validateAssetShape(shape)), 'left', Math.round(was.left) + 1500));
+		
+		expect(rounded(next)).toEqual({ ...rounded(was), left: Math.round(was.left) + 1500 });
 	});
 
 	/** Typing an inward reach is the user's own choice, and it round-trips signed. */
@@ -199,6 +245,20 @@ describe('typing a reach moves that edge alone (AD18-R41)', () => {
 		const handed = typed(editableShape(), 'bottom', 450);
 
 		expect(reaches(expectOk(expectDefined(figure.edit(500)(handed), 'a write'))).bottom).toBe(500);
+	});
+
+	/**
+	 * A refusal from the RESTORING stretch comes back as it is: `typedLanding.test.ts`'s `QUAD` as a
+	 * clearance around a 100 x 100 footprint, its left reach typed from 150 to 0 — the width lands, and
+	 * putting the depth back makes two of its arcs cross, which validation refuses by code.
+	 */
+	it('refuses a reach whose restoring stretch would cross the boundary’s own arcs', () => {
+		const quad = editableShape({ footprint: rect(100, 100), details: [], clearance: { points: rect(400, 300).points, bulges: [0.95, -0.4, 1, -0.95] } });
+		const figure = expectDefined(clearanceOffsets(dimensionFigures(quad, null, true, NOTHING_HIDDEN)).find((one) => one.name === 'clearance-offset-left'), 'left');
+		const result = figure.edit(0)(quad);
+
+		expect(figure.value).toBe(150);
+		expect(result !== null && !result.ok ? result.error.code : null).toBe('asset.invalid-clearance');
 	});
 
 	it('refuses a reach for a clearance the shape no longer has, and one that would leave it no depth', () => {

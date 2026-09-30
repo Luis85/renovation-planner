@@ -2,9 +2,11 @@
  * The on-canvas dimensions' copy — card W19-A, the asset designer snapping spec's increment 2
  * (AD18-R11).
  *
- * **Eight NOUNS and three frames, rather than sixteen finished sentences.** Each figure has one
- * name, and the button's accessible name and the open field's title compose it — so a ninth
- * measurement adds one key here and not three. The German half then has one noun to translate
+ * **Nouns and three frames, rather than a finished sentence per figure per frame.** Each figure has
+ * one name, and the button's accessible name and the open field's title compose it — so a new
+ * measurement adds one key here and not three. The four `reach-*` names are the CLEARANCE's sides
+ * (AD18-R40): its figure reads how far it reaches beyond the edge, which an "offset from" names
+ * backwards; a detail's four gaps keep the `offset-*` names. The German half then has one noun to translate
  * per figure rather than one phrasing per figure per frame.
  *
  * **The button's visible text carries the unit since AD18-R17** — `designer.dimension.label`,
@@ -31,6 +33,10 @@ export const assetDimensionsOnCanvasEn = {
 	'designer.dimension.offset-right': 'Offset from the right edge',
 	'designer.dimension.offset-top': 'Offset from the top edge',
 	'designer.dimension.offset-bottom': 'Offset from the bottom edge',
+	'designer.dimension.reach-left': 'Clearance beyond the left edge',
+	'designer.dimension.reach-right': 'Clearance beyond the right edge',
+	'designer.dimension.reach-top': 'Clearance beyond the top edge',
+	'designer.dimension.reach-bottom': 'Clearance beyond the bottom edge',
 	'designer.dimension.value': '{name} {value} mm',
 	'designer.dimension.label': '{value} mm',
 	'designer.dimension.edit': 'Edit {name}',

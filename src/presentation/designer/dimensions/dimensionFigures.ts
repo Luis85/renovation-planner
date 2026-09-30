@@ -186,16 +186,18 @@ function sizeFigures(part: OutlinePart, box: Corners, key: string, labels: reado
 interface OffsetSpec {
 	readonly key: string;
 	readonly label: StringKey;
+	/** The CLEARANCE's name for the same side (AD18-R40): a reach beyond the edge, not an offset from it. */
+	readonly reach: StringKey;
 	readonly axis: 'x' | 'y';
 	readonly sign: 1 | -1;
 }
 
 /** In the order a reader scans them, which is also the order the Inspector lists an axis pair. */
 const OFFSETS: readonly OffsetSpec[] = [
-	{ key: 'offset-left', label: 'designer.dimension.offset-left', axis: 'x', sign: 1 },
-	{ key: 'offset-right', label: 'designer.dimension.offset-right', axis: 'x', sign: -1 },
-	{ key: 'offset-top', label: 'designer.dimension.offset-top', axis: 'y', sign: 1 },
-	{ key: 'offset-bottom', label: 'designer.dimension.offset-bottom', axis: 'y', sign: -1 },
+	{ key: 'offset-left', label: 'designer.dimension.offset-left', reach: 'designer.dimension.reach-left', axis: 'x', sign: 1 },
+	{ key: 'offset-right', label: 'designer.dimension.offset-right', reach: 'designer.dimension.reach-right', axis: 'x', sign: -1 },
+	{ key: 'offset-top', label: 'designer.dimension.offset-top', reach: 'designer.dimension.reach-top', axis: 'y', sign: 1 },
+	{ key: 'offset-bottom', label: 'designer.dimension.offset-bottom', reach: 'designer.dimension.reach-bottom', axis: 'y', sign: -1 },
 ];
 
 /**
@@ -248,8 +250,22 @@ function offsetFigures(part: OutlinePart, key: string, box: Corners, outer: Corn
 			to: point(near + drawn),
 			value: reach ? -drawn : drawn,
 			edit: (typed: number) => (shape: AssetShape) => (reach ? reached(shape, spec, typed) : shifted(shape, part, spec, typed)),
+			...(reach ? { label: spec.reach, typed: (typed: number) => reachExtents(box, spec.axis, typed + drawn) } : {}),
 		};
 	}).filter((figure) => !reach || Math.round(figure.value) !== 0);
+}
+
+/**
+ * The clearance's extents a typed reach ASKS for, which `landTyped` checks what landed against — so a
+ * reach the kept bulges cannot land warns exactly as a typed Width does (AD18-R24). `grow` is the typed
+ * reach less the drawn one; the across extent is asked to stay, so a drift there warns too. Read off the
+ * render's box, where `reached` re-measures the shape it is handed: a commit landing in between would
+ * be compared against the render's numbers — the same frame every figure's text is drawn from.
+ */
+function reachExtents(box: Corners, axis: 'x' | 'y', grow: number): TypedSize {
+	const width = box.max.x - box.min.x + (axis === 'x' ? grow : 0);
+	const depth = box.max.y - box.min.y + (axis === 'y' ? grow : 0);
+	return { part: CLEARANCE, width, depth };
 }
 
 /** A detail's typed gap: the part TRANSLATES, keeping its size — see `offsetFigures`. */
@@ -262,6 +278,38 @@ function shifted(shape: AssetShape, part: OutlinePart, spec: OffsetSpec, typed: 
 }
 
 /**
+ * How near its measured extent the clearance's ACROSS axis must be left before a typed reach stops
+ * re-solving it (AD18-R41) — a fiftieth of the half millimetre the labels round over, so the three
+ * untouched sides still read what they read. A straight-sided boundary is there after one stretch.
+ */
+const SETTLED_MM = 0.01;
+/**
+ * Stretch-and-restore rounds at most. Measured over 7,962 typed reaches on random clearances of three
+ * to seven vertices, a random half of their edges bulged, around every preset's footprint, each drawn
+ * side typed 200 further out, 100 further in and 1,500 further out (2026-09-30): the across drift left
+ * after two rounds was up to 6.08 mm, after three 0.15, and from four on within `SETTLED_MM` in every
+ * one. Six is that plus a margin; each round is at most two `solveScale` runs of 24 attempts.
+ */
+const MAX_ROUNDS = 6;
+
+/**
+ * The clearance stretched to `target` along one axis, re-solving the other back to `keep` until it has
+ * settled within `SETTLED_MM` or `MAX_ROUNDS` run out — `reached`'s loop, ending on an along stretch.
+ */
+function settled(shape: AssetShape, along: 'width' | 'depth', target: number, keep: number): Result<AssetShape, ValidationError> {
+	const across = along === 'width' ? 'depth' : 'width';
+	let solved = shape;
+	for (let round = 1; ; round += 1) {
+		const lengthened = resizeToExtent(solved, CLEARANCE, along, target);
+		// The clearance is there when it landed: `resizeToExtent` just resized it.
+		if (!lengthened.ok || round === MAX_ROUNDS || Math.abs((partMeasure(lengthened.value, CLEARANCE) as PartBox)[across] - keep) <= SETTLED_MM) return lengthened;
+		const restored = resizeToExtent(lengthened.value, CLEARANCE, across, keep);
+		if (!restored.ok) return restored;
+		solved = restored.value;
+	}
+}
+
+/**
  * What typing a clearance's REACH writes (AD18-R41): **that edge moves and the opposite one stays**,
  * so the other three sides keep their reach and the clearance's own width or depth takes the change
  * — which for a clearance is the intent, where a detail's gap translates to keep its size.
@@ -269,14 +317,20 @@ function shifted(shape: AssetShape, part: OutlinePart, spec: OffsetSpec, typed: 
  * back edge 200 inside the footprint, an inward side manufactured by the label itself.
  *
  * Resized through `resizeToExtent` — the Inspector's own door, so a curved boundary is solved the
- * same way — along, ACROSS, then along again, `scaleDesignToDimensions`' three passes and for its
- * reason: an arc keeps its bulge, so stretching one axis moves the other's extent with it (by 100 mm
- * on the oval table's clearance and about 1.1 on the round table's, for a reach typed 200 further out,
- * measured with one pass). Then
- * SHIFTED so the fixed edge and the across pair land where they were measured, which a solved box
- * need not do on its own. A straight-sided boundary lands on the first pass and the others change
- * nothing; a curved one lands CLOSE rather than exact, as that function's docblock says of its own.
- * Re-measured off the shape the edit is HANDED, for `offsetFigures`' reason.
+ * same way — along the axis, then, while the ACROSS extent has drifted past `SETTLED_MM`, back across
+ * and along again, for `scaleDesignToDimensions`' reason: an arc keeps its bulge, so stretching one
+ * axis moves the other's extent with it (by 100 mm on the oval table's clearance and about 1.1 on the
+ * round table's, for a reach typed 200 further out, measured with one stretch). It ends on an ALONG
+ * stretch, then is SHIFTED so the fixed edge and the across pair's min edge land exactly where they
+ * were measured, which a solved box need not do on its own.
+ *
+ * **The precision delivered, measured rather than promised** (`MAX_ROUNDS`): a straight-sided
+ * boundary lands every side within `solveScale`'s 1e-6 mm; a curved one leaves the three untouched
+ * sides within `SETTLED_MM` in every edit measured, and the typed side within half a millimetre in all
+ * but 53 of those 7,962 edits. There the kept bulges cannot reach the typed extent, and the typed side
+ * lands at `solveScale`'s nearest instead, and the figure's `typed` extents hand that to `landTyped`,
+ * which warns with the size it landed at — the same answer a typed Width gets, rather than a refusal
+ * sizes do not give either. Re-measured off the shape the edit is HANDED, for `offsetFigures`' reason.
  */
 function reached(shape: AssetShape, spec: OffsetSpec, typed: number): Result<AssetShape, ValidationError> | null {
 	const current = partMeasure(shape, CLEARANCE);
@@ -287,13 +341,9 @@ function reached(shape: AssetShape, spec: OffsetSpec, typed: number): Result<Ass
 	const along = spec.axis === 'x' ? 'width' : 'depth';
 	const across = spec.axis === 'x' ? 'depth' : 'width';
 	const target = current[along] + typed - reach;
-	let solved = shape;
-	for (const [axis, extent] of [[along, target], [across, current[across]], [along, target]] as const) {
-		const next = resizeToExtent(solved, CLEARANCE, axis, extent);
-		if (!next.ok) return next;
-		solved = next.value;
-	}
-	// The clearance is there: `resizeToExtent` just resized it.
+	const stretched = settled(shape, along, target, current[across]);
+	if (!stretched.ok) return stretched;
+	const solved = stretched.value;
 	const got = corners(partMeasure(solved, CLEARANCE) as PartBox);
 	const other = spec.axis === 'x' ? 'y' : 'x';
 	// A left or top reach moves the MIN edge, so the max edge is the one that stays; and the reverse.

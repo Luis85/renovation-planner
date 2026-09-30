@@ -1958,6 +1958,17 @@ when the clearance itself is selected — each side reads its reach outward from
 side with no reach draws no label. Details keep their signed gaps and their `0 mm` labels (AD18-R22 unchanged). Plan:
 [`AD18-ui-critique-round-plan.md`](../reports/AD18-ui-critique-round-plan.md).
 
+### AD18-R41 — a typed clearance reach moves that edge only; an inward side reads signed. (2026-09-30)
+
+Task 5 of the UI critique round stopped with a case AD18-R40 did not cover: the clearance's canvas label edits by moving
+the WHOLE clearance, so typing 800 over the vanity's 600 mm front reach would push its back edge 200 mm inside the
+footprint. **Ruled by the user:** a typed reach moves **only that edge** (the other sides keep their reach; the
+clearance's own width or depth changes, which for a clearance is intended), so the label can never create an inward
+side; a side that reaches INWARD (from tracing or a negative setback) reads as a **signed negative** figure, e.g.
+`-200 mm`. Also found at source: the clearance is stored as a polygon and the Inspector's generator fields start empty
+(C07), so the displayed reach matches the setback that generated it (for a generated rectangle, the negated gap), not a
+read-back field.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

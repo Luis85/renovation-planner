@@ -11,7 +11,7 @@ import type {
 	CatalogueEntryDto,
 	UnreadableEntry,
 } from '../../src/application/queries/ListCatalogueEntries';
-import type { AssetOutline } from '../../src/application/queries/ListAssetOutlines';
+import type { AssetOutline, OutlineDetail } from '../../src/application/queries/ListAssetOutlines';
 import type { AssetDesignDto } from '../../src/application/queries/GetAssetDesign';
 import type { ReferencingGroup } from '../../src/application/queries/ListRequirementsReferencing';
 import type { ObservationToken } from '../../src/application/ports/versioning';
@@ -112,10 +112,12 @@ interface Seed {
 	readonly background?: CatalogueEntryDto['background'];
 }
 
-const measured = (width: number, depth: number, points = box(width, depth)): AssetOutline => ({
+/** `details` as `outlineOf` answers them, so a Grid tile here draws what a real one would (AD18-R39). */
+const measured = (width: number, depth: number, points = box(width, depth), details: readonly OutlineDetail[] = []): AssetOutline => ({
 	kind: 'measured',
 	points,
 	extent: { width, depth },
+	details,
 });
 
 /**
@@ -167,7 +169,7 @@ const SEEDS: readonly Seed[] = [
 		id: 'base-cabinet-600', name: 'Base cabinet, 600', category: 'furniture', unit: 'piece',
 		...money('245.00', 'EUR'), waste: '0', supplier: 'Küchenhaus Adler', sku: 'BC-600',
 		height: 720, notes: 'Traced from the supplier sheet before the sheet was calibrated.',
-		outline: { kind: 'unscaled', points: box(600, 580), extent: { width: 600, depth: 580 } },
+		outline: { kind: 'unscaled', points: box(600, 580), extent: { width: 600, depth: 580 }, details: [] },
 		background: { path: 'Renovation/Library/Sheets/adler-bc-600.png', kind: 'image', page: null },
 	},
 	{
@@ -178,7 +180,7 @@ const SEEDS: readonly Seed[] = [
 	{
 		id: 'worktop-oak-40', name: 'Worktop, oak 40 mm', category: 'furniture', unit: 'm',
 		...money('118.00', 'EUR'), waste: '0.06', supplier: 'Holzhandel Nord', sku: 'WT-40-620',
-		height: 40, notes: null, outline: measured(3000, 620),
+		height: 40, notes: null, outline: measured(3000, 620, box(3000, 620), [{ points: [{ x: 2100, y: 110 }, { x: 2700, y: 110 }, { x: 2700, y: 510 }, { x: 2100, y: 510 }], closed: true, dashed: false }]),
 	},
 	{
 		id: 'radiator-600-1200', name: 'Radiator, panel 600 × 1200', category: 'fixture', unit: 'piece',
@@ -203,7 +205,7 @@ const SEEDS: readonly Seed[] = [
 	{
 		id: 'scaffold-tower', name: 'Scaffold tower, 4 m', category: 'equipment', unit: 'day',
 		...money('64.00', 'EUR'), waste: '0', supplier: 'Mietpark Elbe', sku: 'ST-4000',
-		height: 4000, notes: null, outline: measured(1350, 700),
+		height: 4000, notes: null, outline: measured(1350, 700, box(1350, 700), [{ points: [{ x: 0, y: 0 }, { x: 1350, y: 700 }], closed: false, dashed: true }, { points: [{ x: 1350, y: 0 }, { x: 0, y: 700 }], closed: false, dashed: true }]),
 	},
 	{
 		id: 'floor-sander', name: 'Floor sander, belt', category: 'equipment', unit: 'day',

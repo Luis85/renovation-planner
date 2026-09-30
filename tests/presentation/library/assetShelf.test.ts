@@ -113,7 +113,7 @@ describe('AssetShelf', () => {
 		const tiles = createAssetId();
 		const paint = createAssetId();
 		const outlines = new Map<AssetId, AssetOutline>([
-			[tiles, { kind: 'measured', points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }], extent: { width: 10, depth: 10 } }],
+			[tiles, { kind: 'measured', points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }], extent: { width: 10, depth: 10 }, details: [] }],
 			[paint, { kind: 'none' }],
 		]);
 		const shelf = mount(AssetShelf, {

@@ -33,6 +33,7 @@ const NEW: AssetOutline = {
 		{ x: 1, y: 1 },
 	],
 	extent: { width: 1, depth: 1 },
+	details: [],
 };
 
 const READ_FAILED = { category: 'Persistence', code: 'vault.unexpected-failure', message: 'boom' } as const;

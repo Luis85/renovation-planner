@@ -129,7 +129,7 @@ const drawn = computed((): { readonly footprint: string; readonly details: reado
 	const run = (points: readonly Point[], closed: boolean): string => `M${points.map((point) => place(point)).join(' L')}${closed ? ' Z' : ''}`;
 	return {
 		footprint: run(outline.points, true),
-		details: props.withDetails ? (outline.details ?? []).map((detail) => ({ d: run(detail.points, detail.closed), dashed: detail.dashed })) : [],
+		details: props.withDetails ? outline.details.map((detail) => ({ d: run(detail.points, detail.closed), dashed: detail.dashed })) : [],
 	};
 });
 </script>

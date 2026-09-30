@@ -80,6 +80,7 @@ const MEASURED: AssetOutline = {
 		{ x: 1, y: 1 },
 	],
 	extent: { width: 1, depth: 1 },
+	details: [],
 };
 const NO_SHAPE: AssetOutline = { kind: 'none' };
 

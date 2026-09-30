@@ -134,3 +134,36 @@ describe('the preset dialog', () => {
 		expect(scrolled.mock.calls[0]).toEqual([{ block: 'start' }]);
 	});
 });
+
+/**
+ * The primary action outside `FormSubmitRow`: Set dimensions' submit and a non-destructive confirm
+ * wear `mod-cta` too, and so take the AA fill `styles/dialogs.css` gives `.rp-dialog
+ * .rp-dialog-button.mod-cta` — asked of THAT selector inside the real host, so a button drawn
+ * outside `.rp-dialog` or without `.rp-dialog-button` would not count. A destructive confirm keeps
+ * its danger paint and is not primary.
+ */
+const primary = (): Element | null => document.querySelector('.rp-dialog .rp-dialog-button.mod-cta');
+
+describe('the other dialogs’ primary action', () => {
+	it('is Set dimensions’ submit', async () => {
+		harness = mountDialogHost();
+		void harness.store.openDialog({ kind: 'asset-dimensions', title: 'Set dimensions' });
+		await nextTick();
+
+		expect(primary()).toBe(harness.wrapper.get('.rp-dialog button[type="submit"]').element);
+	});
+
+	it('is a plain confirm’s confirm, and a destructive confirm has none', async () => {
+		harness = mountDialogHost();
+		void harness.store.openDialog({ kind: 'confirm', title: 'T', message: 'M' });
+		await nextTick();
+		expect(primary()).toBe(harness.wrapper.get('[data-rp-action="confirm"]').element);
+		harness.unmount();
+
+		harness = mountDialogHost();
+		void harness.store.openDialog({ kind: 'confirm', title: 'T', message: 'M', danger: true });
+		await nextTick();
+		expect(harness.wrapper.find('.rp-dialog-button-danger').exists()).toBe(true);
+		expect(primary()).toBeNull();
+	});
+});

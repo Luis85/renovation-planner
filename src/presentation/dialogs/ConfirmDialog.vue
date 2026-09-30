@@ -38,7 +38,7 @@ defineEmits<{ resolve: [result: ConfirmDialogResult] }>();
 		<button
 			type="button"
 			class="rp-dialog-button"
-			:class="{ 'rp-dialog-button-danger': descriptor.danger === true }"
+			:class="descriptor.danger === true ? 'rp-dialog-button-danger' : 'mod-cta'"
 			data-rp-action="confirm"
 			@click="$emit('resolve', 'confirm')"
 		>

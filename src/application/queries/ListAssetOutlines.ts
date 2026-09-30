@@ -33,16 +33,16 @@ import type { AssetGeometrySidecar } from '../ports/AssetGeometrySidecar';
  * refuse.
  */
 export type AssetOutline =
-	| { readonly kind: 'measured'; readonly points: readonly Point[]; readonly extent: Dimensions; readonly details?: readonly OutlineDetail[] }
-	| { readonly kind: 'unscaled'; readonly points: readonly Point[]; readonly extent: Dimensions; readonly details?: readonly OutlineDetail[] }
+	| { readonly kind: 'measured'; readonly points: readonly Point[]; readonly extent: Dimensions; readonly details: readonly OutlineDetail[] }
+	| { readonly kind: 'unscaled'; readonly points: readonly Point[]; readonly extent: Dimensions; readonly details: readonly OutlineDetail[] }
 	| { readonly kind: 'none' }
 	| { readonly kind: 'refused'; readonly code: string; readonly sidecarPath: string | undefined };
 
 /**
  * One graphic of the asset's own drawing (AD18-R39), flattened in the footprint's own millimetres so
  * the mark places it with the footprint's fit. A Grid tile and the inspector's Shape preview draw
- * these; the 20px row mark does not (§3.4, "mush at 20px"). `details` is optional on the outline only
- * so a hand-built outline may omit it — every outline `outlineOf` answers carries it, `[]` included.
+ * these; the 20px row mark does not (§3.4, "mush at 20px"). `details` is REQUIRED on the outline, `[]`
+ * for a shape with none, so no hand-built outline (a fixture, the harness) can be kinder than `outlineOf`.
  */
 export interface OutlineDetail {
 	readonly points: readonly Point[];

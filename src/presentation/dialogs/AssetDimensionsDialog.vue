@@ -105,7 +105,7 @@ function onSubmit(): void {
 			</button>
 			<button
 				type="submit"
-				class="rp-dialog-button"
+				class="rp-dialog-button mod-cta"
 				:aria-disabled="values === null"
 			>
 				{{ tr('dialog.form.submit') }}

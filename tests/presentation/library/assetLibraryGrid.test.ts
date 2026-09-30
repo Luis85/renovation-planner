@@ -31,8 +31,8 @@ const TABLE = anEntry({ assetId: createAssetId(), category: 'furniture', name: '
 const VANITY = anEntry({ assetId: createAssetId(), category: 'fixture', name: 'Vanity' });
 
 const OUTLINES = new Map<AssetId, AssetOutline>([
-	[ALDER.assetId, { kind: 'measured', points: [{ x: 0, y: 0 }, { x: 800, y: 0 }, { x: 800, y: 450 }], extent: { width: 800, depth: 450 } }],
-	[BIRCH.assetId, { kind: 'unscaled', points: [{ x: 0, y: 0 }, { x: 60, y: 0 }, { x: 60, y: 45 }], extent: { width: 60, depth: 45 } }],
+	[ALDER.assetId, { kind: 'measured', points: [{ x: 0, y: 0 }, { x: 800, y: 0 }, { x: 800, y: 450 }], extent: { width: 800, depth: 450 }, details: [] }],
+	[BIRCH.assetId, { kind: 'unscaled', points: [{ x: 0, y: 0 }, { x: 60, y: 0 }, { x: 60, y: 45 }], extent: { width: 60, depth: 45 }, details: [] }],
 ]);
 
 const mounted: VueWrapper[] = [];

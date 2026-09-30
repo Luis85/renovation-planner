@@ -68,10 +68,8 @@ describe('AssetMark with details (AD18-R39)', () => {
 		expect(paths(mount(AssetMark, { props: { outline: VANITY } }))).toHaveLength(1);
 	});
 
-	it('draws the footprint alone for a preset with no details, and for an outline built without any', () => {
+	it('draws the footprint alone for a preset with no details', () => {
 		expect(paths(mount(AssetMark, { props: { outline: TABLE, withDetails: true } }))).toHaveLength(1);
-		const bare: AssetOutline = { kind: 'measured', points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }], extent: { width: 10, depth: 10 } };
-		expect(paths(mount(AssetMark, { props: { outline: bare, withDetails: true } }))).toHaveLength(1);
 	});
 
 	it('leaves an open graphic unclosed', () => {

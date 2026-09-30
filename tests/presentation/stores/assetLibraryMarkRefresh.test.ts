@@ -29,6 +29,7 @@ const NEW: AssetOutline = {
 		{ x: 1, y: 1 },
 	],
 	extent: { width: 1, depth: 1 },
+	details: [],
 };
 
 type Outlines = ReadonlyMap<AssetId, AssetOutline>;

@@ -3,8 +3,9 @@ import { computed, useId } from 'vue';
 import { tr } from '../../i18n/strings';
 const props = defineProps<{ sources: readonly string[]; pdf: boolean; paused: boolean; loading: boolean; hasRaster: boolean }>();
 const path = defineModel<string>('path', { required: true });
-const page = defineModel<number>('page', { required: true });
-const rotation = defineModel<number>('rotation', { required: true });
+// `| ''`: a cleared number field hands back the empty string (L-48; L-45's precedent). Every consumer coerces or refuses it.
+const page = defineModel<number | ''>('page', { required: true });
+const rotation = defineModel<number | ''>('rotation', { required: true });
 const crop = defineModel<{ x: number; y: number; width: number; height: number }>('crop', { required: true });
 const emit = defineEmits<{ load: [] }>();
 const sourceList = useId();

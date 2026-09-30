@@ -36,9 +36,9 @@ import { areaOutline } from './areaOutline';
  * (chords simple, arcs crossing) is caught by core's `validateCurvedBoundary` once the bulges
  * are back on — driven at CORE by `simpleOutline.test.ts`'s rectangle whose two opposed
  * semicircles each rise 500 mm into an 800 mm gap, which this predicate accepts and
- * `createCurvedPolygon` refuses under `curve-self-intersection`. What is NOT driven is the
- * route: no case hands a curved outline through `preservePointCurves` into
- * `createCurvedPolygon` in one go. The false-refusal direction is rare and recoverable. This
+ * `createCurvedPolygon` refuses under `curve-self-intersection`. The typed zone-corner door no
+ * longer relies on that: `zoneOutlineAction.ts` asks `preservePointCurves` and `enclosingOutline`
+ * first and this only when no arc survives (L-22), driven by `zoneOutline.e2e.test.ts`. This
  * is not a curve check. Note also that door 4's `SpatialElement`s carry no bulges at all, so
  * for that door the compensating mechanism is vacuous rather than reached.
  */

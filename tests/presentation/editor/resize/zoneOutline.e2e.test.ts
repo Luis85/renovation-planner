@@ -75,6 +75,57 @@ describe('the numeric outline editor over every zone type', () => {
 		r.harness.unmount();
 	});
 
+	/**
+	 * L-22, owner ruling 59: the preview asks what the WRITE asks. The corners' chords stay an
+	 * ordinary rectangle while the two opposed semicircles, each rising 500 mm, meet in an 800 mm
+	 * gap — so a chord-only check previews it and the write then refuses `curve-self-intersection`.
+	 * At 1200 mm the same arcs clear each other, which is what lets the zone be saved at all.
+	 */
+	it('refuses in the preview a typed edit whose curved edges would cross, and dispatches nothing', async () => {
+		const points = [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1200 }, { x: 0, y: 1200 }];
+		const r = await rig(reshaped('Garden', { points, bulges: [-1, 0, -1, 0] }));
+		const runtime = runtimeOf(r.harness), dispatch = vi.spyOn(runtime.dispatcher, 'run');
+		await open(r);
+		await form(r).get('[name="2.y"]').setValue('0.8');
+		await form(r).get('[name="3.y"]').setValue('0.8');
+		expect(runtime.renderState.previewPolygon).toBeNull();
+		await apply(r);
+		expect(dispatch).not.toHaveBeenCalled();
+		expect(formOpen(r)).toBe(true);
+		expect((await read(r)).entity.geometry).toEqual({ points, bulges: [-1, 0, -1, 0] });
+		r.harness.unmount();
+	});
+
+	/**
+	 * The straight-edge rule this door kept: a corner typed across the opposite edge is a proper
+	 * crossing with a real area, so only the chord crossing check refuses it.
+	 */
+	it('refuses in the preview a typed corner that drags a straight outline across its own edge', async () => {
+		const r = await rig(reshaped('Garden'));
+		const runtime = runtimeOf(r.harness), dispatch = vi.spyOn(runtime.dispatcher, 'run');
+		await open(r);
+		await form(r).get('[name="3.x"]').setValue('1');
+		await form(r).get('[name="3.y"]').setValue('1.1');
+		expect(runtime.renderState.previewPolygon).toBeNull();
+		await apply(r);
+		expect(dispatch).not.toHaveBeenCalled();
+		expect((await read(r)).entity.geometry.points).toEqual(ZONE_A_DTO.points);
+		r.harness.unmount();
+	});
+
+	/** The reverse of the crossing-arcs case: collinear corners enclose nothing, and the closing arc a half disc. */
+	it('edits a curved zone whose corners are collinear, which the chords alone would refuse as zero area', async () => {
+		const points = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 200, y: 0 }], bulges = [0, 0, 1];
+		const r = await rig(reshaped('Garden', { points, bulges }));
+		const runtime = runtimeOf(r.harness);
+		await open(r);
+		await form(r).get('[name="1.x"]').setValue('0.15');
+		expect(runtime.renderState.previewPolygon?.[1]).toEqual({ x: 150, y: 0 });
+		await apply(r);
+		expect((await read(r)).entity.geometry).toEqual({ points: [points[0], { x: 150, y: 0 }, points[2]], bulges });
+		r.harness.unmount();
+	});
+
 	it('previews without writing, applies once, and reverses to the exact prior geometry', async () => {
 		const r = await rig(reshaped('Terrace'));
 		const runtime = runtimeOf(r.harness), before = await read(r);

@@ -1,11 +1,24 @@
 import { markRaw } from 'vue';
+import type { Point } from '../../../core/geometry/Point';
 import type { Polygon } from '../../../core/geometry/Polygon';
+import { hasCurves, preservePointCurves } from '../../../core/geometry/CurvedPolygon';
+import { enclosingOutline, type Zone } from '../../../domain/zone/Zone';
+import { outlineCrosses } from '../add/simpleOutline';
 import type { PlanEditorContext } from '../PlanEditorContext';
 import type { EditorRuntime } from '../runtime';
 import { createRoomEditAction, type RoomEditRuntime } from '../roomEditAction';
 import { tr } from '../../i18n/strings';
 import { zoneTypeLabel } from '../shell/zoneTypeLabel';
 import OutlinePointsForm from './OutlinePointsForm.vue';
+
+/** The write's own question of a typed outline: the zone's arcs re-attached, then the Zone rule. */
+function writableOutline(zone: Zone, points: readonly Point[]): boolean {
+	const preserved = preservePointCurves(zone.geometry, { points });
+	const written = preserved.ok ? enclosingOutline(preserved.value) : preserved;
+	// The chord crossing rule only where there are no arcs for it to misjudge — exactly the
+	// straight-edge rule the default `simpleAreaOutline` asked before.
+	return written.ok && (hasCurves(written.value) || !outlineCrosses(points));
+}
 
 /**
  * BP-04 slices A and A2: correcting a measured corner by typing its position, for any Zone,
@@ -31,6 +44,10 @@ import OutlinePointsForm from './OutlinePointsForm.vue';
  * (which this form cannot do) is what that function refuses instead of guessing, driven end to
  * end by `tests/application/commands/curvedGeometry.test.ts`'s `observes curve-only peer
  * changes and refuses ambiguous point-only topology changes without writing`.
+ *
+ * **The preview asks what that write asks** (L-22, owner ruling 59), so its `accepts` is
+ * `writableOutline` above rather than the form's chord-only default: a curved outline whose arcs
+ * cross is refused before Apply, and one whose corners are collinear is no longer falsely refused.
  */
 export function createZoneOutlineAction(context: PlanEditorContext, runtime: RoomEditRuntime & Pick<EditorRuntime, 'renderState'>) {
 	const action = createRoomEditAction(context, runtime, {
@@ -50,6 +67,7 @@ export function createZoneOutlineAction(context: PlanEditorContext, runtime: Roo
 			// purpose-built key in both locales later (controller ruling R-S10-1).
 			kind: 'form', title: tr('editor.element.edit', { name: entity.name }), component: markRaw(OutlinePointsForm), busy,
 			props: { points: entity.geometry.points, hint: 'editor.area.coordinates-hint', busy, blocked, latest, logger: context.commands.logger,
+				accepts: (points: readonly Point[]) => writableOutline(entity, points),
 				// `version` spans BOTH of the zone's files, exactly as `roomResizeAction` states:
 				// a sidecar entry edited out of band after this dialog opened reaches the
 				// conflict arm rather than disk.

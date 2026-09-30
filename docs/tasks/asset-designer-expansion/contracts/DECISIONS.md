@@ -1932,6 +1932,34 @@ designers steps 9 and 10 still ask about a **Save error** badge that step 8, rew
 AD18-R27, says the build never draws. Step 10 cannot be walked as worded until both rows are rewritten to
 the build.
 
+**2026-09-30 — build session opened for AD18-R35; steps 9 and 10 fixed, the five-row retag is BLOCKED,
+not done.** [[Two designers on one asset]] steps 9 and 10 are rewritten under the standing AD18-R27 rule
+to what the build does: step 8's own CONTRARY finding is that leaf B never shows **Save error** at all in
+the held-drag scenario (the drag is dropped; the header settles back to plain **Saved**), so step 9's
+"look for an explanation of the badge" and step 10's "having noticed the badge" both presupposed a state
+that never exists. Both now ask about the absence itself, citing `twoDesigners.e2e.ts`'s own pinning
+citation from step 8. **Found in the same file but out of this task's named rows, and left untouched**:
+step 12 carries the identical false premise ("still carrying Save error from step 8") — recorded here as
+a finding for whoever next owns that row, not fixed under this ruling.
+
+**The five-row retag (Design 89, Design 121, Take 23, Browse 17, Recover 20) was checked against the case
+files and is NOT done — no precedent tag exists for it.** Every existing retag this package has made
+(Design 88b, Design 92; Recover 2; Browse 31, all under AD18-R30 to AD18-R34) uses the `e2e` tier tag, and
+every one of them cites a real, named `npm run test:e2e` case that DISCHARGES or HOST-PINS the clause.
+MANUAL-PASS.md's own counting-command paragraph states that an `e2e` retag falls a step out of the total
+"by construction... rather than by anyone re-reading a table and deciding a row felt done" — which is
+exactly what AD18-R35's ruling is: a decision with **no instrument at all** behind it ("five steps no
+instrument would help"). Across every `docs/tests/cases/*.md` file, the tier column carries exactly six
+values — `browser`, `desktop`, `e2e`, `judgement`, `obsidian`, `suite` (`grep -hoE` over the table rows
+confirms no seventh) — and no legend or prior row uses any of the other five for a step ruled out with
+nothing built to check it. Retagging these five to `e2e` would read as a test discharging them when none
+exists; leaving them on their current tier keeps them in the human count, which contradicts AD18-R35's own
+"retire by ruling." **This is reported as NEEDS_CONTEXT rather than guessed**: the count stays **22**
+(9/1/0/2/4/1/5, counting command re-run verbatim on the tree this note leaves, unchanged) rather than the
+22 → 17 this section's own build expected, and Recover 20's evidence rewrite ("no, a user would not know"
+as a known gap against U05) was not made for the same reason. A tag decision — reuse `e2e` with an
+explicit non-test citation, or name a new tier — is needed before this build can finish.
+
 **Expected walk after the build:** 22 → **17** (7 / 0 / 0 / 2 / 3 / 1 / 4), to be re-derived with the
 counting command, not trusted from this line.
 

@@ -796,6 +796,28 @@ Browse the asset library                      5
 Sum: **22**, unchanged. The "22 by kind" list above still names every human step; none of the six
 was touched by this round's changes, and the round added no seventh.
 
+**The AD18-R35 build session (2026-09-30) also left the count at 22, unchanged — but for a different
+reason from the round above: it is BLOCKED, not finished.** DECISIONS.md's AD18-R35 section expected this
+session to retag five steps out of the walk (Design 89, Design 121, Take 23, Browse 17, Recover 20) and
+move the sum to 17; that retag was not done, because no precedent exists in `docs/tests/cases/*.md` for a
+tier tag meaning "retired by ruling, with no instrument" — every existing retag away from a human tier
+(Design 88b, 92; Recover 2; Browse 31) uses `e2e` and cites a real automated test, and these five have
+none. DECISIONS.md's dated note under AD18-R35 carries the full reasoning. Two designers steps 9 and 10
+WERE corrected this session (AD18-R27's standing rule, not AD18-R35), with no tier change, so they do not
+move the count either. Re-run, verbatim:
+
+```
+Design an Asset                               9
+Take an asset from the library into a plan    1
+Compose an asset from parts                   0
+Calibrate a sheet and reserve space           2
+Recover an asset design rather than lose it   4
+Two designers on one asset                    1
+Browse the asset library                      5
+```
+
+Sum: **22**, unchanged.
+
 ## What a driven Obsidian already walks — read this before walking anything
 
 **W23-A and W24-A (2026-09-25) automated every step above that a driven Obsidian can settle**

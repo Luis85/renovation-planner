@@ -1,7 +1,18 @@
 import { describe, expect } from 'vitest';
 import { test } from './fixture';
 import { writeEvidence } from './diagnostics';
-import { EDITOR, PLANTED_INCIDENT, expectPaused, openPlan, plantIncidents, reloadPlugin, seedSampleProject, type Ui } from './planner';
+import {
+	EDITOR,
+	PLANTED_INCIDENT,
+	QUANTITY,
+	expectPaused,
+	openPlan,
+	plantIncidents,
+	reloadPlugin,
+	requirements,
+	seedKitchenRequirement,
+	selectRoom,
+} from './planner';
 import { PLUGIN_ID, mobileEmulation, type NativeBrowser } from './session';
 
 /**
@@ -19,71 +30,10 @@ const desktop = mobileEmulation ? test.skip : test;
 const PLAN_EDITOR = 'renovation-plan-editor';
 
 /**
- * The note the assign picker offers. Written as a note rather than through the Asset library's
- * create form, because the asset is this case's fixture and not its subject: the index finds a
- * note by what its frontmatter declares, wherever it sits.
- */
-const ASSET_ID = 'asset-01K0000000000000000000000Z';
-const ASSET_NOTE = [
-	'---',
-	'type: renovation-asset',
-	'schema-version: 1',
-	`id: ${ASSET_ID}`,
-	'revision: 0',
-	'name: Floor tile',
-	'category: material',
-	'supplier: null',
-	'sku: null',
-	'unit-cost: "25"',
-	'currency: EUR',
-	'unit: m2',
-	'waste-factor-default: null',
-	'notes: null',
-	'---',
-	'',
-].join('\n');
-
-/**
  * How long a write that no pane is left to make is waited for. The unrefused case below measured
  * about 80 ms from the field's `focusout` to the end of its `vault.process`; this is 25 times that.
  */
 const NO_WRITE_WINDOW_MS = 2_000;
-
-const QUANTITY = '[data-field="quantity"]';
-const requirements = async (ui: Ui) => Object.values(await ui.notesOfType('renovation-requirement'));
-
-/** The sample project, one asset, and one requirement on the Kitchen whose quantity field is drawn. */
-async function seedKitchenRequirement(browser: NativeBrowser, ui: Ui): Promise<void> {
-	await browser.executeObsidian(async ({ app }, text) => {
-		await app.vault.create('Floor tile.md', text);
-	}, ASSET_NOTE);
-	await seedSampleProject(browser, ui);
-	await selectKitchen(browser);
-	const pane = browser.$(EDITOR);
-	await expect.poll(() => pane.$(`#rp-assign-asset option[value="${ASSET_ID}"]`).isExisting()).toBe(true);
-	await pane.$('#rp-assign-asset').selectByAttribute('value', ASSET_ID);
-	await pane.$('.rp-editor-requirement-assign button').click();
-	await expect.poll(async () => (await requirements(ui)).length).toBe(1);
-	await expect.poll(() => browser.$(QUANTITY).isDisplayed()).toBe(true);
-}
-
-/** Through the Floor inspector's room list, opening the Details panel first when the pane is narrow. */
-async function selectKitchen(browser: NativeBrowser): Promise<void> {
-	const pane = browser.$(EDITOR);
-	const rail = pane.$('[data-rp-rail="details"]');
-	if (await rail.isDisplayed()) await rail.click();
-	// The room list is drawn twice from the same records (useSpatialRecords.ts): once in the
-	// Layers panel's Rooms section (PropertyLayerPanel.vue) and once in the Floor inspector's
-	// own list (FloorInspector.vue via FloorSpatialLists.vue). At the full-width layout
-	// (ResponsiveEditorShell.vue) both panels are visible at once, so an unscoped query finds
-	// two "Kitchen" rows there. Scope to the inspector region (`data-rp-region="inspector"`,
-	// EntityInspector.vue): its row is the one whose click opens `.rp-room-inspector` below,
-	// and it carries exactly one Kitchen row at any width.
-	const rows = await pane.$('[data-rp-region="inspector"]').$$('.rp-room-list__row*=Kitchen');
-	expect(rows).toHaveLength(1);
-	await rows[0].click();
-	await expect.poll(() => pane.$('.rp-room-inspector').isExisting()).toBe(true);
-}
 
 interface TeardownWindow {
 	__rpOrder?: string[];
@@ -240,7 +190,7 @@ describe('Q3 under an open write incident (f5a7f219e)', () => {
 		await reloadPlugin(page);
 		await openPlan(browser, ui, 'Ground floor');
 		await expectPaused(browser.$(EDITOR));
-		await selectKitchen(browser);
+		await selectRoom(browser, 'Kitchen');
 		// The paused row offers no write: its field refuses keystrokes, so no edit can be pending.
 		expect(await browser.$(QUANTITY).getAttribute('readonly')).toBe('true');
 		const [before] = await requirements(ui);

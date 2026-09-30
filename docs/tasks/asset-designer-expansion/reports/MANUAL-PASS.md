@@ -768,6 +768,34 @@ it, now with a GUARD citation where this round built one.
   than an assertion; **Design 89**, whose real-Mac ⌘ clause needs a leg this project has no way to
   run, unchanged by AD18-R31's own decision not to build one.
 
+**The UI critique round (AD18-R39 to AD18-R42, 2026-09-29/30) moved the count from 22 to 22 — the
+counting command was re-run against the tree this round left, not trusted from the last number
+printed.** That round retired no step and added none: it fixed a text-contrast bug, a canvas
+drawing bug, a dialog layout and two locale bugs, and answered one ruling the clearance-reach work
+surfaced (AD18-R41) — none of the seven tasks touched a case row's PASS CONDITION in a way that
+opens a new human judgement or closes an old one down to zero clauses. Every behaviour it changed
+is now pinned by a named vitest or `npm run test:e2e` case (`AD18-walk-automation-evidence.md`'s own
+"UI critique round" section carries the mutation for each), so the new rows this round added to
+[[Browse the asset library]], [[Design an Asset]] and [[Compose an asset from parts]] (citing
+`assetMarkDetails.test.ts`/`assetLibraryTileDetails.e2e.ts`, `clearanceReach.test.ts`/
+`clearanceReachLanding.test.ts`, `dialogFooter.e2e.ts`, and `selectionSetMarks.test.ts`/
+`designerMultiSelectionMarks.test.ts`/`assetDesignerMultiSelection.e2e.ts`) are `e2e`/`suite` tier,
+outside what the counting command matches, exactly as every earlier automated row in those three
+cases already is. Re-run, verbatim:
+
+```
+Design an Asset                               9
+Take an asset from the library into a plan    1
+Compose an asset from parts                   0
+Calibrate a sheet and reserve space           2
+Recover an asset design rather than lose it   4
+Two designers on one asset                    1
+Browse the asset library                      5
+```
+
+Sum: **22**, unchanged. The "22 by kind" list above still names every human step; none of the six
+was touched by this round's changes, and the round added no seventh.
+
 ## What a driven Obsidian already walks — read this before walking anything
 
 **W23-A and W24-A (2026-09-25) automated every step above that a driven Obsidian can settle**

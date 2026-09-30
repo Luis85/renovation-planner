@@ -14,6 +14,15 @@ interface HotkeyHost {
 	hotkeyManager: { getHotkeys(id: string): { modifiers: string[]; key: string }[] | undefined; getDefaultHotkeys(id: string): { modifiers: string[]; key: string }[] | undefined };
 }
 
+/**
+ * One spelling of a host binding for `hotkeysOf` and `boundTo`: modifiers sorted, `Ctrl` read as
+ * `Mod` off macOS (where the two are one key), the key upper case. An `executeObsidian` callback is
+ * serialised to the page and cannot close over this, so both pass its source text and rebuild it there with `new Function`.
+ */
+const spellKey = (modifiers: string[], key: string, mac: boolean): string =>
+	[...modifiers.map((modifier) => (modifier === 'Ctrl' && !mac ? 'Mod' : modifier)).toSorted(), key.toUpperCase()].join('+');
+const SPELL_KEY = spellKey.toString();
+
 /** What `thumbnailColours` reads: computed colour strings, before any arithmetic. */
 export interface DrawnColours { stroke: string; opacity: number; backgrounds: string[] }
 
@@ -174,11 +183,13 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 
 	/** Whatever Obsidian itself has bound to a command, as `Mod+G`-style strings. */
 	const hotkeysOf = (command: string) =>
-		browser.executeObsidian(({ app }, id) => {
+		browser.executeObsidian(({ app }, id, source) => {
 			const manager = (app as unknown as HotkeyHost).hotkeyManager;
+			const mac = document.body.classList.contains('mod-macos');
 			const keys = manager.getHotkeys(id) ?? manager.getDefaultHotkeys(id) ?? [];
-			return keys.map((key) => [...key.modifiers, key.key].join('+'));
-		}, command);
+			const spell = new Function(`return (${source})`)() as typeof spellKey;
+			return keys.map((key) => spell(key.modifiers, key.key, mac));
+		}, command, SPELL_KEY);
 
 	/**
 	 * Take a command's hotkey away in THIS copied vault, as a user would in Settings ▸ Hotkeys, so a
@@ -281,11 +292,11 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 	 * an Electron application-menu accelerator, which lives outside `app.hotkeyManager`.
 	 */
 	const boundTo = (combos: string[]) =>
-		browser.executeObsidian(({ app }, wanted) => {
+		browser.executeObsidian(({ app }, wanted, source) => {
 			const host = app as unknown as HotkeyHost;
 			const mac = document.body.classList.contains('mod-macos');
-			const spell = (modifiers: string[], key: string) =>
-				[...modifiers.map((modifier) => (modifier === 'Ctrl' && !mac ? 'Mod' : modifier)).toSorted(), key.toUpperCase()].join('+');
+			const speller = new Function(`return (${source})`)() as typeof spellKey;
+			const spell = (modifiers: string[], key: string) => speller(modifiers, key, mac);
 			const targets = wanted.map((combo) => {
 				const parts = combo.split('+');
 				return spell(parts.slice(0, -1), parts.at(-1) ?? '');
@@ -294,7 +305,7 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 				const keys = host.hotkeyManager.getHotkeys(id) ?? host.hotkeyManager.getDefaultHotkeys(id) ?? [];
 				return keys.some((key) => targets.includes(spell(key.modifiers, key.key)));
 			});
-		}, combos);
+		}, combos, SPELL_KEY);
 
 	/**
 	 * Wrap the host's two command doors so every command that actually RAN (answered truthy) is

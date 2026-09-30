@@ -19,8 +19,9 @@ overlooked.**
 
 ## What the pass consists of
 
-**This pass now means the human steps only — 22 across seven cases, today. It was 26 immediately
-after AD18-R26 to AD18-R29, and 241 before that round.** AD18-R26 to AD18-R29 (2026-09-26) audited
+**This pass now means the human steps only — 17 across seven cases, today. It was 22 immediately
+after AD18-R30 to AD18-R34, 26 immediately after AD18-R26 to AD18-R29, and 241 before that
+round.** AD18-R26 to AD18-R29 (2026-09-26) audited
 every clause of every one of the 241 steps
 against the *Automated in Obsidian* tables, built what a vitest or a real host could still close,
 and retagged a step to a new `e2e` tier the moment none of its clauses is left open — needing
@@ -30,7 +31,11 @@ watched red under a mutation**: a clause this round built or closed was; a claus
 a pre-existing test was audited by reading the test body, and only sampled by mutation — 29 clauses
 were mutated and 7 of those 29 did not go red, all seven since corrected. The counting command below
 has only ever matched `obsidian`, `desktop` and `judgement`, so an `e2e` step falls out of the total
-by construction rather than by anyone re-reading a table and deciding a row felt done. See
+by construction rather than by anyone re-reading a table and deciding a row felt done. **A fourth tier,
+`ruled`, joined the vocabulary at AD18-R35 (2026-09-30) for a step retired by a user ruling rather than
+by an instrument** — "retired from the human walk by a user ruling; no instrument; re-open trigger
+stated in the row" — and it falls out of the same count the same way `e2e` does, by the regex simply
+not naming it, not by a special case for it. See
 "AD18-R26 to AD18-R29" further down for the per-case accounting and the new test files, and
 "AD18-R30 to AD18-R34" beyond it for the second audit round that closed four more steps; the
 paragraphs between here and there are the history of how the count grew to 241 and are unchanged by
@@ -42,11 +47,14 @@ geometry, a warning for a typed size that lands away from what was typed, and on
 disclosure-chevron rule), was itself measured rather than remembered, with the command run verbatim
 as it is printed — **do not trust either number; run the command.** The full series: it has been
 84, then 90, then 109, then 145, then 179, then 182, then 205, then 206, then 215, then 232, then
-241, then 26, and now **22** — every earlier move up to 241 was a session that had just shipped a
-feature and grown the walk to match it (or, three times, corrected a wrong count); the move to 26
-was the first move the other way, because that round shipped no feature at all, only an audit and a
-retag; the move to 22 is the second move the other way, for the same reason — a second clause audit
-(AD18-R30 to AD18-R34) that built proxies, one reworded clause and one CSS fix, not a feature:
+241, then 26, then 22, and now **17** — every earlier move up to 241 was a session that had just
+shipped a feature and grown the walk to match it (or, three times, corrected a wrong count); the
+move to 26 was the first move the other way, because that round shipped no feature at all, only an
+audit and a retag; the move to 22 was the second move the other way, for the same reason — a second
+clause audit (AD18-R30 to AD18-R34) that built proxies, one reworded clause and one CSS fix, not a
+feature; the move to 17 is the third move the other way, and the first that is a pure RULING rather
+than an audit or a build — AD18-R35 retags five steps no instrument would ever close, each with a
+re-open trigger recorded in its own row, under the new `ruled` tier:
 
 ```bash
 for f in "Design an Asset" "Take an asset from the library into a plan" \
@@ -65,8 +73,9 @@ case here guards against for the other six.
 
 **The table below is the 2026-09-25 snapshot this pass carried before this round's retag** —
 111/19/23/27/33/8/20, summing to 241 — kept as the record of how the walk grew to that number.
-"AD18-R30 to AD18-R34", further down, has the current per-case numbers (9/1/0/2/4/1/5, summing to
-22) and is where a reader wants the count from today.
+"AD18-R35 to AD18-R38", further down, has the current per-case numbers (7/0/0/2/3/1/4, summing to
+17) and is where a reader wants the count from today; "AD18-R30 to AD18-R34" above it in the file
+carries the previous count (22) as its own round's record.
 
 | Case | Human steps (2026-09-25) | Of total | Discharges |
 |---|---|---|---|
@@ -796,27 +805,61 @@ Browse the asset library                      5
 Sum: **22**, unchanged. The "22 by kind" list above still names every human step; none of the six
 was touched by this round's changes, and the round added no seventh.
 
-**The AD18-R35 build session (2026-09-30) also left the count at 22, unchanged — but for a different
-reason from the round above: it is BLOCKED, not finished.** DECISIONS.md's AD18-R35 section expected this
-session to retag five steps out of the walk (Design 89, Design 121, Take 23, Browse 17, Recover 20) and
-move the sum to 17; that retag was not done, because no precedent exists in `docs/tests/cases/*.md` for a
-tier tag meaning "retired by ruling, with no instrument" — every existing retag away from a human tier
-(Design 88b, 92; Recover 2; Browse 31) uses `e2e` and cites a real automated test, and these five have
-none. DECISIONS.md's dated note under AD18-R35 carries the full reasoning. Two designers steps 9 and 10
-WERE corrected this session (AD18-R27's standing rule, not AD18-R35), with no tier change, so they do not
-move the count either. Re-run, verbatim:
+### AD18-R35 to AD18-R38 — five steps retired by ruling, no instrument, a fourth tier (2026-09-30)
+
+**The build session moved the count from 22 to 17**, the third move the other way and the first
+that is a pure ruling rather than an audit or a build. A first pass through this session reported
+the retag NEEDS_CONTEXT — no tier tag in `docs/tests/cases/*.md` meant "retired by ruling, with no
+instrument" (every existing retag away from a human tier — Design 88b, 92; Recover 2; Browse 31 —
+uses `e2e` and cites a real automated test, and these five research levers had found none for).
+**The controller then introduced a fourth tier, `ruled`**: "retired from the human walk by a user
+ruling; no instrument; re-open trigger stated in the row" — joining `browser`/`desktop`/`e2e`/
+`judgement`/`obsidian`/`suite` in the tier vocabulary (see "What the pass consists of" above). The
+counting command's regex only ever matched `obsidian`, `desktop` and `judgement`, so `ruled` falls
+out of the total the same way `e2e` already does — checked, not assumed: `grep -hE` over every
+case file's tier column confirms the six-then-seven-value vocabulary before and after.
+
+- **[[Design an Asset]] moved from 9 to 7.** Steps 89 and 121 retag `ruled`, each citing AD18-R35 and
+  its own re-open trigger verbatim in the row's evidence: 89 re-opens "with a macOS leg or a macOS
+  walker"; 121 re-opens "if either key's claiming rule changes". **Kept human (7):** 7, 56, 57, 70,
+  103, 104, 109.
+- **[[Take an asset from the library into a plan]] moved from 1 to 0.** Step 23 retags `ruled`,
+  re-opening "if either string changes" (the "Edit shape"/"Open in designer" pair).
+- **[[Compose an asset from parts]] stays at 0.** No row named by AD18-R35.
+- **[[Calibrate a sheet and reserve space]] stays at 2.** No row named by AD18-R35.
+- **[[Recover an asset design rather than lose it]] moved from 4 to 3.** Step 20 retags `ruled`; its
+  pass condition is rewritten from an open prose prompt to the recorded answer itself — "no, a user
+  would not know", a known gap against U05's recovery-instructions clause, **not a pass** — re-opening
+  "on any new cue near the header or the Reference tab, or if `unrecoveredWrite` is drawn in the
+  designer". **Kept human (3):** 6, 8, 34.
+- **[[Two designers on one asset]] stays at 1**, but two other rows in the same file were corrected
+  under the STANDING AD18-R27 rule (found false by this round's research, not a new ruling): steps 9
+  and 10 had asked about a **Save error** badge that step 8's own CONTRARY finding (AD18-R27) says
+  the build never draws in the held-drag scenario — both rewritten to record the absence itself,
+  citing `twoDesigners.e2e.ts`'s existing pinning citation. Step 12 carried the identical false
+  premise ("still carrying Save error from step 8") and is corrected the same way, marked `none —
+  unreachable from this case's own steps` in its Automated-in-Obsidian clause row since no badge
+  survives step 8 to test persistence of; the underlying invariant it named stays asserted by
+  `setAssetFootprint.test.ts`, `withSaveStateTracking.test.ts` and `saveStateStore.test.ts` on their
+  own fixtures. None of the three changes a tier tag, so the case's human count is unchanged.
+- **[[Browse the asset library]] moved from 5 to 4.** Step 17 retags `ruled`, re-opening "if the
+  control or the rail width changes" (the single-line Notes `<input>`).
+
+**Counting command, run against the tree this round left** (verbatim, from "What the pass consists
+of" above):
 
 ```
-Design an Asset                               9
-Take an asset from the library into a plan    1
+Design an Asset                               7
+Take an asset from the library into a plan    0
 Compose an asset from parts                   0
 Calibrate a sheet and reserve space           2
-Recover an asset design rather than lose it   4
+Recover an asset design rather than lose it   3
 Two designers on one asset                    1
-Browse the asset library                      5
+Browse the asset library                      4
 ```
 
-Sum: **22**, unchanged.
+Sum: **17.** Matches DECISIONS.md's expectation (22 → 17, 7/0/0/2/3/1/4) exactly; the command was
+re-run rather than trusted from that line.
 
 ## What a driven Obsidian already walks — read this before walking anything
 

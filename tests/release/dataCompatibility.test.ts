@@ -37,13 +37,21 @@ import { createRepositoryStack } from '../helpers/vault';
  * lowest Writes value, and the runner's latest version for the highest "by content" one. What a
  * "by content" row writes BETWEEN those bounds is each feature's own test's business
  * (`roomlessPlanVersions`, `zoneLockPersistence`, `elementVersions`, `itemColorWrittenSchema`, …).
+ *
+ * This is the first test under `tests/` that reads `docs/` rather than `src/` — CLAUDE.md's own
+ * caution, that a test depending on a path someone reorganises while writing notes turns a
+ * documentation tidy-up into a build failure, is the trade made here on purpose: the table is
+ * the thing under test. `sectionRows` throws by the heading's name the moment it is gone rather
+ * than leaving all 28 cases red with nothing pointing at why.
  */
 const PAGE = 'docs/using-planning-recovery.md';
+const HEADING = '## Existing vaults';
 type Row = Readonly<Record<string, string>>;
 
 function sectionRows(): Row[] {
 	const text = readFileSync(PAGE, 'utf8').replaceAll('\r\n', '\n');
-	const start = text.indexOf('\n## Existing vaults\n');
+	const start = text.indexOf(`\n${HEADING}\n`);
+	if (start === -1) throw new Error(`${PAGE} has no "${HEADING}" section — this test holds that table`);
 	const end = text.indexOf('\n## ', start + 1);
 	const rows: Row[] = [];
 	let header: string[] | null = null;

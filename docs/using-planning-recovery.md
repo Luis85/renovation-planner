@@ -150,27 +150,34 @@ the tables below say what this build does with each one. A number is a schema ve
 
 - **Opening is not a rewrite.** An older version is upgraded in memory when it is read, and
   nothing is written back because a note or sidecar was opened (`legacyReadBytes.test.ts`
-  compares every byte of a legacy vault before and after reading it).
+  compares every byte of a legacy vault before and after reading a Project, Plan, Room, Asset
+  and both sidecars).
 - **A save stamps the lowest version the content needs**, where the Writes cell says "by
   content". A Plan that uses nothing newer is still written at 1, so an older build can go on
   reading it, and a Plan that uses something newer is written at a version an older build
   refuses rather than one it would read and then silently drop part of.
 - **A version newer than this build is refused**, with the code in the table, and nothing is
-  written. The check is on the read. A delete reads first, so it refuses too. A save does not
-  check again: what keeps a refused note from being overwritten is that commands load a note
-  before they save it, and no test checks that for every command. `errorPaths.test.ts` pins
-  both the refusing delete and a save that skipped the load and overwrote.
+  written. The check is on the read. An Asset, Asset price or Requirement delete reads the
+  note first and refuses too (`errorPaths.test.ts` pins the Asset case). A Plan or Room delete
+  is protected the way a save is: its command loads the note first. A save does not check
+  again: what keeps a refused note from being overwritten is that commands load a note before
+  they save it, and no test checks that for every command. `errorPaths.test.ts` pins both the
+  refusing delete and a save that skipped the load and overwrote.
 - **A note with no `schema-version` is refused** (`migration.chain-gap`), because no version
   starts below 1.
 - **A save keeps what the plugin does not own.** An update changes the plugin's own
-  frontmatter keys through Obsidian and leaves the note's body, and keys the plugin does not
-  own, as they were.
+  frontmatter keys through Obsidian and leaves the note's body, and the values of frontmatter
+  keys the plugin does not own, as they were.
+- **Open a vault with a build at least as new as the newest one that has written to it.** An
+  older build refuses notes it cannot read, but a settings change made in it drops settings a
+  newer build added.
 
-`tests/release/dataCompatibility.test.ts` reads these tables and holds their rows, the Reads,
-Writes and "Newer than this build" cells, and the settings Fields against the plugin's own
-migration table, mappers and stores, so changing one of those versions in the code without
-editing this page fails that test. The Code column, the Where column and the prose are not
-checked by it.
+`tests/release/dataCompatibility.test.ts` holds the first table's set of rows and its Reads,
+Writes and "Newer than this build" cells, the Reads and Writes of the three rows in the second
+table, and the Settings Fields, against the plugin's migration table, mappers and stores. A
+version changed in the code without an edit here fails it. It does not check the Record,
+Version field, Where or Code columns, the second table's "Another version" column or which
+rows it has, the rest of the third table, or the prose.
 
 ### Notes and sidecars in the vault
 
@@ -199,8 +206,8 @@ rather than a migration one, so it reads as damaged data rather than as "this bu
 
 | Record | Key | Where | Reads | Writes | Another version |
 | --- | --- | --- | --- | --- | --- |
-| Delete recovery markers | `sequence-markers` | `sequence-markers.json` in the plugin folder | 1 | always 1 | kept as written and reported as unreadable; a new marker for the same item is refused (`sequence.marker-write-blocked`) |
-| Write incidents | `write-incidents` | `write-incidents.json` in the plugin folder | 1 | always 1 | kept as written and counted as an open incident this build cannot read |
+| Delete recovery markers | `sequence-markers` | `sequence-markers.json` in the plugin folder | 1 | always 1 | kept as written and reported as unreadable (per entry; the file's own version is not checked and is written as 1); a new marker for the same item is refused (`sequence.marker-write-blocked`) |
+| Write incidents | `write-incidents` | `write-incidents.json` in the plugin folder | 1 | always 1 | kept as written and counted as an open incident this build cannot read (per entry; the file's own version is not checked and is written as 1) |
 | Continue context | `continue-context` | this device's local storage, not the vault | 1 | always 1 | ignored, so there is no Continue row; the next visit replaces it |
 
 ### Stored without a version
@@ -211,6 +218,7 @@ rather than a migration one, so it reads as damaged data rather than as "this bu
 | Grid and snapping choices, panel widths | this device's local storage | — | A value of the wrong type, or a width out of range, reads as the default. |
 | Review and Shopping notes | beside the plan note | — | Generated. If someone edited one, regenerating it is refused rather than overwriting the edit. |
 | Evidence files | where they were added | — | Ordinary vault files. Unlinking removes the link, not the file. |
+| Open tabs | Obsidian's workspace layout | `planId`, `origin`, `unrecoveredWrite` (Plan editor); `projectId` (Renovation project); `assetId` (Asset designer); `assetId`, `expanded` (Asset library) | Which project, plan or asset a tab shows, and whether a plan tab saw an unrecovered write. |
 
 Browser and automated evidence is recorded in the
 [Increment E report](user-experience/renovation-planner-editor-specs/implementation/planning-recovery-evidence.md).

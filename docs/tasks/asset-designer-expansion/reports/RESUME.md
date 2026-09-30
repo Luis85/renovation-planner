@@ -12,7 +12,7 @@ user.**
 | | |
 |---|---|
 | HEAD | **A hand-off cannot name its own sha reliably.** Confirm it: `gh run list --branch renovation-planner-asset-designer-bc5539 --limit 6 --json databaseId,workflowName,headSha,status,conclusion`. This file's own parent commit is `80923a50b` (Task 7's own MANUAL-PASS re-derivation); nothing has been pushed past it and no CI run covers it. Re-check before trusting anything recorded here. |
-| Last fully green (CI **and** E2E) | `e8e64709d` (run `36625020490`/`36625020796`, 2026-09-29) — **this predates the whole UI critique round** (`git merge-base --is-ancestor e8e64709d 2c55b9c9d` confirms it is an ancestor of the round's own base). Every commit inside the round that HAS run shows CI green and **E2E red** on an unrelated, pre-existing flake (see "Open: the empty-catalogue notice flake" below), most recently `649eb4489` (run `36744859592` CI success / `36744859635` E2E failure, 2026-09-30). |
+| Last fully green (CI **and** E2E) | `e8e64709d` (run `36625020490`/`36625020796`, 2026-09-29) — **this predates the whole UI critique round** (`git merge-base --is-ancestor e8e64709d 2c55b9c9d` confirms it is an ancestor of the round's own base). Every commit inside the round that HAS run shows CI green and **E2E red** on a pre-existing test-helper defect, since root-caused and fixed in `9388df519` (see "Root-caused and fixed: the empty-catalogue notice red" below), most recently `649eb4489` (run `36744859592` CI success / `36744859635` E2E failure, 2026-09-30). |
 | `origin/main` | Last merged at `61fbf1588` (PR #238). `git merge-base HEAD origin/main` prints the same sha as `origin/main`'s own tip — the branch is up to date — and **553** commits ahead of it (`git rev-list --count origin/main..HEAD`, 2026-09-30). Fetch and re-check before assuming that still holds; ask the user before merging. |
 
 ## What Task 7 of the UI critique round did (this file's own author)
@@ -236,19 +236,28 @@ at the end:
   scroll-with-pinned-Cancel behaviour** on a genuinely long form — predicted from the CSS, not
   watched.
 
-## Open: the empty-catalogue notice flake — under separate investigation
-
-**Reserved for the controller. Another agent is investigating this concurrently; do not overwrite
-its findings, and do not draw conclusions from this paragraph until it reports back.**
+## Root-caused and fixed: the empty-catalogue notice red (`9388df519`)
 
 `tests/e2e/assetDesignerBasics.e2e.ts`'s *"prefixes the empty-catalogue notice with Information and
-clears it after about six seconds"* has failed on the 1.13.7 desktop shard across several recent
-commits on this branch, including `649eb4489` inside this round (`AssertionError: expected [ '' ] to
-include 'This vault has no assets yet.'`), while passing on other legs and other runs of the same
-commit. `.superpowers/sdd/notice-investigation-report.md` (gitignored) carries that agent's evidence
-so far — refuted hypotheses ("a stale notice from an earlier case", "a different notice", "the text
-had not rendered yet"), and the case's own DOM captures showing the notice mid-enter-animation. This
-paragraph is intentionally left without a conclusion.
+clears it after about six seconds"* failed three times on the 1.13.7 desktop shard 1/2 leg — E2E runs
+`36340603832`, `36630319061` (on the docs-only `f51ab1002`) and `36744859635` (on `649eb4489`) — with
+`AssertionError: expected [ '' ] to include 'This vault has no assets yet.'`. **It was a test-helper
+defect, not a product one, and not a flake to re-run past.** `designer.notices()` (`tests/e2e/designer.ts`)
+read each toast with WebDriver's `getText`, which returns VISIBLE text only. Obsidian builds a notice at
+`translateX(350px)` and slides it in over about 100 ms inside `.notice-container`, which clips
+(`overflow: hidden`), so a read inside the slide answered `''` — while `isDisplayed` still said `true`, so
+waiting on it would not have helped. The helper now reads the message element's `textContent` in one
+`browser.execute`. Reproduced byte-for-byte locally by holding Obsidian's own slide-in open with an
+`!important` stylesheet (scratch case, deleted); green after; all 11 e2e files that call `notices()` pass
+in real Obsidian (69 passed, 2 skipped). Refuted along the way: a notice left over from an earlier case
+(this case runs first in a freshly launched Obsidian, and the failing `page.html` holds exactly one notice,
+ours, with the right text), and a shard split differing between legs (identical). **The fix also closes a
+false pass:** `assetDesignerFollowupsLanding.e2e.ts`'s `not.toContain(REFUSED)` could pass on a refusal
+read mid-slide as `''`. **Still unexplained:** why only the 1.13.7 leg failed — both legs run app 1.13.7;
+three failures landing on one named leg is roughly a 1-in-8 chance. **Possibly the same cause, not
+examined:** the `noticesCleared` comment in `designer.ts` about one click sometimes leaving a notice
+standing on the 1.13.7 Linux leg. Full evidence: `.superpowers/sdd/notice-investigation-report.md`
+(gitignored).
 
 ## Rows this pass cannot reach, and who can
 
@@ -292,8 +301,9 @@ Carried forward, still true:
 - **A known E2E flake:** `assetHandoffMore.e2e.ts` timed out once in setup on the 1.13.7 desktop
   shard 2/2, on a docs-only commit, and passed on re-run. Re-run once; twice in a row is a defect to
   investigate.
-- **A second, currently-active E2E flake:** `assetDesignerBasics.e2e.ts`'s empty-catalogue notice
-  case — see "Open: the empty-catalogue notice flake" above; under separate investigation.
+- **Not a flake after all:** `assetDesignerBasics.e2e.ts`'s empty-catalogue notice red was a helper
+  reading visible text mid-slide — fixed in `9388df519`, see "Root-caused and fixed" above. The lesson:
+  "re-run once; twice in a row is a defect" held — it was a defect.
 
 **New this round, reported by the user rather than found by any agent**: on this machine, the
 `obsidian://` protocol handler is registered to the `npm run test:e2e` harness's CACHED Obsidian
@@ -329,5 +339,6 @@ Carried forward from session twenty-one, still open:
   labelled "docblocks" but also carries a one-line behaviourless refactor (T5-M3); Task I1 touched
   two files its brief had not named (`tests/e2e/assetHandoffMore.e2e.ts`,
   `src/application/queries/ListPlansUsingAsset.ts`) because the plural-split forced it to.
-- **The empty-catalogue notice flake** — see its own dedicated section above, reserved for the
-  controller.
+- **The empty-catalogue notice red** — root-caused and fixed (`9388df519`); why only the 1.13.7 leg
+  failed is unexplained, and `noticesCleared`'s "one click sometimes left the notice standing" may share
+  the slide-in cause — not examined.

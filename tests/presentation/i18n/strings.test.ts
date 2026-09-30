@@ -483,10 +483,14 @@ describe('interpolation', () => {
 	 * `view.asset-library.assets`, `.search.results`, `.some-unreadable` and `.used-in.project`
 	 * — net +4, not a spec amendment (the spec's own wording is unchanged; only which KEY a
 	 * caller reaches for a given count moved).
+	 *
+	 * 117 → 119: ruling AD18-R42 (amending AD18-R7) split the two remaining "(s)" counts,
+	 * `view.asset-library.used-in-plans.plan` and `.unreadable`, into `.one`/`.other` the same way —
+	 * net +2, and again not a spec amendment: only which key a caller reaches for moved.
 	 */
-	it('pins the Asset library inventory at 117 keys in both locales', () => {
-		expect(assetLibraryKeys(en)).toHaveLength(117);
-		expect(assetLibraryKeys(de)).toHaveLength(117);
+	it('pins the Asset library inventory at 119 keys in both locales', () => {
+		expect(assetLibraryKeys(en)).toHaveLength(119);
+		expect(assetLibraryKeys(de)).toHaveLength(119);
 	});
 });
 

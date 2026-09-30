@@ -19,13 +19,11 @@
  * project, and this one names the PLANS whose geometry places it. An asset can be placed with no
  * requirement and required with nothing placed, so one key family cannot serve both.
  *
- * **The `(s)` plural is a deliberate holdover here**, kept by ruling **AD18-R7** rather than
- * widened to the house `.one`/`.other` split — `view.asset-library.used-in.project` carried the
- * identical shorthand and was the precedent this copied it FROM, until Task 6 of the AD18 UI
- * critique round gave that key its own `.one`/`.other` pair; the two below are unaffected and
- * nothing here touches them. There is no plural MECHANISM in `t` either way — `.one`/`.other`
- * are two keys chosen at the caller, never an engine added to `t` — so widening these two
- * remains a choice for whoever revisits AD18-R7, not a gap this file leaves unfixed by omission.
+ * **The two counts below are `.one`/`.other` pairs, by ruling AD18-R42**, which amends AD18-R7.
+ * AD18-R7 had kept the `(s)` shorthand on both, copied from `view.asset-library.used-in.project`;
+ * once Task 6 of the AD18 UI critique round split that key, the inspector read "1 requirement"
+ * beside "1 placement(s)", so these two were split the same way. There is still no plural
+ * MECHANISM in `t` — `.one`/`.other` are two keys chosen at the caller, never an engine.
  *
  * **`used-in-plans.plan` names the PROJECT as well, inside this one key rather than beside it.**
  * A plan name is not unique across a vault — the catalogue is vault-level, so one definition is
@@ -45,13 +43,15 @@ export const assetDuplicateEn = {
 	'view.asset-library.used-in-plans.loading': 'Loading which plans place this…',
 	'view.asset-library.used-in-plans.failed': 'The plans that place this asset could not be read, so the scope below is unknown.',
 	'view.asset-library.used-in-plans.none': 'No plan places this asset',
-	'view.asset-library.used-in-plans.plan': '{name} ({project}) — {count} placement(s)',
+	'view.asset-library.used-in-plans.plan.one': '{name} ({project}) — 1 placement',
+	'view.asset-library.used-in-plans.plan.other': '{name} ({project}) — {count} placements',
 	// The count is said out loud rather than drawn as a caveat marker, because a scope that is
 	// silently incomplete is worse than one that says so: this section exists to tell a user what
 	// an edit will touch, and a note it could not read is a plan it cannot promise about. "Note"
 	// and not "plan", because the query counts three kinds — a project note, a plan note and a
 	// plan's geometry sidecar — and naming only plans would be narrower than the number is.
-	'view.asset-library.used-in-plans.unreadable': '{count} note(s) could not be read, so this list may be incomplete',
+	'view.asset-library.used-in-plans.unreadable.one': '1 note could not be read, so this list may be incomplete',
+	'view.asset-library.used-in-plans.unreadable.other': '{count} notes could not be read, so this list may be incomplete',
 	'view.asset-library.duplicate': 'Duplicate',
 	'view.asset-library.duplicate.title': 'Duplicate as new asset',
 	// C11's own sentence, said where the gesture is: a duplicate is for intentional divergence, so

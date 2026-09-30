@@ -112,6 +112,7 @@ import { ASSET_DESIGNER_CONTEXT } from '../AssetDesignerContext';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { createTicketedSection } from '../../library/ticketedSection';
+import { planUsageLabel } from '../../library/usedInPlansLabels';
 import DesignerUsagePlans from './DesignerUsagePlans.vue';
 
 const context = inject(ASSET_DESIGNER_CONTEXT);
@@ -139,16 +140,7 @@ const failureLabel = computed(() =>
 /** Named so no template reads `section.value.value`, which is a ref's value holding a field. */
 const unreadable = computed(() => section.value.value.unreadable);
 
-const rows = computed(() =>
-	section.value.value.plans.map((plan) => ({
-		planId: plan.planId,
-		label: tr('view.asset-library.used-in-plans.plan', {
-			name: plan.planName,
-			project: plan.projectName,
-			count: String(plan.placements),
-		}),
-	})),
-);
+const rows = computed(() => section.value.value.plans.map((plan) => ({ planId: plan.planId, label: planUsageLabel(plan) })));
 </script>
 
 <template>

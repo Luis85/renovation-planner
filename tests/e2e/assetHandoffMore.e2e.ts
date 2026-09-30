@@ -142,7 +142,7 @@ describe('Take an asset from the library into a plan, the rows the first pass le
 		// Step 10: the copy, and every placement exactly where and what it was.
 		const rows = () => library().$$('.rp-al-used__row[data-plan-id]').map((row) => row.getText()).then((texts) => texts.toSorted());
 		await library().$('[data-action="duplicate-open"]').click();
-		await expect.poll(rows).toEqual(['First floor (Flat) — 1 placement(s)', 'Ground floor (Flat) — 2 placement(s)']);
+		await expect.poll(rows).toEqual(['First floor (Flat) — 1 placement', 'Ground floor (Flat) — 2 placements']);
 		await library().$('//form[.//h4[normalize-space(.) = "Duplicate as new asset"]]//button[@type="submit"]').click();
 		await expect.poll(async () => Object.keys(await ui.notesOfType('renovation-asset'))).toHaveLength(2);
 		await browser.pause(1500);
@@ -164,8 +164,8 @@ describe('Take an asset from the library into a plan, the rows the first pass le
 		await browser.pause(1500);
 		await ui.activate(LIBRARY);
 		await library().$('[data-action="duplicate-open"]').click();
-		await expect.poll(rows).toEqual(['Ground floor (Flat) — 2 placement(s)']);
-		expect(await library().$('[data-usage-incomplete="true"]').getText()).toBe('1 note(s) could not be read, so this list may be incomplete');
+		await expect.poll(rows).toEqual(['Ground floor (Flat) — 2 placements']);
+		expect(await library().$('[data-usage-incomplete="true"]').getText()).toBe('1 note could not be read, so this list may be incomplete');
 	});
 
 	// Step 6: Duplicate pressed on the first frame the page offers it, right after the plugin
@@ -205,7 +205,7 @@ describe('Take an asset from the library into a plan, the rows the first pass le
 			assetId,
 		);
 		expect(seen.pressed).toBe(true);
-		expect(seen.texts.at(-1)).toBe('Used in plansGround floor (Flat) — 1 placement(s)');
+		expect(seen.texts.at(-1)).toBe('Used in plansGround floor (Flat) — 1 placement');
 		// Neither the confident empty (the defect) nor the unknown arm (unreachable here) was ever drawn.
 		expect(seen.texts.filter((text) => text.includes('No plan places') || text.includes('could not be read'))).toEqual([]);
 	});

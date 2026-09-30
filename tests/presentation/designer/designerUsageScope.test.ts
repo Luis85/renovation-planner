@@ -34,6 +34,8 @@ import { assetDesign } from '../../helpers/assetDesign';
 import { emptyBackgroundVault } from '../../helpers/background';
 import { installObsidianDom } from '../../helpers/dom';
 import { recorder } from '../../helpers/logger';
+// The fake's own knob, not `obsidian`'s: the real API has no such member.
+import { setLanguage } from '../../helpers/obsidian-mock';
 
 installObsidianDom();
 
@@ -140,9 +142,11 @@ describe('the designer’s usage scope', () => {
 		await flushPromises();
 
 		expect(wrapper.find('.rp-designer-usage-title').text()).toBe(t('en', 'view.asset-library.used-in-plans'));
+		// Literal, at 2 and 1: the `.one`/`.other` choice is this caller's (AD18-R42), and a round
+		// trip through `t` would agree with whichever key it chose.
 		expect(wrapper.findAll('.rp-designer-usage-plans li').map((row) => row.text())).toEqual([
-			t('en', 'view.asset-library.used-in-plans.plan', { name: 'Kitchen', project: 'Flat refit', count: '2' }),
-			t('en', 'view.asset-library.used-in-plans.plan', { name: 'Utility', project: 'Flat refit', count: '1' }),
+			'Kitchen (Flat refit) — 2 placements',
+			'Utility (Flat refit) — 1 placement',
 		]);
 	});
 
@@ -165,8 +169,8 @@ describe('the designer’s usage scope', () => {
 
 		const rows = wrapper.findAll('.rp-designer-usage-plans li').map((row) => row.text());
 		expect(rows).toEqual([
-			'Kitchen (Flat refit) — 2 placement(s)',
-			'Kitchen (Annexe conversion) — 2 placement(s)',
+			'Kitchen (Flat refit) — 2 placements',
+			'Kitchen (Annexe conversion) — 2 placements',
 		]);
 		expect(new Set(rows).size).toBe(rows.length);
 	});
@@ -196,8 +200,37 @@ describe('the designer’s usage scope', () => {
 
 		expect(wrapper.findAll('.rp-designer-usage-plans li')).toHaveLength(2);
 		expect(wrapper.find('[data-usage-incomplete="true"]').text()).toBe(
-			t('en', 'view.asset-library.used-in-plans.unreadable', { count: '3' }),
+			'3 notes could not be read, so this list may be incomplete',
 		);
+	});
+
+	/** AD18-R42: one unreadable note is named in the singular, chosen here rather than by `t`. */
+	it('says a single unreadable note in the singular', async () => {
+		const wrapper = inspector(context({ scope: ok(twoPlans(1)) }));
+		await flushPromises();
+
+		expect(wrapper.find('[data-usage-incomplete="true"]').text()).toBe(
+			'1 note could not be read, so this list may be incomplete',
+		);
+	});
+
+	/** The German pairs through this caller, at 1 and 2 (AD18-R42). */
+	it('says both counts in German in the singular and the plural', async () => {
+		setLanguage('de');
+		try {
+			const plans = (unreadable: number): AssetPlanUsage => ({ ...twoPlans(unreadable), plans: twoPlans().plans.map((plan) => ({ ...plan, planName: 'Küche', projectName: 'Wohnung' })) });
+			const one = inspector(context({ scope: ok(plans(1)) }));
+			await flushPromises();
+			expect(one.findAll('.rp-designer-usage-plans li').map((row) => row.text())).toEqual(['Küche (Wohnung) — 2 Platzierungen', 'Küche (Wohnung) — 1 Platzierung']);
+			expect(one.find('[data-usage-incomplete="true"]').text()).toBe('1 Notiz konnte nicht gelesen werden, daher ist diese Liste möglicherweise unvollständig');
+
+			const two = inspector(context({ scope: ok(plans(2)) }));
+			await flushPromises();
+			expect(two.find('[data-usage-incomplete="true"]').text()).toBe('2 Notizen konnten nicht gelesen werden, daher ist diese Liste möglicherweise unvollständig');
+		} finally {
+			// A module-level `let` in the mock, so the suite that moves it owes the reset.
+			setLanguage('en');
+		}
 	});
 
 	/** In flight: a line saying so, and no scope drawn over a read that has not answered. */

@@ -24,12 +24,13 @@
  * rule exists to refuse — and `AssetUsageScope.vue` declines the same thing for the same reason.
  */
 import { tr } from '../../i18n/strings';
+import { unreadableNotesLabel } from '../../library/usedInPlansLabels';
 
 defineProps<{
 	/**
 	 * One row per plan, already labelled by the parent — which is deliberate rather than
 	 * incidental. The label interpolates a plan name, its PROJECT's name and a placement count
-	 * into one `view.asset-library.used-in-plans.plan` string, and that key is the library's;
+	 * into one `view.asset-library.used-in-plans.plan.*` string, and that key is the library's;
 	 * building it here would put a second caller on a string whose wording the parent's header
 	 * argues about at length.
 	 *
@@ -80,6 +81,6 @@ defineProps<{
 		class="rp-designer-usage-note"
 		data-usage-incomplete="true"
 	>
-		{{ tr('view.asset-library.used-in-plans.unreadable', { count: String(unreadable) }) }}
+		{{ unreadableNotesLabel(unreadable) }}
 	</p>
 </template>

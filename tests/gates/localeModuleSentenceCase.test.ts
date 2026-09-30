@@ -118,8 +118,9 @@ describe('every English locale module carries the sentence-case rule', () => {
 	});
 
 	/**
-	 * The `ignoreRegex` option Task 6 (AD18 UI critique round) added for the three `.one`
-	 * strings that lead with a bare numeral count ('1 asset') rather than a placeholder:
+	 * The `ignoreRegex` option Task 6 (AD18 UI critique round) added for the `.one` strings
+	 * (three then; four since AD18-R42 split the used-in-plans unreadable sentence) that lead
+	 * with a bare numeral count ('1 asset') rather than a placeholder:
 	 * `\p{Emoji}` strips an ASCII digit before the leading-content check runs, so the rule
 	 * otherwise demands the following word capitalise as if it opened the sentence. Pinned the
 	 * same way the unit-symbol entry above is: the severity case stays green with this option
@@ -138,7 +139,7 @@ describe('every English locale module carries the sentence-case rule', () => {
 
 		expect(options?.[1]).toMatchObject({
 			ignoreRegex: expect.arrayContaining([
-				'^(?:1 asset|1 matching asset|1 asset note could not be read\\. Open the diagnostics report to see which note refused\\.)$',
+				'^(?:1 asset|1 matching asset|1 asset note could not be read\\. Open the diagnostics report to see which note refused\\.|1 note could not be read, so this list may be incomplete)$',
 			]),
 		});
 	});
@@ -146,7 +147,7 @@ describe('every English locale module carries the sentence-case rule', () => {
 	/**
 	 * The NEGATIVE case the anchoring above exists for: a value that also opens with "digit,
 	 * space, lowercase word" — the exact shape `\p{Emoji}` mishandles — but is NOT one of the
-	 * three vetted `.one` strings, and whose SECOND sentence starts lowercase and must still be
+	 * four vetted `.one` strings, and whose SECOND sentence starts lowercase and must still be
 	 * reported. Driven through `evaluateSentenceCase` itself — the exact function
 	 * `createSentenceCaseReporter` calls per string — fed the REAL resolved `ignoreRegex`
 	 * option, rather than re-deriving what the rule would do: this is the mechanism, not a
@@ -159,7 +160,7 @@ describe('every English locale module carries the sentence-case rule', () => {
 	 * (`^\d+ [a-z]`, no `$`): that pattern matched this fixture's opening too, so
 	 * `shouldIgnoreByRegex` returned `true` and `evaluateSentenceCase` answered `{ ok: true }`
 	 * for the whole string, second sentence included — this case failed until the pattern was
-	 * anchored to the three exact strings above.
+	 * anchored to the exact strings above (three at the time).
 	 */
 	it('does not let a later sentence in a similarly-shaped string escape the rule', async () => {
 		const config = await resolveConfig(path.join(REPO, `${LOCALES_DIR}/en-assetLibrary.ts`));

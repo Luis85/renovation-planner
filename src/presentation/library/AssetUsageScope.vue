@@ -65,6 +65,7 @@ import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import { useAssetLibraryContext } from './AssetLibraryContext';
 import { createTicketedSection } from './ticketedSection';
+import { planUsageLabel, unreadableNotesLabel } from './usedInPlansLabels';
 
 const props = defineProps<{ assetId: AssetId }>();
 
@@ -96,16 +97,7 @@ const failureLabel = computed(() =>
 /** Named so no template reads `section.value.value`, which is a ref's value holding a field. */
 const unreadable = computed(() => section.value.value.unreadable);
 
-const rows = computed(() =>
-	section.value.value.plans.map((plan) => ({
-		planId: plan.planId,
-		label: tr('view.asset-library.used-in-plans.plan', {
-			name: plan.planName,
-			project: plan.projectName,
-			count: String(plan.placements),
-		}),
-	})),
-);
+const rows = computed(() => section.value.value.plans.map((plan) => ({ planId: plan.planId, label: planUsageLabel(plan) })));
 </script>
 
 <template>
@@ -152,7 +144,7 @@ const rows = computed(() =>
 				class="rp-al-note"
 				data-usage-incomplete="true"
 			>
-				{{ tr('view.asset-library.used-in-plans.unreadable', { count: String(unreadable) }) }}
+				{{ unreadableNotesLabel(unreadable) }}
 			</p>
 		</template>
 	</section>

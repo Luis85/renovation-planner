@@ -26,6 +26,8 @@ import { makeAsset } from '../../helpers/entities';
 import { mountInspector } from '../../helpers/assetInspectorHarness';
 import { installObsidianDom } from '../../helpers/dom';
 import { settle } from '../../helpers/async';
+// The fake's own knob, not `obsidian`'s: the real API has no such member.
+import { setLanguage } from '../../helpers/obsidian-mock';
 
 installObsidianDom();
 
@@ -44,6 +46,10 @@ function usage(overrides: Partial<AssetPlanUsage> = {}): AssetPlanUsage {
 		...overrides,
 	};
 }
+
+/** One plan placing the asset `placements` times, for the `.one`/`.other` cases (AD18-R42). */
+const aPlan = (placements: number, planName = 'Kitchen', projectName = 'Flat refit') =>
+	({ planId: createPlanId(), planName, projectId: createProjectId(), projectName, placements });
 
 /** Exactly the doors the bundle declares, so a mock cannot be kinder than the command it stands for. */
 type DuplicateDoor = (input: DuplicateAssetInput) => Promise<Result<Asset, AppError>>;
@@ -112,7 +118,7 @@ describe('the duplicate panel', () => {
 		const open = await opened();
 
 		expect(open.inspector.panel.text()).toContain('Used in plans');
-		expect(open.inspector.panel.get('[data-plan-id]').text()).toBe('Kitchen (Flat refit) — 2 placement(s)');
+		expect(open.inspector.panel.get('[data-plan-id]').text()).toBe('Kitchen (Flat refit) — 2 placements');
 		expect(open.duplicate).not.toHaveBeenCalled();
 	});
 
@@ -139,8 +145,8 @@ describe('the duplicate panel', () => {
 
 		const rows = open.inspector.panel.findAll('[data-plan-id]').map((row) => row.text());
 		expect(rows).toEqual([
-			'Kitchen (Flat refit) — 2 placement(s)',
-			'Kitchen (Annexe conversion) — 2 placement(s)',
+			'Kitchen (Flat refit) — 2 placements',
+			'Kitchen (Annexe conversion) — 2 placements',
 		]);
 		expect(new Set(rows).size).toBe(rows.length);
 	});
@@ -150,7 +156,37 @@ describe('the duplicate panel', () => {
 		// the blast radius of the change it was consulted about.
 		const open = await opened({ scope: usage({ unreadable: 3 }) });
 
-		expect(open.inspector.panel.get('[data-usage-incomplete]').text()).toContain('3 note(s) could not be read');
+		expect(open.inspector.panel.get('[data-usage-incomplete]').text()).toContain('3 notes could not be read');
+	});
+
+	/**
+	 * AD18-R42's `.one`/`.other` split, chosen at THIS caller: both counts read "(s)" until then,
+	 * beside a requirement count that already had its singular. Literal text, at 1 and 2, because
+	 * the choice is the caller's and a round trip through `t` would agree with either key.
+	 */
+	it('names one placement and one unreadable note in the singular, and two in the plural', async () => {
+		const one = await opened({ scope: usage({ plans: [aPlan(1)], unreadable: 1 }) });
+		expect(one.inspector.panel.get('[data-plan-id]').text()).toBe('Kitchen (Flat refit) — 1 placement');
+		expect(one.inspector.panel.get('[data-usage-incomplete]').text()).toBe('1 note could not be read, so this list may be incomplete');
+
+		const two = await opened({ scope: usage({ plans: [aPlan(2)], unreadable: 2 }) });
+		expect(two.inspector.panel.get('[data-plan-id]').text()).toBe('Kitchen (Flat refit) — 2 placements');
+		expect(two.inspector.panel.get('[data-usage-incomplete]').text()).toBe('2 notes could not be read, so this list may be incomplete');
+	});
+
+	it('says both counts in German in the singular and the plural', async () => {
+		setLanguage('de');
+		try {
+			const one = await opened({ scope: usage({ plans: [aPlan(1, 'Küche', 'Wohnung'), aPlan(2, 'Küche', 'Wohnung')], unreadable: 1 }) });
+			expect(one.inspector.panel.findAll('[data-plan-id]').map((row) => row.text())).toEqual(['Küche (Wohnung) — 1 Platzierung', 'Küche (Wohnung) — 2 Platzierungen']);
+			expect(one.inspector.panel.get('[data-usage-incomplete]').text()).toBe('1 Notiz konnte nicht gelesen werden, daher ist diese Liste möglicherweise unvollständig');
+
+			const two = await opened({ scope: usage({ unreadable: 2 }) });
+			expect(two.inspector.panel.get('[data-usage-incomplete]').text()).toBe('2 Notizen konnten nicht gelesen werden, daher ist diese Liste möglicherweise unvollständig');
+		} finally {
+			// A module-level `let` in the mock, so the suite that moves it owes the reset.
+			setLanguage('en');
+		}
 	});
 
 	it('draws the refusal rather than an empty scope when the usage read refuses', async () => {

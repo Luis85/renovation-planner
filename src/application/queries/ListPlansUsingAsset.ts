@@ -135,7 +135,7 @@ function placementCount(document: PlanGeometryDocument, assetId: AssetId): numbe
  * **Which sidecar refusals become `unreadable`: every one, conflated.** `collect` counts a
  * refusing `geometry.read` whatever it refused with — `plan-geometry.missing` for a sidecar file
  * that is gone, `plan-geometry.path-unresolved` for a plan the index holds no mapping for, and a
- * parse or I/O failure alike — into the one number, and the locale string says *note(s) could not
+ * parse or I/O failure alike — into the one number, and the locale string says *notes could not
  * be read* rather than naming a cause. Said out loud because the ASSET sidecar does the opposite
  * and a reader who knows that one would expect this: an absent `.rpgeo` reads there as an empty
  * document, while `PlanGeometryStore` refuses — a plan's sidecar is created with the plan

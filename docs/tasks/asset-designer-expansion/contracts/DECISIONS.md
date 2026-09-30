@@ -1969,6 +1969,15 @@ side; a side that reaches INWARD (from tracing or a negative setback) reads as a
 (C07), so the displayed reach matches the setback that generated it (for a generated rectangle, the negated gap), not a
 read-back field.
 
+### AD18-R42 — AD18-R7 is amended: usage counts get singular forms too. (2026-09-30)
+
+AD18-R7 kept the `(s)` shorthand on every usage count, because fixing one key alone "would convert a consistent
+convention into an inconsistent one". The UI critique round's plural task split `view.asset-library.used-in.project`
+into `.one`/`.other` (the house pattern: a separate key chosen at the caller), which left the inspector showing
+"1 requirement" beside `{count} placement(s)` and `{count} note(s) could not be read`. **Ruled by the user:** amend
+AD18-R7 — split `view.asset-library.used-in-plans.plan` and `.unreadable` the same way, English and German, chosen at the
+caller, so the convention is consistent again.
+
 ## C01 — Boundaries and source of truth
 
 Keep the current Asset aggregate, catalogue scope and per-asset geometry sidecar. The library manages reusable definitions; the designer authors one definition; the plan places instances. Graphic groups are not assemblies, purchases, requirements, rooms or work packages. No Plan/Renovate mode is introduced in the designer.

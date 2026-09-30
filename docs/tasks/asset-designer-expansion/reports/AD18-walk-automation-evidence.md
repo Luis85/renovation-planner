@@ -342,3 +342,168 @@ their counts stand; no case step is retagged by it.
 | Step | Clause | Test | Mutation | Outcome |
 | --- | --- | --- | --- | --- |
 | — (design spec §5.4, amended 2026-09-29; no case step) | a drawn row keeps its mark while it is re-read, never drawing *not yet read* in between | `assetLibraryMarkRefresh.e2e.ts` · *keeps a drawn row's mark while it is re-read, never drawing "not yet read" in between* | `viewportMarks.ts` · `invalidate` deletes every id's mark (the old forget-first), drawn or not | **RED** — every class the mark took was `{measured, pending, unscaled}` against `{measured, unscaled}`. The four vitest cases in `assetLibraryMarkRefresh.test.ts` reddened on the same mutation, each on the held mark's own assertion; no neighbour in `tests/presentation/stores` or `tests/presentation/library` did. |
+
+---
+
+## UI critique round (AD18-R39 to AD18-R42)
+
+**What this is.** The same compact, per-task, per-clause mutation table as the two rounds above,
+for the UI critique round's seven tasks and its one whole-round fix wave — compiled from
+`.superpowers/sdd/uic-task-{1..6}-report.md` and `.superpowers/sdd/uic-fixwave-report.md`
+(gitignored, per this file's own header note). None of this round's clauses is a manual-pass case
+step, so the *Step* column reads `—` throughout; *Clause* names the bug or behaviour the mutation
+targets instead. Base `2c55b9c9d`. Every mutation was made under
+`.superpowers/sdd/mutation.lock`/`e2e.lock`, run once, and restored, per each task's own report.
+
+### Task 1 — stale notice and asset-price text contrast (WCAG 1.4.3)
+
+Commit `452afd2a5`. File: `tests/e2e/designerRecoveryLegibility.e2e.ts` (new).
+
+| Step | Clause | Test | Mutation | Outcome |
+| --- | --- | --- | --- | --- |
+| — | `.rp-designer-notice` text reads at 4.5:1 or more against its background, both themes | *draws the stale notice's text at 4.5:1 or more against its background, in both themes* | `styles/designer-notice.css` · `color: var(--text-normal)` → `var(--text-warning)` | **RED** — light 2.7326:1 (matches the rule's own prior "~2.73:1" comment). Restored: light 14.72:1, dark 10.55:1. |
+| — | `.rp-asset-price-orphan`/`.rp-asset-price-unreadable` text reads at 4.5:1 or more, both themes | *draws `--text-warning` at 4.5:1 or more against the price row's real, inherited background, in both themes* | `styles/asset-prices.css` · same `color` revert | **RED** — light 2.9531:1 for both classes (measured failing before the fix, not assumed). Restored: light 15.91:1, dark 12.19:1. The notice case stayed GREEN in this run, proving the mutation was isolated to its own clause. |
+
+### Task 2 — a multi-selection draws every member, with one frame round the bounds
+
+Commit `c70f031da`. Files: `src/presentation/designer/layers/selectionLayer.ts`,
+`src/presentation/designer/DesignerCanvas.vue`. Tests: `selectionSetMarks.test.ts` (pure, new, 54
+cases), `designerMultiSelectionMarks.test.ts` (mounted rig, new, 13 cases),
+`assetDesignerMultiSelection.e2e.ts` (real host, new, 1 case).
+
+| Step | Clause | Test | Mutation | Outcome |
+| --- | --- | --- | --- | --- |
+| — | the canvas draws every member, not only the last selected | `designerMultiSelectionMarks.test.ts` | `DesignerCanvas.vue` · draws `selected.value.slice(-1)` only | **RED** (rig) — `expected { outlines: 1, bounds: +0, handles: 8 } to deeply equal { outlines: 2, bounds: 1, handles: 8 }`, 12 of 13 cases. |
+| — | same clause, real host | `assetDesignerMultiSelection.e2e.ts` | same mutation | **RED** (e2e) — `AssertionError: expected 1 to be 2` (restroke-count poll). |
+| — | `selectionSetMarks` restrokes every non-primary member | `selectionSetMarks.test.ts` | `members.slice(-1)` in both internal loops | **RED** — 23 of 54 failed. |
+| — | the primary is never restroked a second time | same | `sameSelection` exclusion dropped | **RED** — 29 of 54 failed. |
+| — | the frame draws only with 2+ members still on the shape | same | frame condition `boxes.length < 1` | **RED** — 19 of 54 failed. |
+| — | a Parts-hidden member is drawn by neither the restroke nor the frame | `designerMultiSelectionMarks.test.ts` | `DesignerCanvas.vue` · per-member `drawnSelection` skipped | **RED** — 2 of 13 failed: `expected { outlines: 2, bounds: 1, handles: 8 } to deeply equal { outlines: 1, bounds: +0, handles: 8 }`. |
+| — | the frame spans the union of every drawn member's box, not the primary's alone | `assetDesignerMultiSelection.e2e.ts` | frame built from `boxes.slice(-1)` (primary only) | **RED** (e2e) — `AssertionError: the frame spans both parts: expected false to be true`. |
+
+### Task 3 — library tiles and the inspector preview draw the asset's details (AD18-R39)
+
+Commits `e9914dcb0` (implementation + unit tests), `298e733de` (real-host e2e + spec amendment),
+`f91019d6b` (two claims narrowed, no `src/` change). Files: `src/application/queries/ListAssetOutlines.ts`,
+`src/presentation/library/AssetMark.vue`, `AssetTile.vue`, `AssetInspectorShape.vue`,
+`styles/asset-mark.css`. Tests: `listAssetOutlinesDetails.test.ts` (new, 3 cases),
+`assetMarkDetails.test.ts` (new, 9 cases), `assetLibraryTileDetails.e2e.ts` (new, real host).
+
+| Step | Clause | Test | Mutation | Outcome |
+| --- | --- | --- | --- | --- |
+| — | the batch's details are read, not dropped | `listAssetOutlinesDetails.test.ts`/`assetMarkDetails.test.ts` | `details` sliced to `[]` | **RED** — 8 cases, e.g. `expected [] to deeply equal [[true,true],…]`. |
+| — | a detail's `dashed` flag survives the batch and the mark | same | forced `dashed: false` | **RED** — batch array and the mark's class list both wrong. |
+| — | a detail's `closed` flag survives | same | forced `closed: true` | **RED** — batch `[true,true,true]` vs `[…,false]`; mark `[true×4]`. |
+| — | detail coordinates stay in the footprint's own mm, not re-scaled | same | detail coordinates divided by 1000 | **RED** — `[-0.38,0.38,…]` vs `[-380,…]`; mark box `[9.99,10.01,10,10]`. |
+| — | `withDetails` actually gates drawing | `assetMarkDetails.test.ts` | `props.withDetails ?` forced `true ?` | **RED** — the two row cases (no prop) drew length 4, not 1. |
+| — | details are placed by the FOOTPRINT's own fit, not their own bounds | same | detail placement used its own min corner | **RED** — `[2,17.2,5.5,14.1]` vs `[2.4,17.6,5.5,14.1]`. |
+| — | an open graphic's detail gets no closing `Z` | same | `Z` always appended | **RED** — open-graphic case, `[true×4]`. |
+| — | the dashed class is applied per detail | same | dashed class forced `false` | **RED** — class list mismatch. |
+| — | an `unscaled` outline's details still draw | same | unscaled arm not drawn | **RED** — `expected [] to have a length of 3`. |
+| — | `AssetTile.vue` passes `with-details` | same | tile mounted without `with-details` | **RED** — tile path length 1, not 4. |
+| — | the `none` state draws no mark | same | `v-if="true"` forced (none draws a mark) | **RED** — `expected true to be false`. |
+| — | `AssetInspectorShape.vue` passes `with-details` | same | inspector mounted without `with-details` | **RED** — `[false]` vs `[false,true,true,true]`. |
+| — | tile path counts (real host) | `assetLibraryTileDetails.e2e.ts` | tile mounted without details | **RED** — `expected [1,1,1] to deeply equal [4,1,3]`. |
+| — | a detail's stroke is thinner than the footprint's | same | detail stroke forced to `1.5px` (the footprint's own weight) | **RED** — `thinner than the footprint: expected 1.5 to be less than 1.5`. |
+| — | a detail inherits the footprint's own colour | same | detail `color: var(--text-faint)` | **RED** — `expected 'rgb(102, 102, 102)' to be 'rgb(179, 179, 179)'`. |
+| — | the row mark (20px, no prop) draws the footprint only | same | row forced to draw details | **RED** — `the 20px row mark, footprint only: expected 4 to be 1`. |
+| — | the inspector preview draws the details | same | inspector mounted without details | **RED** — `expected 1 to be 4`. |
+| — | only the carcass detail is dashed | same | dashed class dropped from the carcass | **RED** — `[false,false,false]` vs `[true,false,false]`. |
+| — | a detail sits inside the footprint's own client rect | same | details shifted +400mm | **RED** — `detail 0: right: expected 336.46 to be less than or equal to 313.14`. |
+| — | a detail's contrast equals the footprint's | same | detail `stroke-opacity: 0.5` | **RED** — `light: a detail's contrast: expected 2.23 to be close to 6.69`. |
+
+### Task 4 — one dialog footer, Cancel then a primary Save/Submit
+
+Commit `202f172d9`, fix round `97382122b`. Files: `src/presentation/dialogs/formFooter.ts` (new),
+`FormDialog.vue`, `FormSubmitRow.vue`, `src/presentation/designer/presets/AssetPresetForm.vue`,
+`styles/dialogs.css`, `styles/designer-presets.css`. Tests: `formFooter.test.ts` (new, 7 cases),
+`tests/e2e/dialogFooter.e2e.ts` (new, 3 cases across both commits).
+
+| Step | Clause | Test | Mutation | Outcome |
+| --- | --- | --- | --- | --- |
+| — | claiming the footer suppresses FormDialog's own Cancel row | `formFooter.test.ts` | `footer?.claim()` dropped | **RED** — button count 2, not 1, in both the one-row and preset cases. |
+| — | the row draws Cancel then Save, in that order | same | Cancel before Save reordered | **RED** — `expected [ 'submit', 'cancel', 'submit' ] to deeply equal [ 'cancel', 'submit' ]`. |
+| — | the submit carries `mod-cta` | same | class dropped | **RED** — `expected [ 'rp-dialog-button' ] to include 'mod-cta'`. |
+| — | the submit stays a real `type="submit"` inside the form | same | `type="button"` | **RED** — order array and `button[type="submit"]` lookup both failed. |
+| — | the submit is not detached from its form by a `form=` attribute | same | `form="elsewhere"` added | **RED** — `expected null to be <form …>`; submit spy called 0 times. |
+| — | FormDialog's own Cancel row is truly gone once claimed | same | that row's `v-if` forced `false → true`-equivalent drop | **RED** — a non-claiming (KnownDistance) case lost its expected Cancel row. |
+| — | Cancel is `aria-disabled`, not `disabled`, while busy (focus reachability) | same | `aria-disabled`/`:disabled` both applied | **RED** — a disabled-input read where a button was expected. |
+| — | a standalone `FormSubmitRow` (no dialog) draws the submit alone | same | row Cancel forced `v-if="true"` outside a provider | **RED** — `TypeError: Cannot read properties of null (reading 'busy')`. |
+| — | the preset form's Apply goes through `FormSubmitRow`, not its own row | `assetPresetForm.test.ts` (existing, selector updated) | `AssetPresetForm.vue` kept its own Apply row | **RED** — button count 2, not 1. |
+| — | choosing a preset scrolls its fields into view | `formFooter.test.ts` | `scrollIntoView` call dropped from `choose()` | **RED** — spy called 0 times, not 1. |
+| — | the scroll targets `{ block: 'start' }` | same | `{ block: 'nearest' }` | **RED** — `expected [ { block: 'nearest' } ] to deeply equal [ { block: 'start' } ]`. |
+| — | Cancel then Save, real host | `dialogFooter.e2e.ts` | old two-row layout restored | **RED** — button count 2, not 1. |
+| — | Save renders after Cancel on screen, real host | same | submit-before-Cancel order | **RED** — `expected 765.98 to be greater than or equal to 890.5`. |
+| — | Save's AA fill measures ≥4.5:1 in both themes | same | the `.mod-cta` AA-fill override removed | **RED** — `expected 3.4255 to be greater than or equal to 4.5`. |
+| — | Enter submits the real form (submit not detached) | same | `form="elsewhere"` | **RED** — dialog stayed open past the wait. |
+| — | narrow-window footer stays one row | same | `@media (max-width:600px){flex-direction:column}` added | **RED** — `expected 38 to be less than or equal to 1`. |
+| — | choosing a preset scrolls Apply into view, real host | same | `scrollIntoView` dropped | **RED** — `expected 782.36 to be less than or equal to 725`. |
+| — | the footer stays pinned (sticky) while the body scrolls | same | footer `position: static` | **RED** — `expected 1216.36 to be less than or equal to 784`. |
+| — | a field scrolled under the pinned row is brought out by Tab (fix round, WCAG 2.2 SC 2.4.11) | `dialogFooter.e2e.ts` (fix round) | `scroll-padding-block-end` removed | **RED** — `expected 758.86 to be less than or equal to 726`; field stayed at 729–759, under the row at 725–767. |
+| — | the hover fill still clears 4.5:1 (fix round) | same | hover rule removed | **RED** — `expected 'rgba(117, 91, 183, 1)' not to be 'rgba(117, 91, 183, 1)'` (no change under hover). |
+| — | hover uses the AA recipe, not the host's own accent hover (fix round) | same | hover fill = `var(--interactive-accent-hover)` | **RED** — `expected 2.754 to be greater than or equal to 4.5`. |
+| — | a REFUSED (disabled) Apply keeps its resting fill under the pointer (fix round) | same | hover rule missing `:not([aria-disabled='true'])` | **RED** — `expected 'rgba(174, 149, 233, 1)' to be 'rgba(162, 130, 237, 1)'`. |
+
+### Task 5 — the clearance's reach reads positive per side; a typed reach moves that edge only (AD18-R41)
+
+Commits `613032f2e` (ruling recorded), `e809f3a77` (reach read and single-edge edit), fix round
+`649eb4489` (a reach that misses warns; other sides settle within 0.01mm). File:
+`src/presentation/designer/dimensions/dimensionFigures.ts`. Tests:
+`clearanceReach.test.ts` (new, 41 cases), `clearanceReachLanding.test.ts` (new, fix round),
+`dimensionFigures.test.ts` (existing, rewritten cases).
+
+| Step | Clause | Test | Mutation | Outcome |
+| --- | --- | --- | --- | --- |
+| — | the clearance's offset reads as a positive reach, not a signed gap | `clearanceReach.test.ts` | `value: drawn` (signed value restored) | **RED** — 24 of the directory's cases, e.g. `rect-table: each side reads its positive reach…`. |
+| — | a flush (0mm reach) side draws no label | same | the zero-reach filter removed | **RED** — 18 cases, including *draws every drawable part under the toggle*. |
+| — | a typed reach moves only that edge, not the whole clearance | same | typed reach translated via `shifted(…, -typed)` (the old whole-clearance move) | **RED** — 18 cases, including *takes the vanity's front from 600 to 800…* and every preset's *moves each drawn side alone*. |
+| — | the solve passes are along/across/along, not one pass | same | one pass only | **RED** — 3 cases: round-table, oval-table, curved-on-one-side (the sides that actually drift under one stretch). |
+| — | the fixed edge stays exactly where it was | same | fixed edge swapped for the moving one | **RED** — 18 cases. |
+| — | a reach is omitted below 0.5mm rounding, kept at 0.6mm | same | rounding check `!== 0` instead of `Math.round(...) === 0` | **RED** — 2 cases: reach 0.4 and −0.4. |
+| — | other sides settle within `SETTLED_MM` (fix round) | `clearanceReach.test.ts`/`dimensionFigures.test.ts` | `typed` dropped from the reach figures | **RED** — 2 cases (the typed-extents unit case and the warn-on-miss case). |
+| — | `MAX_ROUNDS` actually bounds the loop at the measured precision (fix round) | same | `MAX_ROUNDS = 2` (the original three-pass shape) | **RED** — 2 cases (a rounded-reading case and a `QUAD` refusal case). |
+| — | the clearance's locale label names a reach, not an offset (fix round) | `tests/presentation/i18n` | offset label kept on the clearance | **RED** — 2 cases: *names the clearance's sides as reaches*, and the aria-label check. |
+| — | the along-only extent request is not enough on its own (fix round) | `clearanceReach.test.ts` | `typed` asks for the along extent only | **RED** — 1 case, the typed-extents case. |
+| — | a restore-stretch refusal is not swallowed (fix round) | same | restore refusal swallowed | **RED** — 1 case. |
+| — | `MAX_ROUNDS = 1` is not enough (fix round) | same | `MAX_ROUNDS = 1` | **RED** — 5 cases: round table, oval table, curved-on-one-side, rounded-reading, `QUAD` refusal. |
+| — | the vanity's rendered label reads `clearance-offset-bottom 600 mm` (real host) | `clearanceReachLanding.test.ts` route (landing e2e) | `value: drawn` (M1 above) | **RED** (e2e) — `expected [ 'clearance-offset-bottom -600 mm' ] to deeply equal [ 'clearance-offset-bottom 600 mm' ]`. |
+| — | flush sides draw no label (real host) | same | zero-reach filter removed (M2 above) | **RED** (e2e) — `expected [ 'clearance-offset-left 0 mm', …(3) ] …`. |
+| — | a reach that cannot land WARNS with the landed size (fix round) | `clearanceReachLanding.test.ts` | `typed` dropped from the reach figures (F1 above) | **RED** — *warns with the size the clearance landed at*: `expected [] to deeply equal [ Array(1) ]`. |
+| — | untouched sides stay within 0.01mm under `MAX_ROUNDS = 2` (fix round) | same | `MAX_ROUNDS = 2` | **RED** — `- "bottom": 629, + "bottom": 635` (a rounded-reading fixture). |
+
+### Task 6 — locale counts gain singular forms
+
+Commit `f5cf4472f`, fix round `d61f98693`. Files: `src/presentation/i18n/locales/{en,de}-assetLibrary.ts`,
+`src/presentation/i18n/locales/{en,de}/assetArrange.ts`, `eslint.config.mjs`. Tests:
+`assetLibraryRoot.test.ts`, `assetLibraryFilterSearch.test.ts`, `assetInspectorUsedIn.test.ts`,
+`designerArrangePanel.test.ts`, `tests/presentation/i18n/strings.test.ts`,
+`tests/gates/localeModuleSentenceCase.test.ts`.
+
+| Step | Clause | Test | Mutation | Outcome |
+| --- | --- | --- | --- | --- |
+| — | the `LEADING_COUNT_PATTERN` sentence-case exemption exists | `localeModuleSentenceCase.test.ts` -t "leading-count" | `ignoreRegex` reverted to `[UNIT_SYMBOLS_PATTERN]` | **RED** — 1 failed (the pattern was absent). |
+| — | the footer reads "1 asset", not "1 assets" | `assetLibraryRoot.test.ts` -t "reads a single asset without a plural" | `assetCount` reverted to its bare `.other`-only form | **RED** — `expected '1 assets' to be '1 asset'` (the exact reported bug, reproduced). |
+| — | the repair-strip notice names a singular note | `assetLibraryRoot.test.ts` -t "names the headline with a singular note" | `headline` reverted to `.other`-only | **RED** — `expected '1 asset notes could not be read…' to be '1 asset note could not be read…'`. |
+| — | the search live region announces a singular match | `assetLibraryFilterSearch.test.ts` -t "announces the match count" | `matchCount` reverted to `.other`-only | **RED** — `expected '1 matching assets' to be '1 matching asset'`. |
+| — | the *Used in* row names a singular requirement | `assetInspectorUsedIn.test.ts` -t "names a single requirement" | `label` reverted to `.other`-only | **RED** — `expected '… 1 requirements' to be '… 1 requirement'`. |
+| — | the Repeat form's preview names a singular copy | `designerArrangePanel.test.ts` -t "previews a single copy" | `preview` reverted to `.other`-only | **RED** — `expected '1 copies, each 100 mm…' to be '1 copy, 100 mm…'`. |
+| — | `LEADING_COUNT_PATTERN` exempts only the three named strings, not every "digits, space, lowercase" sentence (fix round) | `tests/gates/localeModuleSentenceCase.test.ts` (new negative case, `evaluateSentenceCase` driven directly with the real resolved `ignoreRegex`) | `LEADING_COUNT_PATTERN` reverted to the unanchored `'^\\d+ [a-z]'` | **RED** — `expected true to be false` on `'3 items removed. yes, all of them.'`: the whole sentence, including its unrelated second half, was silently exempted. |
+
+### The whole-round review's fix wave
+
+Commits `75b4a9551` (C1), `8b3259571` (I1), `82d3970f0` (M-f, T3-M2), `518721058` (I2, M-b, M-c,
+M-d, M-g, T5-M3, T5-M4).
+
+| Step | Clause | Test | Mutation | Outcome |
+| --- | --- | --- | --- | --- |
+| — | C1: the New asset dialog is unreachable on mobile, so `dialogFooter.e2e.ts` runs desktop-only | `dialogFooter.e2e.ts` (`desktop(...)` wrapper) | — (verification, not a `src/` mutation: `RenovationProjectView` provides `readOnly: Platform.isMobile`, and `ViewRoot.vue`/`ProjectList.vue` both bind `:disabled="readOnly"` on the New asset door) | Confirmed by running under `OBSIDIAN_UI=mobile-emulation`: 3 skipped, 0 failed, against 3 passed on desktop. |
+| — | I1 (AD18-R42): `used-in-plans.plan`/`.unreadable` get singular forms through every real caller | `designerUsageScope.test.ts`, `assetUsageDuplicate.test.ts` (new) | every caller's `=== 1` mutated to `=== -1` | **RED** — all 5 new/updated cases, e.g. `Received: "1 notes could not be read…"` and `Received: "Kitchen (Flat refit) — 1 placements"`. |
+| — | I1: the library's own unreadable-only key still reads singular | same suite | library's unreadable-only mutation | **RED** — its own case, independently. |
+| — | I1: after extracting `usedInPlansLabels.ts`, the shared helper is what the caller relies on | same | `=== 1` mutated inside `usedInPlansLabels.ts` | **RED** — 5 cases, the same as the per-caller mutation, proving the helper is load-bearing rather than decorative. |
+| — | M-f: Set dimensions' submit and a plain confirm's confirm both wear the AA-fill `mod-cta` selector; a `danger` confirm never does | `formFooter.test.ts` (new jsdom block, real `DialogHost`) | the `mod-cta` class removed and the old (no-`mod-cta`-on-plain-confirm) `ConfirmDialog` binding restored | **RED** — `expected null to be <button …>`, for both Set dimensions and the plain confirm; the `danger` case stayed correctly `null` throughout. |
+
+**Left open (this round):** the harness fixture (`tests/harness/assetLibrary.ts`) still builds
+outlines with no details, so `npm run harness`/`harness-shot` draw the old footprint-only tiles —
+Task 3's own concern, unmutated because the harness is out of scope for a `src/` mutation. The
+multi-selection frame's palette-follows-theme is asserted nowhere (Task 2's own concern). Neither
+clause has a test to redden.

@@ -8,7 +8,7 @@ import type {
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { Point } from '../../../core/geometry/Point';
-import { scale as scaleShape } from '../../../core/geometry/operations';
+import { area, isNegligibleArea, scale as scaleShape } from '../../../core/geometry/operations';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import { planCalibrated } from '../../../domain/plan/Plan.events';
 import { planError } from '../../../domain/plan/Plan.errors';
@@ -20,6 +20,7 @@ import type { EntityVersion } from '../../ports/versioning';
 import type {
 	PlanGeometryDocument,
 	PlanGeometrySidecar,
+	SpatialObjectGeometry,
 } from '../../ports/PlanGeometrySidecar';
 import type { PlanRepository } from '../../ports/PlanRepository';
 import { loadPlan } from './loadPlan';
@@ -62,6 +63,12 @@ function allPointsFinite(document: PlanGeometryDocument): boolean {
 	);
 }
 
+/** A representable area that is not negligible beside its box — the Zone rule's question, asked without the Zone. */
+function measurable(object: SpatialObjectGeometry): boolean {
+	const measured = area(object);
+	return measured.ok && !isNegligibleArea(object, measured.value);
+}
+
 export function calibrateDocument(previous: PlanGeometryDocument, input: Pick<CalibratePlanInput, 'pointA' | 'pointB' | 'knownDistance'>) {
 		const derived = deriveCalibration(input.pointA, input.pointB, input.knownDistance, previous.calibration);
 		if (!derived.ok) {
@@ -98,6 +105,13 @@ export function calibrateDocument(previous: PlanGeometryDocument, input: Pick<Ca
 		// coordinates overflow — and JSON persists Infinity as null, which the schema then
 		// refuses on every later read. Refusing here keeps the sidecar readable.
 		if (!allPointsFinite(document)) {
+			return err(nonFiniteRescaleError());
+		}
+		// Owner ruling 57: calibration stays outside the Room check (a room STORED with no area
+		// passes through, ruling 35's way out), but a uniform scale keeps a room's area-to-box
+		// ratio, so a room that measured before and not after was collapsed or overflowed by an
+		// absurd scale (the tests drive 1e-300 and 1e160) — refused, not written as 0 m² or Infinity.
+		if (previous.objects.some((before, index) => measurable(before) && !measurable(document.objects[index]))) {
 			return err(nonFiniteRescaleError());
 		}
 		for (const structure of [document.structure, document.intended]) {

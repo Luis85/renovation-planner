@@ -281,11 +281,16 @@ details not eyeballed" claim for the harness (Tasks 6 and 8).
   scroll-padding about 4px short (cut to `z-index: 1`); (c) Reference setup's Back lacks
   `rp-dialog-button`; (d) `FormDialog.vue` has a docblock line of about 170 characters; (e)
   `dialogFooter.e2e.ts` uses fixed 400/150 ms pauses, to become `expect.poll` if Linux flakes.
-- **Task 5's new Design 120 case has only been seen green on Windows** — its Escape inside a held action
-  chain; watch the Linux E2E leg when `3eb44ac90`'s run reports.
+- **Task 5's new Design 120 case is green on Linux too** — E2E run `36787464779` on `270cf864a` passed
+  every leg (1.13.7 and latest desktop shards, mobile-emulation).
 - **Task 8:** the harness's unreadable tile-adhesive asset says "no shape" in its inspector where
   Obsidian presumably shows a read failure (inferred, not checked).
-- **Local `npm run analyze` reports a duplicate export `scale`** (`core/geometry/operations.ts` against
-  `core/money/Money.ts`) that CI's fallow 3.26.0 does not. Unexplained and local-only; not chased.
+- **Fixed, not local-only after all: fallow's duplicate export `scale`** (`core/geometry/operations.ts`
+  against `core/money/Money.ts`) reddened CI on `270cf864a` (run `36787464867`, ubuntu 22/24). Bisected to
+  `361205341`: fallow 3.26.0 reports the pair once ONE module imports from both files, and
+  `tests/harness/assetLibrary.ts` had started to. The harness now derives `clearanceExtent` through
+  `GetAssetDesign`'s own `dimensionsOf`. The same run's clone group was `3eb44ac90`'s three-line e2e
+  test signature crossing fallow's clone line minimum. Both fixed in `83dbd6dea`. **Lesson: a finding every
+  agent calls "local-only" because an OLDER CI run lacked it is a claim about the old tree** — bisect it.
 - **PR #230 is still a draft, and the auto-fix CI monitor is ON for the controlling session** — a red
   leg on the pushed head is acted on there.

@@ -24,6 +24,7 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { REPO } from '../helpers/repo';
+import { evaluateSentenceCase } from 'eslint-plugin-obsidianmd/dist/lib/rules/ui/sentenceCaseUtil.js';
 import { ESLINT_BOOT_MS, resolveConfig, severityOf, warmUpEslint } from '../helpers/eslint';
 
 const LOCALES_DIR = 'src/presentation/i18n/locales';
@@ -117,21 +118,54 @@ describe('every English locale module carries the sentence-case rule', () => {
 	});
 
 	/**
-	 * The `ignoreRegex` option Task 6 (AD18 UI critique round) added for a `.one` string that
-	 * leads with a bare numeral count ('1 asset') rather than a placeholder: `\p{Emoji}` strips
-	 * an ASCII digit before the leading-content check runs, so the rule otherwise demands the
-	 * following word capitalise as if it opened the sentence. Pinned the same way the
-	 * unit-symbol entry above is: the severity case stays green with this option deleted, so
-	 * nothing short of asserting the resolved config's own shape would notice it falling back
-	 * out of scope.
+	 * The `ignoreRegex` option Task 6 (AD18 UI critique round) added for the three `.one`
+	 * strings that lead with a bare numeral count ('1 asset') rather than a placeholder:
+	 * `\p{Emoji}` strips an ASCII digit before the leading-content check runs, so the rule
+	 * otherwise demands the following word capitalise as if it opened the sentence. Pinned the
+	 * same way the unit-symbol entry above is: the severity case stays green with this option
+	 * deleted, so nothing short of asserting the resolved config's own shape would notice it
+	 * falling back out of scope.
+	 *
+	 * **Fully anchored per exact string, never a bare leading shape.** A fix-round finding: an
+	 * unanchored `^\d+ [a-z]` matched the whole string via `shouldIgnoreByRegex`
+	 * (`sentenceCaseUtil.js`), so it would have exempted every LATER sentence in a matching
+	 * value too, not only the leading count — the negative case right below is what that
+	 * mistake would have let through silently.
 	 */
 	it('en-assetLibrary.ts widens the rule with the leading-count ignoreRegex', async () => {
 		const config = await resolveConfig(path.join(REPO, `${LOCALES_DIR}/en-assetLibrary.ts`));
 		const options = config.rules['obsidianmd/ui/sentence-case-locale-module'];
 
 		expect(options?.[1]).toMatchObject({
-			ignoreRegex: expect.arrayContaining(['^\\d+ [a-z]']),
+			ignoreRegex: expect.arrayContaining([
+				'^(?:1 asset|1 matching asset|1 asset note could not be read\\. Open the diagnostics report to see which note refused\\.)$',
+			]),
 		});
+	});
+
+	/**
+	 * The NEGATIVE case the anchoring above exists for: a value that also opens with "digit,
+	 * space, lowercase word" — the exact shape `\p{Emoji}` mishandles — but is NOT one of the
+	 * three vetted `.one` strings, and whose SECOND sentence starts lowercase and must still be
+	 * reported. Driven through `evaluateSentenceCase` itself — the exact function
+	 * `createSentenceCaseReporter` calls per string — fed the REAL resolved `ignoreRegex`
+	 * option, rather than re-deriving what the rule would do: this is the mechanism, not a
+	 * model of it. A real on-disk fixture and `lintText`/`lintDetailed` were tried first and
+	 * rejected — the rule is type-aware, so a virtual path fails to parse ("was not found by
+	 * the project service") before the string is ever reached, which would test the project
+	 * service rather than this pattern.
+	 *
+	 * Watched red against the first, unanchored version of `LEADING_COUNT_PATTERN`
+	 * (`^\d+ [a-z]`, no `$`): that pattern matched this fixture's opening too, so
+	 * `shouldIgnoreByRegex` returned `true` and `evaluateSentenceCase` answered `{ ok: true }`
+	 * for the whole string, second sentence included — this case failed until the pattern was
+	 * anchored to the three exact strings above.
+	 */
+	it('does not let a later sentence in a similarly-shaped string escape the rule', async () => {
+		const config = await resolveConfig(path.join(REPO, `${LOCALES_DIR}/en-assetLibrary.ts`));
+		const options = config.rules['obsidianmd/ui/sentence-case-locale-module'][1] as Parameters<typeof evaluateSentenceCase>[1];
+
+		expect(evaluateSentenceCase('3 items removed. yes, all of them.', options).ok).toBe(false);
 	});
 
 	// The other direction, named once rather than left implicit: no German partial in this

@@ -297,7 +297,13 @@ still drawn.
   recovery one; `assetGeometrySidecar.test.ts` "refuses a sidecar that declares a different asset"
   covers it and no screen is involved.
 - **Colour contrast, hit-target size and any theme other than the default.** The standing exception
-  every case in this suite carries.
+  every case in this suite carries. **Narrowed 2026-09-30 for one clause**: the stale notice's own
+  text contrast (`.rp-designer-notice`, the sentence steps 7, 9, 10, 12a, 33 and 37 all read) was
+  measured failing WCAG 1.4.3 at about 2.73:1 in the light theme (a UI critique round finding) and
+  is now fixed and GUARDED by `tests/e2e/designerRecoveryLegibility.e2e.ts`'s *"draws the stale
+  notice's text at 4.5:1 or more against its background, in both themes"* — 14.72:1 light, 10.55:1
+  dark, real-host measurements. Hit-target size and every other colour on this surface remain
+  outside every gate here, as stated.
 
 ## Automated in Obsidian
 

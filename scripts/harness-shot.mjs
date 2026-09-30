@@ -729,6 +729,12 @@ const SHOTS = [
 	{ name: 'asset-designer-select-clearance-light', query: '?view=asset-designer&preset=toilet&select=clearance&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="clearance"]'] },
 	{ name: 'asset-designer-select-facing', query: '?view=asset-designer&preset=toilet&select=facing', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="facing"]'] },
 	{ name: 'asset-designer-select-facing-light', query: '?view=asset-designer&preset=toilet&select=facing&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="facing"]'] },
+	// A SET (`&select=` as a comma list, built through `extend`): the tree's canopy and trunk. The set's dashed
+	// frame (`selectionSetMarks`) is the canopy's box, a square round a round canopy, so its corners run free of
+	// every outline. `.rp-designer-selection-count` is drawn for a set of two or more alone. The Plan Editor's
+	// `plan-editor-multiple` draws numbered outlines and NO frame by design — the frame is the designer's.
+	{ name: 'asset-designer-select-multiple', query: '?view=asset-designer&preset=tree&select=detail-1,detail-2', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-count'] },
+	{ name: 'asset-designer-select-multiple-light', query: '?view=asset-designer&preset=tree&select=detail-1,detail-2&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-count'] },
 	// A detail's inspector section at a sidebar leaf's width, in English and in German — the longest labels
 	// (`Anzuwendende Drehung in Grad`, `Eine Ebene nach vorne`) are what wraps or overflows first.
 	{ name: 'asset-designer-select-narrow', query: '?view=asset-designer&preset=toilet&select=detail-2', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="detail"]'], width: 460 },
@@ -801,11 +807,7 @@ const SHOTS = [
 	//     shipped selector, which is a stand-in and not evidence the query fires.
 	{ name: 'asset-library-dark', query: '?view=asset-library', selector: ASSET_LIBRARY_VIEW },
 	{ name: 'asset-library-light', query: '?view=asset-library&theme=light', selector: ASSET_LIBRARY_VIEW },
-	{
-		name: 'asset-library-selected',
-		query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`,
-		selector: ASSET_LIBRARY_VIEW,
-	},
+	{ name: 'asset-library-selected', query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`, selector: ASSET_LIBRARY_VIEW },
 	{
 		name: 'asset-library-middle',
 		query: `?view=asset-library&theme=light&asset=${LIBRARY_SELECTED_ASSET}`,
@@ -844,6 +846,11 @@ const SHOTS = [
 	// Grid at this width (`useCategorySidebar.ts`'s `wanted`).
 	{ name: 'asset-library-grid', query: '?view=asset-library&layout=grid', selector: [ASSET_LIBRARY_VIEW, '.rp-al-tile', '.rp-al-categories'] },
 	{ name: 'asset-library-grid-light', query: '?view=asset-library&layout=grid&theme=light', selector: [ASSET_LIBRARY_VIEW, '.rp-al-tile', '.rp-al-categories'] },
+	// The inspector's Shape preview drawing an asset's DETAILS (AD18-R39): the worktop's sink cut-out.
+	// `LIBRARY_SELECTED_ASSET` has none, so no shot above reaches that branch of `AssetMark`; the selector is a
+	// detail path inside the preview, which exists only once the design has answered with one.
+	{ name: 'asset-library-selected-details', query: '?view=asset-library&theme=light&asset=worktop-oak-40', selector: [ASSET_LIBRARY_VIEW, '.rp-al-shape-preview .rp-al-mark__detail'] },
+	{ name: 'asset-library-selected-details-dark', query: '?view=asset-library&asset=worktop-oak-40', selector: [ASSET_LIBRARY_VIEW, '.rp-al-shape-preview .rp-al-mark__detail'] },
 	// The harness's own index — the one surface here this command could not photograph. That is
 	// not a gap worth leaving in a tool whose whole argument is that a capture read by eye
 	// reaches defects no gate can: the index's own chrome went unlooked-at while it accumulated

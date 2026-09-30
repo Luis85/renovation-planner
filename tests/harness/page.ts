@@ -4,7 +4,8 @@
  *
  * `?view=plan-editor` opens the Plan Editor instead of the project surface, `?view=asset-designer`
  * (Task B10) opens the asset designer the same way — `&preset=<id>` seeding a preset and, beside
- * it, `&select=<part>` and `&mode=<mode>` selecting one part in one mode, `&draw=<tool>` holding a draw
+ * it, `&select=<part>` and `&mode=<mode>` selecting one part in one mode (or a comma list of
+ * graphics selecting a set), `&draw=<tool>` holding a draw
  * tool mid-gesture, `&camera=default` putting the default camera back after the opening fit, `&grid`
  * showing the designer's grid (snapping spec 2026-09-15), `&view-menu` opening its View menu (F1's fix
  * instrument), `&pending`

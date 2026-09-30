@@ -65,6 +65,20 @@ it('&select= and &mode= select that part in that mode under the real Select butt
 	expect(view.contentEl.querySelector('.rp-designer-selection-modes [aria-pressed="true"]')?.textContent?.trim()).toBe(tr('designer.selection.mode.points'));
 });
 
+/**
+ * A comma list selects a SET, through `extend` as the Parts panel's multi-select toggle does — the one
+ * state the canvas draws the dashed frame round (`selectionSetMarks`). With `&select=` naming one part
+ * only, no capture could reach that frame, so a look for it went to the Plan Editor's multi-selection,
+ * which draws numbered outlines and never a frame (`InteractionLayer.vue`).
+ */
+it('&select= with a comma list selects that set, and the canvas frames it', async () => {
+	const { view, store } = await mountKnobs('tree', { select: 'detail-1,detail-2' });
+	await landed(view);
+
+	expect(store.selected).toEqual([{ kind: 'detail', id: 'detail-1' }, { kind: 'detail', id: 'detail-2' }]);
+	expect((Konva.stages.at(-1) as Konva.Stage).find('.asset-selection-bounds')).toHaveLength(1);
+});
+
 it('reads an unknown &mode= as Transform, and draws no mode control for the anchor', async () => {
 	const { view, store } = await mountKnobs('toilet', { select: 'anchor', mode: 'bogus' });
 	await landed(view);

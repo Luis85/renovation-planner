@@ -308,7 +308,8 @@ function drawInHarness(view: AssetDesignerView, canvas: HTMLElement, draw: strin
  *   with a read that fails NON-authoritatively over content that just landed — the identical shape
  *   `runtime.refresh()` (the production `Try again`) drives, so `stale.value` becomes `true` the
  *   same way a real vault fault would set it rather than through a test-only setter;
- * - `&select=`/`&mode=`, through the REAL Select button and the leaf's own store;
+ * - `&select=`/`&mode=`, through the REAL Select button and the leaf's own store — a comma list
+ *   (`detail-1,detail-2`) selecting a set, which is the only state that draws the set's dashed frame;
  * - `&camera=default`, which puts `DEFAULT_VIEWPORT` back — the camera a user zoomed out to, where the toilet
  *   is a few dozen pixels across. No fit is pressed otherwise: a capture shows the opening fit the product
  *   took, so a regression in that fit is photographed rather than repaired by this page;
@@ -348,7 +349,9 @@ async function driveHarness(
 	}
 	if (knobs.select !== undefined) {
 		pressTool(view, 'designer.toolbar.select');
-		store.select(harnessSelection(knobs.select));
+		// A comma list is a SET, built through `extend` as the Parts panel's multi-select toggle builds
+		// one; on the empty selection a leaf opens with, `extend` of one part is a plain `select`.
+		for (const part of knobs.select.split(',')) store.extend(harnessSelection(part));
 		const mode: SelectionMode = knobs.mode === 'points' || knobs.mode === 'bend' ? knobs.mode : 'transform';
 		store.setMode(mode);
 	}

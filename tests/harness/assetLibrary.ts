@@ -1,4 +1,4 @@
-import { ok } from '../../src/core/result/Result';
+import { ok, unwrap } from '../../src/core/result/Result';
 import { currencyOf, type Currency } from '../../src/core/money/Money';
 import type { AssetId } from '../../src/domain/asset/AssetId';
 import { isAssetCategory } from '../../src/domain/asset/AssetCategory';
@@ -11,7 +11,11 @@ import type {
 	CatalogueEntryDto,
 	UnreadableEntry,
 } from '../../src/application/queries/ListCatalogueEntries';
-import type { AssetOutline, OutlineDetail } from '../../src/application/queries/ListAssetOutlines';
+import { outlineOf, type AssetOutline } from '../../src/application/queries/ListAssetOutlines';
+import type { AssetShape, Dimensions } from '../../src/domain/asset/AssetShape';
+import type { AssetDetail } from '../../src/domain/asset/AssetDetail';
+import { createCurvedPath } from '../../src/core/geometry/CurvedPath';
+import { extentOf } from '../../src/core/geometry/operations';
 import type { AssetDesignDto } from '../../src/application/queries/GetAssetDesign';
 import type { ReferencingGroup } from '../../src/application/queries/ListRequirementsReferencing';
 import type { ObservationToken } from '../../src/application/ports/versioning';
@@ -104,6 +108,8 @@ interface Seed {
 	readonly height: number | null;
 	readonly notes: string | null;
 	readonly outline: AssetOutline;
+	/** The design behind a drawn seed — what `getDesign` answers for it; absent answers no shape. */
+	readonly drawn?: Drawn;
 	/**
 	 * §3.5's spec-sheet row reads the CATALOGUE entry's background and never the design's, which
 	 * is a distinction only a capture found: the first version of this fixture put a sheet on the
@@ -112,13 +118,41 @@ interface Seed {
 	readonly background?: CatalogueEntryDto['background'];
 }
 
-/** `details` as `outlineOf` answers them, so a Grid tile here draws what a real one would (AD18-R39). */
-const measured = (width: number, depth: number, points = box(width, depth), details: readonly OutlineDetail[] = []): AssetOutline => ({
-	kind: 'measured',
-	points,
-	extent: { width, depth },
-	details,
-});
+/** A drawn seed's shape and the dimensions `getDesign` reports beside it. */
+interface Drawn {
+	readonly shape: AssetShape;
+	readonly extent: Dimensions;
+}
+
+/**
+ * A DRAWN seed: one shape, which the tile reads through the real `outlineOf` and the inspector's
+ * Shape preview reads as the design — so the two draw one drawing, details included (AD18-R39), as
+ * a real vault's single sidecar makes them. The first version of this fixture wrote the tile's
+ * outline and the inspector's design as two tables, and every drawn seed but one drew a footprint
+ * on its tile and "no shape" in the inspector (`assetLibraryPage.test.ts`).
+ */
+function drawnSeed(width: number, depth: number, overrides: Partial<AssetShape> = {}): Pick<Seed, 'outline' | 'drawn'> {
+	const shape: AssetShape = {
+		footprint: { points: box(width, depth) },
+		footprintOrigin: 'typed',
+		footprintPending: false,
+		clearancePending: false,
+		anchorPending: false,
+		clearance: null,
+		anchor: { x: width / 2, y: depth / 2 },
+		facing: 0,
+		details: [],
+		...overrides,
+	};
+	const extent = { width, depth };
+	return { outline: outlineOf(shape, extent), drawn: { shape, extent } };
+}
+
+/** A graphic, closed unless it is a path — `createCurvedPath` alone can mint an open one's brand. */
+function detail(id: string, points: readonly Point[], line: 'solid' | 'dashed', open = false): AssetDetail {
+	const base = { id, name: id, line, pending: false };
+	return open ? { ...base, kind: 'open', outline: unwrap(createCurvedPath({ points })) } : { ...base, outline: { points } };
+}
 
 /**
  * Seventeen assets across the seven declared categories plus one undeclared one, which is the
@@ -142,7 +176,7 @@ const SEEDS: readonly Seed[] = [
 		id: 'oak-plank-floor', name: 'Oak plank floor', category: 'material', unit: 'm2',
 		...money('34.95', 'EUR'), waste: '0.08', supplier: 'Holzhandel Nord', sku: 'EIC-1200-190',
 		height: 22, notes: 'Brushed, matt lacquered. Confirm the batch before ordering.',
-		outline: measured(1200, 190),
+		...drawnSeed(1200, 190),
 		background: { path: 'Renovation/Library/Sheets/eiche-diele-1200.pdf', kind: 'pdf', page: 2 },
 	},
 	{
@@ -153,12 +187,12 @@ const SEEDS: readonly Seed[] = [
 	{
 		id: 'porcelain-tile-600', name: 'Porcelain tile, 600 × 600', category: 'material', unit: 'm2',
 		...money('42.50', 'EUR'), waste: '0.12', supplier: 'Fliesen Kramer', sku: 'PT-600-GR',
-		height: 10, notes: null, outline: measured(600, 600),
+		height: 10, notes: null, ...drawnSeed(600, 600),
 	},
 	{
 		id: 'skirting-oak', name: 'Skirting board, oak', category: 'material', unit: 'm',
 		...money('9.80', 'EUR'), waste: '0.1', supplier: null, sku: null,
-		height: 95, notes: null, outline: measured(2400, 20),
+		height: 95, notes: null, ...drawnSeed(2400, 20),
 	},
 	{
 		id: 'tile-adhesive', name: 'Tile adhesive, flexible', category: 'material', unit: 'm2',
@@ -169,7 +203,7 @@ const SEEDS: readonly Seed[] = [
 		id: 'base-cabinet-600', name: 'Base cabinet, 600', category: 'furniture', unit: 'piece',
 		...money('245.00', 'EUR'), waste: '0', supplier: 'Küchenhaus Adler', sku: 'BC-600',
 		height: 720, notes: 'Traced from the supplier sheet before the sheet was calibrated.',
-		outline: { kind: 'unscaled', points: box(600, 580), extent: { width: 600, depth: 580 }, details: [] },
+		...drawnSeed(600, 580, { footprintOrigin: 'traced', footprintPending: true, clearancePending: true, clearance: { points: box(600, 1180) } }),
 		background: { path: 'Renovation/Library/Sheets/adler-bc-600.png', kind: 'image', page: null },
 	},
 	{
@@ -180,22 +214,22 @@ const SEEDS: readonly Seed[] = [
 	{
 		id: 'worktop-oak-40', name: 'Worktop, oak 40 mm', category: 'furniture', unit: 'm',
 		...money('118.00', 'EUR'), waste: '0.06', supplier: 'Holzhandel Nord', sku: 'WT-40-620',
-		height: 40, notes: null, outline: measured(3000, 620, box(3000, 620), [{ points: [{ x: 2100, y: 110 }, { x: 2700, y: 110 }, { x: 2700, y: 510 }, { x: 2100, y: 510 }], closed: true, dashed: false }]),
+		height: 40, notes: null, ...drawnSeed(3000, 620, { details: [detail('sink', [{ x: 2100, y: 110 }, { x: 2700, y: 110 }, { x: 2700, y: 510 }, { x: 2100, y: 510 }], 'solid')] }),
 	},
 	{
 		id: 'radiator-600-1200', name: 'Radiator, panel 600 × 1200', category: 'fixture', unit: 'piece',
 		...money('189.00', 'EUR'), waste: '0', supplier: 'Sanitär Reuter', sku: 'RP-600-1200',
-		height: 600, notes: null, outline: measured(1200, 100),
+		height: 600, notes: null, ...drawnSeed(1200, 100),
 	},
 	{
 		id: 'basin-mixer', name: 'Basin mixer tap', category: 'fixture', unit: 'piece',
 		...money('142.50', 'EUR'), waste: '0', supplier: 'Sanitär Reuter', sku: 'BM-CHR',
-		height: 310, notes: null, outline: measured(55, 55, regular(8, 27.5)),
+		height: 310, notes: null, ...drawnSeed(55, 55, { footprint: { points: regular(8, 27.5) } }),
 	},
 	{
 		id: 'downlight-led', name: 'Downlight, LED 8 W', category: 'fixture', unit: 'piece',
 		...money('27.90', 'EUR'), waste: '0', supplier: 'Elektro Timm', sku: 'DL-8W-WW',
-		height: 60, notes: null, outline: measured(85, 85, regular(16, 42.5)),
+		height: 60, notes: null, ...drawnSeed(85, 85, { footprint: { points: regular(16, 42.5) } }),
 	},
 	{
 		id: 'boxwood-hedge', name: 'Boxwood hedge, 40 cm', category: 'plant', unit: 'm',
@@ -205,7 +239,7 @@ const SEEDS: readonly Seed[] = [
 	{
 		id: 'scaffold-tower', name: 'Scaffold tower, 4 m', category: 'equipment', unit: 'day',
 		...money('64.00', 'EUR'), waste: '0', supplier: 'Mietpark Elbe', sku: 'ST-4000',
-		height: 4000, notes: null, outline: measured(1350, 700, box(1350, 700), [{ points: [{ x: 0, y: 0 }, { x: 1350, y: 700 }], closed: false, dashed: true }, { points: [{ x: 1350, y: 0 }, { x: 0, y: 700 }], closed: false, dashed: true }]),
+		height: 4000, notes: null, ...drawnSeed(1350, 700, { details: [detail('brace-1', [{ x: 0, y: 0 }, { x: 1350, y: 700 }], 'dashed', true), detail('brace-2', [{ x: 1350, y: 0 }, { x: 0, y: 700 }], 'dashed', true)] }),
 	},
 	{
 		id: 'floor-sander', name: 'Floor sander, belt', category: 'equipment', unit: 'day',
@@ -215,7 +249,7 @@ const SEEDS: readonly Seed[] = [
 	{
 		id: 'internal-door-oak', name: 'Internal door, oak veneer', category: 'building-element', unit: 'piece',
 		...money('268.00', 'EUR'), waste: '0', supplier: 'Türenwerk Süd', sku: 'ID-860-OAK',
-		height: 2010, notes: null, outline: measured(860, 40),
+		height: 2010, notes: null, ...drawnSeed(860, 40),
 	},
 	{
 		id: 'site-management', name: 'Site management', category: 'custom', unit: 'hour',
@@ -271,15 +305,16 @@ const HARNESS_UNREADABLE: readonly UnreadableEntry[] = [
 const HARNESS_VERSION = { revision: 4, observed: 'harness-asset-library' as ObservationToken };
 
 /**
- * The design behind ONE seeded asset, which is what makes §3.5's Shape section draw a footprint,
- * a clearance and a spec sheet rather than three loading lines. Every other id answers a design
- * with no shape at all — the ordinary starting state of an asset nobody has drawn.
+ * The design behind a seeded asset: a drawn seed's own shape (`drawnSeed`), which is what makes §3.5's
+ * Shape section draw a footprint, its details, a clearance and a spec sheet rather than three loading
+ * lines. Every other id answers a design with no shape at all — the ordinary starting state of an
+ * asset nobody has drawn.
  */
-const DESIGNED = 'base-cabinet-600';
-
 function designFor(assetId: AssetId): AssetDesignDto {
 	const named = SEEDS.find((seed) => seed.id === assetId);
-	const designed = assetId === (DESIGNED as AssetId);
+	const drawn = named?.drawn ?? null;
+	const clearance = drawn?.shape.clearance ?? null;
+	const reach = clearance === null ? null : extentOf(clearance.points);
 	return {
 		assetId,
 		name: named?.name ?? '',
@@ -291,22 +326,10 @@ function designFor(assetId: AssetId): AssetDesignDto {
 		height: named?.height ?? null,
 		background: named?.background ?? null,
 		calibration: null,
-		shape: designed
-			? {
-					footprint: { points: box(600, 580) },
-					footprintOrigin: 'traced',
-					footprintPending: true,
-					clearancePending: true,
-					anchorPending: false,
-					clearance: { points: box(600, 1180) },
-					anchor: { x: 300, y: 290 },
-					facing: 0,
-					details: [],
-				}
-			: null,
-		dimensions: designed ? { width: 600, depth: 580 } : null,
-		clearanceExtent: designed ? { width: 600, depth: 1180 } : null,
-		dimensionsUnscaled: designed,
+		shape: drawn?.shape ?? null,
+		dimensions: drawn?.extent ?? null,
+		clearanceExtent: reach === null ? null : { width: reach.maxX - reach.minX, depth: reach.maxY - reach.minY },
+		dimensionsUnscaled: drawn?.shape.footprintPending ?? false,
 		noteVersion: HARNESS_VERSION,
 		geometryVersion: HARNESS_VERSION,
 	};

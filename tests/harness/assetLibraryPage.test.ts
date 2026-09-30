@@ -37,6 +37,9 @@ import { flushPromises } from '@vue/test-utils';
 import { mountAssetLibraryHarness } from './assetLibrary';
 import { tr } from '../../src/presentation/i18n/strings';
 
+/** A mark's drawn paths, in draw order. */
+const paths = (mark: Element | null | undefined): string[] => [...(mark?.querySelectorAll('path') ?? [])].map((path) => path.getAttribute('d') ?? '');
+
 describe('the browser harness, asset library', () => {
 	it('mounts the real asset library inside the same leaf frame', async () => {
 		const { leafEl, view } = mountAssetLibraryHarness(document.body, null);
@@ -86,6 +89,33 @@ describe('the browser harness, asset library', () => {
 		expect(view.contentEl.querySelector('.rp-al-categories')).not.toBeNull();
 		const pressed = view.contentEl.querySelector('.rp-al-layout__option[aria-pressed="true"]');
 		expect(pressed?.querySelector('.rp-al-layout__word')?.textContent?.trim()).toBe(tr('view.asset-library.layout.grid'));
+	});
+
+	/**
+	 * A real vault answers a Grid tile (`listOutlines`) and the inspector's Shape preview
+	 * (`getDesign`) from ONE sidecar, so the two can never draw different things. This fixture used to
+	 * answer them from two tables — a drawn outline per seed, a design for `base-cabinet-600` alone —
+	 * so every other drawn asset, the worktop and the scaffold tower with their details included, drew
+	 * a footprint on its tile and "no shape" in the inspector. Driven by clicking each drawn tile,
+	 * exactly as a user reaches the inspector, and compared as the SAME `AssetMark` draws both.
+	 */
+	it('draws each drawn asset’s tile and its inspector Shape preview as one drawing, details included', async () => {
+		const { view } = mountAssetLibraryHarness(document.body, null, false, 'grid');
+		await flushPromises();
+		const tiles = [...view.contentEl.querySelectorAll<HTMLElement>('.rp-al-tile')].filter((tile) => tile.querySelector('.rp-al-mark--measured, .rp-al-mark--unscaled') !== null);
+
+		const drawn: Array<[string, string[], string[]]> = [];
+		for (const tile of tiles) {
+			tile.click();
+			await flushPromises();
+			const preview = view.contentEl.querySelector('.rp-al-shape-preview .rp-al-mark');
+			drawn.push([tile.dataset.assetId ?? '', paths(tile.querySelector('.rp-al-mark')), paths(preview)]);
+		}
+
+		// Found something at all, and the two detail seeds among it — an empty set would pass the loop.
+		expect(drawn.map(([id]) => id)).toEqual(expect.arrayContaining(['base-cabinet-600', 'worktop-oak-40', 'scaffold-tower']));
+		expect(drawn.find(([id]) => id === 'scaffold-tower')?.[1]).toHaveLength(3);
+		expect(drawn.filter(([, tile, preview]) => tile.join('|') !== preview.join('|'))).toEqual([]);
 	});
 
 	it('opens on the List layout when the page names no layout at all, exactly as it always has', async () => {

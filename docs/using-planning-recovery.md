@@ -145,13 +145,72 @@ available again. Unlink removes the relationship, not the user's file.
 
 ## Existing vaults
 
-The combined editor reads Plan metadata through v12, Requirement metadata through v5 and
-geometry through v16. A writer stamps a note or sidecar with the lowest of those versions its
-actual content needs, not the ceiling by default — Shared Work/Evidence contexts use Plan v5
-when no generic labels require v6. Older payloads retain their earlier persisted
-versions; opening a Plan does not bulk-rewrite the vault. Unsupported future versions are
-refused, and unrelated human-written note content is preserved. Use a build that understands
-these formats before editing a vault containing the new element types.
+There is no single schema version for a vault. Each kind of note and file carries its own, and
+the tables below say what this build does with each one. A number is a schema version.
+
+- **Opening is not a rewrite.** An older version is upgraded in memory when it is read, and
+  nothing is written back because a note or sidecar was opened (`legacyReadBytes.test.ts`
+  compares every byte of a legacy vault before and after reading it).
+- **A save stamps the lowest version the content needs**, where the Writes cell says "by
+  content". A Plan that uses nothing newer is still written at 1, so an older build can go on
+  reading it, and a Plan that uses something newer is written at a version an older build
+  refuses rather than one it would read and then silently drop part of.
+- **A version newer than this build is refused**, with the code in the table, and nothing is
+  written. The check is on the read. A delete reads first, so it refuses too. A save does not
+  check again: what keeps a refused note from being overwritten is that commands load a note
+  before they save it, and no test checks that for every command. `errorPaths.test.ts` pins
+  both the refusing delete and a save that skipped the load and overwrote.
+- **A note with no `schema-version` is refused** (`migration.chain-gap`), because no version
+  starts below 1.
+- **A save keeps what the plugin does not own.** An update changes the plugin's own
+  frontmatter keys through Obsidian and leaves the note's body, and keys the plugin does not
+  own, as they were.
+
+`tests/release/dataCompatibility.test.ts` reads these tables and holds their rows, the Reads,
+Writes and "Newer than this build" cells, and the settings Fields against the plugin's own
+migration table, mappers and stores, so changing one of those versions in the code without
+editing this page fails that test. The Code column, the Where column and the prose are not
+checked by it.
+
+### Notes and sidecars in the vault
+
+| Record | Key | Version field | Reads | Writes | Newer than this build | Code |
+| --- | --- | --- | --- | --- | --- | --- |
+| Project note | `project` | `schema-version` | 1 | always 1 | refused: `project.schema-version-unsupported` | `projectToPersistence` |
+| Plan note | `plan` | `schema-version` | 1–12 | 1–12 by content | refused: `plan.schema-version-unsupported` | `planSchemaVersion` |
+| Room note | `zone` | `schema-version` | 1–2 | 1–2 by content | refused: `zone.schema-version-unsupported` | `zoneToPersistence` (2 only while locked) |
+| Requirement note | `requirement` | `schema-version` | 1–5 | 1–5 by content | refused: `requirement.schema-version-unsupported` | `requirementSchemaVersion` |
+| Asset note | `asset` | `schema-version` | 1 | always 1 | refused: `asset.schema-version-unsupported` | `assetToPersistence` |
+| Asset price note | `asset-price` | `schema-version` | 1 | always 1 | refused: `asset-price.schema-version-unsupported` | `assetPriceToPersistence` |
+| Trade note | `trade` | `schema-version` | 1 | always 1 | refused: `trade.schema-version-unsupported` | `TRADE_MAPPER` |
+| Supplier note | `supplier` | `schema-version` | 1 | always 1 | refused: `supplier.schema-version-unsupported` | `SUPPLIER_MAPPER` |
+| Quote note | `quote` | `schema-version` | 1 | always 1 | refused: `quote.schema-version-unsupported` | `quoteToPersistence` |
+| Plan geometry (`Geometry/<plan id>.rpgeo` in the project folder) | `plan-geometry` | `schemaVersion` | 1–16 | 1–16 by content | refused: `plan-geometry.schema-version-unsupported` | `PlanGeometryStore` |
+| Asset geometry (`Geometry/<asset id>.rpgeo` in the library folder) | `asset-geometry` | `schemaVersion` | 1–2 | always 2 | refused: `asset-geometry.schema-invalid` | `AssetGeometrySchema`, `AssetGeometryStore` |
+
+The upgrades run in memory, in `MigrationRunner` for every row but asset geometry. The Plan,
+Room and Requirement steps and all but one plan geometry step only raise the version number.
+The exception is plan geometry 12 → 13 (`migrateWallSides`), which gives each wall two face
+distances of half its thickness. Asset geometry 1 → 2 (`AssetGeometrySchema`) reads a
+version 1 file as version 2 with no details; its newer-version refusal is a schema failure
+rather than a migration one, so it reads as damaged data rather than as "this build is too old".
+
+### Files the plugin keeps for itself
+
+| Record | Key | Where | Reads | Writes | Another version |
+| --- | --- | --- | --- | --- | --- |
+| Delete recovery markers | `sequence-markers` | `sequence-markers.json` in the plugin folder | 1 | always 1 | kept as written and reported as unreadable; a new marker for the same item is refused (`sequence.marker-write-blocked`) |
+| Write incidents | `write-incidents` | `write-incidents.json` in the plugin folder | 1 | always 1 | kept as written and counted as an open incident this build cannot read |
+| Continue context | `continue-context` | this device's local storage, not the vault | 1 | always 1 | ignored, so there is no Continue row; the next visit replaces it |
+
+### Stored without a version
+
+| Record | Where | Fields | What this build does with it |
+| --- | --- | --- | --- |
+| Settings | `data.json` in the plugin folder | `units`, `projectFolder`, `libraryFolder`, `defaultCurrency`, `verboseLogging` | A value outside a field's choices reads as the default. Any other key is dropped when read and is gone from the file after the next settings change, including a key a newer build added. |
+| Grid and snapping choices, panel widths | this device's local storage | — | A value of the wrong type, or a width out of range, reads as the default. |
+| Review and Shopping notes | beside the plan note | — | Generated. If someone edited one, regenerating it is refused rather than overwriting the edit. |
+| Evidence files | where they were added | — | Ordinary vault files. Unlinking removes the link, not the file. |
 
 Browser and automated evidence is recorded in the
 [Increment E report](user-experience/renovation-planner-editor-specs/implementation/planning-recovery-evidence.md).

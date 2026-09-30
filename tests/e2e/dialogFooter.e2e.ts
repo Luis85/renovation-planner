@@ -12,7 +12,9 @@ import { mobileEmulation } from './session';
  * AD18 UI critique, Task 4: a form dialog's ONE action row — Cancel, then the submit as Obsidian's
  * primary `mod-cta` — pinned at the foot of the dialog's scrolling body, measured in the real host.
  * Geometry by bounding rects, never a pixel from one platform: "one row" is two tops within a pixel.
- * The preset dialog is the designer's, so that case is desktop only, as the designer is.
+ * Every case is desktop only. The preset dialog is the designer’s, as desktop only as the designer
+ * is; and the project view is read-only under mobile emulation, so its New asset door is disabled
+ * and opens no dialog there — as is New project, the other form dialog that view offers.
  */
 const desktop = mobileEmulation ? test.skip : test;
 
@@ -107,7 +109,7 @@ const openPresetDialog = async (browser: NativeBrowser, page: ObsidianPage, ui: 
 };
 
 describe('a form dialog’s one action row in the real Obsidian host', () => {
-	test('New asset draws Cancel then a primary Save on one row, at the default window and a sidebar-width leaf, and Enter submits', async ({
+	desktop('New asset draws Cancel then a primary Save on one row, at the default window and a sidebar-width leaf, and Enter submits', async ({
 		native: { browser, ui, directory },
 	}) => {
 		await ui.openProjectView();

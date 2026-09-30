@@ -477,10 +477,16 @@ describe('interpolation', () => {
 	 * and the filtered-to-nothing empty state (`view.asset-library.filtered.no-matches`, `.none`,
 	 * `.body`, `.action`). The ruling amends §3.1 ("no view switcher … no filter menu"), and the
 	 * spec's Amendment 7 records it and this count.
+	 *
+	 * 113 → 117: Task 6 of the AD18 UI critique round gave four `{count}` keys with no singular
+	 * form a `.one`/`.other` split, replacing each bare key with two —
+	 * `view.asset-library.assets`, `.search.results`, `.some-unreadable` and `.used-in.project`
+	 * — net +4, not a spec amendment (the spec's own wording is unchanged; only which KEY a
+	 * caller reaches for a given count moved).
 	 */
-	it('pins the Asset library inventory at 113 keys in both locales', () => {
-		expect(assetLibraryKeys(en)).toHaveLength(113);
-		expect(assetLibraryKeys(de)).toHaveLength(113);
+	it('pins the Asset library inventory at 117 keys in both locales', () => {
+		expect(assetLibraryKeys(en)).toHaveLength(117);
+		expect(assetLibraryKeys(de)).toHaveLength(117);
 	});
 });
 

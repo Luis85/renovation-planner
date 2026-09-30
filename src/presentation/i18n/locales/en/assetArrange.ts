@@ -81,7 +81,11 @@ export const assetArrangeEn = {
 	'designer.arrange.repeat.run': 'Add the copies',
 	// The preview: the step a gap mode resolves to differs from the number typed, which is the
 	// whole reason the two modes need telling apart before the write rather than after it.
-	'designer.arrange.repeat.preview': '{count} copies, each {step} mm on from the one before',
+	// `.one`/`.other` chosen at the caller (Task 6, AD18 UI critique round), the house pattern
+	// `editor.unsupported-width.body.*` set: a single copy drops "each", which reads as a
+	// second copy repeating itself when there is only one.
+	'designer.arrange.repeat.preview.one': '1 copy, {step} mm on from the one before',
+	'designer.arrange.repeat.preview.other': '{count} copies, each {step} mm on from the one before',
 	'asset.too-few-parts': 'This arrangement needs more parts than are selected.',
 	'asset.duplicate-part': 'A part was named twice in one arrangement.',
 	'asset.locked-part': 'A selected part is locked. Unlock it, or leave it out of the selection.',

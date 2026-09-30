@@ -116,6 +116,24 @@ describe('every English locale module carries the sentence-case rule', () => {
 		});
 	});
 
+	/**
+	 * The `ignoreRegex` option Task 6 (AD18 UI critique round) added for a `.one` string that
+	 * leads with a bare numeral count ('1 asset') rather than a placeholder: `\p{Emoji}` strips
+	 * an ASCII digit before the leading-content check runs, so the rule otherwise demands the
+	 * following word capitalise as if it opened the sentence. Pinned the same way the
+	 * unit-symbol entry above is: the severity case stays green with this option deleted, so
+	 * nothing short of asserting the resolved config's own shape would notice it falling back
+	 * out of scope.
+	 */
+	it('en-assetLibrary.ts widens the rule with the leading-count ignoreRegex', async () => {
+		const config = await resolveConfig(path.join(REPO, `${LOCALES_DIR}/en-assetLibrary.ts`));
+		const options = config.rules['obsidianmd/ui/sentence-case-locale-module'];
+
+		expect(options?.[1]).toMatchObject({
+			ignoreRegex: expect.arrayContaining(['^\\d+ [a-z]']),
+		});
+	});
+
 	// The other direction, named once rather than left implicit: no German partial in this
 	// same directory may be swept into the rule by a widened predicate — the HYPHENATED one is
 	// the closer call, since it is the one this repo's own `en-*`/`de-*` naming convention

@@ -33,16 +33,24 @@ export const enAssetLibrary = {
 	'view.asset-library.search.label': 'Search assets',
 	'view.asset-library.search.placeholder': 'Search by name, supplier or SKU',
 	// §6.1's live region: '12 matching assets', announced so a search's effect reaches a
-	// keyboard or screen-reader user who cannot see the list it just filtered.
-	'view.asset-library.search.results': '{count} matching assets',
+	// keyboard or screen-reader user who cannot see the list it just filtered. `.one`/`.other`
+	// chosen at the caller (Task 6, AD18 UI critique round) — the house pattern
+	// `editor.unsupported-width.body.*` set, never a plural mechanism added to `t`.
+	'view.asset-library.search.results.one': '1 matching asset',
+	'view.asset-library.search.results.other': '{count} matching assets',
 	'view.asset-library.unselected': 'Select an asset to view its definition.',
 	// The status bar (§3.6): '54 assets · Renovation/Library'. The folder half is a vault
 	// path, not copy, so it is appended as raw text beside this key rather than through a
-	// second one.
-	'view.asset-library.assets': '{count} assets',
+	// second one. `.one`/`.other` chosen at the caller (Task 6), the same house pattern.
+	'view.asset-library.assets.one': '1 asset',
+	'view.asset-library.assets.other': '{count} assets',
 	'view.asset-library.used-in': 'Used in',
 	'view.asset-library.used-in.none': 'Not used in any project',
-	'view.asset-library.used-in.project': '{name} — {count} requirement(s)',
+	// `.one`/`.other` chosen at the caller (Task 6): the singular reads '{name} — 1
+	// requirement' rather than the "(s)" shorthand this key carried until the AD18 UI
+	// critique round found it reading "1 requirement(s)" with no singular form at all.
+	'view.asset-library.used-in.project.one': '{name} — 1 requirement',
+	'view.asset-library.used-in.project.other': '{name} — {count} requirements',
 	// §3.5's *Used in* row label for a project whose `Project.md` sits at the vault root,
 	// where `projectFolderOf` derives `''` (§3.5, "the empty string renders a root label
 	// rather than nothing"). An empty string is not something a row can print, so this names
@@ -93,9 +101,13 @@ export const enAssetLibrary = {
 	// §4's "Some unreadable" strip headline, counted like `editor.some-zones-unreadable` rather
 	// than left as "some": the count is what tells a user "one bad note" from "the whole
 	// library". `view.project.some-plans-unreadable` used to be a third example and is not one
-	// any more — the project design package's table states that warning count-free.
-	'view.asset-library.some-unreadable':
-		'{count} asset note(s) could not be read. Open the diagnostics report to see which notes refused.',
+	// any more — the project design package's table states that warning count-free. `.one`/
+	// `.other` chosen at the caller (Task 6), replacing the "(s)" shorthand this key carried
+	// until the AD18 UI critique round found it reading "1 asset note(s)".
+	'view.asset-library.some-unreadable.one':
+		'1 asset note could not be read. Open the diagnostics report to see which note refused.',
+	'view.asset-library.some-unreadable.other':
+		'{count} asset notes could not be read. Open the diagnostics report to see which notes refused.',
 	'view.asset-library.some-unreadable.open-note': 'Open note',
 	// The strip's per-row reason (§5.1a's `UnreadableReason`, plus the future-schema code §4
 	// carves out of `read-failed` because its remedy differs — upgrading the plugin, not

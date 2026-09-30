@@ -64,7 +64,7 @@ describe.each(['grid', 'list'] as const)('a search under a category filter, in %
 
 		await search(root, 'a');
 
-		expect(root.get('.rp-al-results').text()).toBe(tr('view.asset-library.search.results', { count: '1' }));
+		expect(root.get('.rp-al-results').text()).toBe(tr('view.asset-library.search.results.one'));
 	});
 
 	/** Matches exist, just none in this category: say so, and offer the way out. */
@@ -80,7 +80,7 @@ describe.each(['grid', 'list'] as const)('a search under a category filter, in %
 
 		expect(headline(root)).toBeUndefined();
 		expect(document.activeElement?.textContent).toBe(tr('view.asset-library.category.all'));
-		expect(root.get('.rp-al-results').text()).toBe(tr('view.asset-library.search.results', { count: '1' }));
+		expect(root.get('.rp-al-results').text()).toBe(tr('view.asset-library.search.results.one'));
 		expect(root.findAll('button.rp-al-category').find((el) => el.attributes('aria-pressed') === 'true')?.text()).toBe(
 			tr('view.asset-library.category.all'),
 		);

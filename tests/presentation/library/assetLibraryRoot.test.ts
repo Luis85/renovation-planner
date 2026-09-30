@@ -22,7 +22,7 @@ import type { CatalogueListing } from '../../../src/application/queries/ListCata
 import { createAssetId, type AssetId } from '../../../src/domain/asset/AssetId';
 import { unavailableAssetLibraryQueries } from '../../../src/presentation/read-models/assetLibraryQueries';
 import { MigrationRunner } from '../../../src/infrastructure/persistence/migration/MigrationRunner';
-import { tr } from '../../../src/presentation/i18n/strings';
+import { t, tr } from '../../../src/presentation/i18n/strings';
 import { ASSET_CATEGORIES } from '../../../src/domain/asset/AssetCategory';
 import { ASSET_CATEGORY_LABELS } from '../../../src/presentation/views/assetLabels';
 import { installObsidianDom } from '../../helpers/dom';
@@ -108,7 +108,27 @@ describe('AssetLibraryRoot', () => {
 		await settle();
 
 		const status = root.get('[role="status"].rp-al-results');
-		expect(status.text()).toBe(tr('view.asset-library.search.results', { count: '1' }));
+		expect(status.text()).toBe(tr('view.asset-library.search.results.one'));
+	});
+
+	/**
+	 * The `.one`/`.other` split (Task 6, AD18 UI critique round): a single match reads without a
+	 * plural, and two or more keep it — never "1 matching assets", which is what this key read
+	 * before the round found it.
+	 */
+	it('announces two matches without a singular, in both locales', async () => {
+		const root = await mountRoot({
+			entries: [anEntry({ name: 'Oak plank floor' }), anEntry({ assetId: createAssetId(), name: 'Oak beam' })],
+		});
+
+		await root.get('.rp-al-search__input').setValue('Oak');
+		await settle();
+
+		expect(root.get('[role="status"].rp-al-results').text()).toBe(
+			tr('view.asset-library.search.results.other', { count: '2' }),
+		);
+		expect(t('de', 'view.asset-library.search.results.one')).toBe('1 passendes Objekt');
+		expect(t('de', 'view.asset-library.search.results.other', { count: '2' })).toBe('2 passende Objekte');
 	});
 
 	it('restores the prior expansion state when the search is cleared', async () => {
@@ -243,7 +263,7 @@ describe('AssetLibraryRoot, the status bar', () => {
 		// TWO, not three: §3.6 counts the library, and a note this build cannot read is not an
 		// asset yet — its count is the repair strip's, separately and with each path.
 		expect(status.get('.rp-al-status__count').text()).toBe(
-			tr('view.asset-library.assets', { count: '2' }),
+			tr('view.asset-library.assets.other', { count: '2' }),
 		);
 		expect(status.get('.rp-al-status__folder').text()).toBe('Renovation/Library');
 	});
@@ -256,6 +276,18 @@ describe('AssetLibraryRoot, the status bar', () => {
 
 		expect(root.get('.rp-al-status__count').text()).toBe('');
 		expect(root.get('.rp-al-status__folder').text()).toBe('Renovation/Library');
+	});
+
+	/**
+	 * The `.one`/`.other` split (Task 6, AD18 UI critique round): the footer read "1 assets"
+	 * before it, with no singular form at all.
+	 */
+	it('reads a single asset without a plural, in both locales', async () => {
+		const root = await mountRoot({ entries: [anEntry()] });
+
+		expect(root.get('.rp-al-status__count').text()).toBe(tr('view.asset-library.assets.one'));
+		expect(t('de', 'view.asset-library.assets.one')).toBe('1 Objekt');
+		expect(t('de', 'view.asset-library.assets.other', { count: '2' })).toBe('2 Objekte');
 	});
 });
 
@@ -323,6 +355,29 @@ describe('AssetLibraryRoot, the repair strip', () => {
 		// carve-out is exact rather than reason-wide, and a guard narrowed to `reason` alone
 		// would withhold `Open note` from a note this build really could open.
 		expect(root.findAll('.rp-view-notice li button')).toHaveLength(3);
+	});
+
+	/**
+	 * The `.one`/`.other` split (Task 6, AD18 UI critique round): the headline read "1 asset
+	 * note(s) could not be read" before it, with no singular form at all.
+	 */
+	it('names the headline with a singular note, and pluralises two or more, in both locales', async () => {
+		const one = await mountRoot({ unreadable: [aNoIdNote({ path: 'a.md' })] });
+		expect(one.get('.rp-al-repair p').text()).toBe(tr('view.asset-library.some-unreadable.one'));
+
+		const two = await mountRoot({
+			unreadable: [aNoIdNote({ path: 'a.md' }), aNoIdNote({ path: 'b.md' })],
+		});
+		expect(two.get('.rp-al-repair p').text()).toBe(
+			tr('view.asset-library.some-unreadable.other', { count: '2' }),
+		);
+
+		expect(t('de', 'view.asset-library.some-unreadable.one')).toBe(
+			'1 Objektnotiz konnte nicht gelesen werden. Der Diagnosebericht zeigt, welche Notiz abgelehnt wurde.',
+		);
+		expect(t('de', 'view.asset-library.some-unreadable.other', { count: '2' })).toBe(
+			'2 Objektnotizen konnten nicht gelesen werden. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
+		);
 	});
 
 	/**
@@ -440,7 +495,7 @@ describe('AssetLibraryRoot, shelves and selection', () => {
 		// true before the search, after it and after the clear alike. Its CONTENT is what moves,
 		// so that is what both ends of this case read.
 		expect(root.get('.rp-al-results').text()).toBe(
-			tr('view.asset-library.search.results', { count: '1' }),
+			tr('view.asset-library.search.results.one'),
 		);
 
 		await field().trigger('keydown', { key: 'Escape' });

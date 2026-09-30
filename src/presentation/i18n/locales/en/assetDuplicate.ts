@@ -19,10 +19,13 @@
  * project, and this one names the PLANS whose geometry places it. An asset can be placed with no
  * requirement and required with nothing placed, so one key family cannot serve both.
  *
- * **The `(s)` plural is the house convention here**, copied from
- * `view.asset-library.used-in.project` rather than invented: there is no plural mechanism in `t`,
- * and inventing one for two strings would put a second answer to pluralisation in the tree.
- * Ruling **AD18-R7** settled that it stays, and nothing below touches it.
+ * **The `(s)` plural is a deliberate holdover here**, kept by ruling **AD18-R7** rather than
+ * widened to the house `.one`/`.other` split — `view.asset-library.used-in.project` carried the
+ * identical shorthand and was the precedent this copied it FROM, until Task 6 of the AD18 UI
+ * critique round gave that key its own `.one`/`.other` pair; the two below are unaffected and
+ * nothing here touches them. There is no plural MECHANISM in `t` either way — `.one`/`.other`
+ * are two keys chosen at the caller, never an engine added to `t` — so widening these two
+ * remains a choice for whoever revisits AD18-R7, not a gap this file leaves unfixed by omission.
  *
  * **`used-in-plans.plan` names the PROJECT as well, inside this one key rather than beside it.**
  * A plan name is not unique across a vault — the catalogue is vault-level, so one definition is

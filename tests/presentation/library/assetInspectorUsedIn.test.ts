@@ -11,6 +11,7 @@ import type { ReferencingGroup } from '../../../src/application/queries/ListRequ
 import { createProjectId, type ProjectId } from '../../../src/domain/project/ProjectId';
 import { createRequirementId } from '../../../src/domain/requirement/RequirementId';
 import type { SectionStatus } from '../../../src/presentation/library/ticketedSection';
+import { t, tr } from '../../../src/presentation/i18n/strings';
 
 function aGroup(overrides: Partial<ReferencingGroup> = {}): ReferencingGroup {
 	return {
@@ -104,5 +105,32 @@ describe('AssetInspectorUsedIn', () => {
 
 		expect(section.find('.rp-al-inspector__refusal').exists()).toBe(true);
 		expect(section.text()).not.toContain('Not used in any project');
+	});
+
+	/**
+	 * The `.one`/`.other` split (Task 6, AD18 UI critique round): the row read "1 requirement(s)"
+	 * before it, with no singular form at all — and `aGroup`'s own default is a single
+	 * requirement, so this shape was live in every other case in this file that never checked
+	 * the label's exact text.
+	 */
+	it('names a single requirement without a plural, and pluralises two or more, in both locales', () => {
+		const one = mountSection({ groups: [aGroup({ projectName: 'Kitchen refit' })] });
+		expect(one.get('.rp-al-used__name').text()).toBe(
+			tr('view.asset-library.used-in.project.one', { name: 'Kitchen refit' }),
+		);
+
+		const two = mountSection({
+			groups: [aGroup({ projectName: 'Kitchen refit', requirementIds: [createRequirementId(), createRequirementId()] })],
+		});
+		expect(two.get('.rp-al-used__name').text()).toBe(
+			tr('view.asset-library.used-in.project.other', { name: 'Kitchen refit', count: '2' }),
+		);
+
+		expect(t('de', 'view.asset-library.used-in.project.one', { name: 'Küchenumbau' })).toBe(
+			'Küchenumbau — 1 Anforderung',
+		);
+		expect(t('de', 'view.asset-library.used-in.project.other', { name: 'Küchenumbau', count: '2' })).toBe(
+			'Küchenumbau — 2 Anforderungen',
+		);
 	});
 });

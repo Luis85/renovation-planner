@@ -99,7 +99,10 @@ const preview = computed((): string | null => {
 	if (resolved === null || !Number.isInteger(typedCount.value) || typedCount.value < 1 || typedCount.value > MAX_REPEAT_COPIES) {
 		return null;
 	}
-	return tr('designer.arrange.repeat.preview', { count: String(typedCount.value), step: String(Math.round(resolved)) });
+	const stepText = String(Math.round(resolved));
+	return typedCount.value === 1
+		? tr('designer.arrange.repeat.preview.one', { step: stepText })
+		: tr('designer.arrange.repeat.preview.other', { count: String(typedCount.value), step: stepText });
 });
 
 function run(): void {

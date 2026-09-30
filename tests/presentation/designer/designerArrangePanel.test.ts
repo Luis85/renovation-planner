@@ -422,10 +422,30 @@ describe('repeating', () => {
 		const { wrapper } = mountPanel({ selected: [graphic('detail-1')] });
 		await type(wrapper, 'repeat-count', '3');
 		await type(wrapper, 'repeat-spacing', '20');
-		expect(wrapper.find('[data-rp-preview="repeat"]').text()).toBe(t('en', 'designer.arrange.repeat.preview', { count: '3', step: '20' }));
+		expect(wrapper.find('[data-rp-preview="repeat"]').text()).toBe(t('en', 'designer.arrange.repeat.preview.other', { count: '3', step: '20' }));
 		await choose(wrapper, 'repeat-mode', 'gaps');
 		// detail-1 is 100 wide, so a 20 mm gap is a 120 mm step.
-		expect(wrapper.find('[data-rp-preview="repeat"]').text()).toBe(t('en', 'designer.arrange.repeat.preview', { count: '3', step: '120' }));
+		expect(wrapper.find('[data-rp-preview="repeat"]').text()).toBe(t('en', 'designer.arrange.repeat.preview.other', { count: '3', step: '120' }));
+	});
+
+	/**
+	 * The `.one`/`.other` split (Task 6, AD18 UI critique round): the form's own defaults
+	 * (count '1', spacing '100', mode 'centres') already drew this preview before any input at
+	 * all, so a single copy is the FIRST thing a user sees — "1 copies, each 100 mm…" before
+	 * this round found it.
+	 */
+	it('previews a single copy without the plural or "each", in both locales', () => {
+		const { wrapper } = mountPanel({ selected: [graphic('detail-1')] });
+
+		expect(wrapper.find('[data-rp-preview="repeat"]').text()).toBe(
+			t('en', 'designer.arrange.repeat.preview.one', { step: '100' }),
+		);
+		expect(t('de', 'designer.arrange.repeat.preview.one', { step: '100' })).toBe(
+			'1 Kopie, 100 mm weiter als die vorige',
+		);
+		expect(t('de', 'designer.arrange.repeat.preview.other', { count: '3', step: '100' })).toBe(
+			'3 Kopien, jede 100 mm weiter als die vorige',
+		);
 	});
 
 	it('adds the copies on one press, with ids above the highest the design carried', async () => {

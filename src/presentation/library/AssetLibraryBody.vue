@@ -110,11 +110,12 @@ const inCategory = computed((): readonly CatalogueEntryDto[] =>
  * The region is present and empty from the ready branch's first paint and is written into on
  * each keystroke, which is the shape that actually speaks.
  */
-const matchCount = computed(() =>
-	store.searching
-		? tr('view.asset-library.search.results', { count: String(inCategory.value.length) })
-		: '',
-);
+const matchCount = computed(() => {
+	if (!store.searching) return '';
+	return inCategory.value.length === 1
+		? tr('view.asset-library.search.results.one')
+		: tr('view.asset-library.search.results.other', { count: String(inCategory.value.length) });
+});
 
 /**
  * AD18-R18's third empty state: the catalogue has assets (and, while searching, matches), and the

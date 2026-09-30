@@ -58,9 +58,12 @@ const failure = computed(() => {
 
 const newAssetBusy = ref(false);
 
-const assetCount = computed(() =>
-	store.status === 'ready' ? tr('view.asset-library.assets', { count: String(store.total) }) : '',
-);
+const assetCount = computed(() => {
+	if (store.status !== 'ready') return '';
+	return store.total === 1
+		? tr('view.asset-library.assets.one')
+		: tr('view.asset-library.assets.other', { count: String(store.total) });
+});
 
 function selectionOf(assetId: string): AssetId | null {
 	return assetId === '' ? null : (assetId as AssetId);

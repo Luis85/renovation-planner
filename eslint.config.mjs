@@ -369,6 +369,27 @@ const ASSET_LIBRARY_ACRONYMS = [...DEFAULT_ACRONYMS, 'SKU'];
 const UNIT_SYMBOLS_PATTERN = '^(?:pcs|m|m²|m³|h|d|fixed)$';
 
 /**
+ * A `.one` string that leads with the count itself as a bare numeral — '1 asset', '1 matching
+ * asset' — rather than a placeholder (Task 6, AD18 UI critique round: the house `.one`/`.other`
+ * split for a `{count}` key with no singular form). `sentenceCaseUtil.js`'s own leading-content
+ * check strips a digit through `\p{Emoji}` — an ASCII digit carries the Unicode
+ * `Emoji_Component` property for a keycap sequence (`1️⃣`) — so a bare leading digit reads as NO
+ * leading content at all, and the rule then treats the WORD after it as the sentence's first
+ * word and demands it capitalise: '1 Asset'. That is the rule reaching past its own domain the
+ * same way `UNIT_SYMBOLS_PATTERN` above does, so the fix widens the RULE's vocabulary rather
+ * than the copy — 'One asset' is not this project's house style for a count
+ * (`editor.unsupported-width.body.one` keeps the numeral mid-sentence), and capitalising the
+ * noun only in the singular ('1 Asset' beside '5 assets') would be a second, inconsistent house
+ * style bought to satisfy a linter's blind spot rather than a reader's eye.
+ *
+ * Anchored on the LEADING shape only (`^\d+ [a-z]`), not on any exact string, so it reaches a
+ * future `.one` key of the same shape without a fourth literal to keep in sync — narrower than
+ * "any string with a digit" would be, since a digit elsewhere in a sentence never meets this
+ * quirk (the emoji strip only matters for what precedes the first alphabetic character).
+ */
+const LEADING_COUNT_PATTERN = '^\\d+ [a-z]';
+
+/**
  * `eslint-plugin-vue`'s flat configs carry NO `files` of their own, so spreading them as
  * shipped applies every Vue rule to every linted file — and that is not a style objection:
  * `vue/multi-word-component-names` loading against `package.json` throws
@@ -790,7 +811,7 @@ export default defineConfig([
 		rules: {
 			'obsidianmd/ui/sentence-case-locale-module': [
 				'warn',
-				{ acronyms: ASSET_LIBRARY_ACRONYMS, ignoreRegex: [UNIT_SYMBOLS_PATTERN] },
+				{ acronyms: ASSET_LIBRARY_ACRONYMS, ignoreRegex: [UNIT_SYMBOLS_PATTERN, LEADING_COUNT_PATTERN] },
 			],
 		},
 	},

@@ -84,11 +84,20 @@
 	rather than widening a rule `ViewRoot`'s own strip also draws with.
 -->
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { UnreadableEntry } from '../../application/queries/ListCatalogueEntries';
 import { tr } from '../i18n/strings';
 
-defineProps<{ entries: readonly UnreadableEntry[] }>();
+const props = defineProps<{ entries: readonly UnreadableEntry[] }>();
 const emit = defineEmits<{ open: [path: string] }>();
+
+/** The strip's headline (§4), `.one`/`.other` chosen at the caller (Task 6, AD18 UI critique
+ *  round) rather than the "(s)" shorthand it carried until then. */
+const headline = computed(() =>
+	props.entries.length === 1
+		? tr('view.asset-library.some-unreadable.one')
+		: tr('view.asset-library.some-unreadable.other', { count: String(props.entries.length) }),
+);
 
 /** What `MigrationRunner.migrateToLatest` raises for a note from a newer build
  *  (`${kind}.schema-version-unsupported`). */
@@ -112,7 +121,7 @@ function reasonLabel(entry: UnreadableEntry): string {
 
 <template>
 	<div class="rp-view-notice rp-al-repair">
-		<p>{{ tr('view.asset-library.some-unreadable', { count: String(entries.length) }) }}</p>
+		<p>{{ headline }}</p>
 		<ul>
 			<li
 				v-for="entry in entries"

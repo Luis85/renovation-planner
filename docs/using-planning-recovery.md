@@ -218,7 +218,7 @@ rather than a migration one, so it reads as damaged data rather than as "this bu
 | Grid and snapping choices, panel widths | this device's local storage | — | A value of the wrong type, or a width out of range, reads as the default. |
 | Review and Shopping notes | beside the plan note | — | Generated. If someone edited one, regenerating it is refused rather than overwriting the edit. |
 | Evidence files | where they were added | — | Ordinary vault files. Unlinking removes the link, not the file. |
-| Open tabs | Obsidian's workspace layout | `planId`, `origin`, `unrecoveredWrite` (Plan editor); `projectId` (Renovation project); `assetId` (Asset designer); `assetId`, `expanded` (Asset library) | Which project, plan or asset a tab shows, and whether a plan tab saw an unrecovered write. |
+| Open tabs | Obsidian's workspace layout | `planId`, `origin`, `unrecoveredWrite` (Plan editor); `projectId`, `section`, `origin` (Renovation project); `assetId` (Asset designer); `assetId`, `expanded` (Asset library) | Which project, plan or asset a tab shows, and whether a plan tab saw an unrecovered write. |
 
 Browser and automated evidence is recorded in the
 [Increment E report](user-experience/renovation-planner-editor-specs/implementation/planning-recovery-evidence.md).

@@ -16,7 +16,7 @@ function writableOutline(zone: Zone, points: readonly Point[]): boolean {
 	const preserved = preservePointCurves(zone.geometry, { points });
 	const written = preserved.ok ? enclosingOutline(preserved.value) : preserved;
 	// The chord crossing rule only where there are no arcs for it to misjudge — exactly the
-	// straight-edge rule the default `simpleAreaOutline` asked before.
+	// straight-edge rule `simpleAreaOutline` asks.
 	return written.ok && (hasCurves(written.value) || !outlineCrosses(points));
 }
 
@@ -46,7 +46,7 @@ function writableOutline(zone: Zone, points: readonly Point[]): boolean {
  * changes and refuses ambiguous point-only topology changes without writing`.
  *
  * **The preview asks what that write asks** (L-22, owner ruling 59), so its `accepts` is
- * `writableOutline` above rather than the form's chord-only default: a curved outline whose arcs
+ * `writableOutline` above rather than the chord-only `simpleAreaOutline`: a curved outline whose arcs
  * cross is refused before Apply, and one whose corners are collinear is no longer falsely refused.
  */
 export function createZoneOutlineAction(context: PlanEditorContext, runtime: RoomEditRuntime & Pick<EditorRuntime, 'renderState'>) {

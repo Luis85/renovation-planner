@@ -1,5 +1,13 @@
 # Plan a renovation from the floor
 
+> **What this guide is.** It describes behaviour that is **implemented** in this build: each
+> control it names exists, and the automated suite exercises it. It is not a record of
+> **verification**. Whether a route has been walked in Obsidian is in its case's `## Runs` table
+> under [`tests/cases/`](tests/cases/), on the build that row names; most record no run. The
+> Plan editor is desktop-only. What is limited or unsupported is in
+> [Known limitations](known-limitations.md), and the beta's status in
+> [first beta readiness](releases/first-beta-readiness/README.md).
+
 > **Current-route amendments — 2026-09-13.** This guide follows the current Plan Editor
 > routes. **Plan** is the geometry-editing perspective. **Renovate** keeps Select and Pan
 > available, offers **Add work item** for eligible targets, and exposes Existing, Planned, Work and related planning content;
@@ -15,8 +23,8 @@
 > greyed in Renovate, and neither door appears in Review. It changes the position of a corner
 > that already exists — it cannot add or remove one — and it does not replace dragging.
 > **Whether it is usable by keyboard and with assistive technology is not established yet.**
-> Nothing in this build has been run in a live vault, and the automated accessibility checks in
-> this repository run without a rendering engine, so they measure neither a visible focus ring
+> This route's case, *Edit a zone corner by typing its position*, records no run in a vault, and
+> the automated accessibility checks in this repository run without a rendering engine, so they measure neither a visible focus ring
 > nor contrast nor hit-target size. At a sidebar's width the dialog covers the canvas, so the
 > marked corner cannot be seen on the plan while you type.
 
@@ -87,7 +95,7 @@ validated yet. To add a corner, right-click
 a Room, Area, wall, path or fence and choose **Add point**: it lands on the nearest edge where you
 clicked, ready to drag, and one Undo removes it. A wall is cut there into two, so the new junction
 drags like any wall end; a cut through an opening is refused. Use **Details** to open the
-selected item’s Existing, Planned, Work, Materials, Costs or Evidence routes. A selected
+selected item’s Existing, Planned, Work, Materials, Costs, Documents, Photos or Notes routes. A selected
 wall shows its length label and, when it has a Room context, **Mark change**. Activate the label,
 or right-click the wall and choose **Edit**, to change its length; that still requires Preview
 and Apply. Mark change uses the separate Planned record. Openings, paths and objects are edited
@@ -116,7 +124,7 @@ comes from; with nothing selected and until a reference plan is added, the Inspe
 the outline is. **Fit floor** frames the guide while the Reference plan layer is visible, and
 that layer's eye hides it. Crop the new plan's reference image at the same corner and calibrate
 it, and the drawing lines up with the guide. A zone can have several detail plans, for example
-one per floor, and its right-click menu lists **Open** for each. On the canvas, a zone with
+one per floor, and its right-click menu lists **Open** followed by each plan’s name. On the canvas, a zone with
 detail plans shows a third line under its area: the plan's name, or how many there are. On a
 detail plan, the breadcrumb and the Property tree list every plan above it, and each name opens
 that plan. If the zone is later deleted, the outline disappears and the Property tree says so.
@@ -195,7 +203,7 @@ Select a Room or associated element, then open the current section’s navigatio
    the displayed Room totals. Follow the reconciliation
    explanation to understand what contributes to the displayed totals. Procurement does not
    itself record a payment.
-6. **Evidence** links ordinary vault files, notes and photos. Select a photo thumbnail to
+6. **Documents**, **Photos** and **Notes** link ordinary vault files as evidence. Select a photo thumbnail to
    show its metadata. Optionally record its capture or document date as YYYY-MM-DD; leave it
    blank when unknown. Recorded dates sort chronologically, with undated records following;
    the date is never taken from the file timestamp. Phase filters organize the gallery or list; following a specific record reveals it even if another phase was selected before.
@@ -220,7 +228,7 @@ From Costs, **Compare quotes** opens the Project’s separate comparison. Add a 
 record an offer’s dates and priced lines, and explicitly link each line to Work or catalogue
 items. Preview before applying. Compare only the scope you recorded: uncovered rows are
 shown as not quoted, and each offer has its own totals per currency. Recording a quote does
-not create a commitment or payment. A received offer is immutable; use **Record revision**
+not create a commitment or payment. A received offer is immutable; use **Record a revision**
 to start a new offer identity. Return to the floor to restore the original Room and record
 when they still exist.
 

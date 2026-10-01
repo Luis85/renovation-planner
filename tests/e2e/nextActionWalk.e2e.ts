@@ -24,7 +24,8 @@ import { PLUGIN_ID, mobileEmulation, type NativeBrowser } from './session';
  * `docs/tests/cases/Notices and save state.md` steps 15a (both halves) and 25 (the notice's
  * report button, from the keyboard), the getting-started guide (`open-help`,
  * `GettingStartedModal.ts`) with the sample project's fictional name, and the Rooms list's
- * keyboard (L-46, `RoomSummaryList.vue`), for which no manual case exists.
+ * keyboard (L-46, `RoomSummaryList.vue`), whose manual case is
+ * `docs/tests/cases/Walk the room lists from the keyboard.md`.
  *
  * Copy is read from the `en` locale module, which is plain data and imports in this node
  * config; `strings.ts` and the guide's own module import `obsidian` and do not, so a guide

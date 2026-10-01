@@ -85,7 +85,7 @@ into an automated check will find the same thing again next release.
 
 ## The triage column
 
-Every step below carries a **`Reachable by`** verdict — a column in the **29** cases whose
+Every step below carries a **`Reachable by`** verdict — a column in the **30** cases whose
 steps are a table, and an inline token after the step number in [[Canvas Navigation]], whose
 procedure is a list. (That number said *fifteen*, then *twenty*, through repeated case additions,
 because it is prose beside a grep nobody re-ran for it. **Its stated derivation was wrong as well
@@ -94,7 +94,10 @@ counts every case file — including the **22** that carry no verdict column at 
 this paragraph's *"every step below"* therefore does not describe. `ls` minus one said 49 then
 and the population was 27. Re-derived 2026-09-21 with the loop below, which asks each file whether
 it carries a table-form verdict rather than assuming it does, and re-run on 2026-10-01 at the merge
-of `main` into the beta branch: 51 and **29**, the two trees' new cases together.)
+of `main` into the beta branch: 51 and **29**, the two trees' new cases together — where the `ls` half was
+wrong on its own tree, which `git ls-tree` over the merge commit `ccf03be55` counts as **52**. Re-run
+again on 2026-10-01 in the edit that added [[Walk the room lists from the keyboard]]: **53** and
+**30**.)
 
 ```bash
 for f in docs/tests/cases/*.md; do
@@ -108,12 +111,23 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 229 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 84 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 232 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 91 |
 | `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 199 |
 | `e2e` | **Added 2026-09-26 (AD18-R28).** Needs Obsidian itself, exactly as `obsidian` does, but every clause of the step is discharged by a NAMED test — vitest or real-Obsidian `npm run test:e2e` — and at least one of those clauses needs the real host, rather than any clause being carried by a person. Not every clause is watched red under a mutation: a clause built or closed in this round was; an earlier clause already carried by a pre-existing test was audited by reading its body, sampled rather than exhaustively mutated (29 clauses mutated, 7 of the 29 did not go red, all seven since corrected). A step with any clause still open, or resting on judgement, keeps its `obsidian`/`judgement` tier instead: the retag is per STEP, not per clause, and a step's own *Automated* table says which test covers which clause | 214 table rows on 2026-10-01, counted with the first grep below narrowed to `e2e` — a figure and not a triage: every case's `obsidian` rows have still not been triaged for this tier |
-| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 18 |
+| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 19 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other five rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 22 |
+
+**563 steps tiered by the two greps below, plus 214 rows tagged `e2e` — re-measured on 2026-10-01 at
+`722b9313f` and again in the edit that added [[Walk the room lists from the keyboard]].** At
+`722b9313f`, before that case, the two greps printed 534 table rows plus the 18 list steps in
+[[Canvas Navigation]] — the merge's 552 below, unchanged, tier for tier: the edits between the
+merge and that commit moved no verdict. With the case they print **545 + 18**: `suite` 232,
+`browser` 91, `obsidian` 199, `desktop` 19, `judgement` 22, and `e2e` still 214 by the first grep
+narrowed to that token. **It is additive per row and not merely in total** — 229+3, 84+7, 199+0,
+18+1, 22+0 — which is the new case's own eleven steps and nothing else.
+
+**The previous measurement's own account follows, kept as history.**
 
 **552 steps tiered by the two greps below, plus 214 rows tagged `e2e` — re-measured on 2026-10-01 at
 the merge of `main` (`f271e1ffb`) into the beta branch, and taken from neither side.** The two greps
@@ -930,3 +944,11 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   gate. Eighteen of its twenty-eight steps need Obsidian, which is the highest proportion in this
   suite and is the point: this case is almost entirely about navigation between real workspace
   leaves, and `FakeLeaf` records asks rather than behaving.
+- [[Walk the room lists from the keyboard]] — L-46's one Tab stop per room list: Tab into the
+  Floor inspector's Rooms list once, the arrows between rooms, Shift+Tab back to the row you left,
+  and ArrowRight to a row's lock, which Enter and Space toggle — its state carried by its
+  accessible name alone (AD18-R23). `nextActionWalk.e2e.ts`'s "the Rooms list keyboard (L-46)"
+  drives parts of steps 1 to 6 and 8 in real Obsidian, and the case's *Automated* table says which
+  parts. What no automated run here sees is whether the focus ring is visible and what a screen
+  reader makes of a list with no composite role, which are its steps 10 and 11. Its *Limits*
+  section carries the trade-offs L-46 disclosed rather than steps that would fail on them.

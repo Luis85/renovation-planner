@@ -132,6 +132,8 @@ describe('Design an Asset, the parity round part menu, in the real Obsidian host
 		const { designer, parity, assetId, rect } = await assetY(browser, page, ui, 'Chorded toilet');
 		// Obsidian's own binding in this vault, read rather than assumed.
 		expect(await parity.hotkeysOf('graph:open')).toEqual(['Mod+G']);
+		// And `boundTo` finds it from the chord a user presses — the one positive answer it is asked for.
+		expect(await parity.boundTo(['Ctrl+G'])).toContain('graph:open');
 
 		// Steps 95 and 95a, AS MEASURED: two graphics selected, the canvas focused, Ctrl+G. The host's
 		// keymap takes the chord on `window` in the CAPTURE phase, before the designer's listener is

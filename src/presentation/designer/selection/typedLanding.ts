@@ -12,9 +12,10 @@ import { partMeasure, type PartBox } from './partExtent';
  * where `solveScale` leaves it, which is not the typed value, and before this nothing said so beyond the
  * figures reading back a different number. Each door that types a Width, a Depth or a whole-design size
  * dispatches through `landTyped`: the inspector's Width and Depth, the canvas's size labels, the canvas's
- * clearance-reach labels (a typed reach asks the clearance for a size, and warns in its own words), and Set dimensions' scaling path.
- * Set dimensions' other path writes a rectangle at the typed numbers, which has nothing to miss. A box-handle drag does not come here, because the pointer is its feedback, so a drag and a
- * typed size still land the same numbers (AD18-R23) and the typed one alone warns.
+ * clearance-reach labels (a typed reach asks the clearance for a size, and warns in its own words), and
+ * Set dimensions' scaling path. Set dimensions' other path writes a rectangle at the typed numbers, which
+ * has nothing to miss. A box-handle drag does not come here, because the pointer is its feedback, so a
+ * drag and a typed size still land the same numbers (AD18-R23) and the typed one alone warns.
  *
  * The warning OBSERVES what landed and changes nothing about it: the landed shape is measured the way the
  * door measured the part it resized (`partMeasure`, the curve-aware box), per typed axis, and only after the
@@ -54,7 +55,9 @@ export async function landTyped(editShape: EditShape, typed: TypedSize, edit: Pa
 	if (AXES.some((axis) => typed[axis] !== undefined && Math.abs(box[axis] - typed[axis]) > MISS_MM)) {
 		const size = { width: String(Math.round(box.width)), depth: String(Math.round(box.depth)) };
 		const { reach } = typed;
-		notifyWarning(reach === undefined ? tr('designer.typed-size.landed', size) : tr(reach.landed, { ...size, reach: String(Math.round(reach.measure(landed.shape))) }));
+		notifyWarning(reach === undefined
+			? tr('designer.typed-size.landed', size)
+			: tr(reach.landed, { ...size, reach: String(Math.round(reach.measure(landed.shape))) }));
 	}
 	return result;
 }

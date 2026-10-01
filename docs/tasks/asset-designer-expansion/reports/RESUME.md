@@ -270,17 +270,20 @@ details not eyeballed" claim for the harness (Tasks 6 and 8).
 
 **New this round, recorded rather than fixed:**
 
-- **Two designers step 13's framing leans on step 12's old premise** (Task 1).
-- **The left/top `missed` key mapping of the reach warning is unpinned**, and an inward (negative)
-  landed reach would read "reaches -N mm beyond the ... edge" (Task 2). `typedLanding.ts` line 57 is a
-  166-character line.
-- **`boundTo`'s only caller asserts `[]`, and `spellKey`'s Ctrl-to-Mod, sort and upper-case clauses are
-  exercised by no caller** (Task 4).
-- **Task 3's leftovers:** (a) `.rp-reference-setup > .rp-dialog-actions` in
-  `editor-reference-viewport.css` mostly restates `.rp-dialog-footer`, and its 8px padding leaves
-  scroll-padding about 4px short (cut to `z-index: 1`); (c) Reference setup's Back lacks
-  `rp-dialog-button`; (d) `FormDialog.vue` has a docblock line of about 170 characters; (e)
-  `dialogFooter.e2e.ts` uses fixed 400/150 ms pauses, to become `expect.poll` if Linux flakes.
+- **`spellKey`'s sort and upper-case clauses are still exercised by no caller.** Task 9 gave `boundTo` a
+  positive answer (`boundTo(['Ctrl+G'])` contains `graph:open`, watched red by breaking the Ctrl-to-Mod
+  clause), which drives that clause alone: one modifier sorts trivially and the host's key is already
+  upper case. Not fixed because no chord this suite asks about needs either.
+- **Decision, not a defect (AD18-R40):** an inward (negative) landed reach in the typed-reach miss warning
+  reads signed — "reaches -200 mm beyond the left edge" — matching the canvas's own signed inward reach
+  label, so the warning and the figure it corrects say the same number.
+- **Fixed by Task 9, so no longer open:** Two designers step 13's framing; the per-side `missed` key
+  mapping (now pinned for all four sides); `typedLanding.ts`'s and `FormDialog.vue`'s over-long lines;
+  `boundTo`'s only caller asserting `[]`; and Task 3's leftovers (a) the reference setup's restated
+  footer rule, cut to `z-index: 1` and held in real Obsidian by `dialogFooter.e2e.ts` (row height equals
+  the body's scroll padding), (c) Back's missing `rp-dialog-button`, (d) the docblock line, and (e)
+  `dialogFooter.e2e.ts`'s fixed pauses in the short-window case, now `expect.poll`s. `narrowTo`'s
+  400 ms pause in the first case was not in scope and stays.
 - **Task 5's new Design 120 case is green on Linux too** — E2E run `36787464779` on `270cf864a` passed
   every leg (1.13.7 and latest desktop shards, mobile-emulation).
 - **Task 8:** the harness's unreadable tile-adhesive asset says "no shape" in its inspector where

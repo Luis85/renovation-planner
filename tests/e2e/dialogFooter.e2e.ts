@@ -118,7 +118,7 @@ const shortenTo = async (browser: NativeBrowser, height: number): Promise<void> 
 		const current = electron.require('@electron/remote').getCurrentWindow();
 		current.setSize(current.getSize()[0], px);
 	}, height);
-	await browser.pause(400);
+	await expect.poll(() => browser.execute(() => window.innerHeight)).toBeLessThanOrEqual(height);
 };
 
 /** A new project's schedule section, reached through the view state the pane itself keeps. */
@@ -283,7 +283,7 @@ describe('a form dialog’s one action row in the real Obsidian host', () => {
 				body.scrollTop = edge === 'top' ? 0 : body.scrollHeight;
 				return { overflow: body.scrollHeight - body.clientHeight, scrollTop: body.scrollTop, viewport: window.innerHeight };
 			}, where);
-			await browser.pause(150);
+			await expect.poll(() => browser.execute(() => document.querySelector('.rp-dialog-body')?.scrollTop)).toBe(scroll.scrollTop);
 			return { ...scroll, ...(await layout(browser)) };
 		};
 		const top = await at('top');
@@ -301,5 +301,35 @@ describe('a form dialog’s one action row in the real Obsidian host', () => {
 			expect(submit.bottom).toBeLessThanOrEqual(Math.min(panel.bottom, measured.viewport));
 			expectOneRow(measured);
 		}
+	});
+
+	/**
+	 * The body's `scroll-padding-block-end` is the pinned row's height plus the body's inset, so a field
+	 * Tab lands on clears the row (`.rp-dialog-body:has(> * > .rp-dialog-footer)`). The Plan Editor's
+	 * reference setup restated the row with its own 8 px foot padding, which out-specified the footer's
+	 * and left that padding 4 px short for this one form.
+	 */
+	desktop('the reference setup’s pinned row is exactly as tall as the scroll padding its body reserves for it', async ({
+		native: { browser, ui },
+	}) => {
+		await ui.createProjectWithPlan('Reference probe', 'Ground floor');
+		const editor = browser.$('.workspace-leaf-content[data-type="renovation-plan-editor"]');
+		await expect.poll(() => editor.$('.rp-plan-canvas canvas').isExisting()).toBe(true);
+		await browser.execute(() => {
+			const opener = [...document.querySelectorAll<HTMLElement>('.renovation-plan-editor [data-rp-action="reference"]')].find((one) => one.offsetParent !== null);
+			if (!opener) throw new Error('No visible Reference action.');
+			opener.click();
+		});
+		await expect.poll(() => browser.$('.rp-dialog [data-rp-form="reference"]').isDisplayed()).toBe(true);
+
+		const reserved = await browser.execute(() => {
+			const body = document.querySelector('.rp-dialog-body');
+			const row = document.querySelector('.rp-dialog .rp-dialog-footer');
+			if (!body || !row) throw new Error('No reference dialog to measure.');
+			const style = getComputedStyle(body);
+			return { padding: Number.parseFloat(style.scrollPaddingBlockEnd), row: row.getBoundingClientRect().height + Number.parseFloat(style.paddingBottom) };
+		});
+		expect(Math.abs(reserved.padding - reserved.row)).toBeLessThanOrEqual(1);
+		expectOneRow(await layout(browser));
 	});
 });

@@ -138,6 +138,14 @@ describe('the clearance reads its reach per side (AD18-R40)', () => {
 		});
 	});
 
+	/** Each side warns in its OWN words: a clearance 200 out on all four sides draws every arm, so a transposed key goes red. */
+	it.each(SIDES)('warns about a missed %s reach with that side’s key', (side: Side) => {
+		const drawn = clearanceOffsets(dimensionFigures(editableShape({ clearance: rect(1400, 1000) }), null, true, NOTHING_HIDDEN));
+		const figure = expectDefined(drawn.find((one) => one.name === `clearance-offset-${side}`), side);
+
+		expect(figure.typed?.(650)?.reach?.landed).toBe(`designer.typed-reach.landed-${side}`);
+	});
+
 	/** AD18-R22 unchanged: a detail flush with the footprint keeps its `0 mm`, and an overhang its sign. */
 	it('leaves a detail’s signed gaps and 0 mm labels alone', () => {
 		const vanity = dimensionFigures(presetShape('vanity'), null, true, NOTHING_HIDDEN);

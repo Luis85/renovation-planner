@@ -223,6 +223,7 @@ onMounted(() => { if (path.value) void load(); });
 			<button
 				v-if="step > 1"
 				type="button"
+				class="rp-dialog-button"
 				:aria-disabled="paused"
 				data-rp-reference-action="back"
 				@click="go(step - 1)"

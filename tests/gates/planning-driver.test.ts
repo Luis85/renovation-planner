@@ -37,10 +37,8 @@ describe('the planning driver reaches Documents by its label', () => {
 	 * Playwright reads as "any name", and the case above would stay green over it.
 	 */
 	it('names a key both locale modules carry, with a label', () => {
-		for (const [locale, labels] of [['en', planningEn], ['de', planningDe]] as const) {
-			expect(typeof labels[KEY], locale).toBe('string');
-			expect(labels[KEY].trim(), locale).not.toBe('');
-		}
+		const label = expect.stringMatching(/\S/);
+		expect({ en: planningEn[KEY], de: planningDe[KEY] }).toEqual({ en: label, de: label });
 	});
 
 	it('names no action-row button by its last position', () => {

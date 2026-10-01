@@ -1,5 +1,7 @@
 # Native editor release acceptance — 2026-09-08
 
+> **Historical record — status added 2026-10-02.** This records the build and date it names. It is not acceptance of a beta release candidate; that status lives only in [first beta readiness](../../../releases/first-beta-readiness/README.md).
+
 ## Environment and preflight
 
 Only `C:/Users/lum/.codex/tmp/renovation-planner-finalization-vault` is in scope. The ordinary

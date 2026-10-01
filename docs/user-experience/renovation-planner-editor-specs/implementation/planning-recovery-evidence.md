@@ -1,5 +1,7 @@
 # Increment E: connected recovery and reliable planning
 
+> **Historical record — status added 2026-10-02.** This records the build and date it names. It is not acceptance of a beta release candidate; that status lives only in [first beta readiness](../../../releases/first-beta-readiness/README.md).
+
 This is a bounded implementation-plan Phase 12/M15 continuation of PR #88, based on
 `codex/materials-costs-evidence` at `3c1c737a5bfaf0a9e4782f1cbfe2ec4e0aca7f6a`.
 It preserves the Vue/Pinia/Konva editor, guarded command/services, repositories and schemas.

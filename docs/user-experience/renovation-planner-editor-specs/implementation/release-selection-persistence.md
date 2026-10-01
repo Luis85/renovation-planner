@@ -1,5 +1,7 @@
 # Release selection and persistence work package
 
+> **Historical record — status added 2026-10-02.** This records the build and date it names. It is not acceptance of a beta release candidate; that status lives only in [first beta readiness](../../../releases/first-beta-readiness/README.md).
+
 PR #93 merged as `ec342370` while this release was in progress. Its repository-only opening
 reload and linear-element rank tests are retained. After inspecting its different selection
 prose, the user explicitly reconfirmed Object → Opening → Wall → Room. This branch aligns

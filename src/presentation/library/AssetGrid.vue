@@ -11,7 +11,9 @@
 	both bound once on the grid.
 
 	**The `Create your own` card ends the list** (board 01) and calls the existing `New asset` door
-	through the same `create` emit §4's empty state uses, so there is still one door. It spans the
+	through the same `create` emit §4's empty state uses, so there is still one door. On a read-only
+	library (L-43, a phone) it is drawn disabled and described by `readOnlyReasonId`, exactly as the
+	toolbar's `New asset` is, and the root refuses the emit as well. It spans the
 	full row, and it is the last arrow-key stop, which `moveFocusByRow`'s clamp makes reachable
 	from any column.
 
@@ -31,6 +33,8 @@ defineProps<{
 	entries: readonly CatalogueEntryDto[];
 	selectedId: AssetId | null;
 	outlineFor: (assetId: AssetId) => AssetOutline | null;
+	/** L-43: set on a read-only library, which draws the card's New asset disabled and described by it. */
+	readOnlyReasonId?: string;
 }>();
 
 const emit = defineEmits<{ select: [assetId: AssetId]; create: [] }>();
@@ -69,6 +73,8 @@ const emit = defineEmits<{ select: [assetId: AssetId]; create: [] }>();
 					<button
 						type="button"
 						class="rp-al-create-card__action"
+						:disabled="readOnlyReasonId !== undefined"
+						:aria-describedby="readOnlyReasonId"
 						@click="emit('create')"
 					>
 						<HostIcon name="plus" />

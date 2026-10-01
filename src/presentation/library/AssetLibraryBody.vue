@@ -317,6 +317,7 @@ defineExpose({ shelvesElement });
 			:entries="inCategory"
 			:selected-id="selectedId"
 			:outline-for="store.markFor"
+			:read-only-reason-id="readOnlyReasonId"
 			@select="emit('select', $event)"
 			@create="emit('create')"
 		/>

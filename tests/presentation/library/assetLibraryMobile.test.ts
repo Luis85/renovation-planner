@@ -88,11 +88,16 @@ function reached(spies: ReadonlyMap<string, MockInstance>): string[] {
 	return [...spies].filter(([, spy]) => spy.mock.calls.length > 0).map(([name]) => name).toSorted();
 }
 
-async function openLibrary(entries: readonly (typeof ENTRY)[], overrides: Partial<AssetLibraryDeps>, selected = '') {
+async function openLibrary(
+	entries: readonly (typeof ENTRY)[],
+	overrides: Partial<AssetLibraryDeps>,
+	selected = '',
+	layout: 'list' | 'grid' = 'list',
+) {
 	const view = makeAssetLibraryView(defaultAssetLibraryDeps({ queries: queriesOver(entries), ...overrides }));
 	openViews.push(view);
 	document.body.append(view.containerEl);
-	await view.setState({ assetId: selected, expanded: ['material'] }, { history: false });
+	await view.setState({ assetId: selected, expanded: ['material'], layout }, { history: false });
 	await view.onOpen();
 	await settle();
 	return { view, wrapper: new DOMWrapper(view.contentEl) };
@@ -106,9 +111,13 @@ async function press(wrapper: DOMWrapper<Element>, selector: string): Promise<vo
 
 /**
  * Every write gesture the census found, in the order a desktop session can complete them all:
- * the designer launch before a draft exists, the definition save, the delete, then the create.
+ * Duplicate's panel opened (a write only once confirmed, so nothing is confirmed here), the designer
+ * launch before a draft exists, the definition save, the delete, then the create. Answers how many
+ * Duplicate panels the press opened, counted before the later gestures move the selection.
  */
-async function driveEveryWrite(wrapper: DOMWrapper<Element>): Promise<void> {
+async function driveEveryWrite(wrapper: DOMWrapper<Element>): Promise<number> {
+	await press(wrapper, '[data-action="duplicate-open"]');
+	const duplicatePanels = wrapper.findAll('[data-field="duplicate-name"]').length;
 	await press(wrapper, '.rp-al-action--designer');
 	const supplier = wrapper.get<HTMLInputElement>('[data-field="supplier"]');
 	supplier.element.value = 'Northern timber supplier';
@@ -118,13 +127,14 @@ async function driveEveryWrite(wrapper: DOMWrapper<Element>): Promise<void> {
 	await press(wrapper, '.rp-al-action--delete');
 	await press(wrapper, '.rp-al-create');
 	const form = wrapper.find('.rp-dialog form');
-	if (!form.exists()) return;
+	if (!form.exists()) return duplicatePanels;
 	await form.get('[data-field="name"]').setValue('Kitchen island');
 	await form.get('[data-field="unitCostAmount"]').setValue('450.00');
 	await form.get('[data-field="width"]').setValue('1200');
 	await form.get('[data-field="depth"]').setValue('800');
 	await form.trigger('submit');
 	await settle();
+	return duplicatePanels;
 }
 
 /** Refused: `disabled`, `aria-disabled`, or a read-only text field — the three spellings here. */
@@ -171,16 +181,31 @@ describe('the Asset library on mobile', () => {
 		const openDesigner = vi.fn<(assetId: AssetId) => Promise<void>>(() => Promise.resolve());
 		const { wrapper } = await openLibrary([ENTRY], { commands, openDesigner }, ENTRY.assetId);
 
-		await driveEveryWrite(wrapper);
+		const duplicatePanels = await driveEveryWrite(wrapper);
 
 		expect(reached(spies)).toEqual([]);
 		expect(openDesigner).not.toHaveBeenCalled();
+		expect(duplicatePanels).toBe(0);
 		expectRefusedWithReason(wrapper, WRITE_CONTROLS);
 		// Still READABLE: the row, the inspector's name and the search field stay live.
 		expect(wrapper.get(`[data-asset-id="${ENTRY.assetId}"]`).text()).toContain(ENTRY.name);
 		expect(wrapper.get('.rp-al-inspector__name').text()).toBe(ENTRY.name);
 		expect(wrapper.get<HTMLInputElement>('.rp-al-search__input').element.disabled).toBe(false);
 		expect(wrapper.findAll('[data-rp-notice="mobile-read-only"]')).toHaveLength(1);
+	});
+
+	// AD18-R18's Grid ends in a `Create your own` card, a second New asset door the List never draws.
+	it("refuses the Grid card's New asset too, with the same reason", async () => {
+		Platform.isMobile = true;
+		const { commands, spies } = spiedCommands();
+		const { wrapper } = await openLibrary([ENTRY], { commands }, ENTRY.assetId, 'grid');
+
+		await press(wrapper, '.rp-al-create-card__action');
+		await driveEveryWrite(wrapper);
+
+		expect(wrapper.find('.rp-dialog').exists()).toBe(false);
+		expect(reached(spies)).toEqual([]);
+		expectRefusedWithReason(wrapper, [...WRITE_CONTROLS, '.rp-al-create-card__action']);
 	});
 
 	// No selection, so no draft: a dirty draft's own leave prompt would otherwise stand in front
@@ -219,8 +244,9 @@ describe('the same gestures on desktop', () => {
 		const openDesigner = vi.fn<(assetId: AssetId) => Promise<void>>(() => Promise.resolve());
 		const { wrapper } = await openLibrary([ENTRY], { commands, openDesigner }, ENTRY.assetId);
 
-		await driveEveryWrite(wrapper);
+		const duplicatePanels = await driveEveryWrite(wrapper);
 
+		expect(duplicatePanels).toBe(1);
 		expect(openDesigner).toHaveBeenCalledWith(ENTRY.assetId);
 		expect(reached(spies)).toEqual([
 			'createAsset.execute',

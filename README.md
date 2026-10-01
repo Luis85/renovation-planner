@@ -3,14 +3,20 @@
 An Obsidian plugin that plans a renovation as a work breakdown of rooms, trades and tasks,
 with budgets and a schedule.
 
-> Pre-release. The build, the quality gates and the release pipeline are in place, and four
-> workspace surfaces ship: the **Renovation project** view (a project list with a detail state
-> per project), the per-plan **Plan editor** (image or PDF background, calibration, pan/zoom,
-> polygon zones, undo/redo), the per-asset **Asset designer** and the vault-wide **Asset
-> library**. The target architecture is
+> Pre-release, and no release has been cut. The build, the quality gates and the release
+> pipeline are in place, and four workspace surfaces are implemented: the **Renovation
+> project** view (a project list with a detail state per project), the per-plan **Plan
+> editor** (image or PDF background, calibration, pan/zoom, polygon zones, undo/redo), the
+> per-asset **Asset designer** and the vault-wide **Asset library**. The target architecture is
 > [`docs/development/sdds/obsidian-renovation-planner-SDD.md`](./docs/development/sdds/obsidian-renovation-planner-SDD.md);
 > the product intent is [`PRODUCT.md`](PRODUCT.md) and `docs/product/`; the design each
 > surface is built towards is under [`docs/user-experience/`](docs/user-experience/), see below.
+
+**The first beta's status lives in one place:
+[first beta readiness](docs/releases/first-beta-readiness/README.md)** — its gates, owner
+decisions, candidate record and go/no-go. Nothing in this repository is accepted on a release
+candidate yet. Before trying a build, read [Known limitations](docs/known-limitations.md) and
+[Back up and restore](docs/using-planning-recovery.md#back-up-and-restore).
 
 ## Installation
 
@@ -23,7 +29,8 @@ npm run test-build
 
 That writes the plugin into `.obsidian/plugins/renovation-planner/` in this repository, so
 you can open **this folder as a vault** in Obsidian and look at it. On a vault's first open,
-turn off Restricted Mode in Settings → Community plugins.
+turn off Restricted Mode in Settings → Community plugins. It is a development-mode build
+(`vite build --mode development`), not the minified bytes a release would attach.
 
 ## Development
 
@@ -65,8 +72,10 @@ live-vault check.
   [editor](docs/user-experience/renovation-planner-editor-specs/README.md) (M00–M17), the
   [project overview and details](docs/user-experience/renovation-planner-project-specs/README.md)
   (P00–P07) and the
-  [asset library](docs/user-experience/asset-library-delivery/README.md) (AL00–AL11).
-  `archive/` holds the specifications the shipped surfaces were first built from, kept
+  [asset library](docs/user-experience/asset-library-delivery/README.md) (AL00–AL11). The
+  other folders beside them hold increment proposals, research and a user-journey catalogue,
+  which describe intended experiences rather than built ones.
+  `archive/` holds the specifications the implemented surfaces were first built from, kept
   because the code still cites their section numbers. A package's PBIs are proposals, not this
   backlog's items; what was adopted from each is in
   [`docs/reviews/2026-09-05-design-package-adoption.md`](docs/reviews/2026-09-05-design-package-adoption.md).

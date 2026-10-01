@@ -1,6 +1,7 @@
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { GeometryError, ReferenceError } from '../../core/errors/AppError';
 import type { Asset, AssetBackgroundRef } from '../../domain/asset/Asset';
+import type { AssetCategory } from '../../domain/asset/AssetCategory';
 import type { AssetId } from '../../domain/asset/AssetId';
 import { assetNotFound } from '../../domain/asset/Asset.errors';
 import type { AssetShape, Dimensions } from '../../domain/asset/AssetShape';
@@ -25,6 +26,14 @@ import type { EntityVersion, Loaded } from '../ports/versioning';
 export interface AssetDesignDto {
 	readonly assetId: AssetId;
 	readonly name: string;
+	/**
+	 * The catalogue category (Task 9's Inspector card), read straight off the loaded entity —
+	 * `Asset.create`/`reconstitute` already refuse an undeclared value through `isAssetCategory`,
+	 * so this is never the "undeclared category" a catalogue-level DTO carries as a bare `string`
+	 * (`CatalogueEntryDto.category`); it is always one of `ASSET_CATEGORIES`. No second read: the
+	 * entity this query's `getById` call already loaded carries the field.
+	 */
+	readonly category: AssetCategory;
 	/** Millimetres, or `null` for an asset that says nothing about how tall it is. */
 	readonly height: number | null;
 	/** The designer's spec sheet (Task B7), or `null` for an asset with none picked yet. */
@@ -147,6 +156,7 @@ export class GetAssetDesignQuery
 		return ok({
 			assetId: asset.id,
 			name: asset.name,
+			category: asset.category,
 			height: asset.height,
 			background: asset.background,
 			calibration: document.calibration,

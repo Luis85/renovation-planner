@@ -1,11 +1,11 @@
 import type { AppError, ValidationError } from '../../../core/errors/AppError';
-import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import { createPolygon } from '../../../core/geometry/Polygon';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { EntityVersion } from '../../../application/ports/versioning';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
+import type { DetailGeometry } from '../../../domain/asset/AssetDetail';
 import { addDetail, nextDetailId } from '../../../domain/asset/detailEdits';
 import { requireShape } from '../../../application/commands/asset/updateAssetShape';
 import type { ReversibleAssetDesignCommands } from '../../../application/editor/asset/ReversibleAssetDesignCommands';
@@ -16,7 +16,8 @@ import type { EditorTool } from '../../editor/tools/editor-tool';
 import type { ToolManager } from '../../editor/tools/tool-manager';
 import type { UndoableCommand } from '../../editor/tools/undoable-command';
 import { DesignerSelectTool, type DesignerSelectToolDeps } from './designer-select-tool';
-import { circleOutline, DrawDetailTool, rectOutline, type DetailWrite } from './draw-detail-tool';
+import { circleOutline, DrawDetailTool, rectOutline, roundedRectOutline, type DetailWrite } from './draw-detail-tool';
+import { DrawLineTool } from './draw-line-tool';
 import { SetAnchorTool } from './set-anchor-tool';
 import { SetFacingTool } from './set-facing-tool';
 
@@ -77,7 +78,9 @@ export const DESIGNER_TOOL_LABELS = {
 	'trace-footprint': 'designer.toolbar.trace-footprint',
 	'trace-clearance': 'designer.toolbar.trace-clearance',
 	'draw-rect': 'designer.toolbar.draw-rect',
+	'draw-rounded-rect': 'designer.toolbar.draw-rounded-rect',
 	'draw-circle': 'designer.toolbar.draw-circle',
+	'draw-line': 'designer.toolbar.draw-line',
 	'trace-detail': 'designer.toolbar.trace-detail',
 	'set-anchor': 'designer.toolbar.set-anchor',
 	'set-facing': 'designer.toolbar.set-facing',
@@ -155,11 +158,15 @@ export interface DesignerToolDeps {
  * that code and its sentence, rather than a second spelling of them here: a detail, like a clearance,
  * is drawn relative to a footprint.
  */
-function detailOn(deps: DesignerToolDeps, name: string, outline: CurvedPolygon): Result<{ readonly shape: AssetShape; readonly expected: EntityVersion; readonly detailId: string }, ValidationError> {
+function detailOn(deps: DesignerToolDeps, name: string, geometry: DetailGeometry): Result<{ readonly shape: AssetShape; readonly expected: EntityVersion; readonly detailId: string }, ValidationError> {
 	const design = deps.selectTool.design();
 	// A null shape only ever gets `requireShape`'s refusal, which is all the cast states.
 	if (design === null) return requireShape(null) as Result<never, ValidationError>;
-	const added = addDetail(design.shape, { name, outline, line: 'solid', pending: deps.detailPending(design.shape) });
+	const base = { name, line: 'solid' as const, pending: deps.detailPending(design.shape) };
+	// Both arms written out for `mapDetailOutline`'s reason: TypeScript cannot correlate a spread
+	// with a union, so one `{ ...base, ...geometry }` over `DetailGeometry` is assignable to neither
+	// arm of `NewDetail` even though each arm's own spread is.
+	const added = geometry.kind === 'open' ? addDetail(design.shape, { ...base, ...geometry }) : addDetail(design.shape, { ...base, ...geometry });
 	if (!added.ok) return err(added.error);
 	return ok({ shape: added.value, expected: design.geometryVersion, detailId: nextDetailId(design.shape) });
 }
@@ -177,8 +184,8 @@ function detailOn(deps: DesignerToolDeps, name: string, outline: CurvedPolygon):
  *
  * The command is built ONCE: a redo re-executes the same write rather than reading the design again.
  */
-function detailWrite(deps: DesignerToolDeps, name: string, outline: CurvedPolygon): Result<DetailWrite, ValidationError> {
-	const released = detailOn(deps, name, outline);
+function detailWrite(deps: DesignerToolDeps, name: string, geometry: DetailGeometry): Result<DetailWrite, ValidationError> {
+	const released = detailOn(deps, name, geometry);
 	if (!released.ok) return err(released.error);
 	let command: UndoableCommand | null = null;
 	const write = {
@@ -186,7 +193,7 @@ function detailWrite(deps: DesignerToolDeps, name: string, outline: CurvedPolygo
 		command: {
 			execute: async (): Promise<DispatchResult> => {
 				if (command === null) {
-					const step = detailOn(deps, name, outline);
+					const step = detailOn(deps, name, geometry);
 					if (!step.ok) return err(step.error);
 					command = deps.selectTool.createCommand(step.value.shape, step.value.expected);
 					write.detailId = step.value.detailId;
@@ -222,7 +229,7 @@ function traceDetailTool(deps: DesignerToolDeps): DrawPolygonTool {
 		validateOutline: (points) => {
 			const polygon = createPolygon(points);
 			if (!polygon.ok) return polygon;
-			const write = detailWrite(deps, 'outline', polygon.value);
+			const write = detailWrite(deps, 'outline', { kind: 'closed', outline: polygon.value });
 			if (!write.ok) return write;
 			traced = write.value;
 			return polygon;
@@ -276,7 +283,7 @@ export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDe
 		'draw-rect': new DrawDetailTool({
 			id: 'draw-rect',
 			outlineFor: rectOutline,
-			commandFor: (outline) => detailWrite(deps, 'rectangle', outline),
+			commandFor: (outline) => detailWrite(deps, 'rectangle', { kind: 'closed', outline }),
 			reportRejected: deps.reportRejected,
 			reportInvalidInput: deps.reportInvalidInput,
 			onCompleted: (detailId) => completeDetail(deps, detailId),
@@ -284,7 +291,29 @@ export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDe
 		'draw-circle': new DrawDetailTool({
 			id: 'draw-circle',
 			outlineFor: circleOutline,
-			commandFor: (outline) => detailWrite(deps, 'circle', outline),
+			commandFor: (outline) => detailWrite(deps, 'circle', { kind: 'closed', outline }),
+			reportRejected: deps.reportRejected,
+			reportInvalidInput: deps.reportInvalidInput,
+			onCompleted: (detailId) => completeDetail(deps, detailId),
+		}),
+		// One more `DrawDetailTool` beside the box and the circle, differing only in the outline a
+		// drag describes. Its corner radius is DERIVED from the drag (see `roundedRectOutline`) and
+		// nothing stores it, which is the answer presets already give: what is written is ordinary
+		// points and bulges, and the existing bend handle edits a corner like any other curved edge.
+		'draw-rounded-rect': new DrawDetailTool({
+			id: 'draw-rounded-rect',
+			outlineFor: roundedRectOutline,
+			commandFor: (outline) => detailWrite(deps, 'rounded-rectangle', { kind: 'closed', outline }),
+			reportRejected: deps.reportRejected,
+			reportInvalidInput: deps.reportInvalidInput,
+			onCompleted: (detailId) => completeDetail(deps, detailId),
+		}),
+		// The one tool on this surface that writes an OPEN graphic — a seam, a fold, a hinge swing.
+		// It takes the same `detailWrite` every closed tool takes, so an open graphic joins the
+		// leaf's one write chain, one history entry per finished run, with no second door.
+		'draw-line': new DrawLineTool({
+			id: 'draw-line',
+			commandFor: (outline) => detailWrite(deps, 'line', { kind: 'open', outline }),
 			reportRejected: deps.reportRejected,
 			reportInvalidInput: deps.reportInvalidInput,
 			onCompleted: (detailId) => completeDetail(deps, detailId),

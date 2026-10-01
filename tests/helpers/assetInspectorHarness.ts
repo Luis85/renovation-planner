@@ -48,6 +48,10 @@ function answeringQueries(
 		listReferencing: () => Promise.resolve(ok([])),
 		listOverridingProjects: () => Promise.resolve(ok([])),
 		listReassignmentTargets: () => Promise.resolve(ok([])),
+		// Answers an EMPTY scope rather than rejecting, because the inspector draws this section
+		// on every selection: a rejecting door would put every case in this harness into the
+		// usage refusal state. `assetUsageDuplicate.test.ts` overrides it per case.
+		listPlansUsingAsset: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
 	};
 }
 
@@ -62,6 +66,17 @@ export interface InspectorOptions {
 	openNote?: (path: string) => Promise<'opened' | 'missing' | 'failed'>;
 	openAssetNote?: (assetId: AssetId) => Promise<'opened' | 'missing' | 'failed'>;
 	openDesigner?: (assetId: AssetId) => Promise<void>;
+	/**
+	 * The CONTEXT's `indexScanCompleted`, `true` unless a case says otherwise.
+	 *
+	 * The store hydration below stays `() => true` whatever this says, and the asymmetry is the
+	 * point rather than an oversight: a case passing `false` is asking what a section does when
+	 * the scan has not run, and a hydration that withheld too would leave the selected id
+	 * unresolvable and draw no section at all to ask about. `AssetUsageScope.vue`'s header
+	 * records that today's only mount path couples those two facts through the store; this
+	 * option is how a case pins a gate that has to outlive the coupling.
+	 */
+	indexScanCompleted?: () => boolean;
 }
 
 export interface MountedInspector {
@@ -84,7 +99,7 @@ export async function mountInspector(options: InspectorOptions = {}): Promise<Mo
 			openNote: options.openNote ?? (() => Promise.resolve('opened')),
 			openAssetNote: options.openAssetNote ?? (() => Promise.resolve('opened')),
 			openDesigner: options.openDesigner ?? (() => Promise.resolve()),
-			indexScanCompleted: () => true,
+			indexScanCompleted: options.indexScanCompleted ?? (() => true),
 		}),
 		assetId: ref(''),
 		expanded: ref<readonly string[]>([]),

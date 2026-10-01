@@ -1,0 +1,168 @@
+/*
+ * The designer Inspector's OBJECT block: the way back to the catalogue, the multi-selection
+ * controls (AD06, AD08) and the usage scope (AD13-R1).
+ *
+ * WHICH asset this is was drawn here until AD18-R1 moved the name into the header bar, and this
+ * partial carried `.rp-designer-inspector .rp-designer-asset-name` for a while afterwards while
+ * matching nothing — `DesignerHeader.vue`'s `<h2>` is the only element in `src/` with that class
+ * and `AssetDesignerRoot.vue` renders it in `.rp-designer-header`, a sibling of the body that
+ * holds `.rp-designer-inspector`. The live rule is `designer-header.css`'s
+ * `.rp-designer-title-bar .rp-designer-asset-name`, and the dead one is gone.
+ *
+ * Split out of `designer.css` because that partial reached the 400-line cap, which is the same
+ * reason `editor-status.css` and `editor-requirements.css` exist. Its position in `index.css` is
+ * directly after `designer.css` and before `designer-selection.css`, because these rules were
+ * authored at the END of that file: an equal-specificity pair is decided by order, so moving them
+ * earlier would change which wins.
+ */
+
+/**
+ * How many parts are selected (AD08). The count is a status line under the panel title — muted,
+ * like the title itself, because it describes the panel rather than labelling a field.
+ *
+ * **The multi-select checkbox that used to sit beside this rule moved to the Parts panel**
+ * (AD18-R16 Task 7 — `designer-parts.css`'s `.rp-designer-parts .rp-designer-multi-select`): it is
+ * a selection affordance rather than an asset fact, and AD08-R1 already blesses that panel as the
+ * selection surface.
+ */
+.rp-designer-inspector .rp-designer-selection-count {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+/**
+ * One sentence under a selected LINE's heading, saying what its Line control can and cannot mean
+ * (AD11): an open graphic is a stroke, so solid and dashed are its pattern and neither fills it.
+ *
+ * Deliberately NOT `.rp-designer-unscaled`'s warning rule beside it. That one's warning bar says
+ * "these numbers are not millimetres yet" — a state the user can clear by calibrating. This is a
+ * permanent property of the graphic they drew, so it reads as the muted status line the panel uses
+ * for facts about the subject, exactly as `.rp-designer-selection-count` above does.
+ *
+ * In this partial rather than in `designer-selection.css` because this is the one AD11 owns; both
+ * are the designer inspector's, and `index.css` orders this one after it, so nothing above depends
+ * on which of the two an equal-specificity rule would win from. Neither is near the 400-line cap.
+ */
+.rp-designer-inspector .rp-designer-open-graphic {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+/**
+ * **The usage scope** (AD13-R1): which plans place the definition this leaf is editing, stated
+ * under the asset's name and above every control that rewrites it.
+ *
+ * In THIS partial rather than in `designer.css`, and the reason is measured rather than tidy:
+ * that one is at 388 lines against a hard 400-line cap in `scripts/styles-assemble.mjs`, which
+ * FAILS the build rather than warning. This partial's own header scopes it to the Inspector's
+ * OBJECT block — which asset this is, the way back to the catalogue — and a statement of which
+ * plans place THIS asset is exactly that block. Appended, never reordered: this partial's
+ * position in `index.css` is load-bearing (see the header above), because these rules were
+ * authored at the end of `designer.css` and an equal-specificity pair is decided by order.
+ *
+ * Every colour is an Obsidian variable (SDD §84), so a themed vault stays themed.
+ */
+.rp-designer-inspector .rp-designer-usage-scope {
+	margin: 0 0 var(--size-4-2);
+}
+
+/**
+ * Its heading. An `h4` under the asset block's own `h3` rather than the `h3` every inspector
+ * SECTION takes, because this is part of that block and not a sibling of it — see the component's
+ * header. Normal text weight at the panel's own size: it labels the list below it, and the muted
+ * treatment its state lines take is for facts about the READ.
+ */
+.rp-designer-inspector .rp-designer-usage-title {
+	margin: 0 0 var(--size-4-1);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	color: var(--text-normal);
+}
+
+/**
+ * The four state lines — loading, refused or unknown, an empty scope, and the count of notes that
+ * could not be read. One rule for all four, because they are one kind of thing: a fact about the
+ * READ rather than about the asset, which is the muted status line this panel already uses for
+ * `.rp-designer-selection-count` and `.rp-designer-open-graphic`.
+ */
+.rp-designer-inspector .rp-designer-usage-note {
+	margin: 0;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+/**
+ * The plans themselves. A bare list — no rule, no separator and no pointer affordance — because
+ * no row here is a control: opening a plan from the designer would be a second navigation door
+ * beside `Use in plan`, and a row that looked clickable and did nothing is the dead control this
+ * expansion has shipped three times.
+ */
+.rp-designer-inspector .rp-designer-usage-plans {
+	margin: 0;
+	padding: 0 0 0 var(--size-4-4);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+/**
+ * **The asset card** (AD18-R16 Task 9, board 02): a decorative footprint thumbnail beside the
+ * category chip, drawn BEFORE the `Asset` heading — `DesignerAssetCard.vue`'s own header carries
+ * the placement argument. In this partial for the reason `.rp-designer-usage-scope` above is:
+ * both are the Inspector's OBJECT block, and `designer.css` is at its 400-line cap.
+ */
+.rp-designer-inspector .rp-designer-asset-card {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	margin: 0 0 var(--size-4-2);
+}
+
+/*
+ * `AssetMark.vue`'s own outline-only shape (`styles/asset-mark.css`), not a filled preview like
+ * the preset dialog's: this is a small `aria-hidden` mark beside a text chip, never the subject
+ * of its own attention. Every colour is an Obsidian variable (SDD §84).
+ */
+.rp-designer-inspector .rp-designer-asset-thumbnail {
+	width: 40px;
+	height: 40px;
+	flex: none;
+	color: var(--text-muted);
+}
+
+/*
+ * AD18 second parity round, task 1: the round-1 card put `stroke-width` on the `<svg>` itself, in
+ * `preview.viewBox`'s own millimetre units — the vanity's `-440 -265 880 530` — so a declared
+ * `1.5px` measured 0.07px once the 880-unit-wide box was drawn into a 40px picture, invisible
+ * rather than merely thin. `designer.css`'s `.rp-asset-preset-preview__footprint` /
+ * `__detail` already carries the fix for the identical squeeze (a bigger dialog preview scaling
+ * a smaller footprint by a smaller factor, but the same mechanism): `vector-effect:
+ * non-scaling-stroke` reads `stroke-width` in SCREEN pixels rather than viewBox units, so it is
+ * reused here rather than invented. Per-path now, not on the `<svg>`, because a detail's own
+ * dashed pattern (below) has to sit beside a stroke rule rather than fight one inherited from the
+ * root.
+ */
+.rp-designer-inspector .rp-designer-asset-thumbnail__footprint,
+.rp-designer-inspector .rp-designer-asset-thumbnail__detail {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+	stroke-linejoin: round;
+	vector-effect: non-scaling-stroke;
+}
+
+/* Dashed marks a detail drawn "overhead or hidden" (`AssetDetail.ts`'s `DetailLine` doc, Decision 4) — the same `4 3` pattern `designer.css`'s preset preview already uses for the same source data. */
+.rp-designer-inspector .rp-designer-asset-thumbnail__detail--dashed {
+	stroke-dasharray: 4 3;
+}
+
+.rp-designer-inspector .rp-designer-asset-category {
+	display: inline-flex;
+	align-items: center;
+	padding: var(--size-2-1) var(--size-2-2);
+	background-color: var(--background-secondary);
+	border-radius: var(--radius-s);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}

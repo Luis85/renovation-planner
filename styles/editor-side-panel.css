@@ -281,7 +281,7 @@
  * `visibility: hidden` button refuses that call outright, while an `opacity: 0` one still accepts
  * it, and `:focus-within` then reveals it.
  */
-.renovation-plan-editor .rp-editor-layers .rp-room-list__item > .rp-editor-inspector-lock[aria-pressed='false'] {
+.renovation-plan-editor .rp-editor-layers .rp-room-list__item > .rp-editor-inspector-lock[data-rp-locked='false'] {
 	opacity: 0;
 }
 

@@ -427,22 +427,9 @@ const SHOTS = [
 	// palettes resolve that mix differently and neither picture predicts the other. The 460 shot
 	// is the sidebar leaf's real width, where the strip's icon-and-text row either wraps or does
 	// not.
-	{
-		name: 'project-detail-recovery',
-		query: '?project=project-1&plans=2&recovery',
-		selector: PROJECT_VIEW,
-	},
-	{
-		name: 'project-detail-recovery-light',
-		query: '?project=project-1&plans=2&recovery&theme=light',
-		selector: PROJECT_VIEW,
-	},
-	{
-		name: 'project-detail-recovery-narrow',
-		query: '?project=project-1&plans=2&recovery&theme=light',
-		selector: PROJECT_VIEW,
-		width: 460,
-	},
+	{ name: 'project-detail-recovery', query: '?project=project-1&plans=2&recovery', selector: PROJECT_VIEW },
+	{ name: 'project-detail-recovery-light', query: '?project=project-1&plans=2&recovery&theme=light', selector: PROJECT_VIEW },
+	{ name: 'project-detail-recovery-narrow', query: '?project=project-1&plans=2&recovery&theme=light', selector: PROJECT_VIEW, width: 460 },
 	{
 		name: 'home-narrow-360',
 		query: '?projects=10&theme=light',
@@ -503,8 +490,8 @@ const SHOTS = [
 	// read, so a broken knob would still exit 0 with a picture of the resting editor under this
 	// shot's name. `DETAIL_ANCESTRY_CRUMB` (see its own comment) is the third selector that
 	// closes that gap: it exists only once the hierarchy read has landed. The locked shots wait
-	// on a pressed lock toggle in the floor Inspector, which only renders once the knob has
-	// locked a zone.
+	// on a lock toggle drawing the CLOSED padlock in the floor Inspector, which only renders once
+	// the knob has locked a zone.
 	{ name: 'plan-editor-detail', query: '?view=plan-editor&detail&theme=light', selector: '.rp-floor-inspector__guide' },
 	{ name: 'plan-editor-detail-dark', query: '?view=plan-editor&detail', selector: '.rp-floor-inspector__guide' },
 	{
@@ -532,8 +519,8 @@ const SHOTS = [
 	{ name: 'plan-editor-outline', query: '?view=plan-editor&select=harness-terrace&outline=1&theme=light', selector: '[data-rp-corner="choose"][aria-pressed="true"]' },
 	{ name: 'plan-editor-outline-dark', query: '?view=plan-editor&select=harness-terrace&outline=1', selector: '[data-rp-corner="choose"][aria-pressed="true"]' },
 	{ name: 'plan-editor-outline-narrow', query: '?view=plan-editor&select=harness-terrace&outline=1&theme=light', selector: '[data-rp-corner="choose"][aria-pressed="true"]', width: 460 },
-	{ name: 'plan-editor-locked', query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
-	{ name: 'plan-editor-locked-dark', query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: '.rp-floor-inspector .rp-editor-inspector-lock[aria-pressed="true"]' },
+	{ name: 'plan-editor-locked', query: '?view=plan-editor&locked=harness-terrace,harness-garden&theme=light', selector: '.rp-floor-inspector .rp-editor-inspector-lock .lucide-lock' },
+	{ name: 'plan-editor-locked-dark', query: '?view=plan-editor&locked=harness-terrace,harness-garden', selector: '.rp-floor-inspector .rp-editor-inspector-lock .lucide-lock' },
 	// Property-tree polish (2026-09-12): the `?tree` knob's four-plan property, so the tree's
 	// THIRD level — the one no other knob reaches — can be looked at in both schemes and at a
 	// sidebar's width. Every shot waits on a level-3 treeitem, which exists only once the knob's
@@ -786,6 +773,12 @@ const SHOTS = [
 	{ name: 'asset-designer-select-clearance-light', query: '?view=asset-designer&preset=toilet&select=clearance&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-modes [aria-pressed="true"]', '.rp-designer-selection[data-kind="clearance"]'] },
 	{ name: 'asset-designer-select-facing', query: '?view=asset-designer&preset=toilet&select=facing', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="facing"]'] },
 	{ name: 'asset-designer-select-facing-light', query: '?view=asset-designer&preset=toilet&select=facing&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="facing"]'] },
+	// A SET (`&select=` as a comma list, built through `extend`): the tree's canopy and trunk. The set's dashed
+	// frame (`selectionSetMarks`) is the canopy's box, a square round a round canopy, so its corners run free of
+	// every outline. `.rp-designer-selection-count` is drawn for a set of two or more alone. The Plan Editor's
+	// `plan-editor-multiple` draws numbered outlines and NO frame by design — the frame is the designer's.
+	{ name: 'asset-designer-select-multiple', query: '?view=asset-designer&preset=tree&select=detail-1,detail-2', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-count'] },
+	{ name: 'asset-designer-select-multiple-light', query: '?view=asset-designer&preset=tree&select=detail-1,detail-2&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection-count'] },
 	// A detail's inspector section at a sidebar leaf's width, in English and in German — the longest labels
 	// (`Anzuwendende Drehung in Grad`, `Eine Ebene nach vorne`) are what wraps or overflows first.
 	{ name: 'asset-designer-select-narrow', query: '?view=asset-designer&preset=toilet&select=detail-2', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-designer-selection[data-kind="detail"]'], width: 460 },
@@ -816,6 +809,15 @@ const SHOTS = [
 	// cannot prove the menu opened; `.rp-view-menu[open] .rp-view-menu__content` can only match once the
 	// native `open` attribute is set.
 	{ name: 'asset-designer-view-menu-narrow', query: '?view=asset-designer&preset=toilet&view-menu', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '.rp-view-menu[open] .rp-view-menu__content', '[data-rp-view="grid"]', '[data-rp-view="snap"]'], width: 460 },
+	// AD18-R13/R15's stale retry (Task 11): a re-read that fails NON-authoritatively over content
+	// already on screen, driven through the store's own real `hydrate` door by the `&stale` knob —
+	// the capture AD18-R15's own review found no fixture could reach, having measured the defect
+	// through an injected probe instead. Waits on the retry control itself
+	// (`[data-rp-action="retry"]`), which `AssetDesignerRoot.vue` renders only once `stale` is
+	// true, so a broken knob times out rather than photographing the resting designer under this
+	// name. Both schemes: AD18-R15's whole finding was about how the control LOOKS.
+	{ name: 'asset-designer-stale', query: '?view=asset-designer&preset=toilet&stale', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '[data-rp-action="retry"]'] },
+	{ name: 'asset-designer-stale-light', query: '?view=asset-designer&preset=toilet&stale&theme=light', selector: [ASSET_DESIGNER_VIEW, DESIGNER_READY, '[data-rp-action="retry"]'] },
 	// THE ASSET LIBRARY (Task 17), and this is the surface with the largest gap between what was
 	// built and what has ever been looked at: sixteen tasks shipped the shelves, the rows, the
 	// marks, the inspector, the stylesheet, the keyboard and the narrow composition, and every
@@ -884,6 +886,19 @@ const SHOTS = [
 	// view, so a dropped `phone` cannot photograph the writable library under this name, and it
 	// scrolls to the Actions row so `Open designer` and `Delete` are in the picture.
 	{ name: 'asset-library-phone', query: `?view=asset-library&phone&theme=light&asset=${LIBRARY_SELECTED_ASSET}`, selector: `${ASSET_LIBRARY_VIEW} [data-rp-notice="mobile-read-only"]`, width: 360, scrollTo: '.rp-al-actions' },
+	// AD18-R18's Grid view (Task 11): the tile layout with its category sidebar shown at rest, a
+	// URL nothing reached before this task — `mountAssetLibraryHarness` had no `&layout=` knob.
+	// `.rp-al-tile` is drawn by the Grid branch alone (`AssetLibraryBody.vue`'s `v-else`), so a
+	// knob that quietly stayed on List would time out rather than photograph the resting List
+	// under this name; `.rp-al-categories` is the sidebar the funnel controls, shown by default in
+	// Grid at this width (`useCategorySidebar.ts`'s `wanted`).
+	{ name: 'asset-library-grid', query: '?view=asset-library&layout=grid', selector: [ASSET_LIBRARY_VIEW, '.rp-al-tile', '.rp-al-categories'] },
+	{ name: 'asset-library-grid-light', query: '?view=asset-library&layout=grid&theme=light', selector: [ASSET_LIBRARY_VIEW, '.rp-al-tile', '.rp-al-categories'] },
+	// The inspector's Shape preview drawing an asset's DETAILS (AD18-R39): the worktop's sink cut-out.
+	// `LIBRARY_SELECTED_ASSET` has none, so no shot above reaches that branch of `AssetMark`; the selector is a
+	// detail path inside the preview, which exists only once the design has answered with one.
+	{ name: 'asset-library-selected-details', query: '?view=asset-library&theme=light&asset=worktop-oak-40', selector: [ASSET_LIBRARY_VIEW, '.rp-al-shape-preview .rp-al-mark__detail'] },
+	{ name: 'asset-library-selected-details-dark', query: '?view=asset-library&asset=worktop-oak-40', selector: [ASSET_LIBRARY_VIEW, '.rp-al-shape-preview .rp-al-mark__detail'] },
 	// The harness's own index — the one surface here this command could not photograph. That is
 	// not a gap worth leaving in a tool whose whole argument is that a capture read by eye
 	// reaches defects no gate can: the index's own chrome went unlooked-at while it accumulated

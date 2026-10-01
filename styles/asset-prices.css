@@ -134,13 +134,22 @@
  * TWO selectors, not one styled two ways. They draw identically today and they must not share a
  * class: the SENTENCE each carries is what tells them apart — one names a deletion, the other
  * names a read that failed — and a shared selector would leave nothing to key that split on.
- * `--text-warning` on both, because both are states the user may want to act on rather than
- * failures of this pane.
+ *
+ * `--text-warning` sat as the TEXT colour here, on whatever background this row inherits (neither
+ * this rule nor any of its ancestors — `.rp-project-detail`, `.rp-project-detail__body`,
+ * `.rp-asset-price-list`, `.rp-asset-price-row` — declares one, read at source), measured in the
+ * real host (UI critique round, Task 1) at about 2.95:1 in the light theme, under the 4.5:1 AA
+ * floor for text this size (WCAG 2.x SC 1.4.3) — the same failure `.rp-designer-notice`
+ * (`designer-notice.css`) measured on its own background, fixed the same way: the sentence
+ * carries the meaning in `--text-normal`, and the warning colour moves to a decorative
+ * `border-inline-start` rule.
  */
 .rp-asset-price-orphan,
 .rp-asset-price-unreadable {
-	color: var(--text-warning);
+	padding-inline-start: var(--size-4-2);
+	color: var(--text-normal);
 	font-size: var(--font-ui-smaller);
+	border-inline-start: 2px solid var(--text-warning);
 }
 
 /*

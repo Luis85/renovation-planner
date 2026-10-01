@@ -34,7 +34,7 @@ import {
 } from '../../../src/presentation/designer/AssetDesignerContext';
 import { provideDesignerRuntime, useDesignerRuntime, type DesignerRuntime } from '../../../src/presentation/designer/runtime';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
-import { assetDesign } from '../../helpers/assetDesign';
+import { assetDesign, VAULT_FAILED } from '../../helpers/assetDesign';
 import { installObsidianDom } from '../../helpers/dom';
 import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
@@ -43,6 +43,7 @@ import { lines, recorder, resetRecorder } from '../../helpers/logger';
 import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
 import { activateNotices } from '../../../src/presentation/notices/notify';
 import { Notice } from '../../helpers/obsidian-mock';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 installObsidianDom();
 /**
@@ -59,11 +60,6 @@ const THE_ASSET = createAssetId();
 const WITH_SHAPE = assetDesign({ assetId: THE_ASSET, height: 900 });
 const AFTER_WRITE = assetDesign({ assetId: THE_ASSET, height: 1200 });
 
-const VAULT_FAILED: AssetDesignError = {
-	category: 'Persistence',
-	code: 'vault.unexpected-failure',
-	message: 'the vault could not be read',
-};
 const NOT_FOUND: AssetDesignError = {
 	category: 'Reference',
 	code: 'asset.not-found',
@@ -107,6 +103,7 @@ function harness(options: {
 	const context: AssetDesignerContext = {
 		assetId: THE_ASSET,
 		queries: {
+			listPlansUsingAsset: unwiredPlanUsage,
 			getAssetDesign: (assetId) => {
 				reads.push(assetId);
 				return options.answers?.() ?? Promise.resolve(ok(WITH_SHAPE));
@@ -594,7 +591,7 @@ describe('reaching the runtime from a region', () => {
 	it('hands a child the very runtime the root provided', () => {
 		const context: AssetDesignerContext = {
 			assetId: THE_ASSET,
-			queries: { getAssetDesign: () => Promise.resolve(ok(WITH_SHAPE)) },
+			queries: { getAssetDesign: () => Promise.resolve(ok(WITH_SHAPE)), listPlansUsingAsset: unwiredPlanUsage },
 			commands: unavailableAssetDesignerCommands(),
 			logger: recorder,
 			picker: null,

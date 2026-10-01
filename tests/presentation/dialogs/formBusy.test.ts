@@ -8,7 +8,7 @@
  *
  * And the framework invariant that window is held by: **no control inside an open dialog may
  * become `:disabled`.** `busy` is one thing that makes controls inoperative and it is not the
- * only one — `NewAssetForm` freezes its five catalogue fields the moment the asset exists,
+ * only one — `NewAssetForm` freezes its six catalogue fields the moment the asset exists,
  * which is a SECOND state that flips while the dialog is open. The second describe block below
  * is that state, driven through the same trap as the first, because a rule with two producers
  * and a case for one of them is a rule half checked.
@@ -379,15 +379,15 @@ describe('a form dialog whose fields freeze while it is open', () => {
 		// drive the trap over an ordinary form and pass for the wrong reason.
 		expect(harness.wrapper.find('.rp-new-asset__created').exists()).toBe(true);
 
-		// Stand on the LAST focusable — Cancel, which `FormDialog` renders unconditionally —
-		// and Tab off the end, which is the one edge `onKeydown` handles itself.
-		const cancel = harness.wrapper.get('[data-rp-action="cancel"]').element as HTMLElement;
-		cancel.focus();
-		expect(document.activeElement).toBe(cancel);
-		pressKey(cancel, 'Tab');
+		// Stand on the LAST focusable — the submit, which ends the one action row `FormSubmitRow`
+		// draws after Cancel — and Tab off the end, which is the one edge `onKeydown` handles itself.
+		const submit = harness.wrapper.get('button[type="submit"]').element as HTMLElement;
+		submit.focus();
+		expect(document.activeElement).toBe(submit);
+		pressKey(submit, 'Tab');
 
 		// The frozen NAME input, not the width input three controls past it: `:disabled` would
-		// have taken all five catalogue controls out of `focusableWithin()` at once.
+		// have taken all six catalogue controls out of `focusableWithin()` at once.
 		expect(document.activeElement).toBe(harness.wrapper.get('[data-field="name"]').element);
 
 		harness.unmount();

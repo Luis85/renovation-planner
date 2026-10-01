@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { installWriteIncidentRegistry } from '../../../../src/application/incidents/WriteIncidentRegistry';
 import { useSaveStateStore } from '../../../../src/presentation/editor/save-state/save-state-store';
@@ -219,9 +219,10 @@ describe('the save-state store', () => {
 				'resolveOk',
 				'resolveErr',
 				'resolveNeutral',
+				'savedAt',
 			]),
 		);
-		// The exact key set Pinia hands back for this store today — its own ten members plus
+		// The exact key set Pinia hands back for this store today — its own eleven members plus
 		// the setup-store machinery ($dispose, $patch, …) Pinia attaches to every store. An
 		// exact match, not a negative check for a name (like the never-existed `markUnsaved`)
 		// that no implementation would plausibly add: a genuinely new action changes this set
@@ -244,6 +245,7 @@ describe('the save-state store', () => {
 			'resolveErr',
 			'resolveNeutral',
 			'resolveOk',
+			'savedAt',
 			'state',
 			'unrecoveredWrite',
 			'vaultWritesPaused',
@@ -392,5 +394,60 @@ describe('the save-state store seeded from an open write incident', () => {
 		expect(store.leafUnrecoveredWrite).toBe(true);
 		expect(store.vaultWritesPaused).toBe(true);
 		expect(store.unrecoveredWrite).toBe(true);
+	});
+});
+
+/**
+ * AD18-R19: the indicator reads `Saved just now` / `Saved N min ago` / `Saved at HH:MM`, and
+ * the moment it counts from is THIS store's, stamped where a batch settles to `saved` because a
+ * write landed. Fake timers own the clock: `Date.now` is the one this store reads.
+ */
+describe("the save-state store's saved-at time", () => {
+	beforeEach(() => {
+		setActivePinia(createPinia());
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date(2026, 8, 23, 14, 5));
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('knows no save time before a write lands in this session, since an earlier one is not known', () => {
+		const store = useSaveStateStore();
+		store.beginSaving();
+		store.resolveNeutral();
+		expect(store.savedAt).toBeNull();
+	});
+
+	it('stamps the moment the batch that wrote settles, not the moment it opened', () => {
+		const store = useSaveStateStore();
+		store.beginSaving();
+		vi.advanceTimersByTime(1500);
+		store.resolveOk();
+		expect(store.savedAt).toBe(Date.now());
+	});
+
+	it('keeps the last save time over a later batch that wrote nothing, or failed', () => {
+		const store = useSaveStateStore();
+		store.beginSaving();
+		store.resolveOk();
+		const first = store.savedAt;
+		vi.advanceTimersByTime(60_000);
+		store.beginSaving();
+		store.resolveNeutral();
+		store.beginSaving();
+		store.resolveErr();
+		expect(store.savedAt).toBe(first);
+	});
+
+	it('does not stamp a batch one failure decided, though a sibling in it wrote', () => {
+		const store = useSaveStateStore();
+		store.beginSaving();
+		store.beginSaving();
+		store.resolveOk();
+		store.resolveErr();
+		expect(store.state).toBe('save-error');
+		expect(store.savedAt).toBeNull();
 	});
 });

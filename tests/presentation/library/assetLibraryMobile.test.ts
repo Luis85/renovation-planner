@@ -10,6 +10,12 @@
  * `AssetLibraryCommandServices` later is spied here without an edit. The desktop case drives the
  * same gestures and must reach the commands, because a driver that reaches nothing passes the
  * mobile case for free.
+ *
+ * **`main`'s AD13 cases live here too, turned round.** AD13 criterion 6 refused the whole library on
+ * mobile; owner ruling 66 (2026-10-01) kept L-43's read-only library when the two branches met. Each
+ * of the four AD13 cases still had a true subject — which sentence a phone reads, what mounts, what a
+ * desktop draws, what a reopened leaf carries — so each asserts the read-only answer now rather than
+ * being deleted. They are the last describe in this file.
  */
 import { afterEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { DOMWrapper } from '@vue/test-utils';
@@ -53,6 +59,7 @@ function queriesOver(entries: readonly (typeof ENTRY)[]): AssetLibraryQueryServi
 		listReferencing: () => Promise.resolve(ok([])),
 		listOverridingProjects: () => Promise.resolve(ok([])),
 		listReassignmentTargets: () => Promise.resolve(ok([])),
+		listPlansUsingAsset: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
 	};
 }
 
@@ -151,6 +158,8 @@ const WRITE_CONTROLS = [
 	'.rp-al-create',
 	'.rp-al-action--designer',
 	'.rp-al-action--delete',
+	// AD13's Duplicate, from `main` — a write, so L-43's every-write rule reaches it too.
+	'[data-action="duplicate-open"]',
 	'.rp-al-definition [data-field]',
 	'.rp-al-definition button[type="submit"]',
 ];
@@ -230,5 +239,53 @@ describe('the same gestures on desktop', () => {
 		await press(wrapper, '.rp-empty-state__action');
 
 		expect(wrapper.find('.rp-dialog form').exists()).toBe(true);
+	});
+});
+
+/**
+ * `main`'s four AD13 cases, each kept on its own subject and asserting L-43's answer (owner ruling
+ * 66). The first three were the refusal's own sentence, its "mounted nothing" and its desktop arm;
+ * the fourth reopened one view off mobile, where `contentEl` is the SAME element both times.
+ */
+const notice = (wrapper: DOMWrapper<Element>) => wrapper.findAll('[data-rp-notice="mobile-read-only"]').map((element) => element.text());
+const desktopOnly = (wrapper: DOMWrapper<Element>) => wrapper.findAll('.rp-view-message').some((element) => element.text() === tr('view.mobile.desktop-only'));
+
+describe('the view the library draws on each device, after ruling 66', () => {
+	it('says read-only once on mobile, in the sentence the project view shares, and never desktop-only', async () => {
+		Platform.isMobile = true;
+		const { wrapper } = await openLibrary([ENTRY], {});
+
+		expect(notice(wrapper)).toEqual([tr('view.mobile.read-only')]);
+		expect(desktopOnly(wrapper)).toBe(false);
+	});
+
+	it('mounts the catalogue behind the read-only notice on mobile', async () => {
+		Platform.isMobile = true;
+		const { wrapper } = await openLibrary([ENTRY], {});
+
+		expect(wrapper.find('.renovation-asset-library').exists()).toBe(true);
+		expect(wrapper.get(`[data-asset-id="${ENTRY.assetId}"]`).text()).toContain(ENTRY.name);
+	});
+
+	it('draws the catalogue on a desktop with neither the notice nor a refusal', async () => {
+		const { wrapper } = await openLibrary([ENTRY], {});
+
+		expect(notice(wrapper)).toEqual([]);
+		expect(desktopOnly(wrapper)).toBe(false);
+		expect(wrapper.find('.renovation-asset-library').exists()).toBe(true);
+	});
+
+	it('drops the read-only notice when the same view is reopened off mobile', async () => {
+		Platform.isMobile = true;
+		const { view, wrapper } = await openLibrary([ENTRY], {});
+		expect(notice(wrapper)).toHaveLength(1);
+		await view.onClose();
+
+		Platform.isMobile = false;
+		await view.onOpen();
+		await settle();
+
+		expect(notice(wrapper)).toEqual([]);
+		expect(wrapper.find('.renovation-asset-library').exists()).toBe(true);
 	});
 });

@@ -1,0 +1,302 @@
+{
+  "schema_version": 1,
+  "title": "Renovation Planner Asset Designer execution manifest",
+  "reviewed_baseline": "d77e7c5eba5e6518b93a5be4606532ceab3a77eb",
+  "default_scope": "beta",
+  "max_implementation_workers": 3,
+  "contract_gate": "AD01",
+  "note": "Dependency/lock scheduling only. No task was executed by this planning session. Exact file leases and evidence are mandatory.",
+  "tasks": [
+    {
+      "id": "AD00",
+      "title": "Reconcile the live repository and establish the baseline",
+      "owner": "ARCH",
+      "scope": "beta",
+      "size": "S",
+      "depends_on": [],
+      "lock_groups": [
+        "baseline"
+      ],
+      "brief": "work-packages/AD00-reconcile-the-live-repository-and-establish-the-baseline.md"
+    },
+    {
+      "id": "AD01",
+      "title": "Freeze behavior, data contracts and the screen-state specification",
+      "owner": "ARCH",
+      "scope": "beta",
+      "size": "M",
+      "depends_on": [
+        "AD00"
+      ],
+      "lock_groups": [
+        "contracts"
+      ],
+      "brief": "work-packages/AD01-freeze-behavior-data-contracts-and-the-screen-state-specification.md"
+    },
+    {
+      "id": "AD02",
+      "title": "Make resizing and geometry operations predictable",
+      "owner": "DOMAIN",
+      "scope": "beta",
+      "size": "L",
+      "depends_on": [
+        "AD01"
+      ],
+      "lock_groups": [
+        "domain",
+        "geometry"
+      ],
+      "brief": "work-packages/AD02-make-resizing-and-geometry-operations-predictable.md"
+    },
+    {
+      "id": "AD03",
+      "title": "Unify command sequencing, undo and recovery behavior",
+      "owner": "SESSION",
+      "scope": "beta",
+      "size": "L",
+      "depends_on": [
+        "AD01"
+      ],
+      "lock_groups": [
+        "session",
+        "history"
+      ],
+      "brief": "work-packages/AD03-unify-command-sequencing-undo-and-recovery-behavior.md"
+    },
+    {
+      "id": "AD04",
+      "title": "Evolve the asset schema and migrations without data loss",
+      "owner": "MODEL",
+      "scope": "beta",
+      "size": "L",
+      "depends_on": [
+        "AD02",
+        "AD03"
+      ],
+      "lock_groups": [
+        "domain",
+        "schema",
+        "persistence"
+      ],
+      "brief": "work-packages/AD04-evolve-the-asset-schema-and-migrations-without-data-loss.md"
+    },
+    {
+      "id": "AD05",
+      "title": "Support every graphic kind across rendering and export",
+      "owner": "RENDER",
+      "scope": "beta",
+      "size": "L",
+      "depends_on": [
+        "AD04"
+      ],
+      "lock_groups": [
+        "render",
+        "exports"
+      ],
+      "brief": "work-packages/AD05-support-every-graphic-kind-across-rendering-and-export.md"
+    },
+    {
+      "id": "AD06",
+      "title": "Align the designer shell with Obsidian and the Plan Editor",
+      "owner": "UX",
+      "scope": "beta",
+      "size": "M",
+      "depends_on": [
+        "AD01"
+      ],
+      "lock_groups": [
+        "shell"
+      ],
+      "brief": "work-packages/AD06-align-the-designer-shell-with-obsidian-and-the-plan-editor.md"
+    },
+    {
+      "id": "AD07",
+      "title": "Make presets, measurements and reference setup first-class entry paths",
+      "owner": "UX",
+      "scope": "beta",
+      "size": "M",
+      "depends_on": [
+        "AD02",
+        "AD03",
+        "AD06"
+      ],
+      "lock_groups": [
+        "creation"
+      ],
+      "brief": "work-packages/AD07-make-presets-measurements-and-reference-setup-first-class-entry-paths.md"
+    },
+    {
+      "id": "AD08",
+      "title": "Extend selection and pointer gestures to multiple parts",
+      "owner": "CANVAS",
+      "scope": "beta",
+      "size": "L",
+      "depends_on": [
+        "AD03",
+        "AD04",
+        "AD06"
+      ],
+      "lock_groups": [
+        "selection",
+        "canvas-input"
+      ],
+      "brief": "work-packages/AD08-extend-selection-and-pointer-gestures-to-multiple-parts.md"
+    },
+    {
+      "id": "AD09",
+      "title": "Add a Parts panel for finding and organizing the object",
+      "owner": "UX",
+      "scope": "beta",
+      "size": "M",
+      "depends_on": [
+        "AD08"
+      ],
+      "lock_groups": [
+        "parts"
+      ],
+      "brief": "work-packages/AD09-add-a-parts-panel-for-finding-and-organizing-the-object.md"
+    },
+    {
+      "id": "AD10",
+      "title": "Implement grouping, alignment, distribution and repeat",
+      "owner": "DOMAIN",
+      "scope": "beta",
+      "size": "L",
+      "depends_on": [
+        "AD02",
+        "AD04",
+        "AD08",
+        "AD09"
+      ],
+      "lock_groups": [
+        "domain",
+        "composition"
+      ],
+      "brief": "work-packages/AD10-implement-grouping-alignment-distribution-and-repeat.md"
+    },
+    {
+      "id": "AD11",
+      "title": "Expose open lines and rounded-shape authoring",
+      "owner": "CANVAS",
+      "scope": "beta",
+      "size": "M",
+      "depends_on": [
+        "AD02",
+        "AD04",
+        "AD05",
+        "AD08",
+        "AD10"
+      ],
+      "lock_groups": [
+        "geometry-tools",
+        "domain"
+      ],
+      "brief": "work-packages/AD11-expose-open-lines-and-rounded-shape-authoring.md"
+    },
+    {
+      "id": "AD12",
+      "title": "Clarify reference calibration, clearance and placement",
+      "owner": "UX",
+      "scope": "beta",
+      "size": "M",
+      "depends_on": [
+        "AD02",
+        "AD03",
+        "AD07",
+        "AD08"
+      ],
+      "lock_groups": [
+        "placement-ui",
+        "reference-ui"
+      ],
+      "brief": "work-packages/AD12-clarify-reference-calibration-clearance-and-placement.md"
+    },
+    {
+      "id": "AD13",
+      "title": "Complete the library\u2013designer\u2013plan workflow",
+      "owner": "INTEGRATION",
+      "scope": "beta",
+      "size": "L",
+      "depends_on": [
+        "AD05",
+        "AD07",
+        "AD12"
+      ],
+      "lock_groups": [
+        "library",
+        "plan-navigation"
+      ],
+      "brief": "work-packages/AD13-complete-the-library-designer-plan-workflow.md"
+    },
+    {
+      "id": "AD14",
+      "title": "Protect historical plans and honest export behavior",
+      "owner": "INTEGRATION",
+      "scope": "beta",
+      "size": "L",
+      "depends_on": [
+        "AD05",
+        "AD13"
+      ],
+      "lock_groups": [
+        "revisions",
+        "exports"
+      ],
+      "brief": "work-packages/AD14-protect-historical-plans-and-honest-export-behavior.md"
+    },
+    {
+      "id": "AD15",
+      "title": "Validate the complete custom-object workflow",
+      "owner": "QA",
+      "scope": "beta",
+      "size": "M",
+      "depends_on": [
+        "AD09",
+        "AD10",
+        "AD11",
+        "AD12",
+        "AD13",
+        "AD14"
+      ],
+      "lock_groups": [
+        "integrated-e2e"
+      ],
+      "brief": "work-packages/AD15-validate-the-complete-custom-object-workflow.md"
+    },
+    {
+      "id": "AD16",
+      "title": "Harden, document and release the asset-designer beta",
+      "owner": "QA",
+      "scope": "beta",
+      "size": "M",
+      "depends_on": [
+        "AD15"
+      ],
+      "lock_groups": [
+        "release",
+        "quality-config"
+      ],
+      "brief": "work-packages/AD16-harden-document-and-release-the-asset-designer-beta.md"
+    },
+    {
+      "id": "AD17",
+      "title": "Add explicit native asset portability after beta",
+      "owner": "INTEGRATION",
+      "scope": "post-beta",
+      "size": "L",
+      "depends_on": [
+        "AD04",
+        "AD05",
+        "AD13",
+        "AD14",
+        "AD16"
+      ],
+      "lock_groups": [
+        "portability",
+        "schema",
+        "exports"
+      ],
+      "brief": "work-packages/AD17-add-explicit-native-asset-portability-after-beta.md"
+    }
+  ]
+}

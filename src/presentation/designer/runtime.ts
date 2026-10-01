@@ -1,11 +1,12 @@
-import { computed, inject, onBeforeUnmount, provide, reactive, type InjectionKey, type Ref } from 'vue';
+import { computed, inject, onBeforeUnmount, provide, reactive, ref, watch, type InjectionKey, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
-import { SessionWriteLedger } from '../../application/editor/WriteLedger';
+import { SessionWriteLedger, type WriteLedger } from '../../application/editor/WriteLedger';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type { AssetShape } from '../../domain/asset/AssetShape';
 import { captureAwaitsScale } from '../../domain/asset/captureAwaitsScale';
 import type { AssetDesignDto } from '../../application/queries/GetAssetDesign';
+import type { SetAssetBackgroundInput } from '../../application/commands/asset/SetAssetBackground';
 import type { BoundingBox } from '../../core/geometry/BoundingBox';
 import { boundsOfZones } from '../editor/viewport/zoneExtent';
 import { useEditorStore } from '../stores/EditorStore';
@@ -26,6 +27,7 @@ import type { DesignerSelectToolDeps } from './tools/designer-select-tool';
 import { useWorkspaceStore } from '../stores/WorkspaceStore';
 import { designerCandidateSupply } from './grid/designerGrid';
 import { createEditShape, createWriteChain, type EditShape } from './selection/editShape';
+import { createPartView, type PartView } from './parts/partView';
 import { withStateRefresh, type RefreshedHistory } from '../editor/tools/with-state-refresh';
 import { withStaleGate } from '../editor/tools/with-stale-gate';
 import { withIncidentGate } from '../editor/tools/with-incident-gate';
@@ -42,6 +44,7 @@ import { notifyOperationFailure } from '../notices/notify';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 import type { AssetDesignerContext } from './AssetDesignerContext';
 import type { ReversibleAssetDesignCommands } from '../../application/editor/asset/ReversibleAssetDesignCommands';
+import { samePolygon } from '../../application/commands/asset/updateAssetShape';
 import type { DocumentRef } from './ports';
 
 /**
@@ -75,7 +78,99 @@ export interface DesignerRuntime {
 	 * is its only caller — `AssetDesignerRoot.vue` awaits `context.picker.pick()` first, and a
 	 * cancelled pick (`null`) never reaches this at all.
 	 */
-	readonly setBackground: (ref: DocumentRef) => Promise<void>;
+	readonly setBackground: (document: DocumentRef) => Promise<void>;
+	/**
+	 * AD12-R2's gesture: take the reference away again, through the very command that replaces
+	 * one — `SetAssetBackgroundInput`'s `path: null` arm — so the calibration clear, the
+	 * compensation and the undo entry are the ones that already exist rather than a second set.
+	 * `setBackground`'s shape and for its reason: a click-bound dispatch with no field to show a
+	 * refusal under, so it swallows its own `Result`.
+	 *
+	 * It is safe on an asset that has no reference — `sameBackground(null, null)` answers
+	 * `no-write` — and no control calls it there anyway: `DesignerReferenceStatus` draws the
+	 * button only while `design.background !== null`, which is the predicate rule rather than a
+	 * `:disabled`.
+	 */
+	readonly removeBackground: () => Promise<void>;
+	/**
+	 * How opaque this leaf draws the reference, `1` fully (AD12-R1's genuine gap: fading a sheet
+	 * to trace over it).
+	 *
+	 * **A leaf-local VIEW preference, written nowhere** — `PartView`'s shape exactly. It reaches
+	 * no command, no note, no sidecar and no undo entry, it is not remembered per device beside
+	 * `gridVisible` and `snappingEnabled`, and it does not survive a reopened leaf: an editing aid
+	 * is not output (C10), and AD01 §2's standing rule is that presentation holds the ephemeral
+	 * state and the vault holds the documents.
+	 *
+	 * A `Ref` and not a getter for `multiSelectionMode`'s reason: `DesignerViewMenu` binds it with
+	 * `v-model`.
+	 *
+	 * **LOCK is not here and is not deferred.** Every designer layer is built by
+	 * `designerLayerConfig` with `listening: false` and no tool moves the background, so the
+	 * property a lock names already holds and a control for it would be a switch with an
+	 * unreachable off position (AD12-R1).
+	 */
+	readonly backgroundOpacity: Ref<number>;
+	/**
+	 * The View menu's `All dimensions` row (snapping spec §0's increment 2; AD18-R11), which widens
+	 * the on-canvas dimensions from the selection alone to every part.
+	 *
+	 * **Leaf-local and written NOWHERE, by AD18-R12** — `backgroundOpacity`'s kind of row exactly,
+	 * not `gridVisible`'s. The persisted arm was refused on a layering argument rather than a cost
+	 * one: Grid and Snap ride `EditorViewPreferences`, whose `read()` and `write()` name
+	 * `gridVisible` and `snappingEnabled` literally and which the PLAN EDITOR consumes, so
+	 * persisting a designer-only toggle would widen a shared Plan Editor contract to carry a field
+	 * the Plan Editor has no use for. The accepted cost is that the toggle forgets across sessions
+	 * and across the `rebind` a settings save performs; if it is ever reported as wanting memory,
+	 * that is the change to make and this paragraph is what it has to answer.
+	 *
+	 * A `Ref` and not a getter for `backgroundOpacity`'s reason: `DesignerViewMenu` binds it with
+	 * `v-model`.
+	 */
+	readonly allDimensions: Ref<boolean>;
+	/**
+	 * The View menu's `Legend` row (AD18-R16 Task 4), which shows or hides the canvas legend.
+	 *
+	 * **`allDimensions`'s kind of row exactly, by the same AD18-R12 precedent** — leaf-local,
+	 * written NOWHERE, default `true` rather than `false` because the legend explains a canvas
+	 * vocabulary a first-time user has not yet learned, where `allDimensions` widens an overlay
+	 * that already has a narrower default. It reaches no command, no note, no sidecar and no undo
+	 * entry, and it does not survive a reopened leaf.
+	 *
+	 * A `Ref` and not a getter for `allDimensions`'s reason: `DesignerViewMenu` binds it with
+	 * `v-model`.
+	 */
+	readonly showLegend: Ref<boolean>;
+	/**
+	 * The Clearance section's `Show clearance` switch (AD18-R17, board 01), which shows or hides the
+	 * canvas's clearance LAYER.
+	 *
+	 * **`showLegend`'s kind of row exactly, by the same AD18-R12 precedent** — leaf-local, written
+	 * NOWHERE, default `true` because a clearance the design has is a clearance the canvas shows until
+	 * somebody asks otherwise. It reaches no command, no note, no sidecar and no undo entry, and it
+	 * does not survive a reopened leaf. A component that is also mounted BARE reads it through
+	 * `useShowClearance` below; anything else reads it off this runtime.
+	 *
+	 * It hides the clearance from the canvas's pixels, presses and legend, but NOT from the fit:
+	 * `designFrame` stays the one fit definition and reads no view state, the precedent Parts-hidden
+	 * graphics already set.
+	 *
+	 * **A clearance that comes into being is shown**, and it comes in two shapes, so there are four places
+	 * that switch this back on. A READ-BACK that changes the design's clearance GEOMETRY — its points and
+	 * bulges, compared by value (`clearanceReveals` below) — catches an arrival with no gesture: a redo, an
+	 * undo of a removal OR of a replacement, a peer leaf's write, as well as a gesture's own when nothing
+	 * was there before (AD18-R23). Present-to-absent never touches the switch — a removal is not a reason
+	 * to show a layer that is about to draw nothing. **What it cannot see is a replacement at the SAME
+	 * geometry**, which reads back as no change at all; the three gesture doors below exist for the
+	 * ordinary case of hiding one and then drawing a new one BY HAND, where the read-back's own geometry
+	 * check would otherwise leave the switch waiting for the commit. The doors are arming
+	 * `trace-clearance` (`clearanceReveals`'s wrapper round `setTool`, which the toolbar, the Add rail
+	 * and the key doors all call), applying a preset that carries one (`applyShape` below), and Generate
+	 * (`DesignerClearanceHelper`, which writes through the shape-agnostic `editShape`) — each arms or
+	 * writes before the read-back the trace or preset itself will trigger, so the layer is already showing
+	 * when the new boundary lands rather than blinking on with it.
+	 */
+	readonly showClearance: Ref<boolean>;
 	/**
 	 * Task B8's gesture, the same shape as `setBackground` above and for the same reason: a
 	 * click-bound dispatch with no field to show a refusal under, so it swallows the `Result`
@@ -111,6 +206,19 @@ export interface DesignerRuntime {
 	 */
 	readonly hydrate: () => Promise<void>;
 	/**
+	 * Re-read this leaf's design KEEPING what is drawn when the read fails — `readingFor`'s
+	 * other door, exposed since W20-A because the stale notice's `Try again` is a caller
+	 * outside this file.
+	 *
+	 * **The split decides what a failed press costs**, and the two spellings are one word
+	 * apart at the call site. `hydrate` above blanks, which is right for a leaf with nothing
+	 * to keep and wrong for a retry pressed OVER drawn content: the press would replace a
+	 * design the vault still has with the failure panel, the same defect `readingFor` records
+	 * the cross-leaf subscription causing before it was moved here. AD18-R13 rules the retry a
+	 * door OUT of the stale notice and never a way to lose the canvas, which is this door.
+	 */
+	readonly refresh: () => Promise<void>;
+	/**
 	 * This leaf's tool framework (design slice B5). Held HERE rather than inside
 	 * `DesignerCanvas`, which is where Task B4 built it while nothing registered a tool: the
 	 * toolbar mounts in the shell's own region and is not the canvas's child, so a manager
@@ -133,6 +241,25 @@ export interface DesignerRuntime {
 	 * beside itself; a key binding hands the result to `notifyIfRefused`.
 	 */
 	readonly editShape: EditShape;
+	/**
+	 * The sticky "select multiple" mode (AD08), per leaf, on the runtime rather than in the store
+	 * for `PlanEditorRuntime.multiSelectionMode`'s reason: it is EPHEMERAL UI about how the next
+	 * press behaves, not a fact about the design, and a panel reflow must not clear it.
+	 *
+	 * A `Ref` and not a getter, because the control binds to it with `v-model` — the Plan Editor's
+	 * `PropertyLayerPanel` binds its own the same way.
+	 */
+	readonly multiSelectionMode: Ref<boolean>;
+	/**
+	 * The Parts panel's leaf-local view preferences (AD09): which graphics are hidden, which are
+	 * locked, which group rows are collapsed.
+	 *
+	 * Here beside `multiSelectionMode` and for its reason: EPHEMERAL UI about how this leaf is being
+	 * worked, never a fact about the design. It is read by the canvas (which graphics to draw) and by
+	 * the Select tool (which press may start a drag), so it belongs to the leaf rather than to the
+	 * panel that writes it — a panel-local set would leave both of those reading nothing.
+	 */
+	readonly partView: PartView;
 }
 
 /**
@@ -147,11 +274,55 @@ const DISPATCH_FAULT_EVENT = 'designer.dispatch.faulted';
  * fitted. Arcs count: `boundsOfZones` hands each `CurvedPolygon` to `boundingBoxOf`, which reads
  * arc extrema (`layers.test.ts` holds that for a curved table's outer arc).
  *
- * ONE definition for its two callers, `DesignerCanvas.framedBounds` (`Shift+1`) and `applyShape`
- * below, so the fit after a preset cannot drift from the shortcut's.
+ * ONE definition for its three callers, `DesignerCanvas.framedBounds` (`Shift+1`), `applyShape`
+ * below and `DesignerToolbar`'s zoom cluster (AD18 item 1, ruling AD18-R16) — so the fit after a
+ * preset and the toolbar's own Fit button cannot drift from the opening camera's.
  */
 export function designFrame(shape: AssetShape): BoundingBox | null {
 	return boundsOfZones([shape.footprint, ...(shape.clearance === null ? [] : [shape.clearance])]);
+}
+
+/**
+ * Two of `showClearance`'s reveal rules (`DesignerRuntime.showClearance` has all four), in one function
+ * outside `buildRuntime` for its 100-line budget.
+ *
+ * - The READ-BACK (AD18-R23): whenever the design this leaf holds reads back a clearance whose GEOMETRY —
+ *   its points and bulges, `samePolygon`'s comparison — differs from the one this leaf held before, the
+ *   switch goes on. That covers a birth (no clearance before) exactly as it covers a SWAP: an undo or redo
+ *   that lands a different clearance than the one just drawn, or a peer leaf's write that does the same,
+ *   each arriving with no gesture of this leaf's own to have armed a door below. A removal is the one
+ *   direction this never fires for — `next === null` returns before comparing anything, so present-to-absent
+ *   never touches the switch. And a read-back that leaves the geometry alone — a detail moved, a name
+ *   edited, the pending flag or AD14-R1's review flag flipped, the same design re-read — does NOT re-show
+ *   it: none of those four reach `shape.clearance` itself, only fields beside it. `store.design` is written
+ *   by a read alone (`AssetDesignStore.hydrate`/`refresh`), never by a gesture's preview, so this fires for
+ *   a committed clearance and for nothing drawn in flight. NO design counts as no clearance, deliberately:
+ *   an asset that re-arrives after a failed or authoritative-miss read blanked it re-shows its clearance,
+ *   since the leaf drew nothing in between to have hidden.
+ * - The returned `setTool`: switching to `trace-clearance` shows the layer the traced boundary will be
+ *   drawn on, so the commit does not appear to draw nothing. Arming rather than completing, because the
+ *   user then also sees the boundary the trace replaces. It asks the tool that IS active after the
+ *   switch rather than trusting the request, because `ToolManager.setActiveTool` does nothing when the
+ *   outgoing tool's `canDeactivate` refuses.
+ */
+function clearanceReveals(
+	switchTool: (id: ToolId | null) => void,
+	activeToolId: Readonly<Ref<ToolId | null>>,
+	showClearance: Ref<boolean>,
+	store: ReturnType<typeof useAssetDesignStore>,
+): (id: ToolId | null) => void {
+	watch(
+		() => store.design?.shape?.clearance ?? null,
+		(next, previous) => {
+			if (next === null) return;
+			if (previous !== null && samePolygon(next, previous)) return;
+			showClearance.value = true;
+		},
+	);
+	return (id) => {
+		switchTool(id);
+		if (id === 'trace-clearance' && activeToolId.value === id) showClearance.value = true;
+	};
 }
 
 /**
@@ -204,6 +375,13 @@ function selectToolDeps(
 	edits: ReversibleAssetDesignCommands,
 	assetId: AssetId,
 	chain: Pick<ReturnType<typeof createWriteChain>, 'writing' | 'settled'>,
+	/**
+	 * The leaf's EPHEMERAL UI, as one argument rather than three: the sticky select-multiple mode,
+	 * the Parts panel's hidden and locked sets, and the `Show clearance` switch. Bundled because
+	 * `selectToolDeps` sits at its five-parameter budget and because they belong together — none is a
+	 * fact about the design, all are per-leaf, and all are read per press.
+	 */
+	ui: { readonly multiSelectionMode: Ref<boolean>; readonly partView: PartView; readonly showClearance: Ref<boolean> },
 ): DesignerSelectToolDeps {
 	return {
 		design: () => {
@@ -211,8 +389,24 @@ function selectToolDeps(
 			return design?.shape ? { shape: design.shape, geometryVersion: design.geometryVersion } : null;
 		},
 		selection: () => store.selection,
+		/**
+		 * The WHOLE selection, beside the primary rather than instead of it (AD08). Two readers need
+		 * the difference: a plain press inside a multi-part set must KEEP the set rather than collapse
+		 * it to what was pressed, and an interrupted sweep must put back what its own press cleared —
+		 * neither question can be answered from the primary alone.
+		 *
+		 * The tool holds no copy of it, which is C05's requirement rather than a preference: one list
+		 * and a derived primary, never two that can disagree. `store.selected` is that list, and this
+		 * reads it live on every ask.
+		 */
+		selected: () => store.selected,
 		mode: () => store.mode,
 		select: (next) => store.select(next),
+		extend: (next) => store.extend(next),
+		multiSelectionMode: () => ui.multiSelectionMode.value,
+		locked: () => ui.partView.locked.value,
+		hidden: () => ui.partView.hidden.value,
+		clearanceHidden: () => !ui.showClearance.value,
 		setPreview: (shape) => store.setPreview(shape),
 		createCommand: (shape, expected) => edits.setShape({ assetId, shape, expected }),
 		reportRejected: reportDispatchFailure,
@@ -270,6 +464,39 @@ function detailDeps(store: ReturnType<typeof useAssetDesignStore>): Pick<Designe
 }
 
 /**
+ * This leaf's write machinery in one call: its TWO ledgers, the reversible adapters over them, the
+ * serial chain and its two doors, and the sticky select-multiple mode.
+ *
+ * Extracted for `buildRuntime`'s 100-line budget, which AD08's mode pushed it over — and the five
+ * belong together anyway: every one of them is per-LEAF state, which is exactly what may not be
+ * shared between two designer leaves editing two assets.
+ */
+function writingFor(
+	context: AssetDesignerContext,
+	store: ReturnType<typeof useAssetDesignStore>,
+	dispatcher: RefreshedHistory,
+	assetId: AssetId,
+): ReturnType<typeof designWrites> & {
+	readonly edits: ReversibleAssetDesignCommands;
+	readonly geometryLedger: WriteLedger;
+	readonly multiSelectionMode: Ref<boolean>;
+	readonly partView: PartView;
+} {
+	// TWO ledgers, because an asset is two resources under one id — `ReversibleAssetDesignDeps`
+	// states the whole argument, and one ledger has the note's revision presented to the sidecar.
+	const noteLedger = new SessionWriteLedger();
+	const geometryLedger = new SessionWriteLedger();
+	const edits: ReversibleAssetDesignCommands = context.commands.designEdits({ noteLedger, geometryLedger });
+	return {
+		edits,
+		geometryLedger,
+		multiSelectionMode: ref(false),
+		partView: createPartView(),
+		...designWrites(dispatcher, context.logger, store, (shape, expected) => edits.setShape({ assetId, shape, expected })),
+	};
+}
+
+/**
  * This leaf's whole dispatcher chain, and the SAME links in the SAME order the Plan Editor's
  * runtime composes (`editor/runtime.ts`, whose own header spells it): `CommandHistory` →
  * `withStateRefresh` → `withSaveStateTracking` → `withStaleGate` → `withIncidentGate` (both
@@ -277,6 +504,9 @@ function detailDeps(store: ReturnType<typeof useAssetDesignStore>): Pick<Designe
  * undo/redo flags still refresh) → `wrapDispatcher`. The incident gate is OUTSIDE the stale
  * gate, so a paused vault answers `WRITES_PAUSED_CODE` rather than `STALE_WRITE_REFUSED`,
  * whose copy tells a user their last read-back failed — which is not what happened.
+ * `withSaveStateTracking` sits OUTSIDE the refresh decorator so `Saved` never appears while the
+ * canvas still shows the pre-command state; the order is the behaviour, which is why the links
+ * stay together here rather than being spelled at the call.
  *
  * Extracted rather than spelled inline for `calibrationDeps`' reason: `buildRuntime` sits AT
  * `max-lines-per-function`'s 100-line budget, and the gate does not fit beside it.
@@ -305,15 +535,14 @@ function detailDeps(store: ReturnType<typeof useAssetDesignStore>): Pick<Designe
  * **`isStale` is `() => false`, and the honest reason is that the fact EXISTS and is
  * deliberately left unwired — not that this surface has no such fact.** `assetDesignStore`
  * carries a `stale` ref, set when a refresh fails over content already on screen, and
- * `AssetDesignerRoot.vue` reads it TODAY: `staleAfterRefresh` draws the `designer.refresh-failed`
- * notice from it. (`grep -rn "\.stale" src/presentation/designer/` prints nothing and exits 1 —
- * the reader arrives through `storeToRefs` destructuring, so that grep is the wrong instrument
- * for this question, not evidence of no reader.) Refusing a NEW write on it would be a second
- * and wider decision than L-16 — the Plan Editor's design spec §2.2 trust path, which this
- * surface has never had — and it would answer with `STALE_WRITE_REFUSED`, whose copy names a
- * failed read-back, where the guarded doors underneath already answer `WRITES_PAUSED_CODE`
- * correctly. `run` is therefore gated exactly as much as it was before this change: not at all
- * here, and at every guarded door beneath.
+ * `AssetDesignerRoot.vue` reads it: `staleAfterRefresh` draws the `designer.refresh-failed`
+ * notice, with its `Try again`, from it. (A grep for `\.stale` under `src/presentation/designer/`
+ * finds prose only — the reader arrives through `storeToRefs` destructuring, so that grep is the
+ * wrong instrument for this question, not evidence of no reader.) Refusing a NEW write on it is
+ * the decision AD18-R13 took the other way — the context's `writesBlocked` below carries the
+ * ruling — and it would also answer with `STALE_WRITE_REFUSED`, whose copy names a failed
+ * read-back, where the guarded doors underneath already answer `WRITES_PAUSED_CODE` correctly.
+ * `run` is therefore not gated here, and is gated at every guarded door beneath.
  */
 function designerDispatcher(
 	history: CommandHistory,
@@ -335,56 +564,97 @@ function designerDispatcher(
 	};
 }
 
-function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
-	const store = useAssetDesignStore();
-	const history = new CommandHistory();
+/**
+ * The stores and camera adapters this leaf's tools see.
+ *
+ * Resolved during SETUP and closed over, never inside the context factory: a Pinia store may not be
+ * touched without an active instance, and that factory runs from a toolbar click long after `setup`
+ * has returned. The camera adapter is the SAME function the Plan Editor's runtime binds
+ * (`editor/viewport/editorViewportAdapter.ts`) rather than a second copy of five identical members,
+ * and the snap service reads this leaf's own Snap choice at every call — the grid reaches it only
+ * while this leaf's grid is SHOWN (snapping spec §2.4).
+ *
+ * The save-state store is here for the same SETUP reason, and is read twice: `designerDispatcher`
+ * gates Undo and Redo on its `unrecoveredWrite`, and the tool context's `writesBlocked` answers with it.
+ *
+ * Extracted for `buildRuntime`'s 100-line budget.
+ */
+function leafStores(): {
+	readonly saveState: ReturnType<typeof useSaveStateStore>;
+	readonly editor: ReturnType<typeof useEditorStore>;
+	readonly selection: ReturnType<typeof useSelectionStore>;
+	readonly workspace: ReturnType<typeof useWorkspaceStore>;
+	readonly viewportAdapter: ReturnType<typeof editorViewportAdapter>;
+	readonly snapService: ReturnType<typeof createEditorSnapService>;
+} {
+	const editor = useEditorStore();
+	return {
+		saveState: useSaveStateStore(),
+		editor,
+		selection: useSelectionStore(),
+		workspace: useWorkspaceStore(),
+		viewportAdapter: editorViewportAdapter(editor),
+		snapService: createEditorSnapService(() => editor.snappingEnabled),
+	};
+}
 
-	/**
-	 * `indexScanCompleted` is read PER CALL and never captured. It starts false in every
-	 * session and turns true once, when `onLayoutReady` has run the vault scan — so a runtime
-	 * that snapshotted it at mount would hold `false` for the life of a restored leaf and go on
-	 * declining to believe an authoritative miss forever.
-	 */
+/**
+ * This leaf's two READ doors, extracted for `buildRuntime`'s 100-line budget.
+ *
+ * `indexScanCompleted` is read PER CALL and never captured. It starts false in every
+ * session and turns true once, when `onLayoutReady` has run the vault scan — so a runtime
+ * that snapshotted it at mount would hold `false` for the life of a restored leaf and go on
+ * declining to believe an authoritative miss forever.
+ *
+ * The two doors are the SPLIT, named rather than spelled as a boolean at each call site:
+ * a refresh keeps what is on screen when its read fails, a hydration has nothing to keep.
+ * The same split `ProjectStore` draws, and the reason is that a refresh runs over content
+ * the vault already holds — blanking the canvas would replace "possibly stale" with
+ * definitely nothing.
+ *
+ * **`refresh` has THREE callers and one of them is outside this file**, which is why it is a
+ * named door and, since W20-A, a member of `DesignerRuntime` rather than a local. Written
+ * from `grep -rn "refresh" src/presentation/designer/runtime.ts` plus `grep -rn
+ * "runtime\.refresh" src/presentation/designer/`, after the edit that added the third: the
+ * post-command read-back (`designerDispatcher` above), the cross-leaf subscription at the foot of
+ * `buildRuntime`, and `AssetDesignerRoot`'s `onRetry` — the stale notice's `Try again`, which
+ * AD18-R13 rules this surface owes.
+ *
+ * The subscription is the one that took `hydrate` and should not have. Whether WE made the
+ * write or a peer leaf did is not a difference the user's canvas can tell, so a transient
+ * failure re-reading after a peer's edit blanked a valid design and put the failure panel over
+ * it — and the retry arrives at the identical hazard from the third direction, which is the
+ * argument for exporting THIS door rather than letting a view assemble the read itself. A flag
+ * at each call site is a rule somebody has to remember at a fourth door; a named function is
+ * not.
+ *
+ * **What it cannot suppress**, in the two places `AssetDesignStore.hydrate` bounds it. A leaf
+ * with nothing on screen: the keep-previous arm is guarded on `status === 'ready'`, so the
+ * `ProjectIndexRebuilt` arm of `createAssetDesignChangeSource` — which reaches a leaf
+ * restored before the scan ran, and therefore not ready — falls through to `fail` exactly as
+ * it did before. And a read that ANSWERED rather than failed: an authoritative
+ * `asset.not-found` blanks, because the argument for keeping is "over data the vault has"
+ * and a deleted note is the case where it has none. That second bound was NARROWED by this
+ * change rather than merely inherited — `assetDesignerWiring.test.ts`'s design-change case
+ * is what found it, by using a deleted asset as its observable.
+ */
+function readingFor(
+	context: AssetDesignerContext,
+	store: ReturnType<typeof useAssetDesignStore>,
+): { readonly hydrate: () => Promise<void>; readonly refresh: () => Promise<void> } {
 	const read = (keepPreviousOnFailure: boolean): Promise<void> =>
 		store.hydrate(context.queries, context.assetId, {
 			indexScanCompleted: context.indexScanCompleted(),
 			keepPreviousOnFailure,
 		});
+	return { hydrate: () => read(false), refresh: () => read(true) };
+}
 
-	const hydrate = (): Promise<void> => read(false);
-
-	/**
-	 * The two doors are the SPLIT, named rather than spelled as a boolean at each call site:
-	 * a refresh keeps what is on screen when its read fails, a hydration has nothing to keep.
-	 * The same split `ProjectStore` draws, and the reason is that a refresh runs over content
-	 * the vault already holds — blanking the canvas would replace "possibly stale" with
-	 * definitely nothing.
-	 *
-	 * **`refresh` has TWO callers, and the second is why this is a named door.** The
-	 * post-command read-back is the obvious one; the cross-leaf subscription below is the one
-	 * that took `hydrate` and should not have. Whether WE made the write or a peer leaf did is
-	 * not a difference the user's canvas can tell, so a transient failure re-reading after a
-	 * peer's edit blanked a valid design and put the failure panel over it. A flag at each call
-	 * site is a rule somebody has to remember at a third door; a named function is not.
-	 *
-	 * **What it cannot suppress**, in the two places `AssetDesignStore.hydrate` bounds it. A leaf
-	 * with nothing on screen: the keep-previous arm is guarded on `status === 'ready'`, so the
-	 * `ProjectIndexRebuilt` arm of `createAssetDesignChangeSource` — which reaches a leaf
-	 * restored before the scan ran, and therefore not ready — falls through to `fail` exactly as
-	 * it did before. And a read that ANSWERED rather than failed: an authoritative
-	 * `asset.not-found` blanks, because the argument for keeping is "over data the vault has"
-	 * and a deleted note is the case where it has none. That second bound was NARROWED by this
-	 * change rather than merely inherited — `assetDesignerWiring.test.ts`'s design-change case
-	 * is what found it, by using a deleted asset as its observable.
-	 */
-	const refresh = (): Promise<void> => read(true);
-
-	// Held in a named local because the tool context below reads it too — `unrecoveredWrite` is
-	// the value that context's `writesBlocked` answers with, and since L-16 it is ALSO the value
-	// `designerDispatcher` refuses this leaf's Undo and Redo on. The order of the decorators it
-	// composes, and why the stale gate takes the predicates it does, are in its own docblock.
-	const saveState = useSaveStateStore();
-
+function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
+	const store = useAssetDesignStore();
+	const history = new CommandHistory();
+	const { hydrate, refresh } = readingFor(context, store);
+	const { saveState, editor, selection, workspace, viewportAdapter, snapService } = leafStores();
 	const { dispatcher, canUndo, canRedo } = designerDispatcher(history, refresh, saveState);
 
 	/**
@@ -399,37 +669,18 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	 */
 	const assetId = context.assetId as AssetId;
 
-	// Every store the context factory below closes over — these two and `saveState` above — is
-	// resolved during SETUP, never inside that factory: a Pinia store may not be touched without
-	// an active instance, and the factory runs from a toolbar click long after `setup` has
-	// returned. Reading a resolved store's members from inside it is fine and is what
-	// `writesBlocked` does.
-	const editor = useEditorStore();
-	const selection = useSelectionStore();
-
-	// The camera as a tool sees it — the SAME function the Plan Editor's runtime binds
-	// (`editor/viewport/editorViewportAdapter.ts`), not a second copy of five identical
-	// members. It closes over this leaf's live camera ref.
-	const viewportAdapter = editorViewportAdapter(editor);
-
-	/**
-	 * Per leaf, like the Plan Editor's: the View menu's Snap choice is this leaf's `EditorStore.snappingEnabled`,
-	 * read at every call. The grid is supplied to snapping only while this leaf's grid is SHOWN (snapping spec §2.4).
-	 */
-	const snapService = createEditorSnapService(() => editor.snappingEnabled), workspace = useWorkspaceStore();
-
 	const renderState = reactive(new RenderState());
+	// Four view preferences and nothing else, here rather than in `writingFor` because none of
+	// them writes anything — see `DesignerRuntime.backgroundOpacity`, `.allDimensions`,
+	// `.showLegend` and `.showClearance` for each one's own account.
+	const backgroundOpacity = ref(1), allDimensions = ref(false), showLegend = ref(true), showClearance = ref(true);
 	/**
 	 * TWO ledgers, because an asset is two resources under one id — see `DesignWriteLedgers`.
 	 * Only the geometry one is reachable from this surface's tools, every one of which writes the
 	 * sidecar; the note ledger exists because the adapters take both and Task B8's height field
 	 * writes through the other.
 	 */
-	const noteLedger = new SessionWriteLedger();
-	const geometryLedger = new SessionWriteLedger();
-	const edits: ReversibleAssetDesignCommands = context.commands.designEdits({ noteLedger, geometryLedger });
-	const { chain, toolDispatcher, editShape } = designWrites(dispatcher, context.logger, store, (shape, expected) => edits.setShape({ assetId, shape, expected }));
-
+	const { edits, chain, toolDispatcher, editShape, geometryLedger, multiSelectionMode, partView } = writingFor(context, store, dispatcher, assetId);
 	/**
 	 * A FRESH context per activation, through the same assembler the Plan Editor uses — which
 	 * is the guarantee `ToolManager`'s header states its factory exists for, and which one
@@ -459,49 +710,49 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			writeLedger: geometryLedger,
 			renderState,
 			subject: { id: assetId, calibration: store.design?.calibration ?? null },
-			// **The STALE half of the Plan Editor's trust path (design spec §2.2) has no
-			// counterpart here, and the INCIDENT half does.** This surface has no `ProjectStore`
-			// and no re-read that can go stale over an asset's own design, so nothing blocks a
-			// write on that account — which is why this is the save-state flag alone and not a
-			// copy of the editor's three-term expression. But an open write incident is
-			// vault-wide (ADR-0034): `save-state-store.ts` seeds its `vaultPaused` ref — the vault
-			// half of this gate, exported as `vaultWritesPaused`, and NOT `unrecoveredWrite`,
-			// which is a computed OR that nothing writes — from `activeWriteIncidentRegistry()` at
-			// setup, and sets that same ref on the gate's own refusal code through
-			// `markVaultPaused`. This leaf mounts that same shared store. Until 2026-09-17 this read
-			// `() => false`, a constant — so the value here is now truthful where it was not. Read
-			// the paragraph below before reading that as a gate.
+			// **Two halves of the Plan Editor's trust path (design spec §2.2), and only one of them
+			// is here.** The STALE half is refused on this surface by decision; the INCIDENT half is
+			// carried.
 			//
-			// **What this value IS: correct, and read by NOTHING on this surface today.** The
-			// framework does not ask the context — each TOOL asks it, and no tool this surface
-			// registers does. Measured in the edit that wrote this sentence rather than assumed:
-			// `grep -rn "writesBlocked()" src/presentation/editor/` prints **23** call sites in SIX
-			// modules — `tools/select-tool.ts`, `elements/ElementMove.ts`, `elements/ElementResize.ts`,
-			// `elements/ElementRotation.ts`, `labels/LabelMove.ts`, `structure/OpeningResize.ts`.
-			// That grep is SCOPED to `editor/` deliberately: the unscoped one over `src/` counts the
-			// lines you are reading, since this comment spells the call it is counting, so it answers
-			// several more than the calls — the same trap `CLAUDE.md` records for
-			// `grep -c "registerView"`. In THIS directory the only occurrence of `writesBlocked` that
-			// is not prose is the property just below; `grep -rn "writesBlocked" src/presentation/designer/`
-			// returns that one line plus this paragraph and its neighbours, and zero calls.
-			// `registerDesignerTools` builds `DesignerSelectTool`, `DrawPolygonTool`,
-			// `DrawDetailTool`, `SetAnchorTool`, `SetFacingTool` and `CalibrateTool`; none of the
-			// six reading modules is among them.
+			// **A re-read here CAN go stale**, and this comment claimed otherwise until W18-C:
+			// `assetDesignStore.stale` is set on a keep-on-failure re-read and is drawn by
+			// `AssetDesignerRoot` — as a strip, and since W18-C as the save state's own
+			// `Saved · refresh needed` qualifier. **Whether it should block was the open question
+			// W18-C reported, and AD18-R13 has since ANSWERED it: no.** `stale` here is set by a
+			// failed READ and never by a failed write, so the design on screen is still exactly what
+			// the user drew; blocking would freeze a valid surface over a vault hiccup and take a
+			// gesture away from somebody mid-drawing. The same ruling refuses the Plan Editor's
+			// hidden `pausedReason` sentence WITH the block — with nothing paused, its id would be
+			// named by no element — and gives the stale notice a `Try again` instead, which
+			// `refresh` above is the door for. So nothing here reads `stale`.
 			//
-			// So THIS MEMBER closes nothing on this surface, and the sentence has to stay that
-			// narrow, because the surface's answer changed under it. Until L-16 this paragraph
-			// ended *"the Asset Designer is not gated at all — not a tool, not a button, not the
-			// inspector, not the preset form"*, and that is no longer true of the BUTTON:
-			// `designerDispatcher` now refuses this leaf's Undo and Redo on this very value, and
-			// `canUndo`/`canRedo` disable the toolbar's two controls on it. What is still
-			// ungated is every FORWARD write — no tool, no inspector field and no preset form
-			// asks this member — so each of those is refused by the guarded doors underneath
-			// with nothing on screen saying so first. The honest value is here anyway because
-			// `EditorContext` requires the field and a hard-coded `false` is a lie waiting to be
-			// read by the first tool that asks — this is the prerequisite for the increment that
-			// makes one ask, not the increment itself.
-			// `tests/presentation/designer/designerIncidentGate.test.ts` carries that measurement
-			// in a case name, so a reader meets it there too.
+			// **An open write incident is a different fact, and vault-wide** (ADR-0034):
+			// `save-state-store.ts` seeds its `vaultPaused` ref — the vault half of this gate,
+			// exported as `vaultWritesPaused`, and NOT `unrecoveredWrite`, which is a computed OR
+			// that nothing writes — from `activeWriteIncidentRegistry()` at setup, and sets that same
+			// ref on the gate's own refusal code through `markVaultPaused`. This leaf mounts that
+			// same store (`leafStores`). AD18-R13's ruling is about `stale`, which is not this fact.
+			//
+			// **What this value IS: correct, and read by NOTHING on this surface today.** Each TOOL
+			// asks the context, and no tool this surface registers does. Re-measured when `main`'s
+			// asset-designer round was merged: `grep -rn "writesBlocked()" src/presentation/editor/`
+			// prints **21** call sites in SEVEN modules — `tools/select-tool.ts`,
+			// `tools/previewed-drag.ts`, `elements/ElementMove.ts`, `elements/ElementResize.ts`,
+			// `elements/ElementRotation.ts`, `labels/LabelMove.ts`, `structure/OpeningResize.ts` —
+			// and `registerDesignerTools` builds `DesignerSelectTool`, `DrawPolygonTool`,
+			// `DrawDetailTool`, `DrawLineTool`, `SetAnchorTool`, `SetFacingTool` and `CalibrateTool`,
+			// none of which is among them. That grep is SCOPED to `editor/` deliberately: an unscoped
+			// one over `src/` counts this comment, which spells the call it is counting — the trap
+			// `CLAUDE.md` records for `grep -c "registerView"`.
+			//
+			// What the incident half DOES close is Undo and Redo: `designerDispatcher` refuses them
+			// on this same `unrecoveredWrite`, and `canUndo`/`canRedo` disable the toolbar's two
+			// controls — and `AssetDesignerRoot`'s history shortcut, which asks `canUndo`/`canRedo`
+			// too — on it. Every FORWARD write (no tool, no inspector field and no preset form asks
+			// this member) is refused by the guarded doors underneath with nothing on screen saying
+			// so first. The honest value is here anyway because a hard-coded `false` is a lie waiting
+			// to be read by the first tool that asks. `tests/presentation/designer/designerIncidentGate.test.ts`
+			// carries that measurement in a case name.
 			writesBlocked: () => saveState.unrecoveredWrite,
 		}),
 	);
@@ -516,7 +767,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	 * all `createToolSwitch` needs.
 	 */
 	const { activeToolId } = storeToRefs(editor);
-	const setTool = createToolSwitch(toolManager, activeToolId);
+	const setTool = clearanceReveals(createToolSwitch(toolManager, activeToolId), activeToolId, showClearance, store);
 
 	registerDesignerTools(toolManager, {
 		assetId,
@@ -525,41 +776,74 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		reportInvalidInput: notifyOperationFailure,
 		// A completed trace or drawn detail returns to Select, which this surface registers since Decision 10.
 		returnToSelect: () => setTool('select'),
-		selectTool: selectToolDeps(store, edits, assetId, chain),
+		selectTool: selectToolDeps(store, edits, assetId, chain, { multiSelectionMode, partView, showClearance }),
 		...calibrationDeps(useDialogStore(), store),
 		...detailDeps(store),
 	});
+	// The resting tool (AD18-R20), activated here because this is the first line its registration exists
+	// on. It needs no read first: `DesignerSelectTool` reads the store per press and never reads the
+	// context's `subject`, so the context built now, before the mount's read, holds nothing it asks for.
+	setTool('select');
 
 	// Both halves of SDD §65 — a THROWN fault and a RESOLVED refusal — bound straight to
 	// toolbar clicks, which discard the promise they are handed.
+	//
+	// **Every one of them is QUEUED on the leaf's chain** (AD03), which they were not until this
+	// task: undo, redo, Choose a drawing, Start from preset and the replace-with-a-rectangle half
+	// of Set dimensions each dispatched straight past it. Nothing was ever overwritten — a gesture
+	// made while one of them was still awaiting its read-back held the OLD version and was refused
+	// as a conflict — but a refusal of the user's own next press is a worse answer than making it
+	// wait, and undo could start before the write it was about had settled. Queued, the five
+	// compose with every gesture instead of racing them.
+	//
+	// `chain.enqueue` and not `toolDispatcher`: `toolDispatcher` maps `run` alone, and undo/redo
+	// are their own door on the dispatcher. None of the five is ever called from inside a queued
+	// step, so none of them can wait behind itself — the deadlock `editShape` avoids by writing
+	// through the UNQUEUED mapping.
 	async function undo(): Promise<void> {
-		await notifyIfRefused(reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.undo()));
+		await notifyIfRefused(reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, chain.enqueue(() => dispatcher.undo())));
 	}
 	async function redo(): Promise<void> {
-		await notifyIfRefused(reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.redo()));
+		await notifyIfRefused(reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, chain.enqueue(() => dispatcher.redo())));
 	}
-	async function setBackground(ref: DocumentRef): Promise<void> {
+	// ONE dispatch for BOTH background gestures, because they differ only in the input: `path`
+	// naming a document points the designer at it, `path: null` takes it away (AD12-R2). Two copies
+	// of the enqueue-report-notify chain would be two places to change when the routing does — and
+	// `buildRuntime`'s 100-line budget is the gate that said so, measured at 108 with the copy.
+	async function dispatchBackground(input: SetAssetBackgroundInput): Promise<void> {
+		await notifyIfRefused(
+			reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, chain.enqueue(() => dispatcher.run(edits.setBackground(input)))),
+		);
+	}
+	// `document` and not `ref`: this module imports Vue's own `ref` since AD08's selection mode, and
+	// `no-shadow` fails the build on the collision — the same rename `onEmptyStateAction` made in
+	// `AssetDesignerRoot.vue` when the background status arrived there.
+	const setBackground = (document: DocumentRef): Promise<void> =>
+		dispatchBackground({ assetId, path: document.path, kind: document.kind, page: document.page });
+	const removeBackground = (): Promise<void> => dispatchBackground({ assetId, path: null });
+	async function setFootprintFromDimensions(width: number, depth: number): Promise<void> {
 		await notifyIfRefused(
 			reportDispatchFault(
 				context.logger,
 				DISPATCH_FAULT_EVENT,
-				dispatcher.run(edits.setBackground({ assetId, path: ref.path, kind: ref.kind, page: ref.page })),
+				chain.enqueue(() => dispatcher.run(edits.setFootprintFromDimensions({ assetId, width, depth }))),
 			),
 		);
 	}
-	async function setFootprintFromDimensions(width: number, depth: number): Promise<void> {
-		await notifyIfRefused(
-			reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.run(edits.setFootprintFromDimensions({ assetId, width, depth }))),
-		);
-	}
 	async function applyShape(shape: AssetShape): Promise<void> {
-		const result = await reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.run(edits.setShape({ assetId, shape })));
+		const result = await reportDispatchFault(
+			context.logger,
+			DISPATCH_FAULT_EVENT,
+			chain.enqueue(() => dispatcher.run(edits.setShape({ assetId, shape }))),
+		);
 		await notifyIfRefused(Promise.resolve(result));
 		// A preset is centred on the origin at whatever size was typed, so it can land wholly outside
 		// the view it was applied from. A WRITTEN shape is framed as `Shift+1` frames it — the same
 		// `fitTo` the plan editor's `selectAndFrame` takes. An OPENED asset is framed once by `DesignerCanvas`.
 		const bounds = designFrame(shape);
 		if (result?.ok === true && bounds !== null) editor.fitTo(bounds, editor.stageSize);
+		// A preset's clearance is a boundary the user just asked for: `DesignerRuntime.showClearance`'s rule.
+		if (result?.ok === true && shape.clearance !== null) showClearance.value = true;
 	}
 	function commitHeight(height: number | null): Promise<DispatchResult> {
 		return toolDispatcher.run(edits.setHeight({ assetId, height }));
@@ -590,15 +874,21 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		undo,
 		redo,
 		setBackground,
+		removeBackground,
+		backgroundOpacity, allDimensions, showLegend, showClearance,
 		setFootprintFromDimensions,
 		applyShape,
 		commitHeight,
-		hydrate,
+		// The two READ doors on one line, which is not a style choice: this function is at its
+		// 100-line budget and the pair is one fact — `readingFor`'s split, handed on whole.
+		hydrate, refresh,
 		toolManager,
 		renderState,
 		activeToolId,
 		setTool,
 		editShape,
+		multiSelectionMode,
+		partView,
 	};
 }
 
@@ -616,4 +906,18 @@ export function useDesignerRuntime(): DesignerRuntime {
 		throw new Error('The asset designer was mounted without a DesignerRuntime.');
 	}
 	return runtime;
+}
+
+/**
+ * The leaf's `showClearance`, or `null` where no runtime is provided — for `DesignerClearanceHelper`,
+ * which sits inside `DesignerInspector`. Several test files mount that inspector BARE on purpose, and
+ * its `removeBackground` docblock says why; `grep -rln "mount(DesignerInspector" tests/` lists them.
+ * `useDesignerRuntime()` in the helper would make every one of those mounts throw. Inside a leaf the
+ * runtime is always provided, so the `null` arm is a bare mount and nothing else: the switch is
+ * simply not drawn there, and `designerClearanceHelper.test.ts` drives the real wiring to prove it
+ * IS drawn in a leaf.
+ */
+export function useShowClearance(): Ref<boolean> | null {
+	const runtime = inject(DESIGNER_RUNTIME, null);
+	return runtime === null ? null : runtime.showClearance;
 }

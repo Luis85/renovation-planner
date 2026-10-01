@@ -12,6 +12,7 @@ import { plainDispatch, type DispatchResult, type VersionedDispatchResult } from
 import type { AssetGeometryDocument } from '../../ports/AssetGeometrySidecar';
 import type { EntityVersion } from '../../ports/versioning';
 import { loadAssetDocument, type AssetShapeDeps, type AssetShapeInput } from './updateAssetShape';
+import { mapDetailOutline } from '../../../domain/asset/AssetDetail';
 
 /**
  * What one calibration gesture on the ASSET designer supplies (Task B6).
@@ -65,7 +66,7 @@ function rescaled(shape: AssetShape, correction: number): AssetShape {
 		anchorPending: false,
 		details: shape.details.map((detail) =>
 			detail.pending
-				? { ...detail, outline: scaleShape(detail.outline, correction, ORIGIN), pending: false }
+				? { ...mapDetailOutline(detail, (outline) => scaleShape(outline, correction, ORIGIN)), pending: false }
 				: detail,
 		),
 	};

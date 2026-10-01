@@ -54,6 +54,7 @@ const MEASURED: AssetOutline = {
 	kind: 'measured',
 	points: A_FOOTPRINT,
 	extent: { width: 1200, depth: 190 },
+	details: [],
 };
 
 /**

@@ -67,11 +67,16 @@ and keyed by its id, carrying its own background, its own calibration and its ow
 separation is the point rather than an implementation detail — a product where tracing an oven  
 could disturb the scale of the bathroom is a product whose numbers cannot be trusted anywhere.
 
-Its toolbar is exactly what the surface can do: pan, trace a footprint, trace a clearance  
-boundary, set an anchor, set a facing direction, calibrate, undo and redo. **There is no  
-selection tool**, and that is a decision with a record rather than an omission — see  
-[The designer offers no selection, because nothing there was selectable](app://obsidian.md/The%20designer%20offers%20no%20selection,%20because%20nothing%20there%20was%20selectable), whose work is  
-[Select part of an object's shape](app://obsidian.md/Select%20part%20of%20an%20object's%20shape). There is no layers panel either, for a reason that will not  
+Its toolbar is exactly what the surface can do: pan, select, trace a footprint, trace a clearance  
+boundary, draw a rectangle or a circle, trace a detail, set an anchor, set a facing direction,  
+calibrate, undo and redo. **Select was once absent**, and that absence had a record rather than  
+being an omission — see  
+[The designer offers no selection, because nothing there was selectable](app://obsidian.md/The%20designer%20offers%20no%20selection,%20because%20nothing%20there%20was%20selectable). It  
+returned on that note's own condition — with its candidates and its gesture together — when  
+[Select part of an object's shape](app://obsidian.md/Select%20part%20of%20an%20object's%20shape) shipped. The toolbar this  
+sentence describes is `DESIGNER_TOOL_LABELS` in  
+`src/presentation/designer/tools/registerDesignerTools.ts`, which is where to re-read it rather  
+than here. There is no layers panel, for a reason that will not  
 change: a single object has nothing to layer.
 
 This feature owns the surface and the gestures on it. It does not own what a plan then does with  

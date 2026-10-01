@@ -1,9 +1,23 @@
 import { ok, type Result } from '../core/result/Result';
 import type { Query } from '../application/queries/Query';
+import type { Command } from '../application/commands/Command';
 import type { Logger } from '../application/ports/Logger';
 import type { RepositoryError } from '../application/ports/repositoryErrors';
+import type { PersistenceError } from '../core/errors/AppError';
+import type { EventBus } from '../core/events/EventBus';
 import type { VaultExceptionMapper } from '../application/errors/exceptionMapper';
-import { guardQuery } from '../application/errors/guardAgainstThrowing';
+import { guardCommand, guardQuery } from '../application/errors/guardAgainstThrowing';
+import {
+	DuplicateAssetCommand,
+	type DuplicateAssetErrors,
+	type DuplicateAssetInput,
+} from '../application/commands/asset/DuplicateAsset';
+import { ListPlansUsingAsset, type AssetPlanUsage } from '../application/queries/ListPlansUsingAsset';
+import type { ReferenceLocks } from '../application/reference/ReferenceLocks';
+import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
+import type { PlanRepository } from '../application/ports/PlanRepository';
+import type { ProjectRepository } from '../application/ports/ProjectRepository';
+import type { Asset } from '../domain/asset/Asset';
 import { ListCatalogueEntries, type CatalogueListing } from '../application/queries/ListCatalogueEntries';
 import {
 	ListAssetOutlines,
@@ -113,4 +127,102 @@ export function guardAssetLibrary(
 	);
 	const listOverridingProjects = guardQuery(overriding, 'query.listOverridingProjects.failed', logger, map);
 	return { assetLibrary: { listCatalogue, listOutlines, listOverridingProjects } };
+}
+
+/**
+ * AD13's usage scope, composed and guarded ONCE for every surface that asks it (ruling AD13-R1).
+ *
+ * **Extracted out of `guardAssetDuplication` below rather than spelled a second time in
+ * `assetDesignerDeps.ts`.** The designer owes the same disclosure the library draws — it is the
+ * surface that actually REWRITES a shared definition — and composing `guardAssetDuplication` from
+ * there to reach this read would build a `DuplicateAssetCommand` nothing in the designer
+ * dispatches: a dead door composed to reach a live one. Two constructions of one query is the
+ * shape that lets two surfaces disagree about one asset, which is the whole of part 3 of that
+ * ruling.
+ *
+ * The event name is unchanged (`query.listPlansUsingAsset.failed`), because a log line is read by
+ * whoever is triaging a vault fault and the door it names did not move.
+ *
+ * `guardQuery`'s result is a local `const` first, per `guardedServices.ts`'s own header: returned
+ * straight into this function's declared return type it would take a CONTEXTUAL type, and `E`
+ * would then infer from that annotation rather than from the query.
+ *
+ * **Guarded plainly, with no `Result` adapter.** `ListPlansUsingAsset` answers a `Result` of its
+ * own: it walks the project and plan repositories, so a listing that REFUSES is a real failure arm
+ * — the property `guardCategory.test.ts` exists to enforce, and exactly what an index-driven first
+ * version of that query did not have (it answered an empty scope over a vault that threw).
+ *
+ * **Read that narrowly: those repositories enumerate through `index.getIdsByType` themselves.** So
+ * the arm this door covers is a port that FAILS, never an index that is merely EMPTY — a pre-scan
+ * vault still answers an empty scope through here, and that arm is gated at each CALLER
+ * (`AssetUsageScope.vue` and `DesignerUsageScope.vue` both ask `indexScanCompleted()` before
+ * dispatching). `ListPlansUsingAsset`'s own header carries the measurement; this note exists so
+ * the claim is not wider on this side of the seam than on that one.
+ */
+export function guardAssetUsage(
+	ports: {
+		projects: ProjectRepository;
+		plans: PlanRepository;
+		planGeometry: PlanGeometrySidecar;
+	},
+	logger: Logger,
+	map: VaultExceptionMapper,
+): Query<AssetId, Result<AssetPlanUsage, RepositoryError | PersistenceError>> {
+	const usage = new ListPlansUsingAsset(ports.projects, ports.plans, ports.planGeometry);
+	const listPlansUsingAsset = guardQuery(usage, 'query.listPlansUsingAsset.failed', logger, map);
+	return listPlansUsingAsset;
+}
+
+/**
+ * AD13's two doors — `Duplicate as new asset` and the plan-usage scope drawn before an
+ * impactful change — composed and guarded together.
+ *
+ * **A SECOND function rather than three more members of `guardAssetLibrary` above, and the
+ * reason is a lease rather than a design.** That function is called from
+ * `composition-root.ts`, which AD01 §2 holds integrator-owned, so widening its `ports`
+ * argument would be an edit to a file this card may not touch. What it costs is one extra
+ * call site, in `assetLibraryDeps.ts` — the module that assembles the LIBRARY's bundle and this
+ * function's only caller. (That sentence read "the only consumer either door has" until AD13-R1
+ * gave the scope a second one; the duplicate command's only consumer is still that module, and
+ * the scope's other consumer reaches `guardAssetUsage` directly rather than coming through here,
+ * which is the whole point of the extraction.) What it does NOT cost is the guarding itself: both doors go
+ * through `guardCommand`/`guardQuery` under their own event names, so a throw below either
+ * one is mapped at the boundary exactly as it is for the three reads above, and
+ * `guardCategory.test.ts`'s detonation reaches them through the same wrappers.
+ *
+ * **Both are guarded plainly, with no `Result` adapter**, and the read half is no longer composed
+ * here: `guardAssetUsage` above owns it, and this function CALLS that rather than constructing
+ * `ListPlansUsingAsset` a second time. The scope query's whole account — why it answers a
+ * `Result`, and why its empty-index arm is gated at each caller rather than at the door — lives
+ * there.
+ *
+ * Nothing about this function's shape moved with it: it still takes every port either door needs
+ * and still hands back one object, because `assetLibraryDeps.ts` splits the pair by KIND and the
+ * two arrive together only because they arrived together.
+ */
+export function guardAssetDuplication(
+	ports: {
+		assets: AssetRepository;
+		assetGeometry: AssetGeometrySidecar;
+		events: EventBus;
+		locks: ReferenceLocks;
+		projects: ProjectRepository;
+		plans: PlanRepository;
+		planGeometry: PlanGeometrySidecar;
+	},
+	logger: Logger,
+	map: VaultExceptionMapper,
+): {
+	duplicateAsset: Command<DuplicateAssetInput, Result<Asset, DuplicateAssetErrors | PersistenceError>>;
+	listPlansUsingAsset: Query<AssetId, Result<AssetPlanUsage, RepositoryError | PersistenceError>>;
+} {
+	const duplicate = new DuplicateAssetCommand({
+		assets: ports.assets,
+		sidecar: ports.assetGeometry,
+		events: ports.events,
+		locks: ports.locks,
+	});
+	const duplicateAsset = guardCommand(duplicate, 'command.duplicateAsset.failed', logger, map);
+	const listPlansUsingAsset = guardAssetUsage(ports, logger, map);
+	return { duplicateAsset, listPlansUsingAsset };
 }

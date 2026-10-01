@@ -16,6 +16,10 @@ import {
 } from '../presentation/designer/designerCommands';
 import type { AssetDesignerDeps } from '../presentation/designer/AssetDesignerContext';
 import type { CompositionRoot } from './composition-root';
+import type { ContinueContext } from '../application/continueContext';
+import { assetDesignerUsePlan } from './renovationProjectOpenSeams';
+import { guardAssetUsage } from './guardedAssetLibrary';
+import { VAULT_EXCEPTION_MAPPER } from './guardedServices';
 
 /**
  * Moved out of `composition-root.ts` at the merge of the per-project price override and the
@@ -60,18 +64,63 @@ import type { CompositionRoot } from './composition-root';
 export function assetDesignerDeps(
 	root: CompositionRoot,
 	app: App,
-	options: { indexScanCompleted: () => boolean },
+	options: {
+		indexScanCompleted: () => boolean;
+		openLibrary: () => void;
+		/**
+		 * Plugin-local, per-device state over `App.loadLocalStorage` — carried through exactly as
+		 * `renovationProjectDeps` carries it, and for the same reason: the store is memoised on
+		 * the plugin instance (its own coalescing depends on being one instance), so this module
+		 * may not build a second one. REQUIRED rather than defaulted, the same reason that
+		 * function states: a composition that forgot it would still compile and silently stop
+		 * recording where the user was.
+		 */
+		rememberContinue: (context: ContinueContext) => void;
+	},
 ): AssetDesignerDeps {
 	const persistence = root.persistence;
 	return {
+		openLibrary: options.openLibrary,
+		// AD13's forward door. Composed HERE rather than taken in `options` on two counts. The
+		// first is that everything it needs is already in this function's arguments — the index
+		// off `root.persistence`, the logger off `root` — so passing it in meant the caller
+		// reaching for the same two members one level up. The second is a line budget:
+		// `RenovationPlannerPlugin.ts` sits at its 400-line cap, the five-line `options` literal
+		// this replaced put it over, and the fix has to be an extraction rather than a
+		// suppression.
+		//
+		// Unconditional on `persistence`, unlike `queries` and `commands` below: an index that is
+		// `undefined` is the unrecovered-settings session, which `entriesOfType` answers for with
+		// the same "no plans" notice an empty vault gets. A refusing seam would draw nothing.
+		usePlan: assetDesignerUsePlan(app, persistence?.index, root.logger, options.rememberContinue),
 		picker: new ObsidianBackgroundPicker(app),
 		// Obsidian's real `Vault`, passed straight in: `BackgroundVault` is a `Pick` of it, so
 		// there is nothing to adapt and nothing that can drift from the API.
 		vault: app.vault,
+		// The second argument is ruling AD13-R1's usage scope, composed through `guardAssetUsage` —
+		// the SAME function `guardAssetDuplication` calls for the library's own scope panel, which
+		// is the whole of part 3 of that ruling: one question, one instrument, two surfaces.
+		// Calling `guardAssetDuplication` from here instead would build a `DuplicateAssetCommand`
+		// nothing in the designer dispatches.
+		//
+		// Every port it needs is one this root already holds, and nothing is constructed beneath
+		// them. `VAULT_EXCEPTION_MAPPER` is the one instance every guarded group shares, reached
+		// here the way `assetLibraryDeps` reaches it.
 		queries:
 			persistence === null
 				? unavailableAssetDesignerQueries()
-				: createAssetDesignerQueries(persistence.assetDesign),
+				: createAssetDesignerQueries(
+						persistence.assetDesign,
+						guardAssetUsage(
+							{
+								projects: persistence.projects,
+								plans: persistence.plans,
+								planGeometry: persistence.geometry,
+							},
+							root.logger,
+							VAULT_EXCEPTION_MAPPER,
+						),
+					),
 		// The write side (design slice B5), composed from the GUARDED design bundle plus the
 		// three ports its reversible adapters restore through. Presentation holding a port is
 		// the bargain `PlanEditorCommandServices.zones` already makes and for the same reason:

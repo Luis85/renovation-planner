@@ -1,0 +1,147 @@
+/*
+ * The asset designer's dimensions on canvas — card W19-A, the snapping spec's increment 2
+ * (AD18-R11).
+ *
+ * A partial of its OWN rather than more rules in `designer.css`: **the argument is the CAP and
+ * never a figure.** `designer-add.css` counts five sibling partials that each wrote down a line
+ * count for `designer.css` and were each falsified by somebody adding a comment to it, and
+ * `designer-trace.css` says outright to run `wc -l styles/designer.css` rather than trust any
+ * number written there or in a sibling. This header repeats neither. The seam is a budget, not a
+ * new organising idea. Its position in `styles/index.css` is not load-bearing, and that is a GREP
+ * rather than a check: `grep -rln "rp-designer-dimension" styles/` prints this file and
+ * `designer-rulers.css`, whose header NAMES `.rp-designer-dimensions` in prose and declares
+ * nothing of this family — so no rule elsewhere can win or lose against one here at equal
+ * specificity. **The first version of this sentence said "and nothing else", and the very commit
+ * that wrote it had already made that false** by adding that prose mention two files away: the
+ * repository's own rule is to write the sentence from what the grep printed AFTER the change, and
+ * `grid/designerGrid.ts` two directories away spells out how to avoid exactly this. Nothing
+ * re-runs the grep — move a selector of this family into another partial and the sentence is
+ * stale with no gate to say so.
+ *
+ * **`pointer-events` is the load-bearing pair in this file, and it is a pair rather than one
+ * declaration.** `none` on the CONTAINER and `auto` on the controls inside it, which is
+ * `.rp-dimension-labels`' shape on the plan side. The reason is that the canvas must go on
+ * receiving a press through the gaps BETWEEN the labels, while the labels themselves are real
+ * buttons and a real form — the overlay slot forbids neither, since its wrapper's `.stop`
+ * modifiers are bubble-phase and run after a child's own handler (AD18-R11 measured this).
+ *
+ * Every label is absolutely positioned inside `.rp-plan-canvas`, so they take the canvas no
+ * LAYOUT at all — the same property that holds AD18-R10's binding for the rulers. What they take
+ * is the drawing they cover, which is a rendered measurement and is in the card's report.
+ */
+.rp-designer-dimensions {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+/*
+ * **The `transform` is NOT here, deliberately**, and it is the one placement fact this file does
+ * not own: a button is centred on its mark and an open field grows away from the nearer canvas
+ * edge, which is a question about where the anchor sits on the stage and therefore the
+ * component's. `DesignerDimensions.vue`'s `placement` carries the whole argument, including why a
+ * fixed lift clipped every form on open. Writing a `transform` here would be a second answer that
+ * silently wins or loses by source order.
+ */
+/*
+ * **A resting label paints at `z-index: 1`, above the canvas key** (AD18-R17, routed from Task 6's
+ * review). The key — `.rp-designer-key` in `designer-legend.css`, opaque and bottom-left — is drawn
+ * AFTER this overlay and declares no `z-index`, so at `auto` a label a camera put in that corner
+ * was painted under it: a click target nobody could see and a focus ring hidden (WCAG 2.4.11).
+ * Every label shares the one value, so among the labels paint and hit order is still DOM order,
+ * which AD18-R14's rule relies on. The LINES stay at `auto`: a key drawn over a line hides
+ * decoration, not a control.
+ */
+.rp-designer-dimension {
+	position: absolute;
+	z-index: 1;
+}
+/*
+ * The open field stacks above its neighbours and the key: two anchors 30 px apart are ordinary on
+ * a small part, and a form drawn under the next label along is a form whose Apply button cannot
+ * be pressed.
+ */
+.rp-designer-dimension:has(.rp-designer-dimension__form) {
+	z-index: 2;
+}
+.rp-designer-dimension__value,
+.rp-designer-dimension__form {
+	pointer-events: auto;
+}
+/*
+ * The drafting marks (AD18-R17, board 01): one SVG over the whole canvas, drawn BEFORE the labels
+ * so each label's opaque box interrupts its own line, as a drafted dimension's figure does. It
+ * takes no press — it inherits the container's `none` and says so again, since an SVG that took one
+ * would eat the canvas's gestures across its whole box. `overflow: visible` because a line may run
+ * on past the canvas edge to a label near it. `--text-muted` is the rulers' ink: a line is a
+ * reading aid like a tick, and the accent stays the mark of a thing a user can edit.
+ */
+.rp-designer-dimension-lines {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	overflow: visible;
+	pointer-events: none;
+}
+.rp-designer-dimension-lines__line {
+	fill: none;
+	stroke: var(--text-muted);
+	stroke-width: 1px;
+}
+.rp-designer-dimension-lines__arrows {
+	fill: var(--text-muted);
+	stroke: none;
+}
+/*
+ * `tabular-nums` so a figure updating during a drag does not jitter its own width, and
+ * `white-space: nowrap` because a four-digit millimetre reading wrapping mid-number is a number
+ * nobody can read. The accent border is what distinguishes a dimension a user may EDIT from the
+ * ruler's ticks, which are drawn in `--text-muted` and are not controls.
+ */
+.renovation-asset-designer .rp-designer-dimension__value {
+	min-height: 24px;
+	padding: 1px 6px;
+	border: 1px solid var(--interactive-accent);
+	border-radius: 5px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+.rp-designer-dimension__form {
+	width: 168px;
+	max-width: calc(100vw - 32px);
+	padding: 8px;
+	border: 1px solid var(--interactive-accent);
+	border-radius: 7px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	box-shadow: var(--shadow-s);
+}
+.rp-designer-dimension__form label {
+	display: block;
+	font-size: var(--font-ui-small);
+}
+.rp-designer-dimension__form input {
+	width: 100%;
+	min-height: 30px;
+	margin-top: 4px;
+	font-variant-numeric: tabular-nums;
+}
+.rp-designer-dimension__error {
+	margin: 6px 0 0;
+	color: var(--text-error);
+	font-size: var(--font-ui-smaller);
+}
+.rp-designer-dimension__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 8px;
+}
+.rp-designer-dimension__value:focus-visible,
+.rp-designer-dimension__form button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}

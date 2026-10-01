@@ -272,6 +272,16 @@ describe('the German locale', () => {
 	 * `editor.curves.conflict` read `Brich ab und öffne …`; a capital-only list is blind to every
 	 * one of those by construction.
 	 *
+	 * **The verb list was also widened once by evidence from `main`'s side.** The asset designer's
+	 * expansion added SEVEN du-form strings across three tables and the ten-verb version caught
+	 * exactly ONE of them (`Zeichne`); the others used `Entsperre`, `Hebe`, `nimm`, `Kalibriere`,
+	 * `Zieh`, `setze`, `Drehe`, `verschiebe` and `deine`. Worse than invisible: a later author read
+	 * those neighbours, concluded the repository had no house register, and matched the du-form to
+	 * be consistent with them. **A rule with a partial instrument does not merely miss a violation,
+	 * it teaches the next author the violation is allowed.** The five verbs this list lacked joined
+	 * it when the two branches met; `nimm`, `setze`, `verschiebe` and `deine` were already reached
+	 * by the `/i` flag and the possessive arm.
+	 *
 	 * **The `\p{L}` lookarounds carry the whole of the false-friend defence, and they are the
 	 * reason `/i` is affordable.** German embeds all of these letter runs in ordinary words —
 	 * `Deinstallation` contains `dein`, `Durchmesser` contains `du`, `Direkt` contains `dir`,
@@ -285,7 +295,7 @@ describe('the German locale', () => {
 	 *
 	 * - **The verb arm is still a LIST.** It holds the du-forms this locale has actually produced
 	 *   plus the obvious siblings of those; a du-form of a verb nobody has written yet
-	 *   (`Kopiere`, `Drehe`, `Justiere`, …) passes. The pronoun arm is what makes that gap
+	 *   (`Kopiere`, `Justiere`, …) passes. The pronoun arm is what makes that gap
 	 *   narrower than it was — most informal copy reaches for `du`, `dir` or `dein` somewhere —
 	 *   but a single pronoun-free imperative of an unlisted verb is invisible.
 	 * - **A du-form that is spelled identically to something legitimate is not separable here.**
@@ -297,7 +307,7 @@ describe('the German locale', () => {
 	 *   not in this table at all.
 	 */
 	const INFORMAL_IMPERATIVE =
-		/(?<!\p{L})(?:du|dich|dir|dein(?:en|em|er|es|e)?|Gib|Wähle|Setze|Lege|Zeichne|Tippe|Klicke|Ziehe|Öffne|Überprüfe|Prüfe|Lade|Erstelle|Erfasse|Passe|Brich|Schließe|Speichere|Lösche|Füge|Entferne|Ändere|Wechsle|Verschiebe|Benenne|Vergrößere|Verkleinere|Verwirf|Wiederhole|Beginne|Beende|Kehre|Gehe|Nimm|Lies|Verwende|Benutze|Beachte|Achte|Starte|Versuche|Ordne|Behalte|Melde|Vergiss|Verbinde|Markiere|Aktiviere|Deaktiviere|Bestätige|Korrigiere|Bearbeite|Trage|Wende|Entscheide)(?!\p{L})/iu;
+		/(?<!\p{L})(?:du|dich|dir|dein(?:en|em|er|es|e)?|Gib|Wähle|Setze|Lege|Zeichne|Tippe|Klicke|Ziehe|Öffne|Überprüfe|Prüfe|Lade|Erstelle|Erfasse|Passe|Brich|Schließe|Speichere|Lösche|Füge|Entferne|Ändere|Wechsle|Verschiebe|Benenne|Vergrößere|Verkleinere|Verwirf|Wiederhole|Beginne|Beende|Kehre|Gehe|Nimm|Lies|Verwende|Benutze|Beachte|Achte|Starte|Versuche|Ordne|Behalte|Melde|Vergiss|Verbinde|Markiere|Aktiviere|Deaktiviere|Bestätige|Korrigiere|Bearbeite|Trage|Wende|Entscheide|Entsperre|Hebe|Zieh|Kalibriere|Drehe)(?!\p{L})/iu;
 
 	/**
 	 * The instrument before the measurement: a pattern that matched nothing would make this whole
@@ -555,10 +565,42 @@ describe('interpolation', () => {
 	 * 78 → 87: §6.3's Plan pattern inspector field (ADR-0031) added nine keys —
 	 * `view.asset-library.plan-pattern` and eight `view.asset-library.pattern.*` values (`none`
 	 * plus the seven patterns) — a deliberate spec amendment, not a gap.
+	 *
+	 * 87 → 100: AD13's duplicate and usage-scope half added thirteen —
+	 * `view.asset-library.duplicate` plus six `view.asset-library.duplicate.*`, and six
+	 * `view.asset-library.used-in-plans*` for the plan-placement scope drawn before a duplicate.
+	 * They live in `{en,de}/assetDuplicate.ts` rather than in `{en,de}-assetLibrary.ts`, which is
+	 * the integrator-owned per-card split that wave's leases are built on, and they carry this
+	 * surface's own `view.asset-library.` prefix precisely so that they reach this pin: a key
+	 * named to dodge it would be a second naming convention for one surface's strings, bought to
+	 * avoid the one instrument that makes an addition deliberate. **The §8 amendment this pin
+	 * cannot check is OWED and not made** — `asset-library-overview-DESIGN-SPEC.md` is outside
+	 * AD13's lease, and the pin's own paragraph above records that the guarantee here is *the
+	 * count cannot move silently*, never *the spec was amended*.
+	 *
+	 * 100 → 113: AD18-R18's Grid view added thirteen — the toolbar's `Grid | List` switch
+	 * (`view.asset-library.layout.label`, `.layout.grid`, `.layout.list`), the category sidebar and
+	 * its funnel (`view.asset-library.filter`, `.filter.active`, `.categories`, `.category.all`),
+	 * the grid's `Create your own` card (`view.asset-library.create-card.title`, `.create-card.hint`)
+	 * and the filtered-to-nothing empty state (`view.asset-library.filtered.no-matches`, `.none`,
+	 * `.body`, `.action`). The ruling amends §3.1 ("no view switcher … no filter menu"), and the
+	 * spec's Amendment 7 records it and this count.
+	 *
+	 * 113 → 117: Task 6 of the AD18 UI critique round gave four `{count}` keys with no singular
+	 * form a `.one`/`.other` split, replacing each bare key with two —
+	 * `view.asset-library.assets`, `.search.results`, `.some-unreadable` and `.used-in.project`
+	 * — net +4. The spec's own WORDING is unchanged at either count; only which KEY a caller
+	 * reaches for a given count moved, which is a different shape of change from the six before
+	 * it — but the spec is still amended, because the pin the amendment exists to track moved:
+	 * `asset-library-overview-DESIGN-SPEC.md`'s Amendment 8 carries this move and the next one.
+	 *
+	 * 117 → 119: ruling AD18-R42 (amending AD18-R7) split the two remaining "(s)" counts,
+	 * `view.asset-library.used-in-plans.plan` and `.unreadable`, into `.one`/`.other` the same way —
+	 * net +2, recorded in the same Amendment 8.
 	 */
-	it('pins the Asset library inventory at 87 keys in both locales', () => {
-		expect(assetLibraryKeys(en)).toHaveLength(87);
-		expect(assetLibraryKeys(de)).toHaveLength(87);
+	it('pins the Asset library inventory at 119 keys in both locales', () => {
+		expect(assetLibraryKeys(en)).toHaveLength(119);
+		expect(assetLibraryKeys(de)).toHaveLength(119);
 	});
 });
 

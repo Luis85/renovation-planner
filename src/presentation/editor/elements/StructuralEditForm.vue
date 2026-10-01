@@ -16,6 +16,7 @@ import FieldError from '../../components/FieldError.vue';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { commitTextInput } from '../forms/commitTextInput';
 import { structuralEdit, structuralText, type StructuralEdit, type StructuralText } from './structuralInput';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 
 const props = defineProps<{ kind: SpatialElementKind; width?: number; points: readonly Point[]; name: string; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; latest: Readonly<Ref<string | null>>;
 	inputBlocked: Readonly<Ref<boolean>>; logger: Logger; retry: () => Promise<void>; openSource: () => Promise<void>;
@@ -86,12 +87,9 @@ async function submit(): Promise<void> {
 				</label>
 			</FieldError>
 		</fieldset>
-		<button
-			type="submit"
-			class="mod-cta"
-			:aria-disabled="disabled"
-		>
-			{{ tr('editor.structural.apply') }}
-		</button>
+		<FormSubmitRow
+			:submitting="disabled"
+			:label="tr('editor.structural.apply')"
+		/>
 	</form>
 </template>

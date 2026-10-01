@@ -15,6 +15,7 @@ import StructureReviewNotices from './StructureReviewNotices.vue';
 import { useStructureReview } from './useStructureReview';
 import { wallSideExtents, wallTotal } from '../../../domain/spatial/wallSides';
 import { formatWallExtent } from './wallExtentInput';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 const props = defineProps<{ structure: Structure; id: string; end?: Point; openingPoint?: Point; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; roomNames: readonly string[]; dispatch: (structure: Structure) => Promise<DispatchResult>; preview: (structure: Structure | null) => void; highlight?: (side: WallSide | null) => void }>();
 const emit = defineEmits<{ submit: [] }>();
 const wall = props.structure.walls.find(candidate => candidate.id === props.id), opening = props.structure.openings.find(candidate => candidate.id === props.id) as Opening;
@@ -125,11 +126,9 @@ onBeforeUnmount(() => props.highlight?.(null));
 		>
 			{{ impact }}
 		</p>
-		<button
-			type="submit"
-			:aria-disabled="unavailable"
-		>
-			{{ tr(reviewed ? 'editor.structure.apply' : 'editor.structure.preview') }}
-		</button>
+		<FormSubmitRow
+			:submitting="unavailable"
+			:label="tr(reviewed ? 'editor.structure.apply' : 'editor.structure.preview')"
+		/>
 	</form>
 </template>

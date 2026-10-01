@@ -6,6 +6,13 @@
  *
  * The `locked` prop only draws the state; the forward and inverse values come from the read, so a
  * stale list row cannot dispatch the wrong direction.
+ *
+ * **No `aria-pressed` (AD18-R23)**: the accessible name already swaps with the state ("Lock
+ * Kitchen" / "Unlock Kitchen") and the glyph draws it, so a pressed state on top announced a locked
+ * zone as "Unlock Kitchen, toggle button, pressed" — two channels for one state, reading opposite
+ * ways. The designer's `DesignerPartControls.vue` dropped the same pair for the same reason.
+ * `data-rp-locked` is the STYLING hook the stylesheet keys on instead (the Layers sidebar's quiet
+ * lock and the locked emphasis), since a state the screen reader no longer hears still draws.
  */
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { GetZone } from '../../../application/queries/GetZone';
@@ -64,7 +71,7 @@ async function toggle(): Promise<void> {
 		type="button"
 		class="rp-editor-inspector-lock"
 		:data-rp-lock="zoneId"
-		:aria-pressed="locked"
+		:data-rp-locked="locked"
 		:aria-label="label"
 		:aria-disabled="disabled || undefined"
 		:aria-describedby="paused ? runtime.pausedReasonId : undefined"

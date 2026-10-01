@@ -34,7 +34,8 @@ import { useDraftingMenuActions } from './draftingMenuActions';
  * selection and grouping, the view, and last what destroys the object.
  */
 export type CanvasMenuGroup = 'plans' | 'edit' | 'create' | 'records' | 'clipboard' | 'arrange' | 'view' | 'destructive';
-export interface CanvasMenuAction { readonly id: string; readonly label: StringKey; readonly group: CanvasMenuGroup; readonly icon: string; readonly params?: Readonly<Record<string, string>>; readonly disabled?: boolean; readonly reason?: StringKey; run(): void | Promise<void> }
+/** `shortcut` is the key hint drawn at the row's end, already resolved for this platform (the asset designer's menu, AD18-R16 Task 11). */
+export interface CanvasMenuAction { readonly id: string; readonly label: StringKey; readonly group: CanvasMenuGroup; readonly icon: string; readonly params?: Readonly<Record<string, string>>; readonly disabled?: boolean; readonly reason?: StringKey; readonly shortcut?: string; run(): void | Promise<void> }
 export interface CanvasMenuSubmenu { readonly id: string; readonly label: StringKey; readonly group: CanvasMenuGroup; readonly icon: string; readonly children: readonly CanvasMenuAction[]; readonly disabled?: boolean; readonly reason?: StringKey }
 export type CanvasMenuItem = CanvasMenuAction | CanvasMenuSubmenu;
 export function isSubmenu(item: CanvasMenuItem): item is CanvasMenuSubmenu { return 'children' in item; }

@@ -9,6 +9,7 @@ import type {
 	ReferencingGroup,
 } from '../../application/queries/ListRequirementsReferencing';
 import type { ReassignmentTargetDto } from '../../application/queries/reassignmentTypes';
+import type { AssetPlanUsage } from '../../application/queries/ListPlansUsingAsset';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type { ProjectId } from '../../domain/project/ProjectId';
 
@@ -16,13 +17,15 @@ import type { ProjectId } from '../../domain/project/ProjectId';
  * The ONLY application-layer surface the Asset library depends on — `planEditorQueries.ts`'s
  * shape for a fourth view, and a sibling of `assetDesignerQueries.ts` rather than a member of
  * it: that file is named for the surface that edits ONE asset and answers one door, while this
- * one browses every asset in the vault and answers six.
+ * one browses every asset in the vault. **No count of the members is kept in this paragraph** —
+ * the interface below is the list and it cannot go stale, whereas this sentence said "six" for
+ * three members' worth of growth and was corrected only when a seventh arrived.
  *
- * FIVE of the six are reads with five different lifetimes (§5.5): the catalogue listing is
- * refreshed by events, the marks are read per viewport, and the three selection reads are
- * restarted by a selection. Folding any pair into one query would give two of them one ticket.
+ * Most are reads with their own lifetimes (§5.5): the catalogue listing is refreshed by events,
+ * the marks are read per viewport, and the selection reads are restarted by a selection. Folding
+ * any pair into one query would give two of them one ticket.
  *
- * `listReassignmentTargets` is the sixth and is NOT one of those — it belongs to no section, is
+ * `listReassignmentTargets` is NOT one of those — it belongs to no section, is
  * ticketed by nothing and is read once, inside a gesture, when a user has chosen to reassign.
  * It is here because §3.5's `Delete` goes through slice 10's resolution and that resolution
  * offers a reassignment, so the surface needs the door; and it is the SAME guarded query the
@@ -51,6 +54,18 @@ export interface AssetLibraryQueryServices {
 	listReassignmentTargets(
 		assetId: AssetId,
 	): Promise<Result<readonly ReassignmentTargetDto[], RepositoryError>>;
+	/**
+	 * AD13's usage scope: which PLANS place this definition, drawn before an impactful change.
+	 *
+	 * Beside `listReferencing` rather than folded into it, because the two have different
+	 * producers and answer different questions — that one groups the REQUIREMENTS which
+	 * reference an asset, this one names the plans whose geometry PLACES it. Neither list is a
+	 * subset of the other.
+	 *
+	 * It sits here and not in `AssetLibraryCommandServices`, where it shipped: it is a READ, and
+	 * a read in the command bundle is a second home for one kind of thing.
+	 */
+	listPlansUsingAsset(assetId: AssetId): Promise<Result<AssetPlanUsage, RepositoryError>>;
 }
 
 /**
@@ -105,11 +120,12 @@ export function unavailableAssetLibraryQueries(): AssetLibraryQueryServices {
 		listReferencing: refuseUnrecovered,
 		listOverridingProjects: refuseUnrecovered,
 		listReassignmentTargets: refuseUnrecovered,
+		listPlansUsingAsset: refuseUnrecovered,
 	};
 }
 
 /**
- * The six guarded queries, mapped at the boundary into the read model above.
+ * The seven guarded queries, mapped at the boundary into the read model above.
  *
  * Typed structurally (`Query<…>`) and never as the concrete classes, for the reason
  * `guardedServices.ts` states once for every service it wraps: what the composition root hands
@@ -141,6 +157,7 @@ export function createAssetLibraryQueries(queries: {
 		ReferencedTarget,
 		Result<readonly ReassignmentTargetDto[], RepositoryError>
 	>;
+	readonly listPlansUsingAsset: Query<AssetId, Result<AssetPlanUsage, RepositoryError>>;
 }): AssetLibraryQueryServices {
 	return {
 		listCatalogue: () => queries.listCatalogue.execute(),
@@ -158,5 +175,7 @@ export function createAssetLibraryQueries(queries: {
 
 		listReassignmentTargets: (assetId) =>
 			queries.listReassignmentTargets.execute({ kind: 'asset', assetId }),
+
+		listPlansUsingAsset: (assetId) => queries.listPlansUsingAsset.execute(assetId),
 	};
 }

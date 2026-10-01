@@ -13,7 +13,10 @@ import {
 import type { AssetDesignDto, AssetDesignError } from '../../../src/application/queries/GetAssetDesign';
 import type { AssetId } from '../../../src/domain/asset/AssetId';
 import { isErr, isOk, ok, type Result } from '../../../src/core/result/Result';
+import type { AssetPlanUsage } from '../../../src/application/queries/ListPlansUsingAsset';
+import type { RepositoryError } from '../../../src/application/ports/repositoryErrors';
 import { assetDesign } from '../../helpers/assetDesign';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 describe('createAssetDesignerQueries', () => {
 	/**
@@ -26,19 +29,52 @@ describe('createAssetDesignerQueries', () => {
 	it('hands the view-state id to the query and its answer straight back', async () => {
 		const design = assetDesign();
 		const asked: AssetId[] = [];
-		const queries = createAssetDesignerQueries({
-			get: {
-				execute: (assetId: AssetId): Promise<Result<AssetDesignDto, AssetDesignError>> => {
-					asked.push(assetId);
-					return Promise.resolve(ok(design));
+		const queries = createAssetDesignerQueries(
+			{
+				get: {
+					execute: (assetId: AssetId): Promise<Result<AssetDesignDto, AssetDesignError>> => {
+						asked.push(assetId);
+						return Promise.resolve(ok(design));
+					},
 				},
 			},
-		});
+			{ execute: unwiredPlanUsage },
+		);
 
 		const result = await queries.getAssetDesign(design.assetId);
 
 		expect(asked).toEqual([design.assetId]);
 		expect(isOk(result) && result.value).toBe(design);
+	});
+
+	/**
+	 * The same pass-through for AD13-R1's usage scope, and it is a SECOND case rather than a
+	 * widening of the one above because the two map different queries: a wrapper that handed the
+	 * design query's id to the scope query — or its own `assetId` to neither — would satisfy that
+	 * case completely.
+	 *
+	 * The answer is asserted by IDENTITY (`toBe`), not by shape: the read model's whole job here is
+	 * to hand `ListPlansUsingAsset`'s `Result` on verbatim, and a version that rebuilt an
+	 * equivalent object would be a second answer to what the scope is.
+	 */
+	it('hands the view-state id to the usage query and its answer straight back', async () => {
+		const design = assetDesign();
+		const asked: AssetId[] = [];
+		const usage: Result<AssetPlanUsage, RepositoryError> = ok({ plans: [], unreadable: 3 });
+		const queries = createAssetDesignerQueries(
+			{ get: { execute: () => Promise.resolve(ok(design)) } },
+			{
+				execute: (assetId: AssetId): Promise<Result<AssetPlanUsage, RepositoryError>> => {
+					asked.push(assetId);
+					return Promise.resolve(usage);
+				},
+			},
+		);
+
+		const result = await queries.listPlansUsingAsset(design.assetId);
+
+		expect(asked).toEqual([design.assetId]);
+		expect(result).toBe(usage);
 	});
 });
 
@@ -52,6 +88,35 @@ describe('unavailableAssetDesignerQueries', () => {
 		const result = await unavailableAssetDesignerQueries().getAssetDesign('asset-01JABC');
 
 		expect(isErr(result) && result.error.code).toBe('settings.unrecovered');
+		expect(isErr(result) && result.error.category).toBe('Persistence');
+	});
+
+	/**
+	 * **The bundle is TOTAL** (AD13-R1's closing line: the unavailable bundle gains its arm in the
+	 * same edit as the member). By EXACT KEY SET rather than by naming the two, for CLAUDE.md's
+	 * carve-out rule: the next member added to `AssetDesignerQueryServices` reddens THIS line,
+	 * which is where a person is standing when they decide what that member refuses with.
+	 *
+	 * **Read it narrowly.** The compiler already forces a key to exist — an incomplete object
+	 * literal does not type-check — so what this adds is the PROMPT, not the guarantee. What
+	 * neither reaches is a member whose arm succeeds: the two cases beside this one are what say
+	 * `settings.unrecovered` and `Persistence` out loud, one per member.
+	 */
+	it('declares an arm for every member, by exact key set', () => {
+		expect(Object.keys(unavailableAssetDesignerQueries()).toSorted()).toEqual([
+			'getAssetDesign',
+			'listPlansUsingAsset',
+		]);
+	});
+
+	/**
+	 * The scope's own arm, at its own door: a refusal whose CATEGORY was anything but
+	 * `Persistence` would route to a different sentence through `trError`, and
+	 * `DesignerUsageScope` draws that sentence as its unknown-scope state.
+	 */
+	it('refuses the usage scope as a persistence failure', async () => {
+		const result = await unavailableAssetDesignerQueries().listPlansUsingAsset('asset-01JABC');
+
 		expect(isErr(result) && result.error.category).toBe('Persistence');
 	});
 });

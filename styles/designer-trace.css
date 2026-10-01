@@ -1,0 +1,96 @@
+/*
+ * AD18 item 7 — the guided trace checklist, and the Reference tab panel's empty state.
+ *
+ * **Created by the integrator before wave 10 was dispatched, and empty on purpose.** The rules are
+ * card W10-B's to write; the FILE and its `@import` line in `styles/index.css` are the
+ * integrator's, because `scripts/styles-assemble.mjs` refuses a partial no entry file imports — so
+ * a partial and its import are one action and cannot be leased apart (wave 9 recorded exactly that
+ * lesson after a card edited `index.css` outside its table).
+ *
+ * It exists as its own partial rather than as rules appended to a sibling because the two obvious
+ * siblings are both in the OTHER card's lease row: `designer-selection.css` already declares
+ * `.rp-designer-reference`, and it also declares `.rp-designer-tools` and
+ * `.rp-designer-tool-button`, which is W10-A's icon toolbar. One file in two rows is the thing
+ * this package's lease table exists to prevent.
+ *
+ * `styles/designer.css` was not an option either: it sat a few lines under the 400-line cap when
+ * this was written and has moved twice since. The argument is the CAP, not the figure — read
+ * `wc -l styles/designer.css` rather than any number written down here or in a sibling partial.
+ * Three partials stated 397 and all three were falsified by one comment added to that file.
+ */
+
+/*
+ * The guide's own block, spaced exactly like the three AD12 blocks `designer-selection.css`
+ * groups (`.rp-designer-reference`, `.rp-designer-placement`, `.rp-designer-clearance`): it is a
+ * sibling of those in the same rail and a fourth spacing would read as a different kind of thing.
+ * Restated here rather than joined to that group's selector list because that file is card W10-A's
+ * lease, and a rule split across two partials is worse than a repeated one.
+ */
+.rp-designer-trace {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+	margin: var(--size-4-4) 0 0;
+	padding-top: var(--size-4-2);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * An `<ol>`, so the step NUMBERS come from the list itself and no template counts them. The
+ * inline padding is what leaves the markers room inside a 224 px rail.
+ */
+.rp-designer-trace-steps {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	margin: 0;
+	padding-inline-start: var(--size-4-5);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+/*
+ * Finished, current and still-to-do, in three declarations and no colour-only cue: the strike is
+ * what a colour-blind reader sees on a finished step and the weight is what they see on the
+ * current one. Neither reaches a screen reader, which is why the row carries `aria-current` and a
+ * visually hidden `Done`.
+ *
+ * Keyed off `aria-current` rather than a second data attribute: the state is already in the
+ * markup for the accessibility tree, and a class beside it would be a second place to forget.
+ */
+.rp-designer-trace-step[data-rp-done="true"] {
+	color: var(--text-faint);
+	text-decoration: line-through;
+}
+
+.rp-designer-trace-step[aria-current="step"] {
+	color: var(--text-normal);
+	font-weight: var(--font-medium);
+}
+
+/*
+ * **The current step's NUMBER, which does not follow its label and has to be told.** Measured in a
+ * browser against the real assembled sheet and Obsidian's own, at a 224 px rail in both schemes —
+ * the only instrument here that can see it, since jsdom lays nothing out.
+ *
+ * `font-weight` reaches `::marker` by inheritance already (measured: the current row's marker
+ * computes 500 with no rule of its own). `color` does NOT, and not because inheritance is refused:
+ * Obsidian's own sheet sets `ol > li::marker { color: var(--list-marker-color) }`, and an explicit
+ * declaration beats an inherited value. So the row above brightened its words and left its number
+ * behind — `rgb(218,218,218)` against `rgb(102,102,102)` in dark, and a starker `#222222` against
+ * `#ababab` in light, which is the weakest possible rendering of the one cue this block exists to
+ * give.
+ *
+ * **The done state deliberately gets NO matching rule.** `--list-marker-color` measures identical
+ * to `--text-faint` in both of Obsidian's default schemes (`rgb(102,102,102)` dark, `#ababab`
+ * light), so a finished row's number already reads as faint as its struck label, and a rule here
+ * would be one that changes nothing today. Where the two diverge is a custom theme, and there the
+ * host's own marker colour is the answer this project defers to rather than overrides.
+ *
+ * What this still cannot fix, stated rather than left to be discovered: `text-decoration` does not
+ * apply to `::marker` at all, so the strike crosses a finished row's WORDS and never its number.
+ * The label carries that cue alone.
+ */
+.rp-designer-trace-step[aria-current="step"]::marker {
+	color: var(--text-normal);
+}

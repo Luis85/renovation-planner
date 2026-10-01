@@ -17,7 +17,7 @@ import { validateAssetShape, type AssetShape } from '../AssetShape';
 export type PresetId =
 	| 'rect-table' | 'round-table' | 'oval-table' | 'curved-table'
 	| 'chair' | 'armchair' | 'sofa'
-	| 'toilet' | 'washbasin' | 'shower-tray' | 'bathtub'
+	| 'toilet' | 'washbasin' | 'vanity' | 'shower-tray' | 'bathtub'
 	| 'tree' | 'shrub' | 'bed';
 export type PresetGroup = 'tables' | 'seating' | 'sanitary' | 'plants-beds';
 export type PresetFieldKey = 'width' | 'depth' | 'diameter' | 'length' | 'radius' | 'sweep' | 'seats' | 'canopy' | 'trunk' | 'pillows';
@@ -128,7 +128,7 @@ function ring(radius: number, count: number, bulge: number, cx: number, cy: numb
 	return { points, bulges: points.map(() => bulge) };
 }
 
-const QUARTER_BULGE = Math.tan(Math.PI / 8);
+export const QUARTER_BULGE = Math.tan(Math.PI / 8);
 export const circle = (diameter: number, cx = 0, cy = 0): CurvedPolygon => ring(diameter / 2, 4, QUARTER_BULGE, cx, cy);
 
 /** A scalloped outline inside a circle of `diameter`: lobes on a smaller ring, bowed outward, peaks under the circle. */
@@ -172,5 +172,39 @@ export function ringSector(outerRadius: number, depth: number, sweepDegrees: num
 			{ x: -outerRadius * sin, y: outerRadius * cos - centre },
 		],
 		bulges: [-bulge, 0, bulge, 0],
+	};
+}
+
+/**
+ * A rectangle whose four corners are EXACT quarter circles of `radius` — the same `QUARTER_BULGE`
+ * a circle is drawn from, so a corner is a circular arc rather than an approximation of one
+ * (C04: "reusing circular arc representation where exact").
+ *
+ * Eight points, wound as `rect` winds four, with a corner arc on every second edge. `radius` must
+ * be positive and strictly under half the shorter side; at exactly half, two of the eight points
+ * coincide, and above it the outline crosses itself. **Nothing here checks that**, deliberately:
+ * its two callers each keep the radius in range before calling — `roundedRectOutline` (AD11)
+ * derives it FROM the sides, and `setCornerRadius` (AD18-R16 Task 12) refuses a typed one outside
+ * (0, half) with a sentence of its own. What any other caller handing one in would get is
+ * `createCurvedPolygon`'s own refusal, through `validateAssetShape`, which is where every other
+ * geometry rule is already asked.
+ *
+ * No radius is STORED anywhere (AD11, item 2): what is written is ordinary points and bulges, which
+ * is the answer presets already give — `cornerRadiusOf` reads one back from them instead, and only
+ * while they are still exactly this shape. A later edit therefore maintains nothing — a nonuniform
+ * resize keeps each corner's bulge through its new chord, which is r1's stated approximation rather
+ * than a circle, and the existing bend handle edits a corner like any other curved edge.
+ */
+export function roundedRect(width: number, depth: number, radius: number, cx = 0, cy = 0): CurvedPolygon {
+	const halfWidth = width / 2, halfDepth = depth / 2;
+	const [left, right, top, bottom] = [cx - halfWidth, cx + halfWidth, cy - halfDepth, cy + halfDepth];
+	return {
+		points: [
+			{ x: left + radius, y: top }, { x: right - radius, y: top },
+			{ x: right, y: top + radius }, { x: right, y: bottom - radius },
+			{ x: right - radius, y: bottom }, { x: left + radius, y: bottom },
+			{ x: left, y: bottom - radius }, { x: left, y: top + radius },
+		],
+		bulges: [0, QUARTER_BULGE, 0, QUARTER_BULGE, 0, QUARTER_BULGE, 0, QUARTER_BULGE],
 	};
 }

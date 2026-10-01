@@ -152,8 +152,8 @@
 	box-shadow: none;
 }
 
-.rp-room-list .rp-editor-inspector-lock[aria-pressed='true'],
-.rp-editor-inspector-lock-row .rp-editor-inspector-lock[aria-pressed='true'] {
+.rp-room-list .rp-editor-inspector-lock[data-rp-locked='true'],
+.rp-editor-inspector-lock-row .rp-editor-inspector-lock[data-rp-locked='true'] {
 	color: var(--text-normal);
 }
 

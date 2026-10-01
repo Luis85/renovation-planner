@@ -198,6 +198,26 @@ describe('open plan editor', () => {
 		expect(picker.placeholder).toBe(t('en', 'command.open-plan-editor'));
 	});
 
+	/**
+	 * The palette command inherited the designer door's one-picker-at-a-time guard when the two
+	 * were routed through `planPicker`, and this is what says so. Two presses in one tick is the
+	 * shape CLAUDE.md records for the leaf doors; a command is harder to double-fire than a button
+	 * because the palette closes, but the guard lives in the SEAM now and the seam is shared, so
+	 * the property is the same one either caller gets.
+	 *
+	 * **It is also what pins the seam being built once.** `registerPlanEditorCommands` holds the
+	 * closure `openPlanPicker` returns and the `checkCallback` only calls it — build it per press
+	 * instead and every press gets a fresh flag, which is the arrangement this case fails on.
+	 */
+	it('stacks no second picker when the command fires twice before the first is dismissed', async () => {
+		const { commands } = await wired();
+
+		commands[0].checkCallback?.(false);
+		commands[0].checkCallback?.(false);
+
+		expect(FuzzySuggestModal.opened).toHaveLength(1);
+	});
+
 	it('opens the editor for the plan the user picks', async () => {
 		const { commands, workspace, planId } = await wired();
 

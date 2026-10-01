@@ -16,3 +16,16 @@ export interface Point {
 	readonly y: number;
 	readonly __brand?: undefined;
 }
+
+/**
+ * The first point with a coordinate that is not finite, or `null` when every one of them is.
+ *
+ * Shared by `createPolygon` and `createCurvedPath` rather than written twice: the two types
+ * refuse a NaN or an Infinity for the same reason and in the same words, and `npm run analyze`
+ * reported the second copy as a clone group the day it appeared. The two callers still own their
+ * own ERROR CODES — a polygon's and a path's refusals are different facts about different
+ * shapes — so what is shared is the scan and not the message.
+ */
+export function firstNonFinitePoint(points: readonly Point[]): Point | null {
+	return points.find((point) => !Number.isFinite(point.x) || !Number.isFinite(point.y)) ?? null;
+}

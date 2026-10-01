@@ -63,10 +63,13 @@ const rows = computed((): readonly UsedInRow[] => {
 	const overriding = new Set(props.overriding);
 	return props.groups.map((group) => ({
 		projectId: group.projectId,
-		label: tr('view.asset-library.used-in.project', {
-			name: group.projectName,
-			count: String(group.requirementIds.length),
-		}),
+		label:
+			group.requirementIds.length === 1
+				? tr('view.asset-library.used-in.project.one', { name: group.projectName })
+				: tr('view.asset-library.used-in.project.other', {
+						name: group.projectName,
+						count: String(group.requirementIds.length),
+					}),
 		path:
 			group.projectPath === undefined
 				? null

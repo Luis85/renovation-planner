@@ -19,6 +19,7 @@ import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { notifyFault } from '../../notices/notify';
 import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 
 const props = defineProps<{ baseline: ReferenceBaseline; vault: BackgroundVault; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>;
 	logger: Logger; onThemeChange?: (listener: () => void) => () => void; fileChanges: (listener: (path: string) => void) => () => void; dispatch: (input: ConfigureReferenceInput) => Promise<DispatchResult> }>();
@@ -231,23 +232,20 @@ onMounted(() => { if (path.value) void load(); });
 				/>
 			</div>
 		</div>
-		<div class="rp-dialog-actions">
+		<FormSubmitRow
+			:submitting="paused || loading"
+			:label="submitLabel"
+		>
 			<button
 				v-if="step > 1"
 				type="button"
+				class="rp-dialog-button"
 				:aria-disabled="paused"
 				data-rp-reference-action="back"
 				@click="go(step - 1)"
 			>
 				{{ tr('editor.reference.back') }}
 			</button>
-			<button
-				type="submit"
-				class="rp-dialog-button"
-				:aria-disabled="paused || loading"
-			>
-				{{ submitLabel }}
-			</button>
-		</div>
+		</FormSubmitRow>
 	</form>
 </template>

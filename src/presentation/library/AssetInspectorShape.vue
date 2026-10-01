@@ -37,12 +37,11 @@
  * which withdraws it for every refusal this section can report.
  */
 import AssetMark from './AssetMark.vue';
-import type { AssetOutline } from '../../application/queries/ListAssetOutlines';
+import { outlineOf, type AssetOutline } from '../../application/queries/ListAssetOutlines';
 import { computed } from 'vue';
 import type { AssetDesignDto, AssetDesignError } from '../../application/queries/GetAssetDesign';
 import type { AssetBackgroundRef } from '../../domain/asset/Asset';
 import type { Dimensions } from '../../domain/asset/AssetShape';
-import { polygonPolyline } from '../../core/geometry/curvePolyline';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import type { SectionStatus } from './ticketedSection';
@@ -154,12 +153,12 @@ const refusal = computed((): string | null => {
 	// code, rather than a fabricated path.
 	return trError(error);
 });
+/** The preview's outline through the batch's own mapping, details included (AD18-R39). */
 const outline = computed((): AssetOutline | null => {
 	const design = answered.value;
 	if (design === null) return null;
 	if (design.shape === null || design.dimensions === null) return { kind: 'none' };
-	return { kind: design.dimensionsUnscaled ? 'unscaled' : 'measured',
-		points: polygonPolyline(design.shape.footprint), extent: design.dimensions };
+	return outlineOf(design.shape, design.dimensions);
 });
 </script>
 
@@ -184,7 +183,10 @@ const outline = computed((): AssetOutline | null => {
 			v-if="outline !== null"
 			class="rp-al-shape-preview"
 		>
-			<AssetMark :outline="outline" />
+			<AssetMark
+				:outline="outline"
+				with-details
+			/>
 			<p
 				v-if="outline.kind === 'none'"
 				class="rp-al-note"

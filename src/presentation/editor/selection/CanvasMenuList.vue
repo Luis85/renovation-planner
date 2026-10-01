@@ -145,7 +145,11 @@ function keydown(event: KeyboardEvent, item?: CanvasMenuItem): void {
 				@pointerenter="hover(item, $event)"
 				@keydown="keydown($event, item)"
 			>
-				<HostIcon :name="item.icon" />{{ tr(item.label, item.params) }}
+				<HostIcon :name="item.icon" />{{ tr(item.label, item.params) }}<span
+					v-if="item.shortcut"
+					class="rp-canvas-context-menu-shortcut"
+					aria-hidden="true"
+				>{{ item.shortcut }}</span>
 			</button>
 		</template>
 	</div>

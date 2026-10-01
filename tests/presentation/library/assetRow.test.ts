@@ -45,6 +45,7 @@ const MEASURED: AssetOutline = {
 	kind: 'measured',
 	points: [{ x: 0, y: 0 }, { x: 1200, y: 0 }, { x: 1200, y: 190 }, { x: 0, y: 190 }],
 	extent: { width: 1200, depth: 190 },
+	details: [],
 };
 
 function mountRow(overrides: Partial<{
@@ -176,7 +177,7 @@ describe('AssetRow', () => {
 	});
 
 	it('describes an unscaled footprint by its proportions, withholding the unit', () => {
-		const row = mountRow({ outline: { kind: 'unscaled', points: MEASURED.points, extent: MEASURED.extent } });
+		const row = mountRow({ outline: { kind: 'unscaled', points: MEASURED.points, extent: MEASURED.extent, details: [] } });
 		const description = row.get('.rp-al-row__mark-words').text();
 		expect(description).toContain('1200 × 190');
 		expect(description).not.toContain('mm');

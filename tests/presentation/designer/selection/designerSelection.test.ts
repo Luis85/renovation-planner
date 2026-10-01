@@ -6,7 +6,7 @@ import {
 	selectionExists,
 	type DesignerSelection,
 } from '../../../../src/presentation/designer/selection/designerSelection';
-import { editableShape } from '../../../helpers/assetShapes';
+import { editableShape, shapeWithOpenGraphic } from '../../../helpers/assetShapes';
 
 /** Spec 2026-09-13 Decision 10: what the designer can select, and how two selections compare. */
 const FOOTPRINT: DesignerSelection = { kind: 'footprint' };
@@ -56,5 +56,17 @@ describe('the designer selection', () => {
 		expect(selectionExists(shape, BOWL)).toBe(true);
 		expect(selectionExists(shape, { kind: 'detail', id: 'detail-9' })).toBe(false);
 		expect(selectionExists(shape, FACING)).toBe(true);
+	});
+
+	/**
+	 * **An OPEN graphic is a part that exists**, and asking `outlineOf` was the wrong question here.
+	 * That function deliberately answers `null` for an open graphic so no closed-only EDIT can reach
+	 * one (AD04); this predicate is not an edit, it is what `AssetDesignStore.hydrate` prunes the
+	 * selection with. Routed through `outlineOf`, a selected open graphic was dropped from the
+	 * selection on the next read-back — the part is on the shape, drawn on the canvas and listed in
+	 * the Parts panel, and the selection silently emptied itself on every write.
+	 */
+	it('counts an open graphic as a part that is there, which an outline lookup cannot answer', () => {
+		expect(selectionExists(shapeWithOpenGraphic(), { kind: 'detail', id: 'detail-3' })).toBe(true);
 	});
 });

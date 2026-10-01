@@ -27,12 +27,15 @@ export const deAssetLibrary = {
 	'view.asset-library.door': 'Objekt-Bibliothek',
 	'view.asset-library.search.label': 'Objekte durchsuchen',
 	'view.asset-library.search.placeholder': 'Nach Name, Lieferant oder SKU suchen',
-	'view.asset-library.search.results': '{count} passende Objekte',
+	'view.asset-library.search.results.one': '1 passendes Objekt',
+	'view.asset-library.search.results.other': '{count} passende Objekte',
 	'view.asset-library.unselected': 'Wählen Sie ein Objekt, um seine Definition zu sehen.',
-	'view.asset-library.assets': '{count} Objekte',
+	'view.asset-library.assets.one': '1 Objekt',
+	'view.asset-library.assets.other': '{count} Objekte',
 	'view.asset-library.used-in': 'Verwendet in',
 	'view.asset-library.used-in.none': 'In keinem Projekt verwendet',
-	'view.asset-library.used-in.project': '{name} — {count} Anforderung(en)',
+	'view.asset-library.used-in.project.one': '{name} — 1 Anforderung',
+	'view.asset-library.used-in.project.other': '{name} — {count} Anforderungen',
 	'view.asset-library.used-in.vault-root': 'Vault-Stammverzeichnis',
 	// §11 item 6's Wort neben der Markierung — die deutsche UI sagt "Übersteuert"
 	// (`editor.inspector.requirement.overridden`), nicht "überschrieben".
@@ -56,8 +59,10 @@ export const deAssetLibrary = {
 	'view.asset-library.clearance.unscaled':
 		'Dieser Freiraum wurde gezeichnet, bevor ein Maßstab vorlag; diese Zahl ist noch kein echtes Maß.',
 	'view.asset-library.loading': 'Objekte werden geladen …',
-	'view.asset-library.some-unreadable':
-		'{count} Objektnotiz(en) konnten nicht gelesen werden. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
+	'view.asset-library.some-unreadable.one':
+		'1 Objektnotiz konnte nicht gelesen werden. Der Diagnosebericht zeigt, welche Notiz abgelehnt wurde.',
+	'view.asset-library.some-unreadable.other':
+		'{count} Objektnotizen konnten nicht gelesen werden. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'view.asset-library.some-unreadable.open-note': 'Notiz öffnen',
 	'view.asset-library.unreadable.read-failed': 'Konnte nicht gelesen werden',
 	'view.asset-library.unreadable.no-id': 'Keine ID',
@@ -139,4 +144,17 @@ export const deAssetLibrary = {
 	'form.new-asset.unit-symbol.fixed': 'pauschal',
 	'form.new-asset.similar.exists': 'Ein Objekt namens „{name}“ gibt es bereits.',
 	'form.new-asset.similar.show': 'Anzeigen',
+	'view.asset-library.layout.label': 'Ansicht',
+	'view.asset-library.layout.grid': 'Raster',
+	'view.asset-library.layout.list': 'Liste',
+	'view.asset-library.filter': 'Nach Kategorie filtern',
+	'view.asset-library.categories': 'Kategorien',
+	'view.asset-library.category.all': 'Alle',
+	'view.asset-library.create-card.title': 'Eigenes erstellen',
+	'view.asset-library.create-card.hint': 'Nicht gefunden, was Sie suchen? Entwerfen Sie Ihr eigenes Objekt.',
+	'view.asset-library.filter.active': 'Nach Kategorie filtern, {category}',
+	'view.asset-library.filtered.no-matches': 'Keine Treffer in {category}',
+	'view.asset-library.filtered.none': 'Keine Objekte in {category}',
+	'view.asset-library.filtered.body': 'Andere Kategorien enthalten vielleicht, was Sie suchen.',
+	'view.asset-library.filtered.action': 'Alle Kategorien anzeigen',
 } satisfies Partial<Record<StringKey, string>>;

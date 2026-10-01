@@ -179,24 +179,26 @@ describe('tracing an outline', () => {
 });
 
 /**
- * Camera mode, and the click it takes without writing anything.
+ * Camera mode, and the click it takes without writing or selecting anything.
  *
- * The designer OPENS in camera mode: Select is registered (symbols spec, Decision 10) but, like
- * every other tool here, is active only once its toolbar button is pressed. So a click on a freshly
- * opened canvas has no tool to receive it, and this case pins that it writes nothing.
- * `designerSelection.test.ts` is where a click under Select selects a part — still writing nothing.
+ * The designer opens in Select since AD18-R20, so camera mode is reached the way a user reaches it:
+ * by pressing Pan, which clears the active tool. A click then has no tool to receive it, and this case
+ * pins that it writes nothing AND selects nothing — the second half is what tells camera mode from
+ * Select, where the same click selects the anchor it lands on (measured by removing the Pan press).
  */
 describe('camera mode', () => {
-	it('writes nothing for a click, because no tool is active to receive it', async () => {
+	it('writes and selects nothing for a click, because no tool is active to receive it', async () => {
 		const rig = await designerRig({ shape: TYPED });
 		const before = await rig.document();
 
-		// No `activate(...)` call: camera mode is what the designer opens in.
-		// Inside the typed 1200 x 800 footprint, which is drawn but has nothing to hit.
+		await activate(rig, 'designer.toolbar.pan');
+		expect(rig.activeToolId()).toBeNull();
+		// The anchor, at the middle of the typed 1200 x 800 footprint: Select would select it here.
 		click(rig, { x: 0, y: 0 });
 		await settle();
 
 		expect(await rig.document()).toEqual(before);
+		expect(useAssetDesignStore(rig.pinia).selection).toBeNull();
 		rig.unmount();
 	});
 });

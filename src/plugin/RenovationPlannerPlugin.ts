@@ -277,9 +277,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 		this.addCommand({
 			id: 'open-project',
 			name: tr('command.open-project'),
-			callback: () => {
-				this.openProject();
-			},
+			callback: () => { this.openProject(); },
 		});
 
 		/**
@@ -303,33 +301,33 @@ export default class RenovationPlannerPlugin extends Plugin {
 		this.addCommand({
 			id: 'open-project-detail',
 			name: tr('command.open-project-detail'),
-			callback: () => {
-				this.openProjectDetail();
-			},
+			callback: () => { this.openProjectDetail(); },
 		});
 
 		this.addCommand({
 			id: 'show-diagnostics-report',
 			name: tr('command.show-diagnostics-report'),
-			callback: () => {
-				this.openDiagnosticsReport();
-			},
+			callback: () => { this.openDiagnosticsReport(); },
 		});
 
 		/**
-		 * §2's fourth registration's own command: a plain callback, never a `checkCallback` —
-		 * `open-plan-editor` already paid for the lesson that a command gated on the active
-		 * note is a command absent from the palette in every vault that has none of the thing,
-		 * and the library needs no active note at all. No ribbon icon joins it: §2 refuses one
-		 * by name, the ribbon being shared real estate across every installed plugin and this
+		 * §2's fourth registration's own command. No ribbon icon joins it: §2 refuses one by
+		 * name, the ribbon being shared real estate across every installed plugin and this
 		 * surface being reached often but not constantly.
+		 *
+		 * **A plain callback, on every platform, by owner ruling 66 (2026-10-01).** AD13 made this
+		 * a `checkCallback` that answered `false` on `Platform.isMobile`, the palette half of a
+		 * desktop-only library. The beta's L-43 ruling had already made the library READ-ONLY on a
+		 * phone instead — browsable and searchable, every write refused with the reason beside it
+		 * (`AssetLibraryView`'s `readOnly`) — and ruling 66 kept that one when the two branches met.
+		 * A surface a phone can use is a surface its palette offers, so the gate is gone rather than
+		 * narrowed. `open-plan-editor`'s lesson still holds as well: nothing here asks the vault
+		 * for anything. `tests/plugin/assetLibraryCommandGate.test.ts` pins both platforms.
 		 */
 		this.addCommand({
 			id: 'open-asset-library',
 			name: tr('command.open-asset-library'),
-			callback: () => {
-				this.openAssetLibrary();
-			},
+			callback: () => { this.openAssetLibrary(); },
 		});
 
 		/**
@@ -794,7 +792,19 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/** ONE spelling of the asset designer's bundle, for the factory and the rebind. */
 	private assetDesignerViewDeps(): AssetDesignerDeps {
-		return { ...assetDesignerDeps(this.root, this.app, { indexScanCompleted: () => this.indexScanCompleted }), ...assetDesignerDeviceSlots(this.app, this.manifest.id, this.root.logger) };
+		// `openLibrary` is the SAME door the palette command and the project surface take (AD06); a
+		// second `revealView` call composed here would be a second answer to what opening the
+		// library means, which is the duplicate-tab defect `revealCandidate` exists to prevent.
+		// `usePlan` (AD13) is composed inside `assetDesignerDeps` off the `root` this call passes,
+		// so it is still built per bundle — this method re-runs on every `rebind`, and the index
+		// and logger the seam closes over are the CURRENT root's. What crosses this seam is
+		// `rememberContinue` alone, because only the plugin owns the store behind it; it is the
+		// same closure `projectViewDeps` binds and is read per call for that binding's reason.
+		// The bundle's options are INLINE rather than a `const options` above, on two counts: the
+		// file is at its 400-line cap, and inlining is what contextually types `rememberContinue`'s
+		// parameter, so this reaches `ContinueContext` without importing it (the spelling
+		// `projectViewDeps` already uses one screen down).
+		return { ...assetDesignerDeps(this.root, this.app, { indexScanCompleted: () => this.indexScanCompleted, openLibrary: () => { this.openAssetLibrary(); }, rememberContinue: (context) => void this.continueContextStore(this.root.logger).write(context) }), ...assetDesignerDeviceSlots(this.app, this.manifest.id, this.root.logger) };
 	}
 
 	/** ONE spelling of the Asset library's bundle, for the factory and the rebind. */

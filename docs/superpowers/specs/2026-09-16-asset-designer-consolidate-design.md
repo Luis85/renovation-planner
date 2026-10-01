@@ -205,9 +205,19 @@ size fields that shipped in #224 their exactness, or require the solver to run o
   against a deliberately broken solver first.
 - **`scaleDesignToDimensions` (node, domain):** a straight design lands both axes exactly; a design
   with a curved footprint lands both within tolerance where a single plain-ratio `scaleDesign`
-  misses, and the miss is measured in the test rather than asserted as "close"; every part —
-  clearance and details included — is scaled about the anchor; pending flags ride through unchanged;
+  misses, and the miss is measured in the test rather than asserted as "close"; the footprint, every
+  detail and a PENDING clearance are scaled about the anchor; pending flags ride through unchanged;
   a design whose footprint has no representable extent refuses.
+
+  **AMENDED 2026-09-18 by AD14 / ADR-0034, and the amendment is the point of the line.** This read
+  *"every part — clearance and details included — is scaled about the anchor"*, which was true when
+  it was written and is no longer true of a MEASURED clearance: that one is an authored planning
+  boundary, so it is now PRESERVED at the size its author drew and carries a durable
+  `clearanceNeedsReview` flag (asset-geometry schema 4) instead of being silently redrawn at a size
+  nobody chose. A PENDING clearance goes on scaling with everything else, which is §6's own parked
+  decision and is what the reworded sentence above still covers. The two fixtures that pinned the
+  old behaviour are AMENDED rather than deleted, and say in place what they used to assert and why
+  it changed.
 - **The divergence (node):** one curved asset scaled in the designer to W x D, and the same asset
   placed with `size` W x D, measure the same width and depth, and their outlines are not identical.
   The test states which fact is the guarantee and which is the tolerated approximation.

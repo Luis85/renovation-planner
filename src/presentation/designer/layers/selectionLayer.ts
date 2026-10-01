@@ -1,12 +1,14 @@
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import type { Point } from '../../../core/geometry/Point';
 import { polygonPolyline } from '../../../core/geometry/curvePolyline';
+import { detailIsClosed, detailPolyline } from '../../../domain/asset/AssetDetail';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { outlineOf, type OutlinePart } from '../../../domain/asset/shapeEdits';
 import { ROTATION_HANDLE_OFFSET_PX, VERTEX_GRAB_RADIUS_PX, VERTEX_HANDLE_RADIUS_PX } from '../../editor/handleMetrics';
 import type { ThemeTokens } from '../../editor/theme/themeTokens';
 import { boundsOfZones } from '../../editor/viewport/zoneExtent';
-import { isOutlineSelection, type DesignerSelection, type SelectionMode } from '../selection/designerSelection';
+import { isOutlineSelection, sameSelection, type DesignerSelection, type SelectionMode } from '../selection/designerSelection';
+import { partMeasure, type PartBox } from '../selection/partExtent';
 import { selectionHandles, type HandleRole } from '../selection/handles';
 import { facingTip } from './anchorLayer';
 import { CLEARANCE_DASH_PX } from './clearanceLayer';
@@ -112,35 +114,75 @@ function outlineDash(shape: AssetShape, part: OutlinePart): readonly number[] | 
 	return part.kind === 'detail' && shape.details.some((detail) => detail.id === part.id && detail.line === 'dashed') ? DETAIL_DASH_PX : null;
 }
 
+/**
+ * The selected part restroked in the accent. `closed` widens `OutlineConfig`'s literal `true` for
+ * `DetailOutlineConfig`'s reason (AD11): the footprint and the clearance always close, and a detail
+ * is the one outline on this surface that may not.
+ */
+export type SelectedOutlineConfig = Omit<OutlineConfig, 'closed'> & { readonly closed: boolean };
+
+/**
+ * The selected part's own drawable run, or `null` when the shape has not got it.
+ *
+ * **Both kinds, because a selected OPEN graphic used to be restroked as nothing at all.**
+ * `outlineOf` answers `null` for a path by design, so the accent outline was simply absent — which
+ * nothing could see while nothing could create one, and which AD11's line tool makes visible the
+ * moment it draws one and selects it. A detail goes through `detailPolyline`, the kind-aware
+ * approximation; the footprint and the clearance always close.
+ *
+ * **The parenthesis that used to be here was FALSE and is deleted rather than softened.** It said
+ * `polygonPolyline` drops each segment's last point *"so a path drawn through it loses its final
+ * vertex"*. It does not — see `detailPolyline`'s own header in `AssetDetail.ts`, which carries the
+ * derivation. What makes `detailPolyline` the right call here is the `CurvedPath` BRAND, not a
+ * difference in emitted points.
+ */
+function selectedRun(
+	shape: AssetShape,
+	selection: OutlinePart,
+	worldPerPixel: number,
+): { readonly points: readonly Point[]; readonly closed: boolean } | null {
+	const tolerance = ARC_TOLERANCE_PX * worldPerPixel;
+	if (selection.kind === 'detail') {
+		const detail = shape.details.find((found) => found.id === selection.id);
+		return detail === undefined ? null : { points: detailPolyline(detail, tolerance), closed: detailIsClosed(detail) };
+	}
+	const outline = outlineOf(shape, selection);
+	return outline === null ? null : { points: polygonPolyline(outline, tolerance), closed: true };
+}
+
+/** `part` restroked in the accent, in its own dash, or `null` when the shape has not got it. */
+function restroke(shape: AssetShape, part: OutlinePart, tokens: ThemeTokens, worldPerPixel: number): SelectedOutlineConfig | null {
+	const run = selectedRun(shape, part, worldPerPixel);
+	if (run === null) return null;
+	const dash = outlineDash(shape, part);
+	return {
+		points: flatPoints(run.points),
+		closed: run.closed,
+		stroke: tokens.accent,
+		strokeWidth: SELECTED_STROKE_PX,
+		strokeScaleEnabled: false,
+		listening: false,
+		perfectDrawEnabled: false,
+		...(dash === null ? {} : { dash: [...dash] }),
+	};
+}
+
 export function selectionMarks(
 	shape: AssetShape | null,
 	selection: DesignerSelection | null,
 	mode: SelectionMode,
 	tokens: ThemeTokens,
 	worldPerPixel: number,
-): { readonly outline: OutlineConfig | null; readonly handles: readonly HandleMarkConfig[]; readonly rotate: RotateMark | null } {
+): { readonly outline: SelectedOutlineConfig | null; readonly handles: readonly HandleMarkConfig[]; readonly rotate: RotateMark | null } {
 	if (shape === null || selection === null) return { outline: null, handles: [], rotate: null };
 	if (!isOutlineSelection(selection)) {
 		const at = pointOf(shape, selection, worldPerPixel);
 		return { outline: null, handles: [mark(at, HALO_RADIUS_PX * worldPerPixel, 'halo', tokens), mark(at, RING_RADIUS_PX * worldPerPixel, 'ring', tokens)], rotate: null };
 	}
-	const outline = outlineOf(shape, selection);
-	const dash = outlineDash(shape, selection);
 	const handles = selectionHandles(shape, selection, mode, worldPerPixel);
 	const rotate = handles.find((handle) => handle.role.kind === 'rotate');
 	return {
-		outline: outline === null
-			? null
-			: {
-				points: flatPoints(polygonPolyline(outline, ARC_TOLERANCE_PX * worldPerPixel)),
-				closed: true,
-				stroke: tokens.accent,
-				strokeWidth: SELECTED_STROKE_PX,
-				strokeScaleEnabled: false,
-				listening: false,
-				perfectDrawEnabled: false,
-				...(dash === null ? {} : { dash: [...dash] }),
-			},
+		outline: restroke(shape, selection, tokens, worldPerPixel),
 		handles: handles.flatMap((handle) =>
 			handle.role.kind === 'rotate' ? [] : [mark(handle.at, VERTEX_HANDLE_RADIUS_PX * worldPerPixel, HANDLE_STYLE[handle.role.kind], tokens)],
 		),
@@ -157,6 +199,61 @@ export function selectionMarks(
 					perfectDrawEnabled: false,
 				},
 			},
+	};
+}
+
+/**
+ * The Plan Editor's transform-box outline (`TransformBoxHandles.vue`): 1 px, dashed 4/3, in the accent. So a
+ * set's frame reads as the box an arrangement acts on rather than as a part — though the dash alone does
+ * not say so: a selected dashed detail restrokes in the same accent and the same 4/3 dash (`DETAIL_DASH_PX`),
+ * so its stroke differs from this frame's in width only, 2 px against 1.
+ */
+const BOUNDS_STROKE_PX = 1;
+const BOUNDS_DASH_PX: readonly number[] = [4, 3];
+
+/**
+ * What a MULTI-selection draws beyond `selectionMarks` (AD08's set, AD18 UI critique Task 2): every drawn
+ * member but the primary restroked exactly as it is restroked alone, and, while two or more are drawn, one
+ * dashed frame round their combined curve-aware box, measured by the `partMeasure` the inspector reads, which
+ * goes through the `detailBox` `Align to: The selection bounds` unions — so with every member drawn the frame
+ * IS that box. A hidden member is in the alignment and not in the frame. Handles stay the primary's alone, drawn by
+ * `selectionMarks` and hit by `hitDesign`, so no gesture changes with the size of the set.
+ *
+ * `members` are the set's DRAWN members: the canvas asks `drawnSelection` of each (AD18-R20), so a hidden
+ * member is neither restroked nor framed. `primary` is the drawn primary, or `null` when it is not drawn,
+ * in which case every member here is restroked, since `selectionMarks` restrokes nothing.
+ *
+ * A member the shape has not got (a refresh in flight) is skipped in both, and a frame round what is left
+ * of a set needs two members still standing.
+ */
+export function selectionSetMarks(
+	shape: AssetShape | null,
+	members: readonly OutlinePart[],
+	primary: DesignerSelection | null,
+	tokens: ThemeTokens,
+	worldPerPixel: number,
+): { readonly outlines: readonly SelectedOutlineConfig[]; readonly bounds: OutlineConfig | null } {
+	if (shape === null) return { outlines: [], bounds: null };
+	const outlines = members.flatMap((member) => {
+		const drawn = sameSelection(member, primary) ? null : restroke(shape, member, tokens, worldPerPixel);
+		return drawn === null ? [] : [drawn];
+	});
+	const boxes = members.flatMap((member) => partMeasure(shape, member) ?? []);
+	return { outlines, bounds: boxes.length < 2 ? null : boundsFrame(boxes, tokens) };
+}
+
+function boundsFrame(boxes: readonly PartBox[], tokens: ThemeTokens): OutlineConfig {
+	const minX = Math.min(...boxes.map((box) => box.centre.x - box.width / 2)), maxX = Math.max(...boxes.map((box) => box.centre.x + box.width / 2));
+	const minY = Math.min(...boxes.map((box) => box.centre.y - box.depth / 2)), maxY = Math.max(...boxes.map((box) => box.centre.y + box.depth / 2));
+	return {
+		points: [minX, minY, maxX, minY, maxX, maxY, minX, maxY],
+		closed: true,
+		stroke: tokens.accent,
+		strokeWidth: BOUNDS_STROKE_PX,
+		strokeScaleEnabled: false,
+		listening: false,
+		perfectDrawEnabled: false,
+		dash: [...BOUNDS_DASH_PX],
 	};
 }
 

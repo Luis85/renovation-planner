@@ -9,18 +9,12 @@ import type {
 } from '../application/commands/plan/SetPlanBackground';
 import type { ContinueContext } from '../application/continueContext';
 import { backgroundKindFor } from '../domain/plan/PlanBackgroundRef';
-import { renovationProjectOpenPlan } from './renovationProjectOpenSeams';
+import { planPicker, renovationProjectOpenPlan } from './renovationProjectOpenSeams';
 import { PlanBackgroundSuggestModal } from '../presentation/modals/PlanBackgroundSuggestModal';
-import { PlanSuggestModal } from '../presentation/modals/PlanSuggestModal';
-import {
-	noticeOnlySinks,
-	notify,
-	notifyWarning,
-} from '../presentation/notices/notify';
+import { noticeOnlySinks, notifyWarning } from '../presentation/notices/notify';
 import { surfaceError } from '../presentation/errors/surfaceError';
 import { PlanEditorView } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
-import { entriesOfType } from './indexEntries';
 import type { PluginCommandHost } from './commandHost';
 
 /**
@@ -91,7 +85,19 @@ async function applyBackground(host: PluginCommandHost, planId: PlanId, file: TF
 }
 
 /**
- * Ask which Plan, then open it.
+ * Ask which Plan, then open it — BUILT once per registration, not per press.
+ *
+ * It returns the door rather than opening one, because `planPicker` keeps its
+ * one-picker-at-a-time flag in the closure it hands back: called per press, every press would get
+ * a fresh flag and the guard would mean nothing. The registration below therefore holds the
+ * result and the `checkCallback` only calls it.
+ *
+ * **The three steps this used to spell itself — the index entries, the no-plans notice, the modal
+ * — now live in `planPicker` and are shared with the designer's Use in plan door.** They were a
+ * verbatim clone across the two for one commit, which `npm run analyze` reported as an unused
+ * export rather than as duplication: AD13's lease did not include this file, so the extraction
+ * could only be made from one side. Routed here, there is one implementation of "ask which plan",
+ * so a fix to the no-plans arm cannot reach one door and miss the other.
  *
  * A picker with no ACTIVE-FILE precondition, where this used to be a `checkCallback`
  * requiring the active note to be a plan. That precondition made the command invisible in
@@ -110,13 +116,8 @@ async function applyBackground(host: PluginCommandHost, planId: PlanId, file: TF
  * as a Resume-recording open, and "opened" here means a confirmed leaf open, not the
  * asynchronous hydration the note still leaves out of scope.
  */
-function openPlanPicker(host: PluginCommandHost, rememberContinue: (context: ContinueContext) => void): void {
-	const plans = entriesOfType(host.root.persistence?.index, 'renovation-plan');
-	if (plans.length === 0) {
-		notify(tr('plan.none'));
-		return;
-	}
-	const picker = new PlanSuggestModal(host.app, plans, (plan) => {
+function openPlanPicker(host: PluginCommandHost, rememberContinue: (context: ContinueContext) => void): () => void {
+	return planPicker(host.app, () => host.root.persistence?.index, (plan) => {
 		// A modal callback returns nothing, so this activation has no awaiter — and a fault in
 		// it was reaching neither the user nor the log. It is answered inside `revealCandidate`
 		// now rather than here: two picks of the same plan before the first settles are one
@@ -127,7 +128,9 @@ function openPlanPicker(host: PluginCommandHost, rememberContinue: (context: Con
 		// The seam is built HERE rather than at picker-open time, so `host.root.logger` is read
 		// per pick: `saveSettings` replaces the composition root, and a picker left open across
 		// one would otherwise go on writing through a replaced logger. `RenovationPlannerPlugin`
-		// states the same convention where it binds `rememberContinue`.
+		// states the same convention where it binds `rememberContinue`. The INDEX is a thunk for
+		// exactly the same reason, one level out: `planPicker` reads it per press rather than
+		// holding the one this registration happened to see.
 		void (async (): Promise<void> => {
 			const outcome = await renovationProjectOpenPlan(host.app.workspace, host.root.logger)(plan.id);
 			if (outcome === 'opened' && plan.projectId !== undefined) {
@@ -135,7 +138,6 @@ function openPlanPicker(host: PluginCommandHost, rememberContinue: (context: Con
 			}
 		})();
 	});
-	picker.open();
 }
 
 /**
@@ -149,6 +151,11 @@ export function registerPlanEditorCommands(
 	host: PluginCommandHost,
 	rememberContinue: (context: ContinueContext) => void,
 ): void {
+	// Built ONCE, outside the callback: `planPicker` returns a closure holding the flag that
+	// stops a double press stacking two modals, so building it per press would hand every press
+	// its own flag and guard nothing. See `openPlanPicker` above.
+	const pickPlan = openPlanPicker(host, rememberContinue);
+
 	host.addCommand({
 		id: 'open-plan-editor',
 		name: tr('command.open-plan-editor'),
@@ -165,7 +172,7 @@ export function registerPlanEditorCommands(
 		 */
 		checkCallback: (checking: boolean) => {
 			if (Platform.isMobile) return false;
-			if (!checking) openPlanPicker(host, rememberContinue);
+			if (!checking) pickPlan();
 			return true;
 		},
 	});

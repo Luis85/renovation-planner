@@ -1,0 +1,170 @@
+# Task report — W18-C
+
+Outcome: implemented (review APPROVE; one fix round applied — see "Fix round" at the end)
+Owner / worktree / branch: W18-C / `.worktrees/ad14` / `w18c-save-state-and-stale`
+Base commit / candidate commit: `2dbc7b39a` / the single commit on that branch
+Accepted contract revision: `docs/tasks/asset-designer-expansion/contracts/DECISIONS.md`, C08 — "A write is complete only according to a defined outcome … Saved must not imply that a stale canvas is current."
+Allowed scope and shared-file leases: the designer root, header, runtime and design store; `SaveStateIndicator.vue` and `save-state-store.ts` (SHARED with the Plan Editor); both `editorShell.ts` locales; `tests/presentation/designer/**`; the save-state tests; this report.
+
+**One lease path does not exist as written.** The card leases `tests/presentation/editor/save-state/**`; the directory on disk is `tests/presentation/editor/saveState/`, and `saveStateIndicator.test.ts` — the file that lease is plainly about — is the one edited there. No file was created under either spelling.
+
+**Two leased files were NOT touched, deliberately**: `save-state-store.ts` (the fix needs no new state — the qualifier stays derived, exactly as SDD companion §2.5 asks) and `{en,de}/editorShell.ts` (no new key was minted; see "Copy" below).
+
+## Changed files and reason
+
+| File | Purpose | Within lease? |
+|---|---|---|
+| `src/presentation/editor/save-state/SaveStateIndicator.vue` | **SHARED.** One optional `stale` prop, ORed into the qualifier expression it already had; docblock rewritten from "No props" to what the prop is for and why the two stores cannot answer for the designer. | Yes |
+| `src/presentation/designer/DesignerHeader.vue` | Takes `stale` and forwards it to `<SaveStateIndicator :stale="stale" />`. | Yes |
+| `src/presentation/designer/AssetDesignerRoot.vue` | Passes its existing `staleAfterRefresh` computed to the header, so the label and the strip are one expression rendered twice. | Yes |
+| `src/presentation/designer/runtime.ts` | Finding 2: the `writesBlocked` comment's false clause narrowed. Behaviour unchanged. | Yes |
+| `tests/presentation/designer/designerSaveStateStale.test.ts` (new) | The red case: the real root, a real peer-provoked read-back failure, both surfaces asserted together. | Yes |
+| `tests/presentation/editor/saveState/saveStateIndicator.test.ts` | The shared component's own prop contract, both arms, plus the qualifier's non-application over a save error raised from the prop. | Yes (see the lease-path note above) |
+
+## The fix shape, and why
+
+`SaveStateIndicator` derived its qualifier from `useProjectStore().stale` and `usePlanningReadState()`. `grep -rn "useProjectStore\|usePlanningReadState" src/presentation/designer/` prints **zero hits**, and `AssetDesignerView` calls `app.use(createPinia())`, so on the designer both sat at their defaults forever: `save-state.saved-refresh-needed` was **unreachable on that surface**, and the header read a flat `Saved` directly above the strip saying the canvas could not be re-read.
+
+Shapes considered:
+
+1. **An optional prop on the shared component (taken).** The designer's staleness is a fact the designer owns; the component ORs it into the expression it already had. A caller that passes nothing behaves exactly as before, which is every Plan Editor mount.
+2. **Teach `SaveStateIndicator` a second store.** Refused: `assetDesignStore` has no business being constructed inside a Plan Editor's Pinia, and it would make the shared component know which surface it is on.
+3. **Scope it to the designer's header — its own label, no shared change.** Refused: it duplicates the derivation and the mark/word rendering, and then two components answer "is my work safe" in two places that can drift.
+4. **`provide`/`inject` a staleness source.** Refused as machinery: one prop, one forward, one binding is the whole of it.
+
+**Copy: no new key, and that was checked rather than assumed.** `save-state.saved-refresh-needed` reads `Saved · refresh needed` / `Gespeichert · Aktualisierung nötig` — it names no subject, so it is correct over an asset. The keys that DO name one (`editor.refresh-failed` says "this plan", `designer.refresh-failed` says "this asset") stay per-surface, which is exactly why each surface keeps its own strip.
+
+## Both staleness surfaces are KEPT, not collapsed
+
+The card asks what each answers that the other does not.
+
+- The **header label** is the standing STATE: "is my work safe?" — `Saved`, qualified. It sits in the `<header>` region, which carries no live region, and it is what a user glances at.
+- The **`.rp-designer-notice` strip** is the announced SENTENCE: what happened, and about what — "This asset could not be re-read after the last change; what you see may be out of date." It is `role="status"`, so a screen reader hears it when it appears; the label is silent on change.
+
+This is not AD18-R1's shape. That ruling was about the asset's NAME drawn twice — the same string answering the same question. Here the precedent is the Plan Editor's, pinned rather than argued: `tests/presentation/editor/stalePath.e2e.test.ts` asserts the identical pair under its own comment, *"The two surfaces that say so, in the two places a user looks."* Collapsing them on the designer would make the two surfaces disagree across the repository.
+
+What DID collapse is the number of definitions: the strip and the label are now the same `staleAfterRefresh` computed, so they cannot drift.
+
+**The two strips are NOT equivalent, and that connects straight to the open question below.** The Plan Editor's is `PersistentWarningStrip.vue` — a `role="status"` container carrying a **Try again** action, over a surface whose `writesBlocked` has already paused writes. The designer's is a bare `<p role="status">` with no retry, over a surface that goes on accepting writes. So "the two places a user looks" is the right framing for the PAIRING and oversold on the designer specifically: the designer's user is told the canvas may be out of date and is offered neither a retry nor a pause. That asymmetry and the `writesBlocked` question below are one item, not two.
+
+## Finding 2 — the comment, narrowed
+
+`runtime.ts`'s `createEditorContext` comment claimed the surface "has no `ProjectStore` and no re-read that can go stale over an asset's own design". The second clause was false: `assetDesignStore` declares `const stale = ref(false)` and sets it on a keep-on-failure re-read. It is narrowed to the true claim, with the staleness stated as real and the behaviour question named as reported rather than answered.
+
+**The first attempt at that repair over-claimed in turn, and the fix round closed it** — see F1 below. The sentence now makes only the DESIGNER-side claim, written from what the grep printed: `grep -rn "writesBlocked" src/presentation/designer/` prints three lines, all in `runtime.ts`, two of them that comment and the third the member itself — not one read in the directory.
+
+**The same two false claims lived in `designerRefresh.test.ts`'s docblock over that case**, which is in this card's lease and was narrowed in the same round: it said the surface has "no stale re-read a write could race" AND named `SelectTool` as the only reader. Both replaced by what the greps print.
+
+**`writesBlocked: () => false` is UNCHANGED**, and finding 1's fix did not need it changed. `designerRefresh.test.ts`'s `answers false for writesBlocked, which this surface builds but never asks` still pins it through the real context, and still passes.
+
+**Reported, not fixed:** whether a designer write SHOULD be blocked while the canvas is stale is a genuine open question — the Plan Editor blocks, and C08's "a retry after an uncertain write must reconcile before repeating it" points the same way. It is a behaviour change with its own gesture-level test surface and does not belong folded into a comment repair. Its full shape is three things, not one: `writesBlocked`, a **Try again** action beside the designer's strip, and the pause disclosure that goes with them — the Plan Editor has all three and the designer has none.
+
+## Acceptance coverage
+
+| Criterion/test ID | Result | Exact evidence | Remaining issue |
+|---|---|---|---|
+| C08: `Saved` must not imply a stale canvas is current (designer) | Pass | `designerSaveStateStale.test.ts` › `qualifies Saved rather than claiming the canvas is current, beside the strip that says why` — asserts `store.stale === true`, the strip's text and the label `Saved · refresh needed`, in one case | — |
+| The qualifier retires with the strip | Pass | same file › `drops the qualifier again once a re-read lands` | — |
+| The shared component's prop contract, both arms | Pass | `saveStateIndicator.test.ts` › `takes a caller-supplied staleness, and says nothing about one when no prop is passed` | — |
+| The qualifier applies to `saved` alone, whichever source | Pass | same file › `does not say refresh needed over a save error from the prop either` | — |
+| Plan Editor unaffected | Pass | `stalePath.e2e.test.ts` and all of `tests/presentation/editor/shell/` green (38 files / 412 tests, below) | — |
+| Finding 2: comment narrowed, behaviour untouched | Pass | `designerRefresh.test.ts` › `answers false for writesBlocked…` still green | The behaviour question above |
+
+## The red, verbatim
+
+Before the fix, with the new file's two cases in place (`npx vitest run tests/presentation/designer/designerSaveStateStale.test.ts`):
+
+```
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  |suite| tests/presentation/designer/designerSaveStateStale.test.ts > the designer header over a canvas it cannot confirm > qualifies Saved rather than claiming the canvas is current, beside the strip that says why
+AssertionError: expected 'Saved' to be 'Saved · refresh needed' // Object.is equality
+Expected: "Saved · refresh needed"
+Received: "Saved"
+ FAIL  |suite| tests/presentation/designer/designerSaveStateStale.test.ts > the designer header over a canvas it cannot confirm > drops the qualifier again once a re-read lands
+AssertionError: expected 'Saved' to be 'Saved · refresh needed' // Object.is equality
+Expected: "Saved · refresh needed"
+Received: "Saved"
+      Tests  2 failed (2)
+```
+
+Both failures are at the label assertion, with `store.status === 'ready'`, `store.stale === true` and the refresh-failed strip already asserted above them — so the red is the defect and not a broken rig.
+
+And the shared component's own case, watched red by deleting the new `props.stale === true` arm from `shown` and then restoring it:
+
+```
+ FAIL  |suite| tests/presentation/editor/saveState/saveStateIndicator.test.ts > the derived Saved · refresh needed label > takes a caller-supplied staleness, and says nothing about one when no prop is passed
+AssertionError: expected 'Saved' to be 'Saved · refresh needed' // Object.is equality
+Expected: "Saved · refresh needed"
+Received: "Saved"
+      Tests  1 failed | 17 passed (18)
+```
+
+## Branches added
+
+Exactly **one** new branch arm in `src/`, and both of its outcomes are driven:
+
+| Branch | True driven by | False driven by |
+|---|---|---|
+| `props.stale === true` — the new middle arm of `state.value === 'saved' && (projectStale.value \|\| props.stale === true \|\| planning.failed)` in `SaveStateIndicator.vue` | `designerSaveStateStale.test.ts` (both cases) and `saveStateIndicator.test.ts` › `takes a caller-supplied staleness…` (prop `true`) | every existing Plan Editor case that mounts with no prop and reaches this arm, plus that same new case's `setProps({ stale: false })` and its `without` mount |
+
+**`props.stale === true` is DEFENSIVE, not load-bearing, and the first version of this report assumed otherwise.** An absent optional boolean prop does not arrive as `undefined`: `defineProps<{ stale?: boolean }>()` compiles to `stale: { type: Boolean, required: false }` — read off `compileScript`'s own output rather than remembered — and `resolvePropValue` in `@vue/runtime-core` runs `if (isAbsent && !hasDefault) value = false` for a casting prop. So a bare `props.stale` would behave identically, the arm's false outcome is reached with a real `false`, and nothing "coerces". The `=== true` stays as this repository's spelling for an optional boolean.
+
+Nothing else added a branch, on purpose:
+
+- `stale?: boolean` on `SaveStateIndicator` and on `DesignerHeader` compiles to a props declaration, not a conditional — no default expression, no `??`.
+- `:stale="staleAfterRefresh"` in `AssetDesignerRoot` binds a computed that already existed and was already covered.
+- `runtime.ts` changed comment text only.
+- No guard was added that no case reaches.
+
+## Executed checks
+
+| Command or manual action | Commit / environment | Exit code or observed result | Evidence |
+|---|---|---|---|
+| `npx vitest run tests/presentation/designer/designerSaveStateStale.test.ts` (pre-fix) | worktree `ad14`, Windows | 1 — 2 failed | quoted above |
+| `npx vitest run tests/presentation/editor/saveState/saveStateIndicator.test.ts` (new arm deleted) | same | 1 — 1 failed / 17 passed | quoted above |
+| `npx vitest run tests/presentation/designer/designerSaveStateStale.test.ts` | same, post-fix | 0 — `Test Files 1 passed (1) / Tests 2 passed (2)` | terminal |
+| `npx vitest run tests/presentation/editor/saveState/` | same | 0 — `6 passed (6) / 109 passed (109)` | terminal |
+| `npx vitest run tests/presentation/editor/stalePath.e2e.test.ts tests/presentation/editor/shell` plus `designerHeader`, `assetDesignerRoot`, `regionsReachable`, `designerRefresh` | same | 0 — `38 passed (38) / 412 passed (412)` | terminal; this is the shared-file blast-radius run |
+| `npx oxlint` over all six changed files | same | exit 0, no output | terminal |
+| `npx eslint` over the three changed `.vue` files | same | exit 0, no output | terminal |
+
+## Verification not performed
+
+- **`npm run check` (build + full lint + coverage-thresholded suite + fallow) — NOT run.** The card forbids it: shared 7.8 GB machine, other cards running, CI in flight. CI on the pull request is where it runs.
+- **`npm run test:coverage` — NOT run**, same reason. The branch accounting above is by enumeration rather than by a `coverage-final.json` read of the changed files, which is the weaker instrument; the enumeration is small enough to audit by eye and the one new arm has named drivers on both sides.
+- **`vue-tsc` / `npm run build` — NOT run** (heavy gates the card forbids). The typing risk this leaves is the two new prop declarations; the reviewer retired the other half of this sentence by finding the new test file's `ReturnType<typeof mount>` line byte-identical to one in `designerBackground.test.ts` that passes `build` today. CI's `build` leg type-checks `tests/**` and will report.
+- **`npm run analyze` (fallow) — NOT run**, forbidden. The change adds no export and no module, so the `unused-exports`/`unused-files` exposure is nil, and the `private-type-leak` surface is unchanged (the new `Rig` interface is test-local and not exported).
+- **`npm run harness` / `npm run harness-shot` — NOT run.** No layout, spacing or colour changed: the qualified label uses `.rp-save-state-saved-refresh-needed`, a class `styles/editor-status.css` already declares and the Plan Editor already renders. Worth one capture of the designer header in its stale state if a later card is taking pictures anyway.
+- **`npm run test-build` in a real vault — NOT run.** No Obsidian API is touched.
+- **Accessibility (`tests/harness/accessibility*.test.ts`) — NOT run.** No role, live region or accessible name changed; the label's text changes and it was already the component's whole accessible name.
+- **German copy — not reviewed by a speaker.** No new German string was written; the existing `save-state.saved-refresh-needed` translation is reused unchanged.
+
+## Data and integration implications
+
+Schema/migration change: none.
+Relevant renderer/export/revision consumers: none — presentation only.
+Undo/no-op/conflict/failure coverage: the failure path is the one under test (a keep-on-failure re-read). Undo/redo untouched; `writesBlocked` untouched.
+Identity/unit/quantity/calibration invariants: untouched.
+Shared root/runtime/locales wiring still required: none. No locale key was added, so no `en`/`de` pairing is outstanding.
+Rollback/recovery considerations: reverting the commit restores the previous (wrong) label; nothing persists and no stored value changes shape.
+
+## Fix round (review outcome: APPROVE, three accuracy findings)
+
+| Finding | Severity | Verified at the code? | What was done |
+|---|---|---|---|
+| **F1** — the repaired `writesBlocked` comment itself over-claimed: "only the Plan Editor's `SelectTool` reads `context.writesBlocked()`" | MEDIUM | Yes. `grep -rn "writesBlocked" src/` prints reads in `ElementMove.ts`, `ElementResize.ts`, `ElementRotation.ts` (including `gesture.context.writesBlocked()`), `LabelMove.ts` and `OpeningResize.ts` beside `select-tool.ts`, plus ~90 `runtime.writesBlocked` Ref reads across the Plan Editor | **Arm 2 taken: the Plan Editor half is dropped.** The comment now states only the designer-side claim, which is the one it needs, written from `grep -rn "writesBlocked" src/presentation/designer/` (three lines, all in `runtime.ts`, none a read) — and it names the self-reference so the next reader does not take three as a count of reads. The five modules are still named, as what the old sentence got wrong. `designerRefresh.test.ts`'s docblock carried the identical claim plus the "no stale re-read" one and was narrowed in the same edit. |
+| **F2** — "a Plan Editor would inherit whatever `undefined` coerced to" | LOW | Yes, twice. `compileScript` on the SFC emits `stale: { type: Boolean, required: false }`; `node_modules/@vue/runtime-core`'s `resolvePropValue` has `if (isAbsent && !hasDefault) { value = false; }` under `shouldCast` | Sentence corrected in the test docblock, in the prop's own docblock and in this report. The conclusion is unchanged; only the premise was wrong. |
+| **F3** — `src/presentation/i18n/locales/en.ts`'s comment above `save-state.saved-refresh-needed` reads "Derived, not a fifth state: `saved` AND `ProjectStore.stale`" | LOW, pre-existing | Yes — it already omitted `planning.failed` before this branch and now also omits the prop | **NOT edited: outside this card's lease, reported instead.** The one-line repair is not "safely inside what I already touched" — `en.ts` is a 900-line shared locale file several cards may hold, and `localeModuleSentenceCase.test.ts` and the locale pairing tests read it. Requesting it as an explicit lease extension. The honest replacement is roughly: "Derived, not a fifth state: `saved` AND a staleness — `ProjectStore.stale`, `usePlanningReadState().failed`, or the `stale` prop a surface with neither store hands in." |
+| **F4** — the "different questions" framing is oversold on the designer | observation | Yes — `PersistentWarningStrip.vue` carries a **Try again** action over a paused surface; `AssetDesignerRoot`'s notice is a bare `<p role="status">` over one that still accepts writes | One paragraph added above connecting the asymmetry to the open `writesBlocked` question, and that question restated as three things rather than one. No behaviour changed. |
+| **F5** — the designer case drives "stale" but assumes "written" | observation | Accepted | Recorded as a known narrowing rather than widened: `designerSaveStateStale.test.ts` asserts the qualified label over a RESTING `saved` with no command dispatched, so C08's "written but stale" is exercised on the stale half and taken as given on the written half. The rendering claim is what the case makes and it holds. A stronger case would dispatch a real command through the runtime and fail the read-back — `designerRefresh.test.ts`'s `keeps the previous design when the read-back fails` already builds exactly that state and is the place to grow it from. |
+
+**Cleared by the reviewer and deliberately left alone:** the local ~50-line rig (`DesignerRigOptions` has no hook for faulting `getAssetDesign`, so `designerRig` could not drive this), the `ReturnType<typeof mount>` line (byte-identical to one in `designerBackground.test.ts`, which passes `build` today — the typing risk listed above is therefore nil), and the single branch arm with all three `||` operands genuinely evaluated.
+
+## Reviewer and integrator acceptance
+
+Reviewer outcome and findings:
+Integrated commit:
+Post-integration checks/evidence:
+Final status: integrated / verified / blocked
+
+Only the integrator/reviewer fills final acceptance. A worker's completion statement is not this field.

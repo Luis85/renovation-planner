@@ -19,6 +19,7 @@ import { formatMetres } from '../shell/formatLength';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { outlineProposal, type CoordinateEdits } from './outlineProposal';
 import type { StringKey } from '../../i18n/locales/en';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 const props = defineProps<{ points: readonly Point[]; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; latest: Readonly<Ref<string | null>>;
 	name?: string; nameLabel?: StringKey; hint: StringKey; inputBlocked?: Readonly<Ref<boolean>>; retry?: () => Promise<void>; openSource?: () => Promise<void>; accepts: (points: readonly Point[]) => boolean;
 	logger: Logger; dispatch: (polygon: Polygon, name?: string) => Promise<DispatchResult>; preview: (polygon: Polygon | null) => void;
@@ -166,14 +167,6 @@ async function submit(): Promise<void> {
 		>
 			{{ tr('editor.outline.invalid') }}
 		</p>
-		<div class="rp-dialog-actions">
-			<button
-				type="submit"
-				class="rp-dialog-button"
-				:aria-disabled="disabled"
-			>
-				{{ tr('dialog.form.submit') }}
-			</button>
-		</div>
+		<FormSubmitRow :submitting="disabled" />
 	</form>
 </template>

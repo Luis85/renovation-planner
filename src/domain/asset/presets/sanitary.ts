@@ -5,6 +5,8 @@ import { circle, definePreset, frontClearance, rect, roundFront, stadium, type A
 const FRONT_REACH_MM = 600;
 const TOILET_SIDE_MM = 200;
 const BATH_RIM_MM = 80;
+/** How far a vanity's countertop stands proud of its carcass, at the sides and the front. */
+const TOP_OVERHANG_MM = 20;
 
 /** A rectangular fitting's footprint and front clearance; each caller supplies its own details. */
 const rectFitting = (width: number, depth: number, details: PresetDrawing['details']) =>
@@ -33,6 +35,26 @@ export const SANITARY_PRESETS: readonly AssetPreset[] = [
 		return rectFitting(width, depth, [
 			{ name: 'basin', outline: stadium(width * 0.7, depth * 0.6, 0, depth * 0.1) },
 			{ name: 'tap-hole', outline: circle(Math.min(40, width * 0.1), 0, -depth * 0.35) },
+		]);
+	}),
+	/**
+	 * A basin on a cabinet (AD18-R8). Its default is board 01's 800 × 450, and the range spans the
+	 * 1,000 × 500 of `references/previous-expansion-concept.md` §11's end-to-end walk, so that
+	 * scenario stays reachable by typing. Both figures are illustrative, per §4 row 2.
+	 *
+	 * The carcass is DASHED because it sits under the countertop, which is the footprint: the top
+	 * overhangs it at the sides and the front and is flush with it at the back (−y), where a wall is.
+	 * No `Include basin` toggle — dropped by that ruling, since a vanity without one is a cabinet.
+	 */
+	definePreset('vanity', 'sanitary', [
+		{ key: 'width', kind: 'length', min: 500, max: 1600, default: 800 },
+		{ key: 'depth', kind: 'length', min: 350, max: 700, default: 450 },
+	], (value) => {
+		const width = value('width'), depth = value('depth');
+		return rectFitting(width, depth, [
+			{ name: 'cabinet', outline: rect(width - 2 * TOP_OVERHANG_MM, depth - TOP_OVERHANG_MM, 0, -TOP_OVERHANG_MM / 2), line: 'dashed' },
+			{ name: 'basin', outline: stadium(width * 0.45, depth * 0.6, 0, depth * 0.08) },
+			{ name: 'tap-hole', outline: circle(Math.min(40, width * 0.05), 0, -depth * 0.38) },
 		]);
 	}),
 	definePreset('shower-tray', 'sanitary', [

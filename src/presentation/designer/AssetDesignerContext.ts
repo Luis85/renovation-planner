@@ -109,6 +109,48 @@ export interface AssetDesignerDeps {
 	 * `PlanEditorDeps.viewPreferences`'s reason: a surface with no slot bound keeps the defaults.
 	 */
 	readonly viewPreferences?: EditorViewPreferences;
+	/**
+	 * Open the shared asset library (AD06).
+	 *
+	 * The designer is reached FROM the library — `AssetInspector`'s "Open in designer" — and there
+	 * was no way back but the tab bar. Every designer leaf is titled "Asset designer" whatever
+	 * asset it holds (the Plan Editor's convention too), so a user with three of them open cannot
+	 * tell them apart from the host chrome alone.
+	 *
+	 * An `AssetDesignerDeps` member and NOT a leaf-scoped one like `closeLeaf`: the library is a
+	 * singleton view the composition root already reveals for the palette command and the project
+	 * surface, through the one `revealView(ASSET_LIBRARY_VIEW)` door. Binding to that rather than
+	 * adding a second activation is the "one action, every input" rule — a second door with its own
+	 * activation looks correct alone and opens a duplicate tab the moment a user uses both.
+	 *
+	 * OPTIONAL, like `viewPreferences` above and for the reason slice 14's Amendment 1 gives: a
+	 * surface with no door bound draws no control for it, rather than a live one that does
+	 * nothing. The browser harness and the component suites are exactly that surface.
+	 */
+	readonly openLibrary?: () => void;
+	/**
+	 * Take this asset into a plan (AD13) — the designer's forward door, where `openLibrary` above
+	 * is its backward one.
+	 *
+	 * Bound at the composition root to `assetDesignerUsePlan`, which continues into a Plan Editor
+	 * the user already has open and otherwise asks through the SAME `PlanSuggestModal` the palette
+	 * command uses. That seam is also where the rest of this door's account lives: which plan is
+	 * chosen, that a cancelled pick opens and writes nothing, and exactly how far the gesture
+	 * currently reaches.
+	 *
+	 * **Takes no asset id, and the absence is a FACT about the channel rather than an
+	 * omission.** The only route into an already-open Plan Editor is its `origin` view state,
+	 * whose type (`application/navigation/ProjectDestination`) names a room, a work item or a
+	 * cost and has no asset arm — so there is nothing this signature could honestly carry today.
+	 * `DesignerUsePlan.vue` carries the change that would give it one.
+	 *
+	 * OPTIONAL, like `openLibrary` above and for the identical reason — and the question is
+	 * answered rather than defaulted into: absence MEANS something here (no navigation composed
+	 * behind this mount, which is exactly what the browser harness and the component suites are),
+	 * so the control is not drawn rather than drawn dead. Contrast `DesignerInspector`'s
+	 * `lockedGraphics`, which is REQUIRED because its absence would mean nothing at all.
+	 */
+	readonly usePlan?: (assetId: string) => void;
 }
 
 /**

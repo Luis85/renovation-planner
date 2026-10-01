@@ -14,6 +14,7 @@ import FormBanner from '../../components/FormBanner.vue';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { parseRotationDegrees, rotationChanged, rotationPoints } from './objectRotation';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 const props = defineProps<{ element: NamedRotationShape; pivot: Point; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; latest: Readonly<Ref<string | null>>;
 	inputBlocked: Readonly<Ref<boolean>>; retry: () => Promise<void>; openSource: () => Promise<void>; logger: Logger;
 	dispatch: (points: readonly Point[]) => Promise<DispatchResult>; preview: (points: readonly Point[] | null) => void }>();
@@ -71,14 +72,6 @@ async function submit(): Promise<void> { if (!disabled.value && await form.submi
 		>
 			{{ latest.value }}
 		</p>
-		<div class="rp-dialog-actions">
-			<button
-				type="submit"
-				class="rp-dialog-button"
-				:aria-disabled="disabled"
-			>
-				{{ tr('dialog.form.submit') }}
-			</button>
-		</div>
+		<FormSubmitRow :submitting="disabled" />
 	</form>
 </template>

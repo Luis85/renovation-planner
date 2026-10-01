@@ -182,6 +182,20 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	const vaultPaused = ref(activeWriteIncidentRegistry()?.anyOpen() ?? false);
 
 	/**
+	 * When THIS session last saw a write land, in epoch milliseconds — or `null` when it has not,
+	 * because the time of a save before the leaf opened is not known and the indicator then says
+	 * plain `Saved` (AD18-R19). Session state, never persisted: nothing here is a stored field.
+	 *
+	 * Stamped in `settle`'s write arm only. A batch that wrote nothing keeps the stamp it had, and
+	 * a batch one failure decided does not stamp even when a sibling in it wrote, since it reads
+	 * `save-error` and the next `saved` it reaches is either a fresh write (stamped) or a revert
+	 * to a `saved` whose stamp is still the right one. `Date.now` rather than an injected clock:
+	 * the indicator's minute tick is `setInterval`, and `vi.useFakeTimers` replaces both together,
+	 * so a test cannot drive two clocks that disagree.
+	 */
+	const savedAt = ref<number | null>(null);
+
+	/**
 	 * Settle the batch once its last dispatch has resolved, and reset for the next one.
 	 *
 	 * **Three outcomes, not two, and the third is the one that is easy to miss.** A batch that
@@ -195,8 +209,10 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	const settle = (): void => {
 		if (pendingCount.value > 0) return;
 		if (hasErrorInBatch.value) state.value = 'save-error';
-		else if (hasWriteInBatch.value) state.value = 'saved';
-		else state.value = beforeBatch.value;
+		else if (hasWriteInBatch.value) {
+			state.value = 'saved';
+			savedAt.value = Date.now();
+		} else state.value = beforeBatch.value;
 		hasErrorInBatch.value = false;
 		hasWriteInBatch.value = false;
 	};
@@ -225,6 +241,7 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 		 * suite can assert each ref's monotonicity separately.
 		 */
 		vaultWritesPaused: computed(() => vaultPaused.value),
+		savedAt: computed(() => savedAt.value),
 
 		/**
 		 * A new dispatch always shows `saving`. The state it replaces is remembered when the

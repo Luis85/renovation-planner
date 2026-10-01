@@ -11,6 +11,7 @@ import { facingTip } from '../../../src/presentation/designer/layers/anchorLayer
 import { clearanceOutline } from '../../../src/presentation/designer/layers/clearanceLayer';
 import { detailOutlines } from '../../../src/presentation/designer/layers/detailsLayer';
 import { selectionFrame, selectionMarks } from '../../../src/presentation/designer/layers/selectionLayer';
+import { OPEN_POINTS, shapeWithOpenGraphic } from '../../helpers/assetShapes';
 import { TOILET, detailOutline } from '../../helpers/designerSelection';
 
 const TOKENS = resolveThemeTokens(document.documentElement);
@@ -105,6 +106,43 @@ describe('selectionMarks', () => {
 		expect(bend.length).toBeGreaterThan(0);
 		expect(bend.every((handle) => handle.cornerRadius === 0 && handle.rotation === 45)).toBe(true);
 		expect(others.filter((handle) => 'rotation' in handle)).toEqual([]);
+	});
+});
+
+/**
+ * **A selected OPEN graphic used to be restroked as nothing at all**, because this module asked
+ * `outlineOf`, which answers `null` for a path by design. Invisible while nothing could create
+ * one; live the moment AD11's line tool draws one and selects it, which is what that tool does on
+ * completion. `selectedRun` reads a detail through `detailPolyline` instead — kind-aware, and the
+ * one function every surface that draws a symbol already goes through.
+ */
+describe('a selected open graphic', () => {
+	const OPEN = shapeWithOpenGraphic();
+	const SELECTED = { kind: 'detail', id: 'detail-3' } as const;
+
+	it('restrokes it as an OPEN run, with no closing edge and no box handles', () => {
+		const marks = selectionMarks(OPEN, SELECTED, 'transform', TOKENS, 1);
+
+		expect(marks.outline?.points).toEqual(OPEN_POINTS.flatMap((point) => [point.x, point.y]));
+		expect(marks.outline?.closed).toBe(false);
+		expect(marks.outline?.stroke).toBe(TOKENS.accent);
+		// `selectionHandles` is closed-only (`outlineOf`), which is what leaves a path with none.
+		expect(marks.handles).toEqual([]);
+		expect(marks.rotate).toBeNull();
+	});
+
+	it('still closes the run it restrokes for a closed graphic', () => {
+		expect(selectionMarks(TOILET, TANK_SELECTED, 'transform', TOKENS, 1).outline?.closed).toBe(true);
+	});
+
+	/**
+	 * A selection naming a graphic the shape no longer carries restrokes NOTHING. Reachable while a
+	 * refresh is in flight — the store's selection is ephemeral and the shape beneath it is not —
+	 * and the detail lookup is where the two kinds part, so this arm is asked here rather than left
+	 * to `outlineOf`'s own null, which no longer governs a detail.
+	 */
+	it('restrokes nothing for a graphic the shape has not got', () => {
+		expect(selectionMarks(OPEN, { kind: 'detail', id: 'detail-9' }, 'transform', TOKENS, 1).outline).toBeNull();
 	});
 });
 

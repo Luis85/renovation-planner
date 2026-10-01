@@ -4,6 +4,7 @@ import { dimensionsOf, validateAssetShape } from '../../../../src/domain/asset/A
 import { ASSET_PRESETS } from '../../../../src/domain/asset/presets/catalogue';
 import { defaultValues, type AssetPreset, type PresetValues } from '../../../../src/domain/asset/presets/presetGeometry';
 import { expectErr, expectOk } from '../../../helpers/domain';
+import { closedOutlineOf } from '../../../helpers/assetShapes';
 
 /** Spec 2026-09-13 Decision 8's table-driven check, over every preset the catalogue holds. */
 const EPSILON = 1e-6;
@@ -41,7 +42,7 @@ describe.each(ASSET_PRESETS.map((preset) => [preset.id, preset] as const))('pres
 		expect(depth).toBeCloseTo(expectedDepth, 6);
 		const outer = expectOk(boundingBoxOf(shape.footprint));
 		for (const detail of shape.details) {
-			const box = expectOk(boundingBoxOf(detail.outline));
+			const box = expectOk(boundingBoxOf(closedOutlineOf(detail)));
 			expect(box.min.x).toBeGreaterThanOrEqual(outer.min.x - EPSILON);
 			expect(box.min.y).toBeGreaterThanOrEqual(outer.min.y - EPSILON);
 			expect(box.max.x).toBeLessThanOrEqual(outer.max.x + EPSILON);
@@ -78,12 +79,38 @@ describe('preset refusals that are not ranges', () => {
 		expect(tree && expectErr(tree.build({ canopy: 1000, trunk: 500 })).code).toBe('asset.preset-incoherent');
 	});
 
-	it('offers all fourteen presets', () => {
+	it('offers all fifteen presets', () => {
 		expect(ASSET_PRESETS.map((preset) => preset.id)).toEqual([
 			'rect-table', 'round-table', 'oval-table', 'curved-table',
 			'chair', 'armchair', 'sofa',
-			'toilet', 'washbasin', 'shower-tray', 'bathtub',
+			'toilet', 'washbasin', 'vanity', 'shower-tray', 'bathtub',
 			'tree', 'shrub', 'bed',
 		]);
+	});
+
+	/**
+	 * AD18-R8's two dimension claims, which are otherwise only prose: board 01's default, and a range
+	 * wide enough for `previous-expansion-concept.md` §11's 1,000 × 500 walk to be typed into it.
+	 * The parts come with it — the carcass is dashed because it sits under the countertop.
+	 */
+	it('builds the vanity at board 01’s default and at the scenario’s 1,000 × 500', () => {
+		const [vanity] = ASSET_PRESETS.filter((preset) => preset.id === 'vanity');
+		expect(defaultValues(vanity)).toEqual({ width: 800, depth: 450 });
+
+		const scenario = expectOk(vanity.build({ width: 1000, depth: 500 }));
+		const { width, depth } = expectOk(dimensionsOf(scenario.footprint));
+		expect(width).toBeCloseTo(1000, 6);
+		expect(depth).toBeCloseTo(500, 6);
+		expect(scenario.details.map((detail) => [detail.name, detail.line])).toEqual([
+			['cabinet', 'dashed'], ['basin', 'solid'], ['tap-hole', 'solid'],
+		]);
+
+		// The countertop IS the footprint, so the carcass under it is inset at the sides and the
+		// front and flush at the back (−y), where the wall is.
+		const [cabinet] = scenario.details;
+		const carcass = expectOk(boundingBoxOf(closedOutlineOf(cabinet)));
+		const top = expectOk(boundingBoxOf(scenario.footprint));
+		expect([carcass.min.x - top.min.x, top.max.x - carcass.max.x]).toEqual([20, 20]);
+		expect([carcass.min.y - top.min.y, top.max.y - carcass.max.y]).toEqual([0, 20]);
 	});
 });

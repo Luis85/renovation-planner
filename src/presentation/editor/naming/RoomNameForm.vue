@@ -12,6 +12,7 @@ import FormFeedback from '../forms/FormFeedback.vue';
 import NameInputField from '../forms/NameInputField.vue';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 
 const props = defineProps<{
 	name: string; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; latest: Readonly<Ref<string | null>>;
@@ -72,14 +73,9 @@ async function submit(): Promise<void> {
 		>
 			{{ tr('editor.rename.paused') }}
 		</p>
-		<div class="rp-dialog-actions">
-			<button
-				type="submit"
-				class="rp-dialog-button"
-				:aria-disabled="unavailable"
-			>
-				{{ tr('editor.rename.apply') }}
-			</button>
-		</div>
+		<FormSubmitRow
+			:submitting="unavailable"
+			:label="tr('editor.rename.apply')"
+		/>
 	</form>
 </template>

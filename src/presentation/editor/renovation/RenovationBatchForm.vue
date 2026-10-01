@@ -11,6 +11,7 @@ import { batchRenovationInput, type BatchKind, type BatchTarget, type BatchDraft
 import { renovationReferents } from '../../../domain/renovation/renovationTargets';
 import { EMPTY_RENOVATION } from '../../../domain/renovation/Renovation';
 import { nativeSubmitKey } from '../forms/nativeSubmitKey';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 const props = defineProps<{ kind: BatchKind; targets: readonly BatchTarget[]; baseline: RenovationBaseline; busy: Ref<boolean>; paused: Readonly<Ref<boolean>>; files?: EvidenceFiles; dispatch: (input: RenovationInput) => Promise<DispatchResult> }>();
 const emit = defineEmits<{ submit: [] }>();
 const draft = ref<BatchDraft>({ kind: props.kind, id: '', title: '', path: '', type: 'document' });
@@ -119,14 +120,10 @@ function changed(): void { if (!frozen.value) reviewed.value = false; }
 				{{ tr('renovation.links', { names: referents.join(', ') }) }}
 			</p>
 		</template>
-		<div class="rp-dialog-form-actions">
-			<button
-				type="submit"
-				:aria-disabled="submitBlocked"
-				@click.capture="refuseInoperativeEvent"
-			>
-				{{ submitLabel }}
-			</button>
-		</div>
+		<FormSubmitRow
+			:submitting="submitBlocked"
+			:label="submitLabel"
+			@click.capture="refuseInoperativeEvent"
+		/>
 	</form>
 </template>

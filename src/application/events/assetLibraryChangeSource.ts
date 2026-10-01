@@ -24,8 +24,9 @@ import { changedEntry, changedSidecar, disposeAll, subscribeAll } from './subscr
  * it — count the bullets rather than trusting the sentence, which is why the count is stated
  * against them):
  * - `catalogue` — re-read the whole listing (`ListCatalogueEntries`).
- * - `marks` — drop the cached geometry-outline mark for these ids; the viewport decides when
- *   each is re-read (§5.3's bound), never eagerly.
+ * - `marks` — invalidate the cached geometry-outline mark for these ids (§5.4: a drawn row keeps
+ *   its mark until the re-read answers, an undrawn one drops it); the viewport decides when each
+ *   is re-read (§5.3's bound), never eagerly.
  * - `design` — the selected asset's `GetAssetDesign` read is stale. Bumps the DESIGN selection
  *   generation alone, never the usage one: §5.5 is explicit that a geometry, height or
  *   background edit must not restart `ListRequirementsReferencing`, a scan of every requirement
@@ -48,7 +49,10 @@ import { changedEntry, changedSidecar, disposeAll, subscribeAll } from './subscr
 export interface AssetLibraryChange {
 	/** Re-read the whole catalogue listing. */
 	readonly catalogue: boolean;
-	/** Drop the cached mark for these ids; the viewport decides when they are re-read. */
+	/**
+	 * Invalidate the cached mark for these ids (§5.4: a drawn row keeps its mark until the re-read
+	 * answers, an undrawn one drops it); the viewport decides when they are re-read.
+	 */
 	readonly marks: readonly AssetId[];
 	/** Ids whose DESIGN read is stale — geometry, height or background moved. Bumps the design
 	 *  generation ALONE, never the referencing one. */

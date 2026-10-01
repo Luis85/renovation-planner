@@ -90,6 +90,7 @@ import { expectErr, expectOk } from '../../helpers/domain';
 import { installObsidianDom } from '../../helpers/dom';
 import { emptyBackgroundVault } from '../../helpers/background';
 import { recorder, resetRecorder } from '../../helpers/logger';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 import { installOpenWriteIncident, installQuietWriteIncidents } from '../../helpers/writeIncidents';
 
 installObsidianDom();
@@ -104,7 +105,7 @@ const THE_ASSET = createAssetId();
 function designerRuntime(): DesignerRuntime {
 	const context: AssetDesignerContext = {
 		assetId: THE_ASSET,
-		queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ assetId: THE_ASSET }))) },
+		queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ assetId: THE_ASSET }))), listPlansUsingAsset: unwiredPlanUsage },
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		picker: null,
@@ -203,6 +204,15 @@ describe('the tool framework this leaf builds', () => {
 
 	beforeEach(resetRecorder);
 
+	/**
+	 * **AD18-R13's decision rides on this case**, which moved here from `designerRefresh.test.ts`.
+	 * Whether a designer write SHOULD be blocked over a stale canvas was an open question until
+	 * AD18-R13 answered it: no. `stale` is set by a failed READ and never by a failed write, so
+	 * blocking would freeze a surface whose design is valid; the ruling gives the stale notice a
+	 * `Try again` instead (`designerStaleRetry.test.ts`). So `false` with no incident open is a
+	 * DECISION. This case does not make the canvas stale, so it pins the no-incident answer and
+	 * not the stale arm — the same reach it had in `designerRefresh.test.ts`.
+	 */
 	it('answers false for writesBlocked while the vault holds no incident, though no registered tool asks', async () => {
 		installQuietWriteIncidents();
 		const runtime = designerRuntime();

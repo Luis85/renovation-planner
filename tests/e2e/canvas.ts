@@ -103,6 +103,27 @@ export async function dragCorner(browser: NativeBrowser, from: WorldPoint, to: W
 		.perform();
 }
 
+/**
+ * A real right-click (button 2, which `EditorSurface` leaves unclaimed) at the first of `candidates`
+ * that lands on the stage's own canvas, answering the point used. Refused when none does: an HTML
+ * label or the floating actions over a point would take the press, and a menu that never opened
+ * must not read as a menu with nothing in it.
+ */
+export async function contextClick(browser: NativeBrowser, candidates: readonly WorldPoint[]): Promise<WorldPoint> {
+	for (const world of candidates) {
+		const { x, y, onStage } = await canvasPoint(browser, world);
+		if (!onStage) continue;
+		await browser
+			.action('pointer', { parameters: { pointerType: 'mouse' } })
+			.move({ x, y, origin: 'viewport' })
+			.down({ button: 2 })
+			.up({ button: 2 })
+			.perform();
+		return world;
+	}
+	throw new Error(`None of ${JSON.stringify(candidates)} lands on the stage's canvas.`);
+}
+
 /** The one geometry sidecar in the vault; the sample project writes exactly one. */
 export async function sidecarPath(browser: NativeBrowser): Promise<string> {
 	const paths = await browser.executeObsidian(({ app }) =>

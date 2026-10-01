@@ -3,6 +3,8 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { REPO } from '../helpers/repo';
 import { callsOf, descendants, functionNamed, importsOf, parseScript, stringsOf } from '../helpers/parsedSource';
+import { planningEn } from '../../src/presentation/i18n/locales/en/planning';
+import { planningDe } from '../../src/presentation/i18n/locales/de/planning';
 
 /**
  * L-44: the BP-08 planning driver (`scripts/editor-planning-check.mjs`, which
@@ -16,6 +18,7 @@ import { callsOf, descendants, functionNamed, importsOf, parseScript, stringsOf 
  * matched as text, so a comment spelling the old selector is not a hit.
  */
 const script = parseScript(join(REPO, 'scripts', 'editor-planning-check.mjs'));
+const KEY = 'renovation.documents';
 
 describe('the planning driver reaches Documents by its label', () => {
 	it('takes the label from both locale modules', () => {
@@ -25,8 +28,19 @@ describe('the planning driver reaches Documents by its label', () => {
 		]));
 		const evidence = functionNamed(script, 'evidence');
 		if (!evidence) throw new Error('evidence() is gone; this pin reaches nothing');
-		const byName = callsOf(evidence, script, 'getByRole').filter(call => call.args[1]?.includes("'renovation.documents'"));
+		const byName = callsOf(evidence, script, 'getByRole').filter(call => call.args[1]?.includes(`'${KEY}'`));
 		expect(byName.length).toBeGreaterThan(0);
+	});
+
+	/**
+	 * Review M-5: a renamed key would hand the driver `undefined` as the button name, which
+	 * Playwright reads as "any name", and the case above would stay green over it.
+	 */
+	it('names a key both locale modules carry, with a label', () => {
+		for (const [locale, labels] of [['en', planningEn], ['de', planningDe]] as const) {
+			expect(typeof labels[KEY], locale).toBe('string');
+			expect(labels[KEY].trim(), locale).not.toBe('');
+		}
 	});
 
 	it('names no action-row button by its last position', () => {

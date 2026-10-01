@@ -9,7 +9,7 @@ import { tr } from '../../i18n/strings';
 
 /**
  * A Room's delete stops here only for its RENOVATION records (work, subjects, decisions, costs,
- * evidence), which BR-DATA-004's resolution flow cannot resolve. Its Requirements are not counted:
+ * evidence, procurement), which BR-DATA-004's resolution flow cannot resolve. Its Requirements are not counted:
  * every one a Room carries is in `listByZone`, which the Reassign/Detach dialog after this guard
  * offers to resolve (owner ruling 61; `deleteZoneWithReferences.test.ts` drives each door). For a
  * CONTEXTUAL material only Remove references completes: `Requirement.repointedTo` refuses its

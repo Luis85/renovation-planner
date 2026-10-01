@@ -313,7 +313,8 @@ export async function rig(
 		// Planning over the SAME repositories, as `planningEditorServices` wires it whenever
 		// persistence exists. Absent, `removalSources` answered `[]` and the room-delete guard
 		// was vacuous here, so every delete case below it passed a guard production does not
-		// (owner ruling 61, found by the real-Obsidian E2E).
+		// (owner ruling 61, found by the real-Obsidian E2E). Renovation is NOT wired here, unlike
+		// `planningEditorServices`: the guard's renovation half is `renovationEditor`'s to drive.
 		planning: planningServices({ plans, geometry: zoneOutlineSidecar(zonesRepo), requirements: requirementsRepo, assets: assetsRepo, projects, overrides: overridesRepo, events, locks }),
 		logger: recorder,
 	};

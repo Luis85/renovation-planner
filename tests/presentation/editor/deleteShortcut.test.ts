@@ -188,17 +188,21 @@ it('refuses reassigning a contextual material to another room through the real R
 });
 
 // The store's `planningReferentialGuard` refuses the geometry removal; the sequence compensates, so the
-// material is rewritten back (a new revision) rather than left untouched — hence entities, not bytes.
+// material is rewritten back (a new revision) rather than left untouched — hence entities for it, and
+// bytes for everything else: the room note and the sidecar come back byte-identical.
 it('refuses Delete anyway on a room a contextual material originates on, restoring the room and its material', async () => {
 	const rig = await renovationEditor(true); cleanups.push(rig.unmount);
 	await material(rig, rig.room.id);
 	const before = expectOk(await rig.stack.requirements.listByZone(rig.room.id)).map(item => item.entity), shown = Notice.shown.length;
+	const bytes = new Map(rig.stack.vault.entries);
 	const deleting = rig.runtime.deleteZone(rig.room.id, rig.room.name);
 	await settleUntil(() => rig.dialogs.current?.kind === 'delete-reference', 'the reference dialog');
 	await rig.wrapper.get('[data-rp-action="delete-anyway"]').trigger('click'); await deleting;
 	expect(Notice.shown.length).toBe(shown + 1);
 	expect(expectOk(await rig.stack.zones.getById(rig.room.id))).not.toBeNull();
 	expect(expectOk(await rig.stack.requirements.listByZone(rig.room.id)).map(item => item.entity)).toEqual(before);
+	const after = new Map(rig.stack.vault.entries), changed = [...new Set([...bytes.keys(), ...after.keys()])].filter(path => bytes.get(path) !== after.get(path));
+	expect(changed).toHaveLength(1); expect(after.get(changed[0])).toContain(before[0].id);
 });
 
 it('refuses a selection holding a room requirements still refer to, and reports a failed lookup, writing nothing', async () => {

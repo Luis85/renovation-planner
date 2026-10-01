@@ -11,9 +11,9 @@ import type * as Obsidian from 'obsidian';
 
 /**
  * The host's language, driven per case through the `obsidian` module itself rather than through
- * the shared mock's `setLanguage` — whose docblock records that no suite calls it — so the value
- * dies with this file's own module registry and the component's real `currentLanguage`/`tr` path
- * is the one exercised.
+ * the shared mock's `setLanguage` — whose docblock names the grep that lists the suites calling
+ * it, and the reset each one owes — so the value dies with this file's own module registry, no
+ * reset is owed, and the component's real `currentLanguage`/`tr` path is the one exercised.
  */
 const host = vi.hoisted(() => ({ language: 'en' }));
 vi.mock('obsidian', async (importOriginal) => ({

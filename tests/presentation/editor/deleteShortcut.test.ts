@@ -6,7 +6,9 @@ import { mountPlanEditorCanvas, settle, settleUntil } from '../../helpers/editor
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import { Notice } from '../../helpers/obsidian-mock';
-import { expectOk, injectedPersistenceError } from '../../helpers/domain';
+import { expectDefined, expectOk, injectedPersistenceError } from '../../helpers/domain';
+import { planningDraft, materialInput } from '../../../src/presentation/editor/planning/planningDraft';
+import { EMPTY_RENOVATION } from '../../../src/domain/renovation/Renovation';
 import { WALL_LOOP } from '../../helpers/structure';
 import { installObsidianDom } from '../../helpers/dom';
 import { activateNotices } from '../../../src/presentation/notices/notify';
@@ -132,6 +134,71 @@ it('offers no Delete, from the menu or the key, for several items on a floor wit
 	harness.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true })); await settle();
 	expect(harness.wrapper.find('[data-rp-context-action="fit"]').exists()).toBe(true);
 	expect(harness.wrapper.find('[data-rp-context-action="delete"]').exists()).toBe(false);
+});
+
+/** A contextual material on `roomId`, written by the real planning command; answers its asset's name. */
+async function material(rig: Rig, roomId: string): Promise<string> {
+	const planning = expectDefined(rig.deps.commands.planning, 'planning'), read = expectOk(await planning.read(rig.plan.id));
+	const draft = planningDraft('material', read, roomId), asset = expectDefined(read.catalogue.find(item => item.asset.unit === 'm2'), 'area asset').asset;
+	draft.assetId = asset.id;
+	expectOk(await rig.runtime.dispatcher.run(planning.material(read, materialInput(draft), rig.runtime.structureTask.ledger)));
+	return asset.name;
+}
+
+// Owner ruling 61: these three were unreachable while the room guards counted origin-zone requirements.
+it('refuses a selection holding a room a real material still refers to, naming the room, writing nothing', async () => {
+	const rig = await setup(), members = [...rig.selection.selectedIds];
+	await material(rig, rig.room.id); rig.selection.select(members as never[]); await settle();
+	const bytes = [...rig.stack.vault.entries];
+	key(rig.canvasEl, { key: 'Delete' });
+	await confirmation(rig, 'the refusal');
+	expect(rig.wrapper.get('.rp-dialog').text()).toContain('Requirements still refer to Studio.');
+	rig.dialogs.resolve('confirm'); await settleUntil(() => !rig.runtime.elementActions.removeManyActive.value, 'the refused deletion');
+	expect([...rig.stack.vault.entries]).toEqual(bytes);
+});
+
+it('still blocks a room delete on its renovation records, naming those and not its materials', async () => {
+	const rig = await renovationEditor(true); cleanups.push(rig.unmount);
+	const read = expectOk(await rig.renovation.read(rig.plan.id));
+	const work = { id: 'work-sand', roomId: rig.room.id, targetId: rig.room.id, title: 'Sand floor', description: '', order: 0, progress: 'pending' as const, responsibility: 'unassigned' as const, outcomes: [], dependencies: [] };
+	expectOk(await rig.runtime.dispatcher.run(rig.renovation.command(read, { renovation: { ...(read.plan.entity.renovation ?? EMPTY_RENOVATION), work: [work] }, intended: read.geometry.document.intended }, rig.runtime.structureTask.ledger)));
+	const name = await material(rig, rig.room.id), bytes = [...rig.stack.vault.entries];
+	const deleting = rig.runtime.deleteZone(rig.room.id, rig.room.name);
+	await confirmation(rig, 'the renovation refusal');
+	const text = rig.wrapper.get('.rp-dialog').text();
+	expect(text).toContain('Sand floor'); expect(text).not.toContain(name);
+	rig.dialogs.resolve('confirm'); await deleting;
+	expect(rig.project.zones.has(rig.room.id)).toBe(true); expect([...rig.stack.vault.entries]).toEqual(bytes);
+});
+
+it('refuses reassigning a contextual material to another room through the real Reassign, writing nothing', async () => {
+	const rig = await renovationEditor(true); cleanups.push(rig.unmount);
+	expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Hall', zoneType: 'Room', geometry: { points: [{ x: 9000, y: 0 }, { x: 11_000, y: 0 }, { x: 11_000, y: 2000 }, { x: 9000, y: 2000 }] } }));
+	await material(rig, rig.room.id); await rig.runtime.refreshProjection();
+	const bytes = [...rig.stack.vault.entries], shown = Notice.shown.length;
+	const deleting = rig.runtime.deleteZone(rig.room.id, rig.room.name);
+	await settleUntil(() => rig.dialogs.current !== null, 'a dialog');
+	expect(rig.dialogs.current?.kind).toBe('delete-reference');
+	await rig.wrapper.get('[data-rp-action="reassign"]').trigger('click');
+	await settleUntil(() => rig.wrapper.find('.rp-dialog-candidate').exists(), 'the picker');
+	expect(rig.wrapper.get('.rp-dialog-candidate').text()).toContain('Hall');
+	await rig.wrapper.get('.rp-dialog-candidate').trigger('click'); await deleting;
+	expect(Notice.shown.length).toBe(shown + 1);
+	expect(rig.project.zones.has(rig.room.id)).toBe(true); expect([...rig.stack.vault.entries]).toEqual(bytes);
+});
+
+// The store's `planningReferentialGuard` refuses the geometry removal; the sequence compensates, so the
+// material is rewritten back (a new revision) rather than left untouched — hence entities, not bytes.
+it('refuses Delete anyway on a room a contextual material originates on, restoring the room and its material', async () => {
+	const rig = await renovationEditor(true); cleanups.push(rig.unmount);
+	await material(rig, rig.room.id);
+	const before = expectOk(await rig.stack.requirements.listByZone(rig.room.id)).map(item => item.entity), shown = Notice.shown.length;
+	const deleting = rig.runtime.deleteZone(rig.room.id, rig.room.name);
+	await settleUntil(() => rig.dialogs.current?.kind === 'delete-reference', 'the reference dialog');
+	await rig.wrapper.get('[data-rp-action="delete-anyway"]').trigger('click'); await deleting;
+	expect(Notice.shown.length).toBe(shown + 1);
+	expect(expectOk(await rig.stack.zones.getById(rig.room.id))).not.toBeNull();
+	expect(expectOk(await rig.stack.requirements.listByZone(rig.room.id)).map(item => item.entity)).toEqual(before);
 });
 
 it('refuses a selection holding a room requirements still refer to, and reports a failed lookup, writing nothing', async () => {

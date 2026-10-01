@@ -53,6 +53,9 @@ import type { PlanId } from '../../src/domain/plan/PlanId';
 import { createProjectId } from '../../src/domain/project/ProjectId';
 import type { ZoneId } from '../../src/domain/zone/ZoneId';
 import { createPolygon } from '../../src/core/geometry/Polygon';
+import { ok } from '../../src/core/result/Result';
+import { planningServices } from '../../src/application/commands/renovation/PlanningServices';
+import type { PlanGeometryDocument, PlanGeometrySidecar } from '../../src/application/ports/PlanGeometrySidecar';
 
 export const PROJECT_ID = createProjectId();
 export const PLAN_DTO: PlanDto = {
@@ -130,6 +133,29 @@ export function planEditorQueriesFor(
  */
 export interface RigOptions {
 	readonly wrapQueries?: (queries: PlanEditorQueryServices) => PlanEditorQueryServices;
+}
+
+/**
+ * The geometry sidecar's READ half, joined from the zone repository — in production a Room's
+ * outline lives in the sidecar's `objects`, which is what `readPlanning` walks to list each
+ * Room's requirements. The in-memory repositories keep outlines on the zone instead, so the
+ * join is made here, live, rather than seeded once and left behind by a drawn room.
+ *
+ * The WRITE throws, for `calibratePlan`'s reason below: a sidecar write here would land in a
+ * document no reader in this rig consults, and a green `'wrote'` would be the misleading one.
+ */
+function zoneOutlineSidecar(zones: InMemoryZoneRepository): PlanGeometrySidecar {
+	return {
+		async read(planId) {
+			const listed = await zones.listByPlan(planId);
+			if (!listed.ok) return listed;
+			const document: PlanGeometryDocument = { calibration: null, objects: listed.value.loaded.map(({ entity }) => ({ id: entity.id, points: entity.geometry.points, ...(entity.geometry.bulges ? { bulges: entity.geometry.bulges } : {}) })) };
+			return ok({ document, version: { revision: 1, observed: JSON.stringify(document) as never } });
+		},
+		write: (): never => {
+			throw new Error('planEditorRig joins the sidecar for reading only; drive a planning write through renovationEditor(true).');
+		},
+	};
 }
 
 export async function rig(
@@ -284,6 +310,11 @@ export async function rig(
 			assets: assetsRepo,
 			locks,
 		},
+		// Planning over the SAME repositories, as `planningEditorServices` wires it whenever
+		// persistence exists. Absent, `removalSources` answered `[]` and the room-delete guard
+		// was vacuous here, so every delete case below it passed a guard production does not
+		// (owner ruling 61, found by the real-Obsidian E2E).
+		planning: planningServices({ plans, geometry: zoneOutlineSidecar(zonesRepo), requirements: requirementsRepo, assets: assetsRepo, projects, overrides: overridesRepo, events, locks }),
 		logger: recorder,
 	};
 

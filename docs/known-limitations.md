@@ -43,7 +43,7 @@ a decision not yet recorded there is stated in words, with its date.
 - **Desktop edits; mobile reads.** On a phone or tablet the Renovation project view and the Asset
   library open read-only (`readOnly: Platform.isMobile` in `RenovationProjectView.ts` and
   `AssetLibraryView.ts`): you can browse and search, and the controls that would change something
-  stay visible and are refused, under a read-only notice. The tests check those controls one by
+  stay visible and do not act, under a read-only notice. The tests check those controls one by
   one, so a control they do not name is not covered. The Plan editor and the Asset designer do
   not open there; they draw "This surface is not available on mobile. Open it on a desktop."
   The commands that would only create or edit — **New project**, **Open plan editor**, **Set plan
@@ -82,8 +82,8 @@ a decision not yet recorded there is stated in words, with its date.
 - **A control can look available and refuse when used.** The Plan editor greys out its writing
   controls while writing is paused, but a pane that is already open when another pane raises the
   pause, and a tab restored at startup, show their controls as available until the first one is
-  refused (tracker L-14). The Asset designer never greys its controls out for a pause; its writes
-  are refused when used (tracker L-13).
+  refused (tracker L-14). In the Asset designer only Undo and Redo go grey for a pause; its other
+  writing controls stay available and are refused when used (tracker L-13).
 - **A room with no area that is already in a vault** still loads. An edit that would leave it
   without an area is refused, including a recolour; one that gives it an area, such as dragging a
   corner off the line, is accepted and fixes it. Rename, details, lock and delete also work. New

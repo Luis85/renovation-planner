@@ -1,6 +1,6 @@
 # Wiederaufnahme der Editor-Finalisierung
 
-> **Historical record — status added 2026-10-02.** This records the build and date it names. It is not acceptance of a beta release candidate; that status lives only in [first beta readiness](../../../releases/first-beta-readiness/README.md).
+> **Historischer Nachweis — Status ergänzt am 2026-10-02.** Dieses Dokument hält den genannten Stand und das genannte Datum fest. Es ist keine Abnahme eines Beta-Release-Kandidaten; dieser Status steht nur in [first beta readiness](../../../releases/first-beta-readiness/README.md).
 
 ## Maßgeblicher nächster Arbeitsstand — 2026-09-09
 

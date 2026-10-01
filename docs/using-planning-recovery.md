@@ -170,8 +170,8 @@ the tables below say what this build does with each one. A number is a schema ve
 - **A save keeps what the plugin does not own.** An update changes the plugin's own
   frontmatter keys through Obsidian and leaves the note's body, and the values of frontmatter
   keys the plugin does not own, as they were.
-- **Open a vault with a build at least as new as the newest one that has written to it.** An
-  older build refuses notes it cannot read, but a settings change made in it drops settings a
+- **Open a vault with a build at least as new as the newest one that has written to it.** A
+  build that has the reader refuses notes it cannot read, but a settings change made in it drops settings a
   newer build added.
 
 `tests/release/dataCompatibility.test.ts` holds the first table's set of rows and its Reads,
@@ -219,7 +219,7 @@ rather than a migration one, so it reads as damaged data rather than as "this bu
 | --- | --- | --- | --- |
 | Settings | `data.json` in the plugin folder | `units`, `projectFolder`, `libraryFolder`, `defaultCurrency`, `verboseLogging` | A value outside a field's choices reads as the default. Any other key is dropped when read and is gone from the file after the next settings change, including a key a newer build added. |
 | Grid and snapping choices, panel widths | this device's local storage | — | A value of the wrong type, or a width out of range, reads as the default. |
-| Review and Shopping notes | beside the plan note | — | Generated. If someone edited one, regenerating it is refused rather than overwriting the edit. |
+| Review and Shopping notes | beside the plan note when first generated; they stay there if the plan note is moved | — | Generated. If someone edited one, regenerating it is refused rather than overwriting the edit. |
 | Evidence files | where they were added | — | Ordinary vault files. Unlinking removes the link, not the file. |
 | Open tabs | Obsidian's workspace layout | `planId`, `origin`, `unrecoveredWrite` (Plan editor); `projectId`, `section`, `origin` (Renovation project); `assetId` (Asset designer); `assetId`, `expanded` (Asset library) | Which project, plan or asset a tab shows, and whether a plan tab saw an unrecovered write. |
 
@@ -236,7 +236,7 @@ The simplest coherent backup is a copy of the **whole vault folder, including it
 folder**, taken while Obsidian is closed.
 
 **Keep the backup outside the vault.** The plugin finds its notes by what they declare in their
-properties, not by which folder they sit in, so a copy kept anywhere inside the vault is read as a
+properties, not by which folder they sit in, so a copy of the notes kept as ordinary notes inside the vault is read as a
 second set of the same notes, with the same ids, and the plugin may then edit the copy instead of
 the original.
 
@@ -245,13 +245,16 @@ moment:
 
 - **Each project's folder, in full** — the folder holding its `Project.md`. That covers the Plan,
   Room, Requirement, Asset price and Quote notes, the `Geometry/` folder with each plan's `.rpgeo`
-  sidecar, the generated Review and Shopping notes beside each plan note, and the `Evidence/`
-  folder beside the plan notes where imported files and evidence notes are created — **and any of
-  the project's notes or `.rpgeo` files you have moved out of that folder**, with the Review,
-  Shopping and `Evidence/` files beside each moved plan note. A moved note still belongs to its
-  project: each Plan, Room, Requirement, Asset price and Quote note carries the project's id in its
-  `project` property, the same value as the `id` property in `Project.md`. A Review or Shopping
-  note is named after its plan's id (`Review-<plan id>.md`, `Shopping-<plan id>.md`).
+  sidecar, the generated Review and Shopping notes, and the `Evidence/` folder where imported
+  files and evidence notes are created — **and any of the project's notes or `.rpgeo` files you
+  have moved out of that folder**, and the Review, Shopping and `Evidence/` files wherever they
+  were generated. A moved note still belongs to its project: each Plan, Room, Requirement, Asset
+  price and Quote note carries the project's id in its `project` property, the same value as the
+  `id` property in `Project.md`. A Review or Shopping note has no `project` property. Its file
+  name is `Review-` or `Shopping-` followed by a code derived from the plan's id, and it stays in
+  the folder where it was first generated, even if you move the plan note afterwards — so keep
+  every `Review-…` and `Shopping-…` note and `Evidence/` folder from wherever it sits. The first
+  line of a Review or Shopping note starts `<!-- rp-review:` or `<!-- rp-shopping:`.
 - **The asset library folder, in full** (`Renovation/Library` unless you changed it in settings).
   It holds the Asset notes, each asset's `.rpgeo` sidecar in its own `Geometry/` folder, and the
   Trade and Supplier notes — and any of those you have moved elsewhere in the vault, for the same
@@ -281,7 +284,7 @@ which tabs were open, including whether a Plan editor tab saw an unrecovered wri
    from one backup with sidecars, library files or plugin-folder files from another.
 3. **Open the vault with a plugin build at least as new as the newest build that wrote to that
    backup, and never with a build older than this one** (see [Existing vaults](#existing-vaults)
-   and the section below). An older build refuses notes it cannot read.
+   and the section below). A build that has the reader refuses notes it cannot read.
 4. **Check what the plugin reports.** Open each project and its plans, and the asset library,
    first: the report lists only the notes the plugin has tried to read. Then run **Show diagnostics
    report** from the command palette or settings: it lists the notes this build has refused to read

@@ -55,7 +55,7 @@ of that kind has somewhere obvious to go rather than a decision to make.
 
 ## What is a work item and what is evidence
 
-The backlog says what the product does and why someone wants it. Ten folders in the table
+The backlog says what the product does and why someone wants it. Eleven folders in the table
 are deliberately outside it, for three different reasons.
 
 **`prds/` and `sdds/` are what a backlog is derived FROM, not things in it.** Each arrives

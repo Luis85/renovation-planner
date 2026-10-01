@@ -263,6 +263,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'dialog.delete-reference.remove-references': 'Referenzen entfernen',
 	'dialog.delete-reference.reassign': 'Neu zuweisen',
 	'dialog.delete-reference.delete-anyway': 'Trotzdem löschen',
+	// Vom Eigentümer freigegeben (Entscheidung 69).
+	'dialog.delete-reference.contextual-only': 'Einige dieser Anforderungen beruhen auf den Maßen dieses Raums oder dieser Fläche. Sie lassen sich weder anderswo neu zuweisen noch ohne diese Grundlage behalten; möglich ist nur das Entfernen der Referenzen.',
 	'dialog.entity-picker.empty': 'Nichts zur Auswahl.',
 	'dialog.form.submit': 'Speichern',
 	'notice.severity.success': 'Erfolg',

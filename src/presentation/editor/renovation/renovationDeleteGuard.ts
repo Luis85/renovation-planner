@@ -13,8 +13,9 @@ import { tr } from '../../i18n/strings';
  * every one a Room carries is in `listByZone`, which the Reassign/Detach dialog after this guard
  * offers to resolve (owner ruling 61; `deleteZoneWithReferences.test.ts` drives each door). For a
  * CONTEXTUAL material only Remove references completes: `Requirement.repointedTo` refuses its
- * Reassign, and the store's `planningReferentialGuard` refuses its Delete anyway, which compensates
- * (`deleteShortcut.test.ts` pins both).
+ * Reassign, and the store's `planningReferentialGuard` refuses its Delete anyway, which compensates.
+ * So that dialog offers only Remove references for such a zone (owner rulings 62, 64, 69), and
+ * `deleteShortcut.test.ts` pins both refusals at the command, the path a script still takes.
  */
 export function createRenovationDeletionGuard(context: PlanEditorContext, dialogs: ReturnType<typeof useDialogStore>) {
 	let alive = true;

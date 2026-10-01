@@ -291,6 +291,8 @@ export const en = {
 	'dialog.delete-reference.remove-references': 'Remove references',
 	'dialog.delete-reference.reassign': 'Reassign',
 	'dialog.delete-reference.delete-anyway': 'Delete anyway',
+	// Owner ruling 69's approved line. 'room or area': the zone door opens this for an Area too.
+	'dialog.delete-reference.contextual-only': 'Some of these requirements are measured from this room or area, so they cannot be reassigned elsewhere or kept without it. Removing the references is the only option.',
 	'dialog.entity-picker.empty': 'Nothing to choose from.',
 	'dialog.form.submit': 'Save',
 	'notice.severity.success': 'Success',

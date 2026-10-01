@@ -397,8 +397,11 @@ function createDeleteZoneAction(
 		// group — because which label a row takes depends on the ambiguity
 		// `ListRequirementsReferencing` resolved, and building them here would derive that rule
 		// a second time for one of the two surfaces that now share it.
-		askResolution: (entityLabel, references) =>
-			dialogs.openDialog({ kind: 'delete-reference', entityLabel, references }),
+		// A zone whose requirements are measured from it can neither hand them to another zone
+		// (`Requirement.repointedTo`) nor outlive them (`planningReferentialGuard`), so only Remove
+		// references is offered (owner rulings 62, 64, 69). This door alone sets it.
+		askResolution: (entityLabel, references, sourced) =>
+			dialogs.openDialog({ kind: 'delete-reference', entityLabel, references, ...(sourced ? { removeOnly: true as const } : {}) }),
 		askReassignTarget: (title, candidates) =>
 			dialogs.openDialog({ kind: 'entity-picker', title, candidates }),
 		dispatch: (edit) => inspector.commit(edit),

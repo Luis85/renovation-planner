@@ -65,6 +65,11 @@ export interface DeleteReferenceDescriptor {
 	readonly kind: 'delete-reference';
 	readonly entityLabel: string;
 	readonly references: readonly ReferenceRow[];
+	/**
+	 * Offer only Cancel and Remove references, with one line saying why — the caller's decision,
+	 * not the dialog's (owner ruling 62: only the Plan editor's zone door sets it).
+	 */
+	readonly removeOnly?: true;
 }
 
 export interface EntityCandidate {

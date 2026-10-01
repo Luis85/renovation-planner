@@ -137,6 +137,9 @@ describe('deleting a Zone that Requirements reference', () => {
 		await doors[door](r);
 		await until(() => r.harness.wrapper.find('.rp-dialog').exists(), 'a dialog');
 		expect(r.harness.wrapper.find('[data-rp-action="reassign"]').exists()).toBe(true);
+		// Owner ruling 62 touches only a room something is MEASURED from; an assigned asset is not.
+		expect(r.harness.wrapper.find('[data-rp-action="delete-anyway"]').exists()).toBe(true);
+		expect(r.harness.wrapper.find('[data-rp-contextual-only]').exists()).toBe(false);
 		for (const write of writes) expect(write).not.toHaveBeenCalled();
 		await dialogButton(r.harness, 'cancel').trigger('click');
 		await until(() => !r.harness.wrapper.find('.rp-dialog').exists(), 'the dialog closed');

@@ -5,7 +5,10 @@ import { assetPlacementRig } from '../../helpers/assetPlacement';
 import { mountPlanEditorCanvas, settle, settleUntil } from '../../helpers/editor';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
-import { Notice } from '../../helpers/obsidian-mock';
+// From the mock's own module: `setLanguage` is the fake's knob, and the German case resets it.
+import { Notice, setLanguage } from '../../helpers/obsidian-mock';
+import { makeAsset, makeRequirement } from '../../helpers/entities';
+import type { ZoneId } from '../../../src/domain/zone/ZoneId';
 import { expectDefined, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { planningDraft, materialInput } from '../../../src/presentation/editor/planning/planningDraft';
 import { EMPTY_RENOVATION } from '../../../src/domain/renovation/Renovation';
@@ -171,7 +174,9 @@ it('still blocks a room delete on its renovation records, naming those and not i
 	expect(rig.project.zones.has(rig.room.id)).toBe(true); expect([...rig.stack.vault.entries]).toEqual(bytes);
 });
 
-it('refuses reassigning a contextual material to another room through the real Reassign, writing nothing', async () => {
+// Owner ruling 62 hides Reassign and Delete anyway for such a room, so the next two answer the dialog
+// through its store: the path a script takes, held by the command's own re-check (§87 rule 5).
+it('refuses reassigning a contextual material to another room at the command, writing nothing', async () => {
 	const rig = await renovationEditor(true); cleanups.push(rig.unmount);
 	expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Hall', zoneType: 'Room', geometry: { points: [{ x: 9000, y: 0 }, { x: 11_000, y: 0 }, { x: 11_000, y: 2000 }, { x: 9000, y: 2000 }] } }));
 	await material(rig, rig.room.id); await rig.runtime.refreshProjection();
@@ -179,7 +184,7 @@ it('refuses reassigning a contextual material to another room through the real R
 	const deleting = rig.runtime.deleteZone(rig.room.id, rig.room.name);
 	await settleUntil(() => rig.dialogs.current !== null, 'a dialog');
 	expect(rig.dialogs.current?.kind).toBe('delete-reference');
-	await rig.wrapper.get('[data-rp-action="reassign"]').trigger('click');
+	rig.dialogs.resolve({ action: 'reassign' });
 	await settleUntil(() => rig.wrapper.find('.rp-dialog-candidate').exists(), 'the picker');
 	expect(rig.wrapper.get('.rp-dialog-candidate').text()).toContain('Hall');
 	await rig.wrapper.get('.rp-dialog-candidate').trigger('click'); await deleting;
@@ -197,12 +202,73 @@ it('refuses Delete anyway on a room a contextual material originates on, restori
 	const bytes = new Map(rig.stack.vault.entries);
 	const deleting = rig.runtime.deleteZone(rig.room.id, rig.room.name);
 	await settleUntil(() => rig.dialogs.current?.kind === 'delete-reference', 'the reference dialog');
-	await rig.wrapper.get('[data-rp-action="delete-anyway"]').trigger('click'); await deleting;
+	rig.dialogs.resolve({ action: 'delete-anyway' }); await deleting;
 	expect(Notice.shown.length).toBe(shown + 1);
 	expect(expectOk(await rig.stack.zones.getById(rig.room.id))).not.toBeNull();
 	expect(expectOk(await rig.stack.requirements.listByZone(rig.room.id)).map(item => item.entity)).toEqual(before);
 	const after = new Map(rig.stack.vault.entries), changed = [...new Set([...bytes.keys(), ...after.keys()])].filter(path => bytes.get(path) !== after.get(path));
 	expect(changed).toHaveLength(1); expect(after.get(changed[0])).toContain(before[0].id);
+});
+
+// Owner rulings 62, 64 and 69: a room or area any listed requirement is measured from offers only
+// Remove references, with one line saying why. Ordinary-only rooms keep all three choices
+// (`deleteZoneWithReferences.test.ts`), and so does the Asset library (`assetDelete.test.ts`).
+const MEASURED = 'Some of these requirements are measured from this room or area, so they cannot be reassigned elsewhere or kept without it. Removing the references is the only option.';
+const GEMESSEN = 'Einige dieser Anforderungen beruhen auf den Maßen dieses Raums oder dieser Fläche. Sie lassen sich weder anderswo neu zuweisen noch ohne diese Grundlage behalten; möglich ist nur das Entfernen der Referenzen.';
+type Seed = (rig: Rig) => Promise<{ readonly id: ZoneId; readonly name: string }>;
+const contextualRoom: Seed = async (rig) => { await material(rig, rig.room.id); return rig.room; };
+const SEEDS: Record<string, Seed> = {
+	'a room carrying a contextual material': contextualRoom,
+	'a room carrying a contextual and an ordinary material': async (rig) => {
+		const paint = expectOk(await rig.stack.assets.save(makeAsset({ name: 'Wall paint', unit: 'm2' }), 'absent')).entity;
+		await material(rig, rig.room.id);
+		expectOk(await rig.stack.requirements.save(makeRequirement({ projectId: rig.plan.projectId, assetId: paint.id, origin: { kind: 'zone', zoneId: rig.room.id } }), 'absent'));
+		return rig.room;
+	},
+	'an area carrying a contextual material': async (rig) => {
+		const garden = expectOk(await rig.deps.commands.createZone.execute({ planId: rig.plan.id, name: 'Garden', zoneType: 'Garden', geometry: { points: [{ x: 5000, y: 0 }, { x: 7000, y: 0 }, { x: 7000, y: 2000 }, { x: 5000, y: 2000 }] } })).zone.entity;
+		await rig.runtime.refreshProjection(); await material(rig, garden.id);
+		return garden;
+	},
+};
+/** Opens the reference dialog on the seeded zone; answers the pending delete and the vault bytes before it. */
+async function askToDelete(seed: Seed) {
+	const rig = await renovationEditor(true); cleanups.push(rig.unmount);
+	const zone = await seed(rig); await rig.runtime.refreshProjection();
+	const bytes = [...rig.stack.vault.entries], deleting = rig.runtime.deleteZone(zone.id, zone.name);
+	await settleUntil(() => rig.dialogs.current?.kind === 'delete-reference', 'the reference dialog');
+	return { rig, zone, bytes, deleting };
+}
+const offered = (rig: Rig) => rig.wrapper.findAll('.rp-dialog [data-rp-action]').map(button => button.attributes('data-rp-action'));
+
+it.each(Object.keys(SEEDS))('offers only Remove references for %s, saying why, and writes nothing first', async (name) => {
+	const { rig, zone, bytes, deleting } = await askToDelete(expectDefined(SEEDS[name], name));
+	expect(offered(rig)).toEqual(['cancel', 'remove-references']);
+	expect(rig.wrapper.get('[data-rp-contextual-only]').text()).toBe(MEASURED);
+	expect([...rig.stack.vault.entries]).toEqual(bytes);
+	await rig.wrapper.get('[data-rp-action="remove-references"]').trigger('click'); await deleting;
+	expect(expectOk(await rig.stack.zones.getById(zone.id))).toBeNull();
+	expect(expectOk(await rig.stack.requirements.listByZone(zone.id))).toEqual([]);
+});
+
+it('says why in the approved German under the German locale', async () => {
+	setLanguage('de');
+	try {
+		const { rig, deleting } = await askToDelete(contextualRoom);
+		expect(rig.wrapper.get('[data-rp-contextual-only]').text()).toBe(GEMESSEN);
+		rig.dialogs.resolve({ action: 'cancel' }); await deleting;
+	} finally { setLanguage('en'); }
+});
+
+it('leaves the hidden choices unreachable from the keyboard', async () => {
+	const { rig, bytes, deleting } = await askToDelete(contextualRoom);
+	const dialog = rig.wrapper.get('.rp-dialog').element;
+	const focusable = [...dialog.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]')];
+	expect(focusable.map(item => item.dataset.rpAction)).toEqual(['cancel', 'remove-references']);
+	for (const pressed of ['Enter', 'Delete', 'r', 'd']) dialog.dispatchEvent(new KeyboardEvent('keydown', { key: pressed, bubbles: true, cancelable: true }));
+	await settle();
+	expect(rig.dialogs.current?.kind).toBe('delete-reference'); expect([...rig.stack.vault.entries]).toEqual(bytes);
+	rig.dialogs.resolve({ action: 'cancel' }); await deleting;
 });
 
 it('refuses a selection holding a room requirements still refer to, and reports a failed lookup, writing nothing', async () => {

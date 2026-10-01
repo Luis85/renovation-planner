@@ -73,9 +73,10 @@ describe('a planted write incident in the real host', () => {
 			await app.workspace.duplicateLeaf(leaf, 'split', 'vertical');
 		}, 'renovation-plan-editor');
 		await expect.poll(() => ui.leafCount('renovation-plan-editor')).toBe(2);
-		const panes = await browser.$$(EDITOR);
-		expect(panes).toHaveLength(2);
-		for (const pane of panes) await expectPaused(pane);
+		// The workspace can count the new leaf before its content is in the DOM: once in CI, `$$`
+		// found one pane right after the count read two. Wait for what is asserted on.
+		await expect.poll(async () => (await browser.$$(EDITOR)).length).toBe(2);
+		for (const pane of await browser.$$(EDITOR)) await expectPaused(pane);
 
 		// Step 6: a settings save remounts every leaf's Vue tree with a fresh Pinia.
 		const windows = await openPluginSettings(browser);

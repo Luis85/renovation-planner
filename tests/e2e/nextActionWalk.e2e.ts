@@ -80,13 +80,32 @@ const zoneNamed = async (ui: Ui, name: string): Promise<[string, Record<string, 
 	return found[0];
 };
 
+/**
+ * The window these cases were first green at: the CI display's own 1280 x 1024, which the tiling
+ * window manager gave Obsidian until main's `floating=on` rule left it at its default 1024 x 800.
+ * There the editor leaf is narrower than `FULL_MIN_PX` (`layoutMode.ts`), so selecting a room opens
+ * the Inspector as a drawer OVER the stage — on top of the very corners these cases press, which
+ * `dragCorner` then refuses. At this size the shell is `full` and the Inspector sits beside the stage.
+ * Obsidian's chromedriver refuses `setWindowSize`; Electron sizes it instead (`dialogFooter.e2e.ts`).
+ */
+async function widenWindow(browser: NativeBrowser): Promise<void> {
+	await browser.executeObsidian(() => {
+		const electron = window as unknown as { require(id: string): { getCurrentWindow(): { setSize(w: number, h: number): void } } };
+		electron.require('@electron/remote').getCurrentWindow().setSize(1280, 1024);
+	});
+	await expect.poll(() => browser.execute(() => window.innerWidth)).toBeGreaterThanOrEqual(1270);
+}
+
 /** The sample project with its Bathroom's outline replaced by hand, reopened with the Bathroom selected. */
 async function seedBathroomOutline(browser: NativeBrowser, page: Page, ui: Ui, points: StoredPoint[]): Promise<string> {
+	await widenWindow(browser);
 	await seedSampleProject(browser, ui);
 	const id = String((await zoneNamed(ui, en['sample.zone.bathroom']))[1].id);
 	await rewriteOutline(browser, page, id, points);
 	await openPlan(browser, ui, en['sample.plan.name']);
 	await selectRoom(browser, en['sample.zone.bathroom']);
+	// The Inspector docked beside the stage rather than drawn over it (`widenWindow`).
+	expect(await browser.$(EDITOR).$('.rp-editor-shell').getAttribute('data-layout')).toBe('full');
 	// Selecting from the list frames the camera on the room; a point read mid-frame is wrong.
 	await settleCamera(browser);
 	await expect.poll(() => saveLabel(browser)).toEqual(SAVED);
@@ -405,12 +424,19 @@ describe('the Rooms list keyboard (L-46)', () => {
 		const { list, ids } = await tabIntoRooms(browser, ui);
 		expect(await focusIn(browser, list)).toEqual({ row: ids[0], lock: null, inList: true });
 		const lock = list.$(`[data-rp-lock="${ids[0]}"]`);
-		expect(await lock.getAttribute('aria-pressed')).toBe('false');
+		// The lock's state is its accessible name and nothing else: AD18-R23 dropped `aria-pressed`
+		// from `ZoneLockToggle.vue`, because "Unlock Kitchen, pressed" read the state twice, opposite ways.
+		const name = String(Object.values(await ui.notesOfType('renovation-zone')).find((zone) => zone.id === ids[0])?.name);
+		const named = (key: 'editor.input.lock' | 'editor.input.unlock'): string => en[key].replace('{name}', name);
+		expect({ label: await lock.getAttribute('aria-label'), pressed: await lock.getAttribute('aria-pressed') }).toEqual({
+			label: named('editor.input.lock'),
+			pressed: null,
+		});
 
 		await browser.keys('ArrowRight');
 		expect(await focusIn(browser, list)).toEqual({ row: null, lock: ids[0], inList: true });
 		await browser.keys('Enter');
-		await expect.poll(() => lock.getAttribute('aria-pressed')).toBe('true');
+		await expect.poll(() => lock.getAttribute('aria-label')).toBe(named('editor.input.unlock'));
 		await expect
 			.poll(async () => Object.values(await ui.notesOfType('renovation-zone')).find((zone) => zone.id === ids[0])?.locked)
 			.toBe(true);

@@ -880,11 +880,12 @@ suite, the harness and nothing else share.
 **Known limits of the fakes**, so nothing trusts them wider than they are: the module mock
 models only the members something drives, and its `getLanguage()` answers `'en'` **unless a
 caller sets it** — the Home surface branch made it a module-level `let` behind a `setLanguage`
-setter for the browser harness's `?lang=` knob, and **no suite calls that setter**, so the
-suite's own exposure is unchanged: a call site resolving the language wrongly is still
-invisible to it, which is why `t` is pure and driven per locale directly. What DID change is
-that the value is now mutable across a worker, so a suite that ever calls it owes every later
-file in that worker the reset — the setter's own docblock is the authority and says so. (This
+setter for the browser harness's `?lang=` knob. **Suites call that setter too**, to draw a
+German case — `grep -rln "setLanguage(" tests/` lists them; no count is kept here, since this
+sentence said "no suite calls that setter" while several did — so a call site resolving the
+language wrongly is visible only where one of those cases happens to drive it, which is why `t`
+is pure and driven per locale directly. The value is mutable, so each caller owes the reset to
+`'en'` — the setter's own docblock is the authority and says so. (This
 sentence read "always answers `'en'`" for the whole of the branch that falsified it, in a
 paragraph the same branch edited by 179 lines: the count of a claim's readers is not the count
 of its editors.) **`Platform` is the mock's other mutable object, and `isMobile` is the member

@@ -265,6 +265,7 @@ it('leaves the hidden choices unreachable from the keyboard', async () => {
 	const dialog = rig.wrapper.get('.rp-dialog').element;
 	const focusable = [...dialog.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]')];
 	expect(focusable.map(item => item.dataset.rpAction)).toEqual(['cancel', 'remove-references']);
+	// jsdom never activates a button on Enter, so this loop proves only that no key maps to an action; the list above catches a rendered hidden choice.
 	for (const pressed of ['Enter', 'Delete', 'r', 'd']) dialog.dispatchEvent(new KeyboardEvent('keydown', { key: pressed, bubbles: true, cancelable: true }));
 	await settle();
 	expect(rig.dialogs.current?.kind).toBe('delete-reference'); expect([...rig.stack.vault.entries]).toEqual(bytes);

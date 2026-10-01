@@ -53,13 +53,14 @@ export function getLanguage(): string {
 }
 
 /**
- * Point `getLanguage` at another locale — the browser harness's `?lang=` knob and nothing else.
+ * Point `getLanguage` at another locale — the browser harness's `?lang=` knob, and the suites
+ * that draw a German case.
  *
  * Exported rather than left as a mutable binding for the reason `Platform` is a plain object:
  * a module-level `let` cannot be assigned across an ES module boundary, so a setter is what a
- * caller actually has. NO suite calls this, and one that did would owe every later file in its
- * worker the reset — which is exactly why the harness, whose page is torn down with the tab, is
- * the only caller.
+ * caller actually has. `grep -rln "setLanguage(" tests/` lists the suites that call it, and each
+ * one owes the reset to `'en'` (an `afterEach` or a `finally`) to every case that runs after it
+ * against the same module registry. The harness owes none: its page is torn down with the tab.
  */
 export function setLanguage(tag: string): void {
 	language = tag;

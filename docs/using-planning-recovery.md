@@ -233,16 +233,29 @@ different times can disagree even when every file in it is valid on its own.
 ### What a coherent backup contains
 
 The simplest coherent backup is a copy of the **whole vault folder, including its `.obsidian`
-folder**, taken while Obsidian is closed. If you back up less than that, it must still contain all
-of the following, from one moment:
+folder**, taken while Obsidian is closed.
+
+**Keep the backup outside the vault.** The plugin finds its notes by what they declare in their
+properties, not by which folder they sit in, so a copy kept anywhere inside the vault is read as a
+second set of the same notes, with the same ids, and the plugin may then edit the copy instead of
+the original.
+
+If you back up less than the whole vault, it must still contain all of the following, from one
+moment:
 
 - **Each project's folder, in full** — the folder holding its `Project.md`. That covers the Plan,
   Room, Requirement, Asset price and Quote notes, the `Geometry/` folder with each plan's `.rpgeo`
   sidecar, the generated Review and Shopping notes beside each plan note, and the `Evidence/`
-  folder beside the plan notes where imported files and evidence notes are created.
+  folder beside the plan notes where imported files and evidence notes are created — **and any of
+  the project's notes or `.rpgeo` files you have moved out of that folder**, with the Review,
+  Shopping and `Evidence/` files beside each moved plan note. A moved note still belongs to its
+  project: each Plan, Room, Requirement, Asset price and Quote note carries the project's id in its
+  `project` property, the same value as the `id` property in `Project.md`. A Review or Shopping
+  note is named after its plan's id (`Review-<plan id>.md`, `Shopping-<plan id>.md`).
 - **The asset library folder, in full** (`Renovation/Library` unless you changed it in settings).
   It holds the Asset notes, each asset's `.rpgeo` sidecar in its own `Geometry/` folder, and the
-  Trade and Supplier notes. The library is shared by every project in the vault, so restoring a
+  Trade and Supplier notes — and any of those you have moved elsewhere in the vault, for the same
+  reason. The library is shared by every project in the vault, so restoring a
   project without the library from the same moment can leave placements and requirements pointing
   at asset definitions or shapes from another time.
 - **Every file a plan links to that lives outside those folders** — a reference image or PDF
@@ -260,16 +273,19 @@ which tabs were open, including whether a Plan editor tab saw an unrecovered wri
 
 ### Restoring
 
-1. **Quit Obsidian first.** The plugin reads its incident record once, when it loads, and it
-   follows vault changes while it runs; replacing files underneath a running plugin gives it a
-   mixture to react to.
+1. **Quit Obsidian first, and pause any sync client for the vault.** The plugin reads its incident
+   record once, when it loads, and it follows vault changes while it runs; replacing files
+   underneath a running plugin gives it a mixture to react to. A sync client left running can copy
+   the newer files back over the ones you restored.
 2. **Restore the whole set from one backup**, replacing rather than merging. Do not combine notes
    from one backup with sidecars, library files or plugin-folder files from another.
 3. **Open the vault with a plugin build at least as new as the newest build that wrote to that
-   backup** (see [Existing vaults](#existing-vaults)). An older build refuses notes it cannot read.
-4. **Check what the plugin reports.** Run **Show diagnostics report** from the command palette or
-   settings: it lists the notes this build has refused to read since it loaded, and every open write
-   incident. An incident
+   backup, and never with a build older than this one** (see [Existing vaults](#existing-vaults)
+   and the section below). An older build refuses notes it cannot read.
+4. **Check what the plugin reports.** Open each project and its plans, and the asset library,
+   first: the report lists only the notes the plugin has tried to read. Then run **Show diagnostics
+   report** from the command palette or settings: it lists the notes this build has refused to read
+   since it loaded, and every open write incident. An incident
    restored with the backup is still open, and ends only as described in
    [A refused write or incomplete recovery](#a-refused-write-or-incomplete-recovery).
 
@@ -288,7 +304,8 @@ which tabs were open, including whether a Plan editor tab saw an unrecovered wri
 ### A binary downgrade is not a data rollback
 
 Installing an older plugin build does not turn your data back into what that build wrote. Notes
-and sidecars stay exactly as the newer build left them, and the older build, reading them:
+and sidecars stay exactly as the newer build left them. A build at least as new as this one,
+reading records a newer build wrote:
 
 - refuses every note or plan sidecar stamped with a version newer than it knows, with the
   `…schema-version-unsupported` code in the [Existing vaults](#existing-vaults) table, and writes
@@ -296,6 +313,10 @@ and sidecars stay exactly as the newer build left them, and the older build, rea
   (`asset-geometry.schema-invalid`) rather than as too new;
 - keeps incident and delete-recovery entries it cannot read, and counts such an incident as open;
 - drops every setting it does not know the next time you change a setting in it.
+
+A build older than this one may do less. One from before 2026-09-16 does not read
+`write-incidents.json` at all, so it does not pause for an incident a newer build recorded. No
+release has been cut yet, so every older build is an unreleased development build.
 
 To get data back to an earlier state, restore a backup taken before the newer build wrote to it,
 and open it with a build at least as new as the one that wrote that backup.

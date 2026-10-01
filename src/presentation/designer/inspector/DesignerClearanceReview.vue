@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * AD14's answer to *"mark it as needing review"*: the notice a PRESERVED clearance carries after
- * the object around it was resized, and the one action that answers it (ruling AD14-R1, ADR-0034).
+ * the object around it was resized, and the one action that answers it (ruling AD14-R1, ADR-0035).
  *
  * **What the user is looking at when this draws.** They typed a smaller width into Edit dimensions;
  * the footprint and every detail scaled about the anchor and the clearance did not, so the boundary

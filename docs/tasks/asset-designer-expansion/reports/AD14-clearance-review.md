@@ -15,7 +15,7 @@ Allowed scope and shared-file leases: the wave-5 AD14 row — `domain/asset/Asse
 asset-geometry mappers, `application/commands/asset/SetAssetClearance.ts` **and the clearance arms
 the grep names**, NEW `presentation/designer/inspector/DesignerClearanceReview.vue`,
 `DesignerInspector.vue` (ADDITIVE ONLY — one mount line), `styles/designer.css` (ADDITIVE ONLY),
-`i18n/locales/{en,de}/assetClearanceReview.ts`, `docs/development/adrs/ADR-0034-*` (integrator
+`i18n/locales/{en,de}/assetClearanceReview.ts`, `docs/development/adrs/ADR-0035-*` (integrator
 lease), and its own tests.
 
 **Two notes on that scope, both stated rather than assumed.**
@@ -31,7 +31,7 @@ lease), and its own tests.
    panel-level one.
 2. **`docs/superpowers/specs/2026-09-16-asset-designer-consolidate-design.md` is edited and is not
    in the wave-5 row.** The dispatch brief required it and, more durably, the integrator-authored
-   ADR-0034 already committed at `ae6bb2a63` names that correction as part of this change
+   ADR-0035 already committed at `ae6bb2a63` names that correction as part of this change
    ("*…is corrected there*"). Flagged here rather than assumed, because this ledger has twice been
    corrected for a grant that lived only in a dispatch message.
 
@@ -107,12 +107,12 @@ ruling mandated the grep over its own prose.
 | **A `Reviewed` action drawn ONLY while the flag is set, never `:disabled`** | met | `designerClearanceReview.test.ts` › *draws nothing while the flag is down…*, *says what happened and offers the action once the flag is set* (which also asserts no `disabled` attribute) | — |
 | **Real command wiring, not component existence (C12)** | met | *appears in the real inspector after a real resize, and the real press answers it* — the shape is `scaleDesign`'s own output and the mount is the real `DesignerInspector` | — |
 | **Undo needs no mechanism** | met by construction | the flag rides on `AssetShape`; `assetPresetFlow.test.ts` › *takes the whole preset back with one undo* and `assetDimensions.test.ts`'s undo assertion both compare whole shapes after an undo | Nothing new was built, which was the instruction |
-| **C03 supersession recorded** | met | ADR-0034 (already authored; one claim narrowed here), the spec §7 amendment, and three fixtures amended in place with their old expectations quoted | — |
+| **C03 supersession recorded** | met | ADR-0035 (already authored; one claim narrowed here), the spec §7 amendment, and three fixtures amended in place with their old expectations quoted | — |
 | **C11 r1 row 3 — explicit capability gating, WITH TESTS** | met | `tests/presentation/i18n/assetCapabilityClaims.test.ts`, 4 cases: the instrument's own reach, both locales scanned, and the Reviewed copy pinned against certification language | It gates the shipped STRINGS, not the absence of a mechanism — see its header for the three things it deliberately does not do |
 | **No shape history, no placement pinning** | met | neither was built | `r1` row 3 refuses both outright |
 | **Card criterion: existing exports report unsupported geometry rather than dropping content** | **not applicable, and recorded rather than ticked** | `r1` row 4: *"There is no export subsystem … `src/` contains no PDF, print or render-to-file path"* | The capability gate above is what stands in its place |
 | **Card criterion: delete/move the definition and render the frozen state** | **not applicable** | there is no frozen state to render; `Plan revisions` is a requirement note with no code | — |
-| **Card criterion: rollback/recovery instructions** | met in the ADR | ADR-0034's Consequences: a v4 document is refused by a v3-only build rather than silently stripped, and no migration table is owed because v4 is additive | No downgrade path is claimed lossless; C09's rule stands |
+| **Card criterion: rollback/recovery instructions** | met in the ADR | ADR-0035's Consequences: a v4 document is refused by a v3-only build rather than silently stripped, and no migration table is owed because v4 is additive | No downgrade path is claimed lossless; C09's rule stands |
 
 ## Every invariant watched failing, with the exact red
 
@@ -435,7 +435,7 @@ directory would have gone red.
   61 sites across 41 files, measured before this card's own files existed, against 66 across 43 now;
   the German table cited `Überprüfen Sie` as a `de.ts` precedent when that string appears **exactly
   once** in `locales/` — inside the comment claiming it — where the form actually chosen has nine
-  real hits; and ADR-0034 named two amended fixtures where three were.
+  real hits; and ADR-0035 named two amended fixtures where three were.
 - `tests/presentation/designer/` + `tests/domain/asset/` + the geometry DTO: 77 files / 1248 tests.
 - **All six gates exit 0 on `4521f6acf`** (the wave-5 integration SHA carrying both cards): 1050
   test files, 11591 tests, 1 skipped, zero failures, at 99.22 / 98.04 / 99.26 / 99.67 against

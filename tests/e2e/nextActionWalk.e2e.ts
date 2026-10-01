@@ -16,8 +16,8 @@ import {
 	type StoredPoint,
 	type WorldPoint,
 } from './canvas';
-import { EDITOR, openDetails, openPlan, seedKitchenRequirement, seedSampleProject, selectRoom, type Pane, type Ui } from './planner';
-import { PLUGIN_ID, mobileEmulation, type NativeBrowser } from './session';
+import { EDITOR, ENGLISH_GUIDE, expectGuide, openDetails, openPlan, seedKitchenRequirement, seedSampleProject, selectRoom, textOf, type Ui } from './planner';
+import { mobileEmulation, type NativeBrowser } from './session';
 
 /**
  * The session 21 Next action's vault walk, in English, driven in the real host:
@@ -29,7 +29,8 @@ import { PLUGIN_ID, mobileEmulation, type NativeBrowser } from './session';
  *
  * Copy is read from the `en` locale module, which is plain data and imports in this node
  * config; `strings.ts` and the guide's own module import `obsidian` and do not, so a guide
- * step is assembled here from its `en` template and the labels the REAL controls render.
+ * step is assembled from its `en` template and the labels the REAL controls render — by
+ * `planner.ts`'s `expectGuide`, which `germanHost.e2e.ts` drives in German through the same walk.
  *
  * Written from source and not yet run when committed: every selector is the one the named
  * component draws, and CI's E2E workflow is its first run.
@@ -73,8 +74,6 @@ const GEOMETRY = en['error.category.geometry'];
 const TAB_BOUND = 300;
 
 const at = ([x, y]: StoredPoint): WorldPoint => ({ x, y });
-/** What a control renders, read whether or not a narrow pane shows it right now, and from the DOM rather than `getText`. */
-const textOf = async (element: Pane): Promise<string> => String(await (await element.getElement()).getProperty('textContent')).trim();
 const zoneNamed = async (ui: Ui, name: string): Promise<[string, Record<string, unknown>]> => {
 	const found = Object.entries(await ui.notesOfType('renovation-zone')).filter(([, zone]) => zone.name === name);
 	expect(found).toHaveLength(1);
@@ -242,127 +241,9 @@ describe('Notices step 25: the report button, reached and pressed from the keybo
 	});
 });
 
-/** The plugin's commands by the name the palette shows, with the plugin's own prefix taken off. */
-const commandLabels = (browser: NativeBrowser, ids: readonly string[]): Promise<{ prefix: string; labels: string[] }> =>
-	browser.executeObsidian(
-		({ app }, plugin, wanted) => {
-			const host = app as unknown as {
-				commands: { commands: Record<string, { name: string } | undefined> };
-				plugins: { manifests: Record<string, { name: string } | undefined> };
-			};
-			const prefix = `${host.plugins.manifests[plugin]?.name ?? ''}: `;
-			const labels = wanted.map((id) => {
-				const shown = host.commands.commands[`${plugin}:${id}`]?.name ?? '';
-				return shown.startsWith(prefix) ? shown.slice(prefix.length) : `(not prefixed) ${shown}`;
-			});
-			return { prefix, labels };
-		},
-		PLUGIN_ID,
-		ids,
-	);
-
-/**
- * Every desktop control the guide quotes, walked to in the real host and read as it renders:
- * a project and an EMPTY plan made through the real forms, so the project detail, the plan list,
- * the floor start, the Add menu and the New room form all draw. Then the sample project, whose
- * name BP-10 asks after.
- */
-async function walkDesktopControls(browser: NativeBrowser, ui: Ui, openProject: string): Promise<Record<string, string>> {
-	const view = ui.projectView();
-	// The guide sends the reader to the palette OR the ribbon, so the ribbon must say the same.
-	expect(await browser.$(`.side-dock-ribbon-action[aria-label="${openProject}"]`).isExisting()).toBe(true);
-	await view.$('.rp-empty-state__action').click();
-	await ui.submitForm('Flat');
-	const firstPlan = view.$('.rp-project-detail__entry-action--secondary');
-	await expect.poll(() => firstPlan.isDisplayed()).toBe(true);
-	const labels: Record<string, string> = { createFirstPlan: await textOf(firstPlan) };
-	await firstPlan.click();
-	await ui.submitForm('Ground floor');
-	await expect.poll(() => view.$('.rp-plan-list__create').isDisplayed()).toBe(true);
-	labels.newPlan = await textOf(view.$('.rp-plan-list__create'));
-	await view.$('.rp-project-detail__back').click();
-	await expect.poll(() => view.$('.rp-project-list__create').isDisplayed()).toBe(true);
-	labels.newProject = await textOf(view.$('.rp-project-list__create'));
-
-	await openPlan(browser, ui, 'Ground floor');
-	const editor = browser.$(EDITOR);
-	await expect.poll(() => editor.$('.rp-floor-start').isDisplayed()).toBe(true);
-	labels.addRooms = await textOf(editor.$('[data-rp-route="rooms"] .rp-floor-start__title'));
-	labels.upload = await textOf(editor.$('[data-rp-route="reference"] .rp-floor-start__title'));
-	const add = editor.$('[data-rp-action="add"]');
-	labels.add = String(await add.getAttribute('aria-label'));
-	// A JS click: the floor start floats over the Add button on a plan with no rooms.
-	await browser.execute((button: HTMLElement) => button.click(), await add);
-	const entry = (id: string) => browser.$(`.rp-add-menu__item[data-rp-entry="${id}"] .rp-add-menu__item-label`);
-	await expect.poll(() => entry('room').isExisting()).toBe(true);
-	labels.room = await textOf(entry('room'));
-	labels.asset = await textOf(entry('asset'));
-	await browser.keys('Escape');
-	await expect.poll(() => entry('room').isExisting()).toBe(false);
-	await editor.$('[data-rp-route="rooms"]').click();
-	await expect.poll(() => editor.$('.rp-new-room__create').isExisting()).toBe(true);
-	labels.createRoom = await textOf(editor.$('.rp-new-room__create'));
-	await browser.keys('Escape');
-
-	await seedSampleProject(browser, ui);
-	await expect
-		.poll(async () => Object.values(await ui.notesOfType('renovation-project')).map((project) => project.name))
-		.toContain(en['sample.project.name']);
-	return labels;
-}
-
-const holesOf = (template: string): string[] => [...template.matchAll(/\{(\w+)\}/gu)].map((match) => match[1]);
-const quotesOf = (text: string): string[] => [...text.matchAll(/“([^”]*)”/gu)].map((match) => match[1]);
-const STEP_KEYS = (Object.keys(en) as (keyof typeof en)[]).filter((key) => key.startsWith('help.guide.step-')).toSorted();
-
 describe('the getting-started guide (BP-10, owner rulings 47 and 49)', () => {
-	// Every leg: the guide is a plain `callback` and reads the same on a phone, where only the
-	// controls a read-only view still draws can be walked to.
 	test('opens from the palette, and every control it quotes carries exactly that label', async ({ native: { browser, ui, directory } }) => {
-		const commands = ['open-project', 'create-sample-project', 'show-diagnostics-report', 'open-help'] as const;
-		const { prefix, labels: names } = await commandLabels(browser, commands);
-		const rendered: Record<string, string> = { openProject: names[0], sample: names[1], diagnostics: names[2], openHelp: names[3] };
-		await ui.openProjectView();
-		rendered.createProject = await textOf(ui.projectView().$('.rp-empty-state__action'));
-		rendered.newAsset = await textOf(ui.projectView().$('.rp-view-aside__create-asset'));
-		rendered.library = await textOf(ui.projectView().$('.rp-view-aside__open-library'));
-		if (!mobileEmulation) Object.assign(rendered, await walkDesktopControls(browser, ui, rendered.openProject));
-		await writeEvidence(directory, 'guide-labels', rendered);
-
-		await browser.executeObsidianCommand('command-palette:open');
-		const input = browser.$('.prompt-input');
-		await expect.poll(() => input.isDisplayed()).toBe(true);
-		await input.setValue('getting-started');
-		// The palette splits a command's name at its first ": " into a `.suggestion-prefix` span and
-		// the rest, dropping the separator (1.13.7's own renderer, read from the app bundle), so the
-		// plugin's name is asserted as ITS node: another plugin's same-named command cannot pass.
-		const plugin = prefix.slice(0, -': '.length);
-		const title = browser.$('.suggestion-item.is-selected .suggestion-title');
-		await expect
-			.poll(async () => ({ plugin: await title.$('.suggestion-prefix').getText(), title: await title.getText() }))
-			.toEqual({ plugin, title: `${plugin}${rendered.openHelp}` });
-		await browser.keys('Enter');
-
-		const modal = browser.$('.modal-container .modal');
-		await expect.poll(() => modal.$('.modal-title').getText()).toBe(en['help.guide.title']);
-		const steps = await modal.$$('.modal-content > ol > li').map((item) => item.getText());
-		expect(steps).toHaveLength(STEP_KEYS.length);
-		const unchecked = new Set<string>();
-		STEP_KEYS.forEach((key, index) => {
-			const holes = holesOf(en[key]);
-			const quotes = quotesOf(steps[index]);
-			for (const hole of holes) if (rendered[hole] === undefined) unchecked.add(hole);
-			// A hole this leg could not walk to accepts what the step says; every other must match.
-			expect({ key, quotes }).toEqual({ key, quotes: holes.map((hole, position) => rendered[hole] ?? quotes[position]) });
-		});
-		await writeEvidence(directory, 'guide', { steps, unchecked: [...unchecked] });
-		// On a phone the controls that write are not drawn, so only the desktop legs must have read them all.
-		expect(mobileEmulation ? [] : [...unchecked]).toEqual([]);
-
-		const reopen = en['help.guide.reopen'].replace(/\{(\w+)\}/gu, (_hole, name: string) => rendered[name] ?? '');
-		const paragraphs = await modal.$$('.modal-content > p').map((paragraph) => paragraph.getText());
-		// Every step names a control that writes; the mobile leg's read-only paragraph says so there.
-		expect(paragraphs).toEqual(mobileEmulation ? [reopen, en['view.mobile.read-only']] : [reopen]);
+		await expectGuide(browser, ui, directory, ENGLISH_GUIDE);
 	});
 });
 

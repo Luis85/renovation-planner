@@ -158,13 +158,15 @@ export async function rewriteOutline(browser: NativeBrowser, page: Parameters<ty
  */
 export async function recordSaveStates(browser: NativeBrowser): Promise<void> {
 	await browser.execute((editor: string) => {
-		const held = window as unknown as { __rpSaveLog?: string[]; __rpSaveObserver?: MutationObserver };
+		const held = window as unknown as { __rpSaveLog?: string[]; __rpSaveTexts?: string[]; __rpSaveObserver?: MutationObserver };
 		const root = document.querySelector(editor);
 		if (root === null) throw new Error('No Plan Editor leaf to observe.');
 		const log: string[] = [];
+		const texts: string[] = [];
 		const read = (): void => {
 			for (const label of root.querySelectorAll('.rp-save-state-label')) {
 				log.push([...label.classList].find((name) => name !== 'rp-save-state-label') ?? '');
+				texts.push(label.textContent ?? '');
 			}
 		};
 		read();
@@ -172,11 +174,16 @@ export async function recordSaveStates(browser: NativeBrowser): Promise<void> {
 		held.__rpSaveObserver = new MutationObserver(read);
 		held.__rpSaveObserver.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] });
 		held.__rpSaveLog = log;
+		held.__rpSaveTexts = texts;
 	}, EDITOR);
 }
 
 export const saveStates = (browser: NativeBrowser): Promise<string[]> =>
 	browser.execute(() => (window as unknown as { __rpSaveLog?: string[] }).__rpSaveLog ?? []);
+
+/** The same recorder's whole label text at each step, words included — what a language check reads. */
+export const saveTexts = (browser: NativeBrowser): Promise<string[]> =>
+	browser.execute(() => (window as unknown as { __rpSaveTexts?: string[] }).__rpSaveTexts ?? []);
 
 /**
  * The indicator as it reads now: its state class and its word as a screen reader gets it — the text

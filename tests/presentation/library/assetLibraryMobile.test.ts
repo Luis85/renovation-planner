@@ -206,6 +206,13 @@ describe('the Asset library on mobile', () => {
 		expect(wrapper.find('.rp-dialog').exists()).toBe(false);
 		expect(reached(spies)).toEqual([]);
 		expectRefusedWithReason(wrapper, [...WRITE_CONTROLS, '.rp-al-create-card__action']);
+		// A disabled card is no arrow-key stop: `focus()` on it does nothing, so a swallowed `→`
+		// from the last tile would be a dead key rather than one falling through to Obsidian.
+		const tile = wrapper.get<HTMLButtonElement>(`[data-asset-id="${ENTRY.assetId}"]`).element;
+		tile.focus();
+		const right = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+		tile.dispatchEvent(right);
+		expect([document.activeElement === tile, right.defaultPrevented]).toEqual([true, false]);
 	});
 
 	// No selection, so no draft: a dirty draft's own leave prompt would otherwise stand in front

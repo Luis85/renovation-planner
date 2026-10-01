@@ -40,7 +40,7 @@ function snapshot(root: string): Map<string, string> {
  *   reads through 12 and lifts it in memory by eleven discriminator steps), two Zone notes at
  *   1 (lifted to 2), and a plan geometry sidecar at `schemaVersion: 1` (lifted to 16).
  * - `valid-project`: an Asset note at 1 and an asset geometry sidecar at `schemaVersion: 1`,
- *   which `AssetGeometrySchema` raises to 2 in memory and every WRITE stamps as 2.
+ *   which `AssetGeometrySchema` raises to 4 in memory and every WRITE stamps as 4.
  */
 describe('opening a legacy vault rewrites nothing', () => {
 	it('leaves a v1 plan, its zones and its v1 sidecar byte-identical after they are read', async () => {
@@ -64,7 +64,7 @@ describe('opening a legacy vault rewrites nothing', () => {
 		open.rebuildIndex();
 
 		expect(expectFound(await open.assets.getById('asset-designed' as AssetId)).entity.name).toBe('Base cabinet 600');
-		expect(expectOk(await open.assetGeometry.read('asset-designed' as AssetId)).dto.schemaVersion).toBe(2);
+		expect(expectOk(await open.assetGeometry.read('asset-designed' as AssetId)).dto.schemaVersion).toBe(4);
 
 		expect(snapshot(open.root)).toEqual(before);
 	});

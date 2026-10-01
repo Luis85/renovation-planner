@@ -5,7 +5,7 @@
  * tells the user to open the diagnostics report carries a button that opens it.
  *
  * **Which notices, derived rather than listed.** Every `en` string carrying the report sentence
- * is either drawn by a VIEW that already puts the report button beside it — the three keys in
+ * is either drawn by a VIEW that already puts the report button beside it — the keys in
  * `VIEW_SURFACES` — or is an error code a toast prints. The second set drives the cases below,
  * so a new code minted with that sentence arrives here red until `notify.ts` gives it the button.
  *
@@ -39,7 +39,9 @@ const SENTENCE = 'Open the diagnostics report';
 const VIEW_SURFACES: ReadonlySet<string> = new Set([
 	'editor.some-zones-unreadable',
 	'view.project.some-plans-unreadable',
-	'view.asset-library.some-unreadable',
+	// One strip, two keys since `main`'s count strings gained a singular form (`f5cf4472f`).
+	'view.asset-library.some-unreadable.one',
+	'view.asset-library.some-unreadable.other',
 ]);
 
 const POINTING = (Object.entries(en) as [StringKey, string][])

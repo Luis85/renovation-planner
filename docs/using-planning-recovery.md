@@ -193,13 +193,14 @@ rows it has, the rest of the third table, or the prose.
 | Supplier note | `supplier` | `schema-version` | 1 | always 1 | refused: `supplier.schema-version-unsupported` | `SUPPLIER_MAPPER` |
 | Quote note | `quote` | `schema-version` | 1 | always 1 | refused: `quote.schema-version-unsupported` | `quoteToPersistence` |
 | Plan geometry (`Geometry/<plan id>.rpgeo` in the project folder) | `plan-geometry` | `schemaVersion` | 1–16 | 1–16 by content | refused: `plan-geometry.schema-version-unsupported` | `PlanGeometryStore` |
-| Asset geometry (`Geometry/<asset id>.rpgeo` in the library folder) | `asset-geometry` | `schemaVersion` | 1–2 | always 2 | refused: `asset-geometry.schema-invalid` | `AssetGeometrySchema`, `AssetGeometryStore` |
+| Asset geometry (`Geometry/<asset id>.rpgeo` in the library folder) | `asset-geometry` | `schemaVersion` | 1–4 | always 4 | refused: `asset-geometry.schema-invalid` | `AssetGeometrySchema`, `AssetGeometryStore` |
 
 The upgrades run in memory, in `MigrationRunner` for every row but asset geometry. The Plan,
 Room and Requirement steps and all but one plan geometry step only raise the version number.
 The exception is plan geometry 12 → 13 (`migrateWallSides`), which gives each wall two face
-distances of half its thickness. Asset geometry 1 → 2 (`AssetGeometrySchema`) reads a
-version 1 file as version 2 with no details; its newer-version refusal is a schema failure
+distances of half its thickness. Asset geometry 1, 2 and 3 → 4 (`AssetGeometrySchema`) reads an
+older file as version 4, every field added since defaulting to what an older file meant (no
+details, closed graphics, no groups, a clearance not flagged for review); its newer-version refusal is a schema failure
 rather than a migration one, so it reads as damaged data rather than as "this build is too old".
 
 ### Files the plugin keeps for itself

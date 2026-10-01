@@ -49,7 +49,7 @@ lease), and its own tests.
 | `src/presentation/designer/inspector/DesignerClearanceReview.vue` | NEW — the notice and the **Mark clearance as reviewed** action, drawn only while the flag is set | yes |
 | `src/presentation/designer/inspector/DesignerInspector.vue` | one import and one mount line, after the clearance helper | yes (additive) |
 | `src/presentation/i18n/locales/{en,de}/assetClearanceReview.ts` | the scaffold pair, filled: the notice, the action, and the new refusal's copy | yes |
-| `docs/development/adrs/0034-…-preserves-its-clearance-and-flags-it.md` | the ADR was already written by the integrator at `ae6bb2a63`; **one claim narrowed** — it said the four-side helper clears the flag, which the implementing change could not reach | yes |
+| `docs/development/adrs/0035-…-preserves-its-clearance-and-flags-it.md` | the ADR was already written by the integrator at `ae6bb2a63`; **one claim narrowed** — it said the four-side helper clears the flag, which the implementing change could not reach | yes |
 | `docs/superpowers/specs/2026-09-16-…-consolidate-design.md` | §7's *"every part — clearance and details included — is scaled about the anchor"* reworded and the amendment recorded in place | see note 2 above |
 | `tests/domain/asset/shapeEdits.test.ts` | **the two fixtures the card names, AMENDED not deleted**, plus six new cases | yes |
 | `tests/domain/asset/assetShape.test.ts` | the new refusal, its accept counterpart, the ordering pin, and the two exhaustive shape pins gaining the normalised field | yes |

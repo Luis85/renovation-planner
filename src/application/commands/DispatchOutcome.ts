@@ -151,9 +151,9 @@ export async function plainDispatch(versioned: Promise<VersionedDispatchResult>)
  * every consumer that reads them reads exactly what it read before, and the one consumer that
  * asks about persistence gets an answer nothing had to infer.
  *
- * **23 producers in 17 files, dated rather than trusted, because this count has already gone
- * stale FIVE times now — the fourth time inside the very edit that was fixing the third, and
- * this is the fifth.** BP-02 slice 2 task 2's own count paragraph said "23 lines … of which
+ * **24 producers in 18 files on 2026-10-01, dated rather than trusted, because this count has
+ * already gone stale SIX times now — the fourth time inside the very edit that was fixing the
+ * third, and the sixth by a merge (below).** BP-02 slice 2 task 2's own count paragraph said "23 lines … of which
  * that one is the self-count," naming exactly one self-match. That was already wrong the
  * moment it was written: the SAME edit added `AffectedEntityKind`'s docblock a few dozen lines
  * below, and that docblock quoted this identical grep pattern too, to explain how ITS
@@ -174,6 +174,10 @@ export async function plainDispatch(versioned: Promise<VersionedDispatchResult>)
  * stamping at all — see the empty-folder paragraph below — and has now moved back to 23 in 17
  * for the unrelated reason of a new producer arriving, which is worth stating so a reader does
  * not mistake the coincidence of matching numbers for the count having been reverted.
+ * Re-run on 2026-10-01, after `origin/main` merged into the beta branch: **26 lines, the same 2
+ * self-matches, 24 producers in 18 files** (six still spelling two calls). `main`'s
+ * `DuplicateAsset.ts` is the new one, and neither branch's copy of this paragraph could see it
+ * — a merge moves a count without touching the sentence that states it.
  *
  * **The DEFINITION below is out of the number too, and NOT because anything excluded it.**
  * It is spelled `markUncompensated<TError extends AppError>(`, so the pattern's `(` never
@@ -254,7 +258,9 @@ export interface UncompensatedWrite {
  * `StructureCommand.ts`, `GroupGeometryCommand.ts`, `ConfigurePlanReference.ts`,
  * `ConstructionMaterialCommand.ts`, `ObsidianPlanRepository.ts` and, since BP-02 slice 2 task 4
  * Part B, `relocateEvidence.ts` all name a `plan`;
- * `SetAssetBackground.ts` and `ReversibleAssetDesignCommands.ts` name an `asset`; and
+ * `SetAssetBackground.ts`, `ReversibleAssetDesignCommands.ts` and, since `main`'s AD13 met this
+ * branch, `DuplicateAsset.ts` name an `asset`; `composedSteps.ts`, `runSpatialCommand.ts` and
+ * `undoDeleteResolution.ts` stamp an empty list and name nothing; and
  * `noteEntityWrite.ts`'s `trashNoteBackedEntity`'s three real callers pass
  * `'asset'` (`ObsidianAssetRepository.ts`), `'asset-price'`
  * (`ObsidianAssetPriceOverrideRepository.ts`) and `'requirement'`

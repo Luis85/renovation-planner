@@ -888,10 +888,11 @@ file in that worker the reset — the setter's own docblock is the authority and
 sentence read "always answers `'en'`" for the whole of the branch that falsified it, in a
 paragraph the same branch edited by 179 lines: the count of a claim's readers is not the count
 of its editors.) **`Platform` is the mock's other mutable object, and `isMobile` is the member
-the suite drives most** — nine files under `tests/` assign it, counted by grepping
-`Platform.isMobile =` (eight test files, plus `tests/harness/theme.ts`'s `applyPlatform`, which
-`tests/harness/platform.test.ts` drives), against one file for `isMacOS`, the other one, whose
-only driver is `platformModifier`'s cases reaching the macOS arm. **The reset either owes is
+the suite drives most** — `grep -rlE "Platform\.isMobile = [^=]" tests/` lists the files that
+assign it (one of them `tests/harness/theme.ts`'s `applyPlatform`, which
+`tests/harness/platform.test.ts` drives), and the same grep for `isMacOS`, the other one, lists
+far fewer. **No count is kept here**: this one said nine while each branch measured ten, and the
+merge of the two summed them. **The reset either owes is
 WITHIN its own file, across that file's cases — not across the files in a worker**: only
 `build-lint` and `build` take `isolate: false` in `vitest.config.ts`, so every file in the
 `suite` project gets its own module registry and its own `Platform`, and

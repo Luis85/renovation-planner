@@ -239,7 +239,7 @@ const commandLabels = (browser: NativeBrowser, ids: readonly string[]): Promise<
 	);
 
 /** What a control renders, read whether or not a narrow pane shows it right now. */
-const textOf = async (element: Pane): Promise<string> => String(await element.getProperty('textContent')).trim();
+const textOf = async (element: Pane): Promise<string> => String(await (await element.getElement()).getProperty('textContent')).trim();
 
 /**
  * Every desktop control the guide quotes, walked to in the real host and read as it renders:
@@ -360,7 +360,7 @@ const focusIn = (browser: NativeBrowser, list: WebdriverIO.Element): Promise<{ r
 async function tabIntoRooms(browser: NativeBrowser, ui: Ui): Promise<{ list: WebdriverIO.Element; ids: string[]; before: string | null }> {
 	await seedSampleProject(browser, ui);
 	await openDetails(browser);
-	const list = await browser.$(EDITOR).$('[data-rp-region="inspector"]').$('.rp-room-list');
+	const list = await browser.$(EDITOR).$('[data-rp-region="inspector"]').$('.rp-room-list').getElement();
 	await expect.poll(() => list.isDisplayed()).toBe(true);
 	const ids = (await list.$$('.rp-room-list__row').map((row) => row.getAttribute('data-rp-id'))).map(String);
 	expect(ids).toHaveLength(3);

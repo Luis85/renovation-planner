@@ -115,8 +115,10 @@ export async function sidecarPath(browser: NativeBrowser): Promise<string> {
 	return paths[0];
 }
 
-export const readSidecar = (browser: NativeBrowser, path: string): Promise<string> =>
-	browser.executeObsidian(({ app }, file) => app.vault.adapter.read(file), path);
+// `executeObsidian` types its result as a promise of the callback's own return, which is already a
+// promise here; the `await` unwraps both.
+export const readSidecar = async (browser: NativeBrowser, path: string): Promise<string> =>
+	await browser.executeObsidian(({ app }, file) => app.vault.adapter.read(file), path);
 
 export async function outlineOf(browser: NativeBrowser, path: string, zoneId: string): Promise<StoredPoint[]> {
 	const stored = JSON.parse(await readSidecar(browser, path)) as { objects: StoredObject[] };

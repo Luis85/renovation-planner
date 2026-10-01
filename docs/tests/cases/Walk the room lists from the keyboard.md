@@ -36,7 +36,7 @@ they do not claim.
 
 | # | Reachable by | Do this | It passes when | It exists to catch |
 | --- | --- | --- | --- | --- |
-| 1 | `browser` | Click the Floor inspector's guidance sentence, "Select a room on the canvas or from the list to see its details." (it is text, not a control), then press `Tab`. If focus lands anywhere else, press `Tab` from the control just above the **Rooms** heading instead, and record which control that was | Focus lands on the **first** row of the **Rooms** list | The list's Tab stop sitting on some row other than the first on a fresh open, or the list not being in the Tab order at all |
+| 1 | `browser` | Click the **Kind** label in the Floor inspector, above the Rooms, Areas and Total area figures. That puts focus on the Kind select without opening it, and it is the last control before the Rooms list. Then press `Tab` once | Focus lands on the **first** row of the **Rooms** list | The list's Tab stop sitting on some row other than the first on a fresh open, or the list not being in the Tab order at all |
 | 2 | `browser` | Press `Tab` once more | Focus leaves the Rooms list: with the sample's Areas it lands on the **first row of the Areas list** — the inspector's second stop, see *Limits* — and never on the second Rooms row or on any lock | The one-stop rule itself. Before L-46 every row AND every lock was its own stop, so this press reached the first row's lock |
 | 3 | `suite` | Press `Shift+Tab` to return to the Rooms list's first row, then `ArrowDown` twice, then `ArrowDown` once more, then `ArrowUp` once | `ArrowDown` twice moves focus to the third row; the third `ArrowDown` leaves it on the third (the last — the list does not wrap); `ArrowUp` moves it to the second row. Moving focus selects nothing | The arrows moving focus without moving the Tab stop with it, and a wrap from the last row to the first |
 | 4 | `browser` | With focus on the second row, press `Tab` to leave the list, then `Shift+Tab` | Focus comes back to the **second** row — the row you left from — and not to the first | The Tab stop following the first row rather than the last focused one. A stop that resets on every exit makes a long list useless from the keyboard |
@@ -55,8 +55,8 @@ record against the steps above.
 
 - **No composite role.** The rows stay plain buttons in a plain list, because a `listbox` option
   may not contain the lock button. So nothing tells a screen reader in focus or forms mode that the
-  arrows move between rows. Its reading (browse) mode still reaches every row and lock. Step 11
-  records how that turns out in practice.
+  arrows move between rows. How a screen reader's reading (browse) mode treats the rows and locks
+  is not verified; step 11 records it.
 - **No `Home` or `End`.** Only the four arrow keys are handled. Getting to the far end of a long
   list takes repeated `ArrowDown`.
 - **The Tab stop follows focus, not the canvas selection.** Selecting a room on the canvas does not
@@ -68,7 +68,7 @@ record against the steps above.
 
 | Steps | Covered by | What it does not see |
 | --- | --- | --- |
-| 1–4 | `tests/e2e/nextActionWalk.e2e.ts` › "the Rooms list keyboard (L-46)" › *is one Tab stop, the arrows move between rooms, and Shift+Tab returns to the same row*, in real Obsidian on the Floor inspector's Rooms list | It enters the list from whichever focusable control comes just before it, not by the click in step 1, and after the `Tab` out it checks only that focus left the list, not where it landed. It does not press `ArrowDown` past the last row or `ArrowUp`; `roomSummaryList.test.ts` covers the no-wrap clamp in jsdom |
+| 1–4 | `tests/e2e/nextActionWalk.e2e.ts` › "the Rooms list keyboard (L-46)" › *is one Tab stop, the arrows move between rooms, and Shift+Tab returns to the same row*, in real Obsidian on the Floor inspector's Rooms list | It enters the list from whichever focusable control comes just before it, found by document order rather than by clicking the **Kind** label as step 1 does, and after the `Tab` out it checks only that focus left the list, not where it landed. It does not press `ArrowDown` past the last row or `ArrowUp`; `roomSummaryList.test.ts` covers the no-wrap clamp in jsdom |
 | 5, 6, 8 | the same `describe` › *reaches a room's lock with ArrowRight, toggles it with Enter, and returns with ArrowLeft* — reads the lock's `aria-label` before and after and `aria-pressed` as absent, and polls the zone note for `locked: true` | `Space` (step 7), and step 8's `ArrowDown` from the lock (`roomSummaryList.test.ts` has that in jsdom) |
 | 3, 5, 8 | `tests/presentation/editor/shell/roomSummaryList.test.ts` › "RoomSummaryList keyboard (one Tab stop)", in jsdom | Anything a real engine does: real `Tab` order, `Enter` or `Space` turning into a click, a visible ring |
 | 2, 9 | `tests/harness/roomsKnob.test.ts` › *?rooms=40 costs one Tab stop per rooms list, not two per row*, in jsdom over the harness's Plan editor mount: every `.rp-room-list`, Layers and Floor inspector alike, has exactly one control at `tabIndex >= 0`, its first row | A real `Tab` press, real Obsidian, and the arrows and lock in the Layers list |

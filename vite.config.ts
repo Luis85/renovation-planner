@@ -58,7 +58,7 @@ export default defineConfig(({ mode }) => ({
 	 * The value follows `mode`: `'production'` unless `--mode development`, which keeps Vue's
 	 * warnings for `test-build` exactly as it keeps the inline sourcemap below. The suite and
 	 * the harness have their own configs and stay in development mode.
-	 * `tests/gates/prototypes-not-bundled.test.ts` asserts the release reads no `process.env`.
+	 * `tests/gates/release-bundle.test.ts` asserts the release reads no `process.env`.
 	 */
 	define: {
 		'process.env.NODE_ENV': JSON.stringify(mode === 'development' ? 'development' : 'production'),

@@ -126,6 +126,25 @@ describe('the numeric outline editor over every zone type', () => {
 		r.harness.unmount();
 	});
 
+	/**
+	 * The curved exemption itself (review M-3): corner 4 dips below edge 0, so the CHORDS cross,
+	 * but edge 0 is a semicircle bulging below it and corner 4 sits inside — the arcs do not.
+	 * `writableOutline` must not ask the chord crossing rule of a curved outline; with that
+	 * `hasCurves(...) ||` arm removed this preview is null and nothing is written.
+	 */
+	it('edits a curved zone whose chords cross while its arcs do not', async () => {
+		const points = [{ x: 0, y: 0 }, { x: 1000, y: 0 }, { x: 1000, y: 1000 }, { x: 500, y: -300 }, { x: 0, y: 1000 }];
+		const bulges = [1, 0, 0, 0, 0];
+		const r = await rig(reshaped('Garden', { points, bulges }));
+		const runtime = runtimeOf(r.harness);
+		await open(r);
+		await form(r).get('[name="4.x"]').setValue('0.05');
+		expect(runtime.renderState.previewPolygon?.[4]).toEqual({ x: 50, y: 1000 });
+		await apply(r);
+		expect((await read(r)).entity.geometry).toEqual({ points: [...points.slice(0, 4), { x: 50, y: 1000 }], bulges });
+		r.harness.unmount();
+	});
+
 	it('previews without writing, applies once, and reverses to the exact prior geometry', async () => {
 		const r = await rig(reshaped('Terrace'));
 		const runtime = runtimeOf(r.harness), before = await read(r);

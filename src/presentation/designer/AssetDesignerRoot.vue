@@ -581,8 +581,10 @@ function onCanvasKeyDown(event: KeyboardEvent): void {
  * with nothing to undo, as the Plan Editor does, unlike the Ctrl+G rule in `designerKeys.ts`.
  *
  * `gesture` is the toolbar's `blocked()`: a tool's press still held, or a camera pan. `writesBlocked` is
- * `false` because this surface blocks no write — `runtime.ts`'s `writesBlocked: () => false` carries why
- * (AD18-R13); the toolbar's Undo and Redo gate on `canUndo`/`canRedo` alone as well.
+ * `false` here because the gate this shortcut needs is already inside `canUndo`/`canRedo`: since L-16
+ * `runtime.ts`'s `designerDispatcher` folds an open write incident into both, and a stale re-read blocks
+ * nothing on this surface (AD18-R13, `runtime.ts`'s `writesBlocked` comment). The toolbar's Undo and Redo
+ * gate on `canUndo`/`canRedo` alone as well.
  * `modal` is a `DialogHost` dialog. The host is the root's last child, a sibling of the regions rather than
  * nested in one: it makes its parent's OTHER children inert while a dialog is open, so every region has to
  * be a sibling of it for the background to actually go inert.

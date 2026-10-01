@@ -432,12 +432,7 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	// cannot see and does not need to: `hasLocaleKey` asks `key in en`, and a key spread through
 	// `en/editor.ts` satisfies that identically. The aggregators are integrator-owned, which is why
 	// it is in the card's own module.
-	[
-		'asset.absent-clearance-cannot-need-review',
-		'Validation',
-		'error.category.validation',
-		'domain/asset/AssetShape.ts',
-	],
+	['asset.absent-clearance-cannot-need-review', 'Validation', 'error.category.validation', 'domain/asset/AssetShape.ts'],
 	// The symbols spec's detail validation (2026-09-13).
 	['asset.invalid-detail', 'Validation', 'error.category.validation', 'domain/asset/AssetDetail.ts'],
 	['asset.degenerate-detail', 'Validation', 'error.category.validation', 'domain/asset/AssetDetail.ts'],

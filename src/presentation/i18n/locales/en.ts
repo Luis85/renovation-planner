@@ -205,10 +205,12 @@ export const en = {
 	//
 	// `calibration.invalid-distance` is deliberately absent, and slice 17 is where that was
 	// decided: `KnownDistanceForm` disables its submit unless the value parses positive and
-	// finite, so no user can raise it. `calibration.degenerate-scale` has TWO raise sites —
-	// a derived scale that collapsed, and a rescale whose product overflowed — and one
-	// sentence covers both, because from the user's side they are the same event: the two
-	// points and the distance do not describe a usable scale.
+	// finite, so no user can raise it. `calibration.degenerate-scale` is raised for THREE
+	// failures — a derived scale that collapsed (`deriveCalibration`), a rescale whose
+	// coordinates overflowed (a plan's and an asset's calibration both), and a rescale that
+	// collapsed or overflowed a room's area with every coordinate finite (a plan's alone) — and
+	// one sentence covers all three, because from the user's side they are the same event: the
+	// two points and the distance do not describe a usable scale.
 	'calibration.coincident-points':
 		'Those two points are in the same place. Pick two points with a real distance between them.',
 	'calibration.degenerate-scale':

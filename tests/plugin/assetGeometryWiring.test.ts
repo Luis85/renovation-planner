@@ -152,7 +152,7 @@ describe('the asset designer the composition root hands out', () => {
 
 	/**
 	 * Every door of the bundle, under its OWN event name. The asset repository is what all
-	 * seven read first, so detonating it faults each of them below the boundary — and a door
+	 * eight read first, so detonating it faults each of them below the boundary — and a door
 	 * composed raw REJECTS rather than resolving, which is what makes this a check on the
 	 * composition rather than on `guardCommand`.
 	 */

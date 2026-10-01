@@ -178,12 +178,20 @@ export async function recordSaveStates(browser: NativeBrowser): Promise<void> {
 export const saveStates = (browser: NativeBrowser): Promise<string[]> =>
 	browser.execute(() => (window as unknown as { __rpSaveLog?: string[] }).__rpSaveLog ?? []);
 
-/** The indicator as it reads now: its state class and its word. */
+/**
+ * The indicator as it reads now: its state class and its word as a screen reader gets it — the text
+ * with every `aria-hidden` descendant left out. Once a write has landed `SaveStateIndicator.vue`
+ * draws a visually-hidden `Saved` beside an `aria-hidden` relative time, so the whole `textContent`
+ * is `SavedSaved just now`; this reads `Saved` in both shapes, and goes on reading it as the minute
+ * tick moves the visible phrase.
+ */
 export const saveLabel = (browser: NativeBrowser): Promise<{ state: string; text: string }> =>
 	browser.execute((editor: string) => {
 		const label = document.querySelector(`${editor} .rp-save-state-label`);
+		const spoken = label?.cloneNode(true) as Element | undefined;
+		for (const hidden of spoken?.querySelectorAll('[aria-hidden="true"]') ?? []) hidden.remove();
 		return {
 			state: label ? ([...label.classList].find((name) => name !== 'rp-save-state-label') ?? '') : 'absent',
-			text: label?.textContent?.trim() ?? '',
+			text: spoken?.textContent?.trim() ?? '',
 		};
 	}, EDITOR);

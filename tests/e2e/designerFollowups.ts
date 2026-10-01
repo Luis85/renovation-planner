@@ -2,6 +2,7 @@ import { expect } from 'vitest';
 import type { NativeBrowser } from './session';
 import type { DesignerPage, Sidecar } from './designer';
 import { createCanvasPage } from './designerCanvas';
+import { setWindowSize as sizeWindow } from './helpers';
 
 export interface ScreenBox { x: number; y: number; width: number; height: number }
 interface Extent { minX: number; maxX: number; minY: number; maxY: number; width: number; depth: number }
@@ -137,12 +138,9 @@ export function createFollowupsPage(browser: NativeBrowser, designer: DesignerPa
 			return canvas.getBoundingClientRect().toJSON() as DOMRect;
 		});
 
-	/** The Obsidian window's own size, through Electron — WebDriver's `window/rect` is refused by this host. */
+	/** The Obsidian window's own size (`setWindowSize` in `helpers.ts`), answered once the canvas has followed it. */
 	const setWindowSize = async (width: number, height: number): Promise<void> => {
-		await browser.executeObsidian(({ require: load }, w, h) => {
-			const electron = (load as (id: string) => { remote: { getCurrentWindow(): { setSize(a: number, b: number): void } } })('electron');
-			electron.remote.getCurrentWindow().setSize(w, h);
-		}, width, height);
+		await sizeWindow(browser, width, height);
 		// Until the canvas has stopped moving: the stage resizes a frame or more after the window does,
 		// and a handle read before then is somewhere the next press will not find it.
 		let last = '';

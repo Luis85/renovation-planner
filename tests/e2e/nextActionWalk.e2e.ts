@@ -2,7 +2,7 @@ import { describe, expect } from 'vitest';
 import { en } from '../../src/presentation/i18n/locales/en';
 import { test } from './fixture';
 import { writeEvidence } from './diagnostics';
-import { noticeMessages } from './helpers';
+import { noticeMessages, setWindowSize } from './helpers';
 import {
 	dragCorner,
 	outlineOf,
@@ -87,13 +87,10 @@ const zoneNamed = async (ui: Ui, name: string): Promise<[string, Record<string, 
  * There the editor leaf is narrower than `FULL_MIN_PX` (`layoutMode.ts`), so selecting a room opens
  * the Inspector as a drawer OVER the stage — on top of the very corners these cases press, which
  * `dragCorner` then refuses. At this size the shell is `full` and the Inspector sits beside the stage.
- * Obsidian's chromedriver refuses `setWindowSize`; Electron sizes it instead (`dialogFooter.e2e.ts`).
+ * Electron sizes it (`setWindowSize` in `helpers.ts`).
  */
 async function widenWindow(browser: NativeBrowser): Promise<void> {
-	await browser.executeObsidian(() => {
-		const electron = window as unknown as { require(id: string): { getCurrentWindow(): { setSize(w: number, h: number): void } } };
-		electron.require('@electron/remote').getCurrentWindow().setSize(1280, 1024);
-	});
+	await setWindowSize(browser, 1280, 1024);
 	await expect.poll(() => browser.execute(() => window.innerWidth)).toBeGreaterThanOrEqual(1270);
 }
 
@@ -105,7 +102,10 @@ async function seedBathroomOutline(browser: NativeBrowser, page: Page, ui: Ui, p
 	await rewriteOutline(browser, page, id, points);
 	await openPlan(browser, ui, en['sample.plan.name']);
 	await selectRoom(browser, en['sample.zone.bathroom']);
-	// The Inspector docked beside the stage rather than drawn over it (`widenWindow`).
+	// The Inspector docked beside the stage rather than drawn over it (`widenWindow`). The margin is
+	// thin: at 1280 the leaf is about 936 px against `FULL_MIN_PX`'s 900, so ~36 px of headroom. A
+	// red HERE reading `constrained` is the host's default sidebar width moving, not a product
+	// defect: widen the window further (or collapse a sidebar) rather than loosening this pin.
 	expect(await browser.$(EDITOR).$('.rp-editor-shell').getAttribute('data-layout')).toBe('full');
 	// Selecting from the list frames the camera on the room; a point read mid-frame is wrong.
 	await settleCamera(browser);

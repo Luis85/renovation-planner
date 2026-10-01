@@ -18,6 +18,30 @@ export const noticeMessages = (browser: NativeBrowser, scope = '.notice-containe
 		scope,
 	);
 
+/** The renderer's own `require`, as far as the two window helpers below reach through it. */
+type ElectronRequire = { require(id: '@electron/remote'): { getCurrentWindow(): { getSize(): number[]; setSize(width: number, height: number): void } } };
+
+/**
+ * The Obsidian window's outer size, through Electron: Obsidian's chromedriver refuses WebDriver's
+ * own `window/rect` (`Browser.getWindowForTarget` wasn't found). The suite's one spelling of a
+ * window resize: five copies had it, in two shapes (`@electron/remote` and `electron.remote`).
+ */
+export const windowSize = async (browser: NativeBrowser): Promise<{ width: number; height: number }> => {
+	const [width = 0, height = 0] = await browser.execute(() =>
+		(window as unknown as ElectronRequire).require('@electron/remote').getCurrentWindow().getSize(),
+	);
+	return { width, height };
+};
+
+/** Size the window (see `windowSize`). It answers once Electron has taken the size, not once the page has laid out to it. */
+export const setWindowSize = async (browser: NativeBrowser, width: number, height: number): Promise<void> => {
+	await browser.execute(
+		(w: number, h: number) => (window as unknown as ElectronRequire).require('@electron/remote').getCurrentWindow().setSize(w, h),
+		Math.round(width),
+		Math.round(height),
+	);
+};
+
 export type PlannerPage = ReturnType<typeof createPlannerPage>;
 
 /** The plugin's surfaces as a user reaches them: commands, the ribbon, the view's own controls. */

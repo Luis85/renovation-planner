@@ -137,6 +137,7 @@ describe('Recover an asset design rather than lose it, the rows the first pass l
 		const designer = createDesignerPage(browser, page, ui);
 		const assetId = await designer.createAsset('Half-undone hob');
 		const calibrated = await referenceSheet(designer, assetId);
+		const original = designer.readSidecar(assetId);
 		await removeReference(designer, assetId, calibrated + 1);
 		await expect.poll(() => designer.designer().$('.rp-designer-reference-fields').isExisting()).toBe(false);
 
@@ -155,6 +156,21 @@ describe('Recover an asset design rather than lose it, the rows the first pass l
 			expect(await designer.notices()).toEqual([]);
 			expect(await staleNotice(designer).isExisting()).toBe(false);
 			expect(await designer.designer().$$('[role="alert"]').length).toBe(0);
+			// UNSTAMPED: the put-back landed, so the refusal is `raced(cause)` and not
+			// `markUncompensated`, whose `unrecoveredWrite` is what disables Undo and Redo (`runtime.ts`).
+			// Red under `putNoteBack`'s ok arm returning `err(markUncompensated(cause, …))`.
+			expect(await designer.undoDisabled()).toBe(false);
+
+			// ... and the inverse was KEPT: with the sidecar writable again, the same Undo re-runs the
+			// whole restore and both halves come back. Every assertion above also holds for an undo that
+			// wrote nothing, which this tells apart. Red under `undo` clearing `this.inverse` before its
+			// writes (the retry answers `no-write`), and under `CommandHistory.undoNow` popping a failed
+			// command (the retry then undoes the calibration instead, and the sheet stays gone).
+			chmodSync(designer.sidecarPath(assetId), 0o644);
+			await designer.undoButton().click();
+			await expect.poll(() => designer.readSidecar(assetId).revision).toBe(calibrated + 2);
+			expect(designer.readSidecar(assetId).calibration).toEqual(original.calibration);
+			await expect.poll(() => noteBackground(browser, 'Half-undone hob')).toBe(FIXTURE_PNG);
 		} finally {
 			chmodSync(designer.sidecarPath(assetId), 0o644);
 		}

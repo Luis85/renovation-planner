@@ -62,7 +62,7 @@ export function createDesignerPage(browser: NativeBrowser, page: ObsidianPage, u
 		return text.split('\n').at(-1) ?? text;
 	};
 
-	/** Every toast currently in the notice container, as its message alone (`notices` in `helpers.ts`). */
+	/** Every toast currently in the notice container, as its message alone (`noticeMessages` in `helpers.ts`). */
 	const notices = (): Promise<string[]> => noticeMessages(browser);
 
 	const submitDialog = async (fill: (form: ReturnType<typeof browser.$>) => Promise<void>): Promise<void> => {

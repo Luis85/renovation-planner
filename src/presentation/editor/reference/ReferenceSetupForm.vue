@@ -4,6 +4,7 @@ import { nativeSubmitKey as keydown } from "../forms/nativeSubmitKey";
 import { useDialogFormBusy } from '../../composables/use-dialog-form-busy';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, toRaw, watch, type Ref } from 'vue';
 import type { Point } from '../../../core/geometry/Point';
+import type { ReferenceAppearance } from '../../../domain/plan/ReferenceAppearance';
 import type { ConfigureReferenceInput, ReferenceBaseline } from '../../../application/commands/plan/ConfigurePlanReference';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { Logger } from '../../../application/ports/Logger';
@@ -25,7 +26,7 @@ const emit = defineEmits<{ submit: [] }>();
 const candidates = props.vault.getFiles?.().filter(file => backgroundKindFor(file.path) !== null).map(file => file.path) ?? [];
 const previous = props.baseline.plan.entity;
 const calibration = props.baseline.geometry.document.calibration;
-const path = ref(previous.background?.path ?? ''), page = ref(previous.background?.page ?? 1), step = ref(1);
+const path = ref(previous.background?.path ?? ''), page = ref<number | ''>(previous.background?.page ?? 1), step = ref(1);
 // ONE canonical spelling, normalized once: a vault event carries `TFile.path`, and comparing
 // the raw text against it let a `/scan.png` draft miss its own file's change and persist a
 // spelling `BackgroundLayer` would never match either (a Codex P2 on pull request #85).
@@ -34,7 +35,7 @@ const raster = ref<Extract<BackgroundRenderModel, { kind: 'raster' }> | null>(nu
 const submitting = ref(false);
 useDialogFormBusy(submitting, props.busy);
 const loading = ref(false), error = ref(''), conflict = ref(false), acknowledged = ref(false);
-const appearance = reactive({ crop: { x: 0, y: 0, width: 1, height: 1 }, rotation: 0, opacity: 0.65, visible: true, locked: true });
+const appearance = reactive({ crop: { x: 0, y: 0, width: 1, height: 1 }, rotation: 0 as number | '', opacity: 0.65, visible: true, locked: true });
 const coordinates = reactive({ ax: '', ay: '', bx: '', by: '' });
 const length = ref(calibration ? String(calibration.knownDistance / 1000) : '');
 const heading = ref<HTMLElement | null>(null);
@@ -47,7 +48,15 @@ const previewPoints = computed(() => ([['ax', 'ay'], ['bx', 'by']] as const).map
 	const a = coordinates[x], b = coordinates[y];
 	return String(a).trim() !== '' && String(b).trim() !== '' && Number.isFinite(Number(a)) && Number.isFinite(Number(b)) ? { x: Number(a), y: Number(b) } : null;
 }));
-const prepared = computed(() => raster.value !== null && prepareValid(appearance, raster.value.width, raster.value.height));
+// A cleared rotation field holds '' (L-48), so the appearance is only an appearance once it is a
+// number: a read that can meet a cleared field goes through here and gets null. Steps 2 and 3
+// cannot (a cleared rotation un-prepares step 1, and only a prepared step 1 moves on), so the
+// commit and the review read it through `Number()` rather than re-asking.
+const settled = computed<ReferenceAppearance | null>(() => {
+	const { rotation } = appearance;
+	return rotation === '' ? null : { ...appearance, rotation };
+});
+const prepared = computed(() => raster.value !== null && settled.value !== null && prepareValid(settled.value, raster.value.width, raster.value.height));
 const pointStates = computed(() => previewPoints.value.map((point, index) => ({
 	label: index === 0 ? 'A' : 'B',
 	selected: point !== null,
@@ -57,9 +66,9 @@ const pointStates = computed(() => previewPoints.value.map((point, index) => ({
 		: index === 0 ? 'editor.reference.point-a-ready' : 'editor.reference.point-b-ready'),
 })));
 const scale = computed(() => {
-	const [a, b] = points.value, c = appearance.crop;
-	if (!prepared.value || !a || !b || !raster.value || ![a, b].every(p => p.x >= c.x && p.x <= c.x + c.width && p.y >= c.y && p.y <= c.y + c.height)) return null;
-	return setupMeasurement([a, b], length.value, appearance, raster.value.worldScale, calibration);
+	const [a, b] = points.value, shown = prepared.value ? settled.value : null, c = appearance.crop;
+	if (shown === null || !a || !b || !raster.value || ![a, b].every(p => p.x >= c.x && p.x <= c.x + c.width && p.y >= c.y && p.y <= c.y + c.height)) return null;
+	return setupMeasurement([a, b], length.value, shown, raster.value.worldScale, calibration);
 });
 const reviewScale = computed(() => scale.value === null ? tr('editor.reference.invalid-scale') : tr('editor.reference.scale-summary', { scale: Number(scale.value.millimetresPerSourcePixel.toPrecision(6)).toLocaleString(), length: length.value }));
 const needsConsent = computed(() => (props.baseline.geometry.document.objects.length > 0 || [props.baseline.geometry.document.structure, props.baseline.geometry.document.intended].some(structure => structure && (structure.walls.length > 0 || (structure.elements?.length ?? 0) > 0))) && scale.value?.scaleCorrection !== 1);
@@ -73,12 +82,13 @@ onBeforeUnmount(() => { alive = false; invalidate(); });
 function anotherDistance(): void { Object.assign(coordinates, { ax: '', ay: '', bx: '', by: '' }); length.value = ''; nextPoint = 0; acknowledged.value = false; }
 function initialise(model: Extract<BackgroundRenderModel, { kind: 'raster' }>): void {
 	const same = previous.background?.path === sourcePath.value && (previous.background.page ?? 1) === Number(page.value);
-	Object.assign(appearance, same && previous.background?.appearance ? structuredClone(previous.background.appearance)
-		: { crop: { x: 0, y: 0, width: model.width, height: model.height }, rotation: 0, opacity: 0.65, visible: true, locked: true });
+	const next: ReferenceAppearance = same && previous.background?.appearance ? structuredClone(previous.background.appearance)
+		: { crop: { x: 0, y: 0, width: model.width, height: model.height }, rotation: 0, opacity: 0.65, visible: true, locked: true };
+	Object.assign(appearance, next);
 	if (same && calibration) {
-		const angle = -appearance.rotation * Math.PI / 180, worldScale = model.worldScale / calibration.pixelsPerWorldUnit;
-		const invert = (p: Point) => ({ x: (p.x * Math.cos(angle) - p.y * Math.sin(angle)) / worldScale + appearance.crop.x,
-			y: (p.x * Math.sin(angle) + p.y * Math.cos(angle)) / worldScale + appearance.crop.y });
+		const angle = -next.rotation * Math.PI / 180, worldScale = model.worldScale / calibration.pixelsPerWorldUnit;
+		const invert = (p: Point) => ({ x: (p.x * Math.cos(angle) - p.y * Math.sin(angle)) / worldScale + next.crop.x,
+			y: (p.x * Math.sin(angle) + p.y * Math.cos(angle)) / worldScale + next.crop.y });
 		const a = invert(calibration.pointA), b = invert(calibration.pointB);
 		Object.assign(coordinates, { ax: String(a.x), ay: String(a.y), bx: String(b.x), by: String(b.y) });
 	} else anotherDistance();
@@ -120,7 +130,7 @@ async function commit(): Promise<void> {
 	submitting.value = true;
 	try {
 		const result = await props.dispatch({ background: { path: sourcePath.value, kind: sourceKind,
-			...(sourceKind === 'pdf' ? { page: Number(page.value) } : {}), appearance: structuredClone(toRaw(appearance)) }, measurement: scale.value.measurement });
+			...(sourceKind === 'pdf' ? { page: Number(page.value) } : {}), appearance: { ...structuredClone(toRaw(appearance)), rotation: Number(appearance.rotation) } }, measurement: scale.value.measurement });
 		if (!alive) return;
 		if (result.ok) emit('submit');
 		else { error.value = trError(result.error); conflict.value = WRITE_BOUNDARY_CODES.some(code => result.error.code.endsWith(`.${code}`)); }
@@ -169,9 +179,9 @@ onMounted(() => { if (path.value) void load(); });
 			:class="{ 'has-preview': raster && prepared }"
 		>
 			<ReferencePreview
-				v-if="raster && prepared"
+				v-if="raster && settled && prepared"
 				:raster="raster"
-				:appearance="appearance"
+				:appearance="settled"
 				:on-theme-change="onThemeChange"
 				:points="previewPoints"
 				:measuring="step === 2 && !paused"
@@ -212,7 +222,7 @@ onMounted(() => { if (path.value) void load(); });
 					v-model:acknowledged="acknowledged"
 					:path="path"
 					:page="kind === 'pdf' ? Number(page) : null"
-					:rotation="appearance.rotation"
+					:rotation="Number(appearance.rotation)"
 					:crop="appearance.crop"
 					:scale-summary="reviewScale"
 					:factor="Number(scale?.scaleCorrection?.toPrecision(6)).toLocaleString()"

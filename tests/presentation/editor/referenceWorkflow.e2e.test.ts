@@ -157,6 +157,16 @@ describe('M05 → M06 in the real editor with FakeVault repository commands', ()
 		await submit(r); expect(r.harness.wrapper.text()).toContain('two different points'); await field(r, 'bx', '900'); await field(r, 'length', '2'); await submit(r);
 		expect(r.harness.wrapper.text()).toContain('two different points'); await cancel(r); r.harness.unmount();
 	});
+	it('reads a cleared rotation as no appearance: no preview, no Continue, and a retyped one restores both', async () => {
+		const r = await rig(); await open(r); await prepare(r);
+		expect(r.harness.wrapper.find('.rp-reference-preview').exists()).toBe(true);
+		await field(r, 'rotation', '');
+		expect(r.harness.wrapper.find('.rp-reference-preview').exists()).toBe(false);
+		await submit(r); expect(r.harness.wrapper.text()).toContain('positive crop');
+		await field(r, 'rotation', '0'); expect(r.harness.wrapper.find('.rp-reference-preview').exists()).toBe(true);
+		await submit(r); expect(r.harness.wrapper.find('input[name="length"]').exists()).toBe(true);
+		await cancel(r); r.harness.unmount();
+	});
 	it.each(['missing', 'unreadable'] as const)('offers retry after %s source and invalidates a changed source', async reason => {
 		const r = await rig(); await open(r); r.load.mockResolvedValueOnce({ kind: 'unavailable', reason }); await prepare(r);
 		expect(r.harness.wrapper.text()).toContain(reason === 'missing' ? 'missing' : 'Cannot read');

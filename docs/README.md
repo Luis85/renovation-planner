@@ -8,6 +8,17 @@ To see it as a tree, open this repository as an Obsidian vault (`npm run test-bu
 installs *this* plugin into it) and open `Product Backlog.base`. That view belongs to the
 [Product Backlog](https://github.com/Luis85/backlog-view) plugin, which has to be installed in the vault too.
 
+## User guides and the first beta
+
+The pages a person trying the plugin reads are not backlog notes, and sit at this folder's
+root: [Plan a renovation from the floor](using-plan-editor.md),
+[Design an object for the asset library](using-asset-designer.md), [Item colors](using-item-colors.md),
+[Working with saved data](using-planning-recovery.md) — which holds the compatibility table and
+[Back up and restore](using-planning-recovery.md#back-up-and-restore) — and
+[Known limitations](known-limitations.md). They describe implemented behaviour, not verified
+behaviour. The first beta's status — gates, owner decisions, candidate record, go/no-go — lives
+in [first beta readiness](releases/first-beta-readiness/README.md) and nowhere else.
+
 ## Proposed editor usability increment
 
 The [2026-09-13 usability consolidation package](user-experience/editor-usability-increment/README.md)
@@ -26,7 +37,7 @@ participant/native acceptance complete. The original received editor designs rem
 | `bugs/` | Defects, with what was learned from them | `Bug` |
 | `deliverables/` | An artifact a Feature owes — the thing itself, not a promise of it. Derived, and edited as the design is refined | `Deliverable` |
 | `iterations/` | The time boxes work is scheduled into. A marker: it states a date rather than work, and holds nothing | `Iteration` |
-| `tests/cases/` | One live-vault check each, walked before a release | `Test case` |
+| `tests/cases/` | One live-vault check each, meant to be walked before a release; each case's `## Runs` table says whether it has been | `Test case` |
 | `adrs/` | **How** it is built — architecture decision records | *(none — not backlog items)* |
 | `prds/` | Requirements documents as received, which the epics here are derived from | *(none — not backlog items)* |
 | `sdds/` | Design documents as received, the architecture those epics are built against | *(none — not backlog items)* |
@@ -318,8 +329,9 @@ What "says something" means, per kind:
   historical rather than arguable.
 - **`Test case`** — the checks CI cannot run: appearance under a community theme, whether
   the ribbon opens the pane, anything needing a real Obsidian. `RELEASING.md`'s pre-tag
-  sweep is these notes; each carries a `cadence:` of `release` (walk it every time) or
-  `conditional` (its own trigger, stated in its own prose).
+  sweep is these notes. The schema gives each a `cadence:` of `release` (walk it every time)
+  or `conditional` (its own trigger, stated in its own prose); no case under `tests/cases/`
+  carries one yet.
 - **`Bug`** — the lesson is the point. The fix is in git; what the defect taught is not.
 - **`Iteration`** — a marker: it states a date range rather than work, hangs from nothing and
   holds nothing. What puts an item *in* it is the item's own `iteration:` link, never a list

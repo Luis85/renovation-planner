@@ -1,9 +1,11 @@
 # Working with saved data and recoverable drafts
 
 The Plan editor stores project records in vault notes and geometry sidecars. Keep a separate
-backup of the whole vault before trying a pre-release build, including `.rpgeo` files, the
-asset library and linked evidence. Restoring only a Plan note can leave its geometry or
-references from another point in time.
+backup of the whole vault before trying a pre-release build: what it has to contain, how to
+restore it and what a restore cannot do are in [Back up and restore](#back-up-and-restore).
+Restoring only a Plan note can leave its geometry or references from another point in time.
+What this build does not do or has not been checked to do is in
+[Known limitations](known-limitations.md).
 
 ## Saved · refresh needed
 
@@ -221,6 +223,86 @@ rather than a migration one, so it reads as damaged data rather than as "this bu
 | Evidence files | where they were added | — | Ordinary vault files. Unlinking removes the link, not the file. |
 | Open tabs | Obsidian's workspace layout | `planId`, `origin`, `unrecoveredWrite` (Plan editor); `projectId`, `section`, `origin` (Renovation project); `assetId` (Asset designer); `assetId`, `expanded` (Asset library) | Which project, plan or asset a tab shows, and whether a plan tab saw an unrecovered write. |
 
-Browser and automated evidence is recorded in the
-[Increment E report](user-experience/renovation-planner-editor-specs/implementation/planning-recovery-evidence.md).
-Live Obsidian, assistive-technology and native zoom acceptance are tracked separately.
+## Back up and restore
+
+A backup is only useful if every file it holds comes from **the same moment**. The plugin's
+records point at each other across files — a Plan note and its geometry sidecar, a placement and
+the asset it places, a requirement and the room it is measured from — so a set copied at
+different times can disagree even when every file in it is valid on its own.
+
+### What a coherent backup contains
+
+The simplest coherent backup is a copy of the **whole vault folder, including its `.obsidian`
+folder**, taken while Obsidian is closed. If you back up less than that, it must still contain all
+of the following, from one moment:
+
+- **Each project's folder, in full** — the folder holding its `Project.md`. That covers the Plan,
+  Room, Requirement, Asset price and Quote notes, the `Geometry/` folder with each plan's `.rpgeo`
+  sidecar, the generated Review and Shopping notes beside each plan note, and the `Evidence/`
+  folder beside the plan notes where imported files and evidence notes are created.
+- **The asset library folder, in full** (`Renovation/Library` unless you changed it in settings).
+  It holds the Asset notes, each asset's `.rpgeo` sidecar in its own `Geometry/` folder, and the
+  Trade and Supplier notes. The library is shared by every project in the vault, so restoring a
+  project without the library from the same moment can leave placements and requirements pointing
+  at asset definitions or shapes from another time.
+- **Every file a plan links to that lives outside those folders** — a reference image or PDF
+  chosen from elsewhere in the vault, and evidence files you linked rather than imported.
+- **The plugin's folder**, `.obsidian/plugins/renovation-planner/`: `data.json` (settings,
+  including the library folder and the folder new projects are created in), `write-incidents.json` (open write
+  incidents) and `sequence-markers.json` (delete-recovery records). Either of the last two may be
+  absent, which means it holds nothing. They describe the vault files beside them, so they belong to the
+  same moment as those files.
+
+Not in the vault, and therefore not in a vault backup: what this device keeps in local storage —
+the Continue row's last target, grid and snapping choices and panel widths. Losing it loses those
+preferences and nothing else. Obsidian's own workspace layout (`.obsidian/workspace.json`) records
+which tabs were open, including whether a Plan editor tab saw an unrecovered write.
+
+### Restoring
+
+1. **Quit Obsidian first.** The plugin reads its incident record once, when it loads, and it
+   follows vault changes while it runs; replacing files underneath a running plugin gives it a
+   mixture to react to.
+2. **Restore the whole set from one backup**, replacing rather than merging. Do not combine notes
+   from one backup with sidecars, library files or plugin-folder files from another.
+3. **Open the vault with a plugin build at least as new as the newest build that wrote to that
+   backup** (see [Existing vaults](#existing-vaults)). An older build refuses notes it cannot read.
+4. **Check what the plugin reports.** Run **Show diagnostics report** from the command palette or
+   settings: it lists the notes this build has refused to read since it loaded, and every open write
+   incident. An incident
+   restored with the backup is still open, and ends only as described in
+   [A refused write or incomplete recovery](#a-refused-write-or-incomplete-recovery).
+
+### What a restore cannot do
+
+- **It cannot be partial without risk.** Restoring one note, one project or the library alone
+  is the mixed-moment case above. This guide does not describe what each mixture does, because no
+  test drives one.
+- **A clean report is not proof the restore is whole.** The diagnostics report says what this
+  build could read, not that the files agree with each other or with your intent. Opening,
+  reading, reopening a tab and reloading the plugin repair nothing. Compare what matters to you
+  against the backup yourself.
+- **It recovers nothing written after the backup.** Changes made since are gone from the restored
+  copy.
+
+### A binary downgrade is not a data rollback
+
+Installing an older plugin build does not turn your data back into what that build wrote. Notes
+and sidecars stay exactly as the newer build left them, and the older build, reading them:
+
+- refuses every note or plan sidecar stamped with a version newer than it knows, with the
+  `…schema-version-unsupported` code in the [Existing vaults](#existing-vaults) table, and writes
+  nothing to it — an asset sidecar it does not know reads as damaged
+  (`asset-geometry.schema-invalid`) rather than as too new;
+- keeps incident and delete-recovery entries it cannot read, and counts such an incident as open;
+- drops every setting it does not know the next time you change a setting in it.
+
+To get data back to an earlier state, restore a backup taken before the newer build wrote to it,
+and open it with a build at least as new as the one that wrote that backup.
+
+## Older evidence
+
+The [Increment E report](user-experience/renovation-planner-editor-specs/implementation/planning-recovery-evidence.md)
+records browser and automated evidence for an earlier build. It is history, not acceptance of
+this build; live Obsidian, assistive-technology and native zoom acceptance are tracked in
+[first beta readiness](releases/first-beta-readiness/README.md).

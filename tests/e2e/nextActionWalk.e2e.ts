@@ -313,7 +313,14 @@ describe('the getting-started guide (BP-10, owner rulings 47 and 49)', () => {
 		const input = browser.$('.prompt-input');
 		await expect.poll(() => input.isDisplayed()).toBe(true);
 		await input.setValue('getting-started');
-		await expect.poll(() => browser.$('.suggestion-item.is-selected').getText()).toContain(`${prefix}${rendered.openHelp}`);
+		// The palette splits a command's name at its first ": " into a `.suggestion-prefix` span and
+		// the rest, dropping the separator (1.13.7's own renderer, read from the app bundle), so the
+		// plugin's name is asserted as ITS node: another plugin's same-named command cannot pass.
+		const plugin = prefix.slice(0, -': '.length);
+		const title = browser.$('.suggestion-item.is-selected .suggestion-title');
+		await expect
+			.poll(async () => ({ plugin: await title.$('.suggestion-prefix').getText(), title: await title.getText() }))
+			.toEqual({ plugin, title: `${plugin}${rendered.openHelp}` });
 		await browser.keys('Enter');
 
 		const modal = browser.$('.modal-container .modal');

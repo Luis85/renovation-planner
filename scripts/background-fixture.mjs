@@ -186,7 +186,13 @@ for (let y = MAJOR_GRID; y < HEIGHT; y += MAJOR_GRID) {
 }
 
 const png = canvas.encodeSync('png');
-const targets = ['tests/fixtures/editor-background-png-test.png', 'docs/tests/fixtures/editor-background-png-test.png'];
+// The third copy is the e2e vault's: `npm run test:e2e` copies `tests/e2e/vault/` into a fresh temporary
+// vault per case, so the sheet a driven Obsidian draws is this same file.
+const targets = [
+	'tests/fixtures/editor-background-png-test.png',
+	'docs/tests/fixtures/editor-background-png-test.png',
+	'tests/e2e/vault/editor-background-png-test.png',
+];
 for (const target of targets) writeFileSync(target, png);
 writeFloorReference();
 console.log(`${WIDTH}x${HEIGHT} px (${WIDTH * MM_PER_PIXEL}x${HEIGHT * MM_PER_PIXEL} mm at 1 px = 1 mm) written to:`);

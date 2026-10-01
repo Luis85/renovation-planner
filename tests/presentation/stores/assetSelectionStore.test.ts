@@ -76,6 +76,8 @@ function queries(overrides: Partial<AssetLibraryQueryServices> = {}): AssetLibra
 		// REJECTS like the two above: the reassignment picker belongs to the delete GESTURE and
 		// this store never reads it, so an answering door would hide a build that did.
 		listReassignmentTargets: () => Promise.reject(new Error('not exercised')),
+		// And so does the usage scope: it belongs to the duplicate panel, not to this store.
+		listPlansUsingAsset: () => Promise.reject(new Error('not exercised')),
 		...overrides,
 	};
 }

@@ -27,6 +27,7 @@ import { DEFAULT_VIEWPORT } from '../../../src/presentation/editor/viewport/View
 import { toiletShape } from '../../helpers/assetShapes';
 import { designerRig, tracePolygon, type DesignerRig } from '../../helpers/designerRig';
 import { settle } from '../../helpers/editor';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 installCanvas();
 installResizeObserver();
@@ -38,7 +39,7 @@ function context(harness: Awaited<ReturnType<typeof seeded>>): AssetDesignerCont
 	const query = new GetAssetDesignQuery(harness.stack.assets, harness.sidecar);
 	return {
 		assetId: String(harness.assetId),
-		queries: { getAssetDesign: (assetId) => query.execute(assetId as AssetId) },
+		queries: { getAssetDesign: (assetId) => query.execute(assetId as AssetId), listPlansUsingAsset: unwiredPlanUsage },
 		commands: { designEdits: () => harness.reversible },
 		logger: recorder,
 		picker: null,

@@ -14,7 +14,9 @@ import { describe, expect, it } from 'vitest';
 import { leftWritesBehind, type VersionedDispatchResult } from '../../../src/application/commands/DispatchOutcome';
 import { isErr, ok } from '../../../src/core/result/Result';
 import { CommandHistory } from '../../../src/presentation/editor/tools/command-history';
+import { repeatDetails } from '../../../src/domain/asset/arrangeDetails';
 import { expectErr, expectOk } from '../../helpers/domain';
+import { grouped } from '../../helpers/arrangeShapes';
 import { makeAsset } from '../../helpers/entities';
 import {
 	CALIBRATION,
@@ -179,6 +181,45 @@ describe('the inverse a geometry gesture captures', () => {
 
 		expect(await document()).toEqual(beforeRedo);
 		expect((await document()).shape?.facing).toBe(1);
+	});
+});
+
+describe('a repeat through the whole-shape door', () => {
+	/**
+	 * **AD10's fresh-ID and redo requirement, walked through the real `CommandHistory` door** — which
+	 * nothing did before this case: `setShape` is the adapter every composition gesture dispatches
+	 * through, and no case in this suite had ever named it.
+	 *
+	 * **Why the redo is id-stable, written where the reader is standing:** `repeatDetails` allocates
+	 * the whole run of `detail-<n>` and `group-<n>` ids ONCE, inside the pure edit, and the shape it
+	 * builds travels as `this.input.shape`. `ReversibleAssetEdit.runForward` re-dispatches that same
+	 * input, so a redo re-writes the identity graph the first execute minted rather than minting a new
+	 * one. That is a property of WHERE the allocation lives, not of the adapter: move it into
+	 * `SetAssetShapeCommand`, or let a future adapter re-derive its input, and a redo starts handing
+	 * out different ids on every execution — which contract C06 forbids by name. This case is the lock
+	 * on that placement.
+	 */
+	it('restores ids, membership, order and geometry together, and redoes the very ids it minted', async () => {
+		const { reversible, assetId, seed, document } = await seeded();
+		const before = grouped(['detail-1', 'detail-2'], { label: 'legs' });
+		await seed(before);
+
+		const repeated = expectOk(repeatDetails(before, { ids: ['detail-1', 'detail-2'], count: 1, axis: 'x', spacing: 1000, mode: 'centres' }));
+		const command = reversible.setShape({ assetId, shape: repeated });
+
+		expect(expectOk(await command.execute())).toBe('wrote');
+		const minted = present((await document()).shape);
+		expect(minted.details.map((detail) => detail.id)).toEqual(['detail-1', 'detail-2', 'detail-3', 'detail-4', 'detail-5']);
+		expect(minted.groups).toEqual([
+			{ id: 'group-1', label: 'legs', members: ['detail-1', 'detail-2'] },
+			{ id: 'group-2', label: 'legs', members: ['detail-4', 'detail-5'] },
+		]);
+
+		expect(expectOk(await command.undo())).toBe('wrote');
+		expect(await document()).toEqual({ calibration: null, shape: before });
+
+		expect(expectOk(await command.execute())).toBe('wrote');
+		expect((await document()).shape).toEqual(minted);
 	});
 });
 

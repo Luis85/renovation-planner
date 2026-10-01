@@ -2,6 +2,17 @@ import { openingMoveDe } from './openingMove';
 import { openingDe } from './opening';
 import { curvesDe } from './curves';
 import { assetSymbolsDe } from './assetSymbols';
+import { assetEntryPathsDe } from './assetEntryPaths';
+import { assetArrangeDe } from './assetArrange';
+import { assetOpenLinesDe } from './assetOpenLines';
+import { assetReferenceDe } from './assetReference';
+import { designerToolbarIconsDe } from './designerToolbarIcons';
+import { designerTraceDe } from './designerTrace';
+import { designerRulersDe } from './designerRulers';
+import { assetDimensionsOnCanvasDe } from './assetDimensionsOnCanvas';
+import { designerLegendDe } from './designerLegend';
+import { designerAddDe } from './designerAdd';
+import { designerRecoveryDe } from './designerRecovery';
 import { referenceViewportDe } from './referenceViewport';
 import { editorShellDe } from './editorShell';
 import { objectDe } from './object';
@@ -12,6 +23,10 @@ import { draftingDe } from './drafting';
 import { inputDe } from './input';
 import { groupsDe } from './groups';
 import { creationDe } from './creation';
+import { assetClearanceReviewDe } from './assetClearanceReview';
+import { assetReferenceViewDe } from './assetReferenceView';
+import { assetDuplicateDe } from './assetDuplicate';
+import { assetWorkflowDe } from './assetWorkflow';
 import type {
  editorEn } from '../en/editor';
 
@@ -26,15 +41,40 @@ import type {
  * (`...editorDe`).
  */
 import { structureDe } from './structure';
+import { designerSelectionLayoutDe } from './designerSelectionLayout';
+import { designerPlacementSourceDe } from './designerPlacementSource';
+import { designerClearanceHelperDe } from './designerClearanceHelper';
+import { saveStateRelativeDe } from './saveStateRelative';
+import { designerTypedLandingDe } from './designerTypedLanding';
 export const editorDe: Record<keyof typeof editorEn, string> = {
 	...curvesDe,
 	...assetSymbolsDe,
+	...assetEntryPathsDe,
+	...assetArrangeDe,
+	...assetOpenLinesDe,
+	...assetReferenceDe,
+	...designerToolbarIconsDe,
+	...designerTraceDe,
+	...designerRulersDe,
+	...assetDimensionsOnCanvasDe,
+	...designerLegendDe,
+	...saveStateRelativeDe,
+	...designerClearanceHelperDe,
+	...designerTypedLandingDe,
+	...designerPlacementSourceDe,
+	...designerSelectionLayoutDe,
+	...designerAddDe,
+	...designerRecoveryDe,
 	...groupsDe,
 	...stairsArrowsDe,
 	...structuralDe,
 	...draftingDe,
 	...inputDe,
 	...creationDe,
+	...assetClearanceReviewDe,
+	...assetReferenceViewDe,
+	...assetDuplicateDe,
+	...assetWorkflowDe,
 	'editor.direct.mark-change': 'Änderung markieren',
 	'editor.direct.length-value': 'Wandlänge bearbeiten, {value} m',
 	'editor.dimension.edit-width': 'Raumbreite bearbeiten, {value} m',

@@ -1,0 +1,233 @@
+/*
+ * The asset designer's header bar and the Inspector's tab strip — AD18 items 2 and 4.
+ *
+ * Its OWN partial rather than more of `styles/designer.css`, measured rather than preferred: that
+ * file stood close under `scripts/styles-assemble.mjs`'s 400-line cap — 397 lines then, and it has
+ * moved twice since, so read `wc -l styles/designer.css` rather than any figure written here or in
+ * a sibling partial. The reason below is the CAP, not the number — so these rules do
+ * not fit in it. That is the same budget that produced `designer-object.css`, `editor-status.css`
+ * and `editor-requirements.css`.
+ *
+ * **Its position in `styles/index.css` is NOT load-bearing, with ONE class to say that about** —
+ * written from what `grep -rln '\.<class>\b' styles/` printed for each of the eight classes below
+ * AFTER this file existed, rather than from the shape of the change. Seven of them are declared
+ * here and nowhere else in the sheet, so nothing can win or lose against those by order.
+ * `.rp-designer-asset-name` WAS the eighth and is no longer an exception. `designer-object.css`
+ * carried `.rp-designer-inspector .rp-designer-asset-name` from when the Inspector drew the name;
+ * once AD18-R1 moved the name into the header that rule matched nothing, and **W18-B deleted it on
+ * 2026-09-22** — this sentence reported it while this file held no lease on that one, and the
+ * report is discharged. So all EIGHT are declared here and nowhere else in the sheet, and this
+ * partial's position in `index.css` is now unconditionally free rather than free because two
+ * selectors happened to be disjoint. It sits with the other `designer-*` partials for a reader's
+ * sake.
+ *
+ * (`designer.css` NAMES `.rp-designer-open-library` and `.rp-designer-use-plan` in a comment and in
+ * no selector: the two were dropped from its flat-button rules in the same change.)
+ *
+ * Obsidian variables only, no colour literal anywhere (SDD §84).
+ */
+
+/*
+ * The header REGION, the shape `.rp-designer-toolbar` below it already takes: a `min-height` floor
+ * rather than a fixed height, so a long asset name that wraps is not clipped, and the same bottom
+ * border so the two bars read as one stack.
+ */
+.rp-designer-header {
+	display: flex;
+	align-items: center;
+	min-height: var(--size-4-8);
+	padding: 0 var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* `DesignerHeader`'s own root, filling the region it is mounted into. */
+.rp-designer-title-bar {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: var(--size-4-2);
+	min-width: 0;
+}
+
+/*
+ * The asset's name. An `<h1>` is this surface's first heading, so Obsidian's own document
+ * proportions for one would swamp a leaf header — the same correction `.rp-designer-panel-title`
+ * makes for the `<h2>`s in the Inspector.
+ *
+ * `flex: 1` with `min-width: 0` is what pushes everything after it to the trailing edge AND lets
+ * the name ellipsize instead of widening the bar: a user's name for an object is theirs, and a long
+ * one must not push the save state off the end of a sidebar leaf.
+ */
+.rp-designer-title-bar .rp-designer-asset-name {
+	flex: 1;
+	min-width: 0;
+	margin: 0;
+	overflow: hidden;
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-medium);
+	line-height: var(--line-height-tight);
+	color: var(--text-normal);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/*
+ * QUALIFIED WITH `.rp-designer-title-bar`, for the reason `.rp-context-bar__button` and
+ * `.rp-designer-inspector`'s own flat buttons are both qualified: Obsidian's
+ * `button:not(.clickable-icon)` sets `background-color`, `color` and `box-shadow` at (0,1,1), which
+ * outranks a bare class at (0,1,0) whatever the source order.
+ *
+ * Quieter than the Inspector's copies of these two buttons were — no full width, no block margin,
+ * a transparent border — because a header bar is a row of affordances beside a title rather than a
+ * stack of actions in a panel. `.rp-context-bar__button` one surface over is the treatment being
+ * matched (C12: the two editing surfaces behave alike).
+ */
+/* REVIEWED CLONE (`.rp-context-bar__button`): the flat button is per-component by necessity; argument in `styles/designer.css`. */
+.rp-designer-title-bar .rp-designer-open-library,
+.rp-designer-title-bar .rp-designer-use-plan {
+	flex: 0 0 auto;
+	/*
+	 * The directive sits HERE and not above the selector, because the clone starts at `padding` and
+	 * `fallow-ignore-next-line` means the next line literally — `designer-selection.css`'s
+	 * `.rp-designer-selection-button` and `designer.css`'s `.rp-designer-edit-dimensions` are the
+	 * two blocks with a leading declaration and both put it inside. A directive above the selector
+	 * would be reported STALE while the finding went on counting, which is the failure CLAUDE.md's
+	 * own gotcha records twice.
+	 */
+	/* fallow-ignore-next-line code-duplication */
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-designer-title-bar .rp-designer-open-library:hover,
+.rp-designer-title-bar .rp-designer-use-plan:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* The ring, for the reason `editor.css`'s toolbar `:focus-visible` comment gives at length. */
+.rp-designer-title-bar .rp-designer-open-library:focus-visible,
+.rp-designer-title-bar .rp-designer-use-plan:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/*
+ * The library door's icon and label side by side — the one control here that draws a glyph, so
+ * this is its own rule rather than another declaration on the shared flat-button block above,
+ * which `.rp-designer-use-plan` (no icon) shares and must not gain a `gap` it has nothing to use.
+ */
+.rp-designer-title-bar .rp-designer-open-library {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-1);
+}
+
+/*
+ * BELOW THE HEADER'S NARROW WIDTH THE LABEL CLIPS, THE ICON ALONE STANDS (AD18-R16 Task 2).
+ * `rp-designer (width < 35rem)` is `designer-narrow.css`'s own stacking breakpoint and not a width
+ * invented for this button — reused rather than duplicated, so "narrow" means one thing across the
+ * surface. AD18's own report measured this button at 143.6px of a 460px header, more than the
+ * asset name kept beside it (`AD18-concept-fidelity.md`); icon-only removes that cost at exactly
+ * the width the report flagged.
+ *
+ * The clip technique `visually-hidden.css` already carries, copied rather than shared through that
+ * class: the accessible name comes from `aria-label` now (final-fix-wave item 10, `DesignerHeader.vue`'s
+ * own comment on the button), the same string as this label's text, so shrinking the visible copy to
+ * a 1px box rather than a sibling `display: none` is no longer what KEEPS the name — it is what keeps
+ * this exact string readable by a sighted user who zooms or overrides the clip, which `display: none`
+ * would not.
+ */
+@container rp-designer (width < 35rem) {
+	.rp-designer-title-bar .rp-designer-open-library-label {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+}
+
+/*
+ * AD18-R2's tab strip, at the top of the Inspector under its panel title.
+ *
+ * A bottom border across the whole strip with the selected tab's own border drawn over it, which is
+ * the one treatment that reads as a tab rather than as two more buttons — and it is a BORDER rather
+ * than a filled pill so that the strip stays quieter than the controls inside the panel it governs.
+ */
+.rp-designer-tabs {
+	display: flex;
+	gap: var(--size-4-1);
+	margin: 0 0 var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.rp-designer-inspector .rp-designer-tab {
+	flex: 1;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	background-color: transparent;
+	box-shadow: none;
+	border: none;
+	border-bottom: 2px solid transparent;
+	border-radius: 0;
+	cursor: pointer;
+}
+
+.rp-designer-inspector .rp-designer-tab:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-hover);
+}
+
+/*
+ * The selected tab, keyed off `aria-selected` rather than off a class this template would have to
+ * bind twice: the attribute is already there because the ARIA pattern requires it, and keying the
+ * appearance to it makes the two unable to disagree.
+ */
+.rp-designer-inspector .rp-designer-tab[aria-selected='true'] {
+	color: var(--text-normal);
+	border-bottom-color: var(--interactive-accent);
+}
+
+.rp-designer-inspector .rp-designer-tab:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+/*
+ * A panel draws no frame of its own — the Inspector's own padding, background and scrolling are
+ * already right for its contents, and a box inside the rail would be a second frame around what was
+ * a flat stack a moment ago. What it does own is the trailing space, which is the one thing the
+ * wrapper genuinely changed: the last control used to sit against the rail's own bottom padding and
+ * now sits against this.
+ *
+ * `display: contents` was the other way to say "this element is a grouping for ARIA and for `v-show`
+ * and nothing else", and it is refused: an element with `display: contents` has a history of being
+ * dropped from the accessibility tree, which is the one thing a `role="tabpanel"` must not be.
+ *
+ * The INACTIVE panel gets `display: none` inline from `v-show`, which wins over everything here, so
+ * this padding never doubles up.
+ */
+.rp-designer-tabpanel {
+	padding-bottom: var(--size-4-2);
+}
+
+/*
+ * A panel is a Tab stop (`tabindex="0"`, the APG's answer for a panel that may hold no focusable
+ * content — the Reference one does not when the asset has no sheet), so it needs a visible ring
+ * like every other stop here. Inset, because a panel spans the rail and an outset ring would be
+ * clipped by the Inspector's own `overflow-y: auto`.
+ */
+.rp-designer-tabpanel:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}

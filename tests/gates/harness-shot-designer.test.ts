@@ -5,7 +5,8 @@ import { query, shot, shots } from '../helpers/harnessShotFixtures';
  * The asset designer's fixed shots, pinned on what makes each different from a sibling. Split out of
  * `harness-shot.test.ts` — which still holds the whole table in both directions — when these pins
  * pushed that file past the 450-line test budget; both read the one parsed table in
- * `tests/helpers/harnessShotFixtures.ts`.
+ * `tests/helpers/harnessShotFixtures.ts`. One LIBRARY pin sits here too, beside the designer-set pin it
+ * was written with, because `harness-shot.test.ts` had six lines of that budget left.
  */
 const READY = '[data-rp-harness-ready]';
 const designerShots = (): string[] => [...shots.keys()].filter((name) => name.startsWith('asset-designer-'));
@@ -99,6 +100,26 @@ describe('the asset designer shots', () => {
 	it('takes the light grid shot at a sidebar width and the dark one at the default', () => {
 		expect(shot('asset-designer-grid-light').width).toBe(460);
 		expect(shot('asset-designer-grid').width).toBeUndefined();
+	});
+
+	/**
+	 * The two surfaces a harness look went looking for and could not reach (open-issues Task 8): a
+	 * designer SET, whose dashed frame the Plan Editor's multi-selection never draws, and the inspector's
+	 * Shape preview drawing an asset's details. Each waits on a mark only that state draws.
+	 */
+	it('takes the designer-set and inspector-details shots, each waiting on a mark only that state draws', () => {
+		for (const name of ['asset-designer-select-multiple', 'asset-designer-select-multiple-light']) {
+			expect(query(name).get('preset')).toBe('tree');
+			expect(query(name).get('select')).toBe('detail-1,detail-2');
+			expect(shot(name).selector).toEqual(['.renovation-asset-designer-view', READY, '.rp-designer-selection-count']);
+		}
+		for (const name of ['asset-library-selected-details', 'asset-library-selected-details-dark']) {
+			expect(query(name).get('asset')).toBe('worktop-oak-40');
+			expect(shot(name).selector).toEqual(['.renovation-asset-library', '.rp-al-shape-preview .rp-al-mark__detail']);
+		}
+		expect(query('asset-designer-select-multiple-light').get('theme')).toBe('light');
+		expect(query('asset-library-selected-details').get('theme')).toBe('light');
+		expect(query('asset-library-selected-details-dark').get('theme')).toBeNull();
 	});
 
 	/**

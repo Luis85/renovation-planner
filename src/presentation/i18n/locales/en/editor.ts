@@ -2,6 +2,17 @@ import { openingMoveEn } from './openingMove';
 import { openingEn } from './opening';
 import { curvesEn } from './curves';
 import { assetSymbolsEn } from './assetSymbols';
+import { assetEntryPathsEn } from './assetEntryPaths';
+import { assetArrangeEn } from './assetArrange';
+import { assetOpenLinesEn } from './assetOpenLines';
+import { assetReferenceEn } from './assetReference';
+import { designerToolbarIconsEn } from './designerToolbarIcons';
+import { designerTraceEn } from './designerTrace';
+import { designerRulersEn } from './designerRulers';
+import { assetDimensionsOnCanvasEn } from './assetDimensionsOnCanvas';
+import { designerLegendEn } from './designerLegend';
+import { designerAddEn } from './designerAdd';
+import { designerRecoveryEn } from './designerRecovery';
 import { referenceViewportEn } from './referenceViewport';
 import { editorShellEn } from './editorShell';
 import { objectEn } from './object';
@@ -12,6 +23,10 @@ import { draftingEn } from './drafting';
 import { inputEn } from './input';
 import { groupsEn } from './groups';
 import { creationEn } from './creation';
+import { assetClearanceReviewEn } from './assetClearanceReview';
+import { assetReferenceViewEn } from './assetReferenceView';
+import { assetDuplicateEn } from './assetDuplicate';
+import { assetWorkflowEn } from './assetWorkflow';
 /**
  * The Plan Editor's own vocabulary — the shell (context bar, rail, status bar),
  * the add-menu catalogue, the Inspector (its floor and room panels, its requirements
@@ -38,15 +53,40 @@ import { creationEn } from './creation';
  * `editor.room.default-name` in the source file's reading order. They stayed in `en.ts`.
  */
 import { structureEn } from './structure';
+import { designerSelectionLayoutEn } from './designerSelectionLayout';
+import { designerPlacementSourceEn } from './designerPlacementSource';
+import { designerClearanceHelperEn } from './designerClearanceHelper';
+import { saveStateRelativeEn } from './saveStateRelative';
+import { designerTypedLandingEn } from './designerTypedLanding';
 export const editorEn = {
 	...curvesEn,
 	...assetSymbolsEn,
+	...assetEntryPathsEn,
+	...assetArrangeEn,
+	...assetOpenLinesEn,
+	...assetReferenceEn,
+	...designerToolbarIconsEn,
+	...designerTraceEn,
+	...designerRulersEn,
+	...assetDimensionsOnCanvasEn,
+	...designerLegendEn,
+	...saveStateRelativeEn,
+	...designerClearanceHelperEn,
+	...designerTypedLandingEn,
+	...designerPlacementSourceEn,
+	...designerSelectionLayoutEn,
+	...designerAddEn,
+	...designerRecoveryEn,
 	...groupsEn,
 	...stairsArrowsEn,
 	...structuralEn,
 	...draftingEn,
 	...inputEn,
 	...creationEn,
+	...assetClearanceReviewEn,
+	...assetReferenceViewEn,
+	...assetDuplicateEn,
+	...assetWorkflowEn,
 	'editor.direct.mark-change': 'Mark change',
 	'editor.direct.length-value': 'Edit wall length, {value} m',
 	'editor.dimension.edit-width': 'Edit room width, {value} m',

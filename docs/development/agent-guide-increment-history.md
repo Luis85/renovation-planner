@@ -6113,3 +6113,131 @@ multi-selection drag above, a vertex drag that excludes only itself and its inci
 than its whole entity (so a corner can align with its own zone's other corners), and the axis
 stage yielding to a held Shift angle rather than bending it by up to the tolerance. The manual
 case `docs/tests/cases/Alignment guides while dragging.md` is written and unrun.
+
+## The asset designer expansion, 2026-09-16 to 2026-09-18
+
+Package: `docs/tasks/asset-designer-expansion/` — a seventeen-card plan (AD00–AD17) run by a lead
+integrator dispatching workers into their own worktrees, with an independent reviewer on every
+candidate. Contract `contracts/DECISIONS.md` at revision **`r1`**; ledger `execution/state.json`;
+leases `execution/LEASES.md`. **AD00–AD14 and the queue card are integrated. AD15 and AD16 are
+`blocked` and the beta is NOT ready**, for the reason at the end of this section.
+
+**Read `r1` before reasoning about any of it.** AD00 found the package had been written against a
+commit fourteen behind `HEAD`, and that the repository had already taken three of its proposed
+decisions in the opposite direction, deliberately, with the reasoning recorded. `r1` follows the
+repository in all three, plus a fourth that matters more than the others: **C10 promised
+exhaustive geometry handling across "every current export path" and there is no export subsystem
+at all.** Measured — `src/` contains no PDF, print or render-to-file path. The consumers are
+exactly three: the authoring canvas, the library mark (`ListAssetOutlines` → `AssetMark.vue`,
+footprint only, arcs flattened at 1 mm) and plan placement. AD05 and AD14 were rescoped to those
+three. A contract sentence can promise more than the code has, and this one did.
+
+### What landed
+
+The designer grew a **Parts panel** (AD09) listing every part including the ones a click cannot
+reach — which is why ruling **AD08-R1** built no overlap chooser: the panel already is C05's
+alternative. **Multiple selection** (AD08) by Shift-press, a checkbox and an intersection marquee.
+**Grouping and arrangement** (AD10): group/ungroup, block reorder, six alignments, four
+distributions, numeric move and scale, and a Repeat form that states whether its spacing measures
+centres or gaps before it runs. **Open lines and rounded rectangles** (AD11) — the open model had
+existed since AD04 with nothing able to create one. **Reference, placement and clearance panels**
+(AD12), plus background opacity and reference deletion (the queue card). **A durable clearance
+review flag** (AD14) and asset-geometry **schema v4**. And the **library to designer to plan
+workflow** (AD13): usage scope, Duplicate, Use in plan, and the origin that arms placement on
+arrival.
+
+### The seven rulings, and why they exist
+
+`contracts/DECISIONS.md` carries each in full. What is durable is the SHAPE: **every one was made
+before the code it governs existed**, and three of them refused work rather than authorising it.
+
+- **AD08-R1** — no overlap chooser. The Parts panel already satisfies C05.
+- **AD10-R1** — a spatial composition refuses a selection mixing measured with reference-pixel
+  parts; grouping does not, because a group records no coordinates; an all-pending selection is not
+  mixed. **Amended the same day**, which is the instructive part: the first version put the check
+  in the shared participant resolver, where it would have refused the grouping the ruling permits.
+- **AD12-R1** — "lock reference" is already true by construction. Every designer layer is
+  `listening: false` and no tool moves the background, so a lock control would be a switch with an
+  unreachable off position. Opacity is a real gap and became its own item.
+- **AD12-R2** — a reference may be DELETED through the command that already replaces one. The
+  domain already admitted a null background; one input arm needed admitting.
+- **AD14-R1** — a durable clearance review flag IS owed: one boolean, schema v4, and a **measured**
+  clearance preserved rather than scaled under a whole-object resize. C07 named both arms and this
+  took the one C07 itself calls the default, because a refusal would block a common gesture to
+  guard a rare one.
+- **AD13-R1** — editing geometry in the designer owes a usage scope. The library drew one before a
+  Duplicate that provably changes nothing, while the designer changed every plan that places the
+  asset and said nothing. The *"undo covers it"* arm was refused on a category difference rather
+  than a judgement about undo: **undo is a per-leaf, in-session remedy reachable only by someone
+  who already knows; a scope is a disclosure made before the gesture.** And measured — the designer
+  is reached from a plan and from a restored leaf without passing the library at all.
+
+### What the review step caught, which is the reason to keep paying for it
+
+Every candidate was read by an agent that did not write it. The findings worth carrying:
+
+- **A change request that WOULD NOT COMPILE.** The integrator filed the asset hand-off's sending
+  half as a per-press parameter; `assetDesignerUsePlan` builds its picker once at composition, so
+  the callback has no lexical access to it. The fix round rewrote it around a closure-scoped slot
+  and verified by applying the change, running `vue-tsc`, and reverting. **An integrator's change
+  request is a hypothesis exactly as a worker's is.**
+- **Two pre-existing cases a wire would redden, predicted before either worker met them.**
+- **A docblock claiming a type error, disproved by running `vue-tsc`.**
+- **A count whose grep included the sentence making the claim** — twice. `DesignerUsageScope.vue`
+  said a grep for `new ListPlansUsingAsset` printed one line; it printed two, the second being that
+  sentence. The invariant held; the sentence did not.
+- **A paragraph that would have described a real defect had it been true.** The same file claimed
+  the pre-scan state is reachable at its mount and that the root draws the inspector from a read
+  that never consults the index. Both false — the inspector is `v-if`-gated on the design, and the
+  design store holds a pre-scan miss rather than failing it. Since the component captures its gate
+  once with nothing to re-run the read, a true version of that paragraph would have been a leaf
+  saying *unknown* for the rest of its life.
+- **A survey's own NONE FOUND, disproved by the integrator.** A read-only survey mapping the
+  acceptance matrix to tests reported no instrument for C11's capability gating.
+  `tests/presentation/i18n/assetCapabilityClaims.test.ts` exists, four cases, both locales, with its
+  own finds-something case; it was missed because the word "frozen" sits in a `describe` rather than
+  in a case title. **A grep over test titles is not a census of tests.**
+
+### Process lessons that outlive the package
+
+- **A wave's lease table goes IN its base commit or before it, never after.** Wave 4 missed by
+  three minutes and every lease was real and invisible in the trees it governed.
+- **Disjointness is verified by intersecting `git diff --name-only`, never by intention.**
+- **The contention signature is DISJOINT failure sets.** On a 7.8 GB box shared with another
+  session, a coverage run projected 43 hours and produced seventeen failures that were *all*
+  timeouts and zero assertions; all thirteen named files passed when re-run alone. Re-run a named
+  file before believing it, and never generalise from a log piped through `tail` — one real
+  assertion failure hid behind exactly that.
+- **A count written before the thing it counts is wrong.** It happened to the integrator too: the
+  AD15 report's own grade tally was written from an impression and was wrong in all four figures,
+  inside the report about checking things.
+- **A deferral needs a trigger, and a trigger only an orchestrator can fire needs an orchestrator to
+  fire it.** AD07's optional descriptive height sat behind *"one task holds both `CreateAsset.ts`
+  and `NewAssetForm.vue`"* for four waves. Nothing was going to fire that by itself.
+- **`skipComments` does not skip HTML comments in a `.vue` template** — measured, and it decided
+  where a nine-line explanation had to live.
+
+### What is NOT done, and why the beta is not ready
+
+**AD15 and AD16 are `blocked`.** Their implementation items are validation against a real vault and
+a performance benchmark, and this environment has **no Obsidian and no pinned Chromium**. So
+`npm run test-build` was never run, no manual case under `docs/tests/` was walked, and **nothing
+this package drew has been photographed**. The orchestration runbook's §10 forbids labelling the
+beta ready from there, and it was not labelled ready.
+
+What was done instead is recorded rather than skipped: the acceptance matrix walked row by row with
+honest not-run rows (`docs/tasks/asset-designer-expansion/reports/AD15-validation-matrix.md`), the
+user documentation written from the code (`docs/using-asset-designer.md`), and three manual cases
+carrying the exact remaining verification steps (`docs/tests/cases/`). **Twenty of that matrix's
+forty-two behaviour rows are asserted more narrowly than the row asks**, each with its gap named;
+the three to close first are a designer gesture surface whose DOM-level cancellation is asserted
+only through the plan editor's fixture, a quantity-isolation claim resting on a note edit rather
+than a graphic one, and a compact-pane claim resting on stylesheet text rather than on anything
+rendered.
+
+**The sharpest single unlooked-at thing**, measured rather than asserted:
+`DesignerClearanceReview.vue` draws a `<section class="rp-designer-clearance">` directly beneath the
+clearance helper's section of the same class, both carrying `border-top`, and the lower one has no
+heading of its own — and `grep -rn clearanceNeedsReview tests/harness/` prints nothing, because it
+draws only when the flag is set and no harness fixture sets one. A live-vault pass and a 460 px
+capture should start there.

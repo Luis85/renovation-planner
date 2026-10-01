@@ -1,6 +1,6 @@
 import type { Point } from '../../../core/geometry/Point';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
-import { contains } from '../../../core/geometry/operations';
+import { contains, segmentMeetsBox } from '../../../core/geometry/operations';
 import { outlineKind } from '../../../domain/spatial/SpatialElement';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { EditorContext } from '../tools/editor-context';
@@ -10,28 +10,17 @@ import { CLICK_EPSILON_PX } from '../handleMetrics';
 import { curvedCandidateIntersection } from './curvedCandidateIntersection';
 import type { SelectionInteractions } from './selectionInteractions';
 
-function intersects(a: Point, b: Point, box: BoundingBox): boolean {
-	let near = 0, far = 1;
-	for (const axis of ['x', 'y'] as const) {
-		const delta = b[axis] - a[axis];
-		if (delta === 0) { if (a[axis] < box.min[axis] || a[axis] > box.max[axis]) return false; continue; }
-		const first = (box.min[axis] - a[axis]) / delta, last = (box.max[axis] - a[axis]) / delta;
-		near = Math.max(near, Math.min(first, last)); far = Math.min(far, Math.max(first, last));
-		if (near > far) return false;
-	}
-	return true;
-}
 function hit(candidate: SpatialObjectCandidate, box: BoundingBox): boolean {
 	if (candidate.hitRegions) return candidate.hitRegions.some(points => hit({ ...candidate, hitRegions: undefined, hitPoints: points }, box));
 	if (!candidate.hitPoints && candidate.bulges?.some(value => value !== 0)) return curvedCandidateIntersection(candidate, box);
 	const points = candidate.hitPoints ?? candidate.points;
 	if (!points.length) return false;
 	const closed = !!candidate.hitPoints || !candidate.kind || outlineKind(candidate.kind);
-	if (points.some(point => intersects(point, point, box))) return true;
-	if (points.slice(1).some((point, index) => intersects(points[index], point, box))) return true;
+	if (points.some(point => segmentMeetsBox(point, point, box))) return true;
+	if (points.slice(1).some((point, index) => segmentMeetsBox(points[index], point, box))) return true;
 	if (!closed) return false;
 	const inside = contains({ points }, box.min);
-	return intersects(points[points.length - 1], points[0], box) || (inside.ok && inside.value);
+	return segmentMeetsBox(points[points.length - 1], points[0], box) || (inside.ok && inside.value);
 }
 
 /** Empty-canvas drag changes selection only; cancellation restores its opening snapshot. */

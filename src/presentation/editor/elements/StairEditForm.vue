@@ -16,6 +16,7 @@ import { nativeSubmitKey } from '../forms/nativeSubmitKey';
 import { commitTextInput } from '../forms/commitTextInput';
 import StairFields from './StairFields.vue';
 import { parseStairInput, stairText, type StairText, type StairEdit } from './stairInput';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 
 const props = defineProps<{ points: readonly Point[]; options: StairOptions; name: string; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>; latest: Readonly<Ref<string | null>>;
 	inputBlocked: Readonly<Ref<boolean>>; logger: Logger; retry: () => Promise<void>; openSource: () => Promise<void>;
@@ -74,12 +75,9 @@ async function submit(): Promise<void> {
 			:readonly="paused"
 			@update:model-value="update"
 		/>
-		<button
-			type="submit"
-			class="mod-cta"
-			:aria-disabled="disabled"
-		>
-			{{ tr('editor.stair.apply') }}
-		</button>
+		<FormSubmitRow
+			:submitting="disabled"
+			:label="tr('editor.stair.apply')"
+		/>
 	</form>
 </template>

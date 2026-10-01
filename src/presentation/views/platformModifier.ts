@@ -35,10 +35,10 @@ export function opensNote(event: {
 }
 
 /**
- * The key legend's own spelling of the platform modifier. Its only caller is Task 9's foot
- * line — this module exists for both doors together because both read the identical platform
- * flag and a caller reaching for `Platform` separately is the duplication this file exists to
- * avoid.
+ * The key legend's own spelling of the platform modifier. Two callers read it now —
+ * `ProjectList.vue`'s foot-line key legend and `designerMenu.ts`'s canvas-menu shortcut labels —
+ * this module exists for both doors together because both read the identical platform flag and
+ * a caller reaching for `Platform` separately is the duplication this file exists to avoid.
  */
 export function modifierLabel(): string {
 	return Platform.isMacOS ? '⌘' : 'Ctrl';

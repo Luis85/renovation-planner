@@ -31,6 +31,7 @@ import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
 import { settle } from '../../helpers/async';
 import { FakeLeaf } from '../../helpers/workspace';
+import { unwiredPlanUsage } from '../../helpers/designerQueries';
 
 installObsidianDom();
 /**
@@ -50,7 +51,7 @@ const ASSET_ID = 'asset-01JABC';
 
 function deps(overrides: Partial<AssetDesignerDeps> = {}): AssetDesignerDeps {
 	return {
-		queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign())) },
+		queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign())), listPlansUsingAsset: unwiredPlanUsage },
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		picker: null,
@@ -200,7 +201,7 @@ describe('the asset a designer leaf is showing', () => {
 		['open first, as a leaf Obsidian just created arrives', false],
 	])('mounts the designer once for %s', async (_label, stateFirst) => {
 		const getAssetDesign = vi.fn<ReadDesign>(() => Promise.resolve(ok(assetDesign())));
-		const view = makeView(deps({ queries: { getAssetDesign } }));
+		const view = makeView(deps({ queries: { getAssetDesign, listPlansUsingAsset: unwiredPlanUsage } }));
 
 		if (stateFirst) {
 			await view.setState({ assetId: ASSET_ID }, {} as never);
@@ -243,7 +244,7 @@ describe('the asset a designer leaf is showing', () => {
 	 */
 	it('draws nothing for an empty id, which is not an asset to open', async () => {
 		const getAssetDesign = vi.fn<ReadDesign>(() => Promise.resolve(ok(assetDesign())));
-		const view = makeView(deps({ queries: { getAssetDesign } }));
+		const view = makeView(deps({ queries: { getAssetDesign, listPlansUsingAsset: unwiredPlanUsage } }));
 
 		await view.setState({ assetId: '' }, {} as never);
 		await view.onOpen();
@@ -279,9 +280,9 @@ describe('the asset a designer leaf is showing', () => {
 	it('re-reads through the new bundle when the composition root is replaced', async () => {
 		const first = vi.fn<ReadDesign>(() => Promise.resolve(ok(assetDesign())));
 		const second = vi.fn<ReadDesign>(() => Promise.resolve(ok(assetDesign())));
-		const view = await opened(deps({ queries: { getAssetDesign: first } }));
+		const view = await opened(deps({ queries: { getAssetDesign: first, listPlansUsingAsset: unwiredPlanUsage } }));
 
-		view.rebind(deps({ queries: { getAssetDesign: second } }));
+		view.rebind(deps({ queries: { getAssetDesign: second, listPlansUsingAsset: unwiredPlanUsage } }));
 		await settle();
 
 		expect(second).toHaveBeenCalledWith(ASSET_ID);
@@ -364,6 +365,7 @@ describe('what the designer mounts', () => {
 		const view = await opened(
 			deps({
 				queries: {
+					listPlansUsingAsset: unwiredPlanUsage,
 					getAssetDesign: () =>
 						Promise.resolve(
 							err({ category: 'Persistence' as const, code: 'vault.unexpected-failure', message: 'x' }),
@@ -390,6 +392,7 @@ describe('what the designer mounts', () => {
 		const view = makeView(
 			deps({
 				queries: {
+					listPlansUsingAsset: unwiredPlanUsage,
 					getAssetDesign: () =>
 						Promise.resolve(
 							err({ category: 'Reference' as const, code: 'asset.not-found', message: 'gone' }),

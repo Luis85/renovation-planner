@@ -442,7 +442,18 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   view's subtree, so notices, focus rings and hit sizes remain where they were: a live vault
   (`npm run test-build`) is the only place THOSE are verified.
 - **analyze** — fallow: dead files and exports, duplication, complexity against coverage,
-  and dependency hygiene.
+  and dependency hygiene. **Read the duplication half narrowly: it does not look at a
+  `*.test.ts` file at all.** The run prints `skipped N files matching default duplicates
+  ignores`, and that N has matched `find tests -name "*.test.ts" | wc -l` exactly at **both**
+  values it has been measured at on 2026-09-19 — 1055 before merging `origin/main` and **1061**
+  after, the merge having brought six more test files. Two agreeing measurements at different
+  values are what make this a MECHANISM rather than a coincidence, which one could not.
+  So `✓ No code duplication found` is a statement about `src/`, `scripts/` and
+  `tests/helpers/`, not about the suite. That boundary is why the `stackFoundation` extraction
+  below was findable at all: `vault.ts` and `fixtureVault.ts` are helpers rather than test files,
+  so fallow reads them. **A clone between two `*.test.ts` files is invisible to every gate this
+  repository has, permanently**, which is an argument for putting a shared test behaviour in
+  `tests/helpers/` beyond the usual one — there it becomes one definition AND a scanned one.
 
 **There are TWO repository stacks and ONE thing they are.** `createRepositoryStack`
 (in-memory, `tests/helpers/vault.ts`) and `openFixtureVault` (disk-backed,
@@ -489,6 +500,25 @@ Linux under xvfb at 1.13.7 (the earliest PUBLIC build at `minAppVersion`; 1.13.0
 Insiders-only and cannot be downloaded without an account), at `latest`, and under
 `OBSIDIAN_UI=mobile-emulation`, which is desktop Obsidian emulating a phone and NOT a device
 test. The host is forced to `--lang=en`, so the suite reads the same on a German machine.
+**The asset designer's manual cases are driven there** — no file count is kept here; each case
+under `docs/tests/cases/` names its files in its own **Automated in Obsidian** table, one row per
+clause. They go through `tests/e2e/designer.ts`, which reads the `.rpgeo` on disk as its
+instrument, and a helper module per area beside it (`designerCanvas.ts` reads Konva's stage
+registry for every other one). **Every case W24-A added was watched red against a one-clause
+`src/` mutation**, and the few that cannot go red say so in their table; W23-A's first five files
+predate that gate. What the host did that the
+manual cases had assumed otherwise is recorded in
+`docs/tasks/asset-designer-expansion/reports/W23-A-e2e-real-host.md` and `W24-A-e2e-manual-pass.md`
+— the sharpest: whether a driven Obsidian reconciles a file written outside it depends on the
+machine (none for 15 s under load, within 5 s on a quiet one with the window focused), so the
+suite takes the host's reconcile when it comes and calls `adapter.reconcileFile`, the watcher's
+own call, when it does not; and Obsidian's `graph:open` hotkey takes Ctrl+G before the designer
+sees it. **Window focus is shared between every Obsidian on the desktop**, and a held drag is
+dropped when its window loses focus mid-write, so e2e runs in parallel on one machine produce
+wrong reds. **Obsidian's chromedriver refuses
+`setWindowSize`**: size a leaf through `@electron/remote`'s `getCurrentWindow().setSize` or
+`app.workspace.leftSplit.setSize`. **A press and its release share ONE action chain** — a second
+chain's pointer starts at (0, 0).
 
 Everything else below still stands in for a vault. Three commands, and none replaces another
 (`asset-library-shots` and `concept-shots` beside them are captures of the second one's kind,
@@ -553,11 +583,22 @@ aimed at one surface and at the concept gallery, and neither replaces it either)
   (`npm run harness-shot prototype:ZonePanel` — the qualified id from `entries.ts`, not the
   basename the index displays) it captures that one prototype or component from the index
   instead of the fixed shots, in both colour schemes, with the index's own sidebar
-  dropped so the picture measures the screen. `-- --width=460` captures a narrow pane as
-  well, which is the width an Obsidian sidebar leaf actually has and the one that has already
-  hidden a layout defect the default 1280 could not show. The `--` is load-bearing: npm claims
-  a bare `--width` as its own config, and the command refuses that spelling rather than
-  capturing at the wrong width and exiting 0.
+  dropped so the picture measures the screen. `-- --width=460` captures that ENTRY at a narrow
+  pane as well, which is the width an Obsidian sidebar leaf actually has and the one that has
+  already hidden a layout defect the default 1280 could not show. **There are TWO refusals here
+  and this paragraph named only one.** The `--` is load-bearing:
+  npm claims a bare `--width` as its own config, and the command refuses that spelling rather
+  than capturing at the wrong width and exiting 0. And `--width` needs an ENTRY ID BESIDE IT —
+  `resolveShots` refuses it alone, "because the fixed shots carry their own", which
+  `scripts/harness-shot.mjs` states in its own comment. So `npm run harness-shot -- --width=460`
+  with no entry captures nothing. That bare form has twice been written down as though it worked —
+  once as a hand-off instruction, refused when the next session finally ran it
+  (`reports/RESUME.md` records it as the first of four things that turned out FALSE), and once in
+  a test docblock a session after that. **Neither is traced to this paragraph and the wording here
+  is correct in its own context**, which is an entry capture; the second author said outright that
+  they lifted the spelling out of that context. What the paragraph lacked was the OTHER refusal,
+  which is added above rather than inferred as the cause of anything. **An instruction nobody has
+  run is a plan, not a procedure.**
   It draws and asserts nothing itself and there is no baseline to diff against, so like
   `npm run harness` it is deliberately outside `npm run check` and outside CI.
 
@@ -600,7 +641,9 @@ aimed at one surface and at the concept gallery, and neither replaces it either)
   **The suite reads those fixtures from `tests/fixtures/`, never from `docs/`.** `docs/` is
   the vault — user land — and a test that depended on a path someone reorganises while
   writing notes would make a documentation tidy-up a build failure. The generator writes the
-  PNG to both, so the copies cannot drift; the PDF has no generator and is tracked twice.
+  PNG to both — and to a third copy under `tests/e2e/vault/`, the vault `npm run test:e2e`
+  copies per case — so the copies cannot drift; the PDF has no generator and is tracked three
+  times, for the same three readers.
 
 ## Architecture
 
@@ -1111,6 +1154,30 @@ that was fixing the previous instance.
   warnings, so the gate would have reddened — under the wrong rule, with the wrong message.
   A different rule KEY merges, which is why the DOM block can add to the Obsidian ruleset's
   globals only by restating them.
+- **`node scripts/styles-assemble.mjs` is NOT a command and exits 0 whatever the stylesheet
+  says.** That module exports `assembleStyles()` and has no CLI entry — no `import.meta.url`
+  guard, no `process.argv`, no top-level call — so invoking it directly runs nothing, prints
+  nothing and succeeds. **The gate is intact and lives elsewhere**: `scripts/vite-assembled-styles.mjs`
+  calls `assembleStyles()` in the build, and `tests/gates/styles.test.ts` drives it directly, so an
+  unimported partial, an over-cap partial and a hard-coded colour each still fail `npm run check`.
+  What does NOT work is the thing that looks like a check. Session fourteen told three cards to run
+  it and read its exit code; two of them reported `exit 0` as evidence for a stylesheet they had
+  changed, and the number meant nothing. **To exercise the assembler by hand, run
+  `npx vitest run tests/gates/styles.test.ts`, or import `assembleStyles` and call it** — that is
+  what the test does and what the build does. This is the general shape of the measure-with-an-
+  instrument-that-can-see-it rule: a command that exits 0 because it did nothing is indistinguishable
+  from one that exits 0 because everything passed.
+- **`max-lines`'s `skipComments` does NOT skip an SFC's TEMPLATE comments**, so a long
+  `<!-- -->` block in a `.vue` file counts against the 400-line cap like code. The rule skips
+  lines covered by `sourceCode.getAllComments()`, and `vue-eslint-parser` keeps template comments
+  on `templateBody.comments` — outside the root program's comment list the rule inspects. Script
+  comments in the same file ARE skipped, which is what makes this confusing: the same reasoning
+  costs nothing in `<script>` and full price in `<template>`. Found by W20-A, which met
+  `File has too many lines (403)` on a 19-line template comment and cleared it with a one-line
+  pointer and no code change; the mechanism was then verified independently. **Put the reasoning
+  in the script docblock and leave a pointer in the template** — the prose is not the thing worth
+  deleting. Note `AssetDesignerRoot.vue` sits at roughly 388 counted lines, so that file in
+  particular has little headroom.
 - **PowerShell 5.1 writes a BOM** (`Set-Content`/`Out-File -Encoding utf8`), and
   `JSON.parse` refuses one — a BOM'd `manifest.json` broke every lint run here once, with
   an error pointing nowhere near the cause. Write files with node or an editor;

@@ -18,6 +18,7 @@ import MaterialFields from './MaterialFields.vue';
 import CostFields from './CostFields.vue';
 import EvidenceFields from './EvidenceFields.vue';
 import PlanningContextFields from './PlanningContextFields.vue';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 const props = defineProps<{ draft: PlanningDraft; baseline: PlanningBaseline; busy: Ref<boolean>; paused: Readonly<Ref<boolean>>; files?: EvidenceFiles; retry?: () => Promise<void>; openSource?: () => Promise<void>; dispatch: (input: MaterialInput | RenovationInput) => Promise<DispatchResult> }>();
 const emit = defineEmits<{ submit: [] }>();
 const draft = ref(structuredClone(toRaw(props.draft))), submitting = ref(false), error = ref(''), preview = ref('');
@@ -150,14 +151,11 @@ function explain(): void { try { if (!input()) error.value = tr('planning.invali
 				{{ preview }}
 			</p>
 		</template>
-		<button
-			type="submit"
-			:aria-disabled="applyBlocked"
+		<FormSubmitRow
+			:submitting="applyBlocked"
+			:label="tr(newPhoto ? 'planning.add.photo' : 'planning.apply')"
 			data-rp-planning-apply
-			:class="{ 'mod-cta': newPhoto }"
 			@click.capture="refuseInoperativeEvent"
-		>
-			{{ tr(newPhoto ? 'planning.add.photo' : 'planning.apply') }}
-		</button>
+		/>
 	</form>
 </template>

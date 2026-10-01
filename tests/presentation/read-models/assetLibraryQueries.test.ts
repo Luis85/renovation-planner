@@ -24,6 +24,7 @@ import type { RepositoryError } from '../../../src/application/ports/repositoryE
 import type { AssetId } from '../../../src/domain/asset/AssetId';
 import type { ProjectId } from '../../../src/domain/project/ProjectId';
 import type { ReassignmentTargetDto } from '../../../src/application/queries/reassignmentTypes';
+import type { AssetPlanUsage } from '../../../src/application/queries/ListPlansUsingAsset';
 import { err, ok, type Result } from '../../../src/core/result/Result';
 import { expectErr, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import { assetDesign } from '../../helpers/assetDesign';
@@ -78,6 +79,12 @@ function queriesWith(overrides: Partial<Parameters<typeof createAssetLibraryQuer
 			): Promise<Result<readonly ReassignmentTargetDto[], RepositoryError>> => {
 				asked.push(target);
 				return Promise.resolve(ok([]));
+			},
+		},
+		listPlansUsingAsset: {
+			execute: (assetId: AssetId): Promise<Result<AssetPlanUsage, RepositoryError>> => {
+				asked.push(assetId);
+				return Promise.resolve(ok({ plans: [], unreadable: 0 }));
 			},
 		},
 		...overrides,

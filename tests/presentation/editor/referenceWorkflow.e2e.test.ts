@@ -135,7 +135,10 @@ describe('M05 → M06 in the real editor with FakeVault repository commands', ()
 		const before = new Map(r.stack.vault.entries); await open(r); await prepare(r, 'scan.pdf'); await field(r, 'page', '2');
 		await r.harness.wrapper.get('[data-rp-action="load-reference"]').trigger('click'); await settle();
 		expect(r.load).toHaveBeenLastCalledWith({ path: 'scan.pdf', kind: 'pdf', page: 2 }, expect.anything());
-		await measure(r); await r.harness.wrapper.get(`${FORM} [data-rp-reference-action="back"]`).trigger('click'); await settle();
+		await measure(r);
+		// Back is a dialog button like the Cancel and the submit beside it on the one row, not a bare host button.
+		expect(r.harness.wrapper.get(`${FORM} [data-rp-reference-action="back"]`).classes()).toEqual(r.harness.wrapper.get('.rp-dialog [data-rp-action="cancel"]').classes());
+		await r.harness.wrapper.get(`${FORM} [data-rp-reference-action="back"]`).trigger('click'); await settle();
 		await r.harness.wrapper.get(`${FORM} [data-rp-reference-action="another-distance"]`).trigger('click');
 		expect(r.harness.wrapper.get('input[name="length"]').element).toHaveProperty('value', '');
 		expect(r.harness.wrapper.find('canvas.rp-reference-preview').exists()).toBe(true);

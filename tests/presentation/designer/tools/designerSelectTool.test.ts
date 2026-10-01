@@ -68,9 +68,18 @@ describe('selecting', () => {
 
 		// Outside the clearance, which reaches x = 390 and y = 950.
 		rig.tool.pointerDown(pointerAt(1000, 1000));
-
 		expect(rig.selected).toEqual([null]);
-		expect(rig.tool.hasDraft()).toBe(false);
+
+		// **No DRAG**, asked of what a drag would DO rather than of `hasDraft`: that press now begins a
+		// MARQUEE (AD08), which is a draft too, so the flag can no longer tell the two apart. A drag
+		// would preview a moved shape on this move and write one at this release; a marquee over empty
+		// canvas does neither. `tools/designerSelectMarquee.test.ts` is the sweep's own file.
+		rig.tool.pointerMove(pointerAt(1200, 1200));
+		rig.tool.pointerUp(pointerAt(1200, 1200));
+
+		expect(rig.previews).toEqual([]);
+		expect(rig.written).toEqual([]);
+		expect(rig.extended).toEqual([]);
 	});
 
 	it('does nothing before activation, after deactivation, or on an asset with no shape', () => {
@@ -319,7 +328,10 @@ describe('an interrupted gesture', () => {
 		rig.tool.pointerUp(pointerAt(IN_BOWL.x + 100, IN_BOWL.y, 'secondary'));
 		// Outside the clearance: a press on nothing, whose release must not commit the older drag.
 		rig.tool.pointerDown(pointerAt(1000, 1000));
-		expect(rig.tool.hasDraft()).toBe(false);
+		// `tracksPointer` rather than `hasDraft`, since that press begins a marquee and a marquee is a
+		// draft: what says the older DRAG is gone is that nothing is following the pointer any more —
+		// it answered true while that drag was live, and a sweep with no move yet answers false.
+		expect(rig.tool.tracksPointer()).toBe(false);
 		rig.tool.pointerUp(pointerAt(1000, 1000));
 		await flushGesture();
 
@@ -387,5 +399,101 @@ describe('a write the vault refuses', () => {
 		await flushGesture();
 
 		expect(rig.previews.at(-1)).not.toBeNull();
+	});
+});
+
+/**
+ * AD08 / C05: an additive press CHOOSES and never drags. A user building a set out of three
+ * graphics would otherwise move the third by however far the press wandered before release — the
+ * Plan Editor's own rule, met here from the same direction.
+ *
+ * `activate` before every press, like every other case in this file: the tool reads its context
+ * from the activation, and a press without one hits nothing at all.
+ */
+describe('adding a part to the selection', () => {
+	it('extends rather than replacing, under a held Shift', () => {
+		const rig = selectToolRig();
+		rig.tool.activate(rig.harness.context);
+		rig.tool.pointerDown(shiftPointerAt(IN_BOWL.x, IN_BOWL.y));
+		expect(rig.extended).toEqual([{ kind: 'detail', id: 'detail-2' }]);
+		expect(rig.selected).toEqual([]);
+	});
+
+	it('extends under the sticky mode too, with no modifier held', () => {
+		const rig = selectToolRig({ multiSelectionMode: () => true });
+		rig.tool.activate(rig.harness.context);
+		rig.tool.pointerDown(pointerAt(IN_BOWL.x, IN_BOWL.y));
+		expect(rig.extended).toEqual([{ kind: 'detail', id: 'detail-2' }]);
+	});
+
+	/** No drag begins, so a wandering press writes nothing. */
+	it('starts no gesture, so the part does not move with the press', async () => {
+		const rig = selectToolRig();
+		rig.tool.activate(rig.harness.context);
+		rig.tool.pointerDown(shiftPointerAt(IN_BOWL.x, IN_BOWL.y));
+		rig.tool.pointerMove(shiftPointerAt(IN_BOWL.x + 200, IN_BOWL.y + 200));
+		rig.tool.pointerUp(shiftPointerAt(IN_BOWL.x + 200, IN_BOWL.y + 200));
+		await flushGesture();
+		expect(rig.written).toEqual([]);
+		expect(rig.previews.filter((preview) => preview !== null)).toEqual([]);
+	});
+
+	/** And the ordinary press is untouched: it replaces the selection and begins its drag. */
+	it('leaves a plain press replacing the selection', () => {
+		const rig = selectToolRig();
+		rig.tool.activate(rig.harness.context);
+		rig.tool.pointerDown(pointerAt(IN_BOWL.x, IN_BOWL.y));
+		expect(rig.extended).toEqual([]);
+		expect(rig.selected).toEqual([{ kind: 'detail', id: 'detail-2' }]);
+	});
+});
+
+/**
+ * AD09's transient edit lock. A locked graphic is still SELECTABLE — that is how a user finds it,
+ * reads its fields and unlocks it — and it does not move: the press chooses it and starts no drag,
+ * so the pointer stream that would otherwise have dragged it writes nothing at all.
+ *
+ * Both halves matter. A lock that also refused the selection would make the Parts panel the only way
+ * back, and a lock that merely skipped the WRITE would let the canvas preview a move that never
+ * lands — the wrong picture this repository refuses everywhere else.
+ */
+const LOCKED = (): ReadonlySet<string> => new Set(['detail-1']);
+
+describe('a locked graphic', () => {
+	const inTank = justInsideBottom(TANK);
+
+	it('is still selected by a press, so it can be found and unlocked', () => {
+		const rig = selectToolRig({ locked: LOCKED });
+		rig.tool.activate(rig.harness.context);
+
+		rig.tool.pointerDown(pointerAt(inTank.x, inTank.y));
+
+		expect(rig.selected).toEqual([TANK_SELECTED]);
+	});
+
+	it('starts no drag, so a pointer stream that would have moved it previews and writes nothing', async () => {
+		const rig = selectToolRig({ locked: LOCKED });
+		rig.tool.activate(rig.harness.context);
+
+		rig.tool.pointerDown(pointerAt(inTank.x, inTank.y));
+		rig.tool.pointerMove(pointerAt(inTank.x + 200, inTank.y + 200));
+		rig.tool.pointerUp(pointerAt(inTank.x + 200, inTank.y + 200));
+		await flushGesture();
+
+		expect(rig.tool.hasDraft()).toBe(false);
+		expect(rig.previews).toEqual([]);
+		expect(rig.written).toEqual([]);
+	});
+
+	it('moves an UNLOCKED graphic under the same gesture, so the case above is the lock and not the rig', async () => {
+		const rig = selectToolRig();
+		rig.tool.activate(rig.harness.context);
+
+		rig.tool.pointerDown(pointerAt(inTank.x, inTank.y));
+		rig.tool.pointerMove(pointerAt(inTank.x + 200, inTank.y + 200));
+		rig.tool.pointerUp(pointerAt(inTank.x + 200, inTank.y + 200));
+		await flushGesture();
+
+		expect(rig.written).toHaveLength(1);
 	});
 });

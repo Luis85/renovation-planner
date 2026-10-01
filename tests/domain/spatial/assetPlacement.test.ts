@@ -3,6 +3,7 @@ import type { Point } from '../../../src/core/geometry/Point';
 import { rotate } from '../../../src/core/geometry/operations';
 import type { AssetShape } from '../../../src/domain/asset/AssetShape';
 import { backDepth, membershipProbe, placedOutline, placementHeading, placementPoints } from '../../../src/domain/spatial/assetPlacement';
+import { OPEN_POINTS, shapeWithOpenGraphic } from '../../helpers/assetShapes';
 
 const rounded = (points: readonly Point[]): Point[] => points.map(p => ({ x: Math.round(p.x * 1e6) / 1e6 + 0, y: Math.round(p.y * 1e6) / 1e6 + 0 }));
 const rect = (w: number, d: number): Point[] => [{ x: -w / 2, y: -d / 2 }, { x: w / 2, y: -d / 2 }, { x: w / 2, y: d / 2 }, { x: -w / 2, y: d / 2 }];
@@ -72,5 +73,37 @@ describe('asset placement geometry', () => {
 
 	it('measures back depth from the arc, not only its corner points', () => {
 		expect(backDepth(shape({ footprint: circle(500), facing: Math.PI / 4 }))).toBeGreaterThan(499);
+	});
+});
+
+/**
+ * AD05: a placement carries a graphic's KIND onto the plan. `points` alone cannot say — an open run
+ * and a closed ring are both a list of coordinates — so a plan that assumed closed would draw an
+ * edge the object has not got and fill an interior it does not have.
+ */
+describe('an open graphic on a plan', () => {
+	const open = shapeWithOpenGraphic();
+	const element = { points: placementPoints({ x: 0, y: 0 }, 0) };
+
+	it('says which graphics close and which do not', () => {
+		const placed = placedOutline(element, open);
+		expect(placed.details.map((detail) => detail.closed)).toEqual([true, true, false]);
+	});
+
+	/**
+	 * **No case here asserts that the open run keeps its last point, and the absence is deliberate.**
+	 * It was written, and then measured against a deliberately broken flattener that treated the
+	 * graphic as a ring — and it passed. For a three-point run the closing edge is straight, so
+	 * `polygonPolyline` emits exactly the same list: it drops each segment's END, and the closing
+	 * edge contributes only its start, which is the run's last point. The two agree by construction
+	 * for every straight closing edge, and an open path cannot bow one, so there is no placement
+	 * fixture where the point count discriminates.
+	 *
+	 * The property is real and is held where it IS decisive — `pathPolyline`'s own case in
+	 * `tests/core/geometry/curvedPath.test.ts`. What discriminates HERE is the `closed` flag above.
+	 */
+	it('places it by the same transform as everything else', () => {
+		const moved = placedOutline({ points: placementPoints({ x: 1000, y: 2000 }, 0) }, open);
+		expect(rounded(moved.details[2].points)).toEqual(OPEN_POINTS.map((point) => ({ x: point.x + 1000, y: point.y + 2000 })));
 	});
 });

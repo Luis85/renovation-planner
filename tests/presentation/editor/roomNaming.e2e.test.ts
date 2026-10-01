@@ -106,7 +106,7 @@ describe('existing Room naming in the real editor', () => {
 		await apply(r); expect((await read(r)).entity.name).toBe('Peer');
 		expect(r.harness.wrapper.get('input[name="name"]').element).toHaveProperty('value', '  Dining room  ');
 		expect(r.harness.wrapper.text()).toContain(fail ? 'current room could not be read' : 'Latest saved name: Peer');
-		expect(r.harness.wrapper.get(`${FORM} button`).attributes('aria-disabled')).toBe('true');
+		expect(r.harness.wrapper.get(`${FORM} button[type="submit"]`).attributes('aria-disabled')).toBe('true');
 		await apply(r); expect(runtimeOf(r.harness).canUndo.value).toBe(false); await cancel(r); r.harness.unmount();
 	});
 	it('blocks duplicate/late submissions and busy cancellation without losing focus or input', async () => {

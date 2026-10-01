@@ -43,6 +43,22 @@
 	color: var(--text-normal);
 }
 
+/*
+ * AD18-R39: a tile's and the inspector preview's details, in the footprint's own colour and
+ * THINNER than it — never fainter, because `assetLibraryLegibility.e2e.ts` holds every drawn line
+ * of a designed tile above the category placeholder's `--text-faint`. Held in screen pixels, so
+ * the tile (footprint 1.5px) and the preview (footprint 0.2 viewBox units) both read it as 0.75px.
+ */
+.rp-al-mark .rp-al-mark__detail {
+	stroke-width: 0.75px;
+	vector-effect: non-scaling-stroke;
+}
+
+/* Dashed marks a detail drawn overhead or hidden (`AssetDetail.ts`'s `DetailLine`), as the designer's card does. */
+.rp-al-mark .rp-al-mark__detail--dashed {
+	stroke-dasharray: 3 2;
+}
+
 .rp-al-mark__dot {
 	fill: currentColor;
 	stroke: none;

@@ -51,7 +51,10 @@ have a spec sheet to trace.
 
 ## Acceptance criteria
 
-1. Fourteen presets are offered, grouped as tables, seating, bathroom, and plants and beds.
+1. Presets are offered, grouped as tables, seating, bathroom, and plants and beds. The catalogue
+   is not fixed at a number: it was fourteen when this was accepted on 2026-09-13 and is fifteen
+   since the vanity landed (AD18-R8, 2026-09-22). `tests/domain/asset/presets/presets.test.ts` pins
+   the whole list in order, which is what re-verifying this criterion should read.
 2. An applied preset is one undo entry.
 3. A preset's width and depth are the asset's derived dimensions.
 4. Curved outlines draw as arcs in the designer, the library and on plans.

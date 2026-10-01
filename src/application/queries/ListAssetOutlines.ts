@@ -1,14 +1,16 @@
 import { isErr } from '../../core/result/Result';
 import type { AssetId } from '../../domain/asset/AssetId';
-import type { Dimensions } from '../../domain/asset/AssetShape';
+import type { AssetShape, Dimensions } from '../../domain/asset/AssetShape';
 import { dimensionsOf } from '../../domain/asset/AssetShape';
+import { detailIsClosed, detailPolyline } from '../../domain/asset/AssetDetail';
 import type { Point } from '../../core/geometry/Point';
 import { polygonPolyline } from '../../core/geometry/curvePolyline';
 import type { Query } from './Query';
 import type { AssetGeometrySidecar } from '../ports/AssetGeometrySidecar';
 
 /**
- * The Asset library's 20px mark (design "Asset library overview" §3.4), answered per asset
+ * The Asset library's mark (design "Asset library overview" §3.4; the 20px row mark, and since
+ * AD18-R39 the Grid tile's mark with the asset's details beside its footprint), answered per asset
  * rather than as one shape, because a mark has FIVE states and this query can only settle
  * four of them — the other, *not yet read*, is what a caller sees before this query has
  * answered at all, so it is not a member of this union.
@@ -31,10 +33,41 @@ import type { AssetGeometrySidecar } from '../ports/AssetGeometrySidecar';
  * refuse.
  */
 export type AssetOutline =
-	| { readonly kind: 'measured'; readonly points: readonly Point[]; readonly extent: Dimensions }
-	| { readonly kind: 'unscaled'; readonly points: readonly Point[]; readonly extent: Dimensions }
+	| { readonly kind: 'measured'; readonly points: readonly Point[]; readonly extent: Dimensions; readonly details: readonly OutlineDetail[] }
+	| { readonly kind: 'unscaled'; readonly points: readonly Point[]; readonly extent: Dimensions; readonly details: readonly OutlineDetail[] }
 	| { readonly kind: 'none' }
 	| { readonly kind: 'refused'; readonly code: string; readonly sidecarPath: string | undefined };
+
+/**
+ * One graphic of the asset's own drawing (AD18-R39), flattened in the footprint's own millimetres so
+ * the mark places it with the footprint's fit. A Grid tile and the inspector's Shape preview draw
+ * these; the 20px row mark does not (§3.4, "mush at 20px"). `details` is REQUIRED on the outline, `[]`
+ * for a shape with none, so no hand-built outline (a fixture, the harness) can be kinder than `outlineOf`.
+ */
+export interface OutlineDetail {
+	readonly points: readonly Point[];
+	/** `false` for an open graphic, which is emitted without the SVG `Z` that would close it. */
+	readonly closed: boolean;
+	readonly dashed: boolean;
+}
+
+/**
+ * A shape whose extent has already been measured, as the mark draws it — the batch's and the
+ * inspector preview's one mapping, so the two map a shape the same way (each still draws whatever its own read answered).
+ * Arcs flattened at 1 mm: the mark draws straight segments (symbols spec, Rendering).
+ */
+export function outlineOf(shape: AssetShape, extent: Dimensions): AssetOutline {
+	return {
+		kind: shape.footprintPending ? 'unscaled' : 'measured',
+		points: polygonPolyline(shape.footprint),
+		extent,
+		details: shape.details.map((detail) => ({
+			points: detailPolyline(detail),
+			closed: detailIsClosed(detail),
+			dashed: detail.line === 'dashed',
+		})),
+	};
+}
 
 export interface ListAssetOutlinesInput {
 	readonly assetIds: readonly AssetId[];
@@ -88,11 +121,7 @@ export class ListAssetOutlines
 			return { kind: 'refused', code: measured.error.code, sidecarPath: undefined };
 		}
 
-		return {
-			kind: shape.footprintPending ? 'unscaled' : 'measured',
-			// Arcs flattened at 1 mm: the 20px mark draws straight segments (symbols spec, Rendering).
-			points: polygonPolyline(shape.footprint),
-			extent: measured.value,
-		};
+		// The details ride the same parse the footprint already paid for (AD18-R39): no second read.
+		return outlineOf(shape, measured.value);
 	}
 }

@@ -574,3 +574,37 @@ export function applyTransform<T extends Shape>(shape: T, transform: Transform):
 	const rotated = rotate(scaled, transform.rotationRadians, ORIGIN);
 	return translate(rotated, transform.translation);
 }
+
+/**
+ * Does the segment `a`–`b` meet the axis-aligned box? The slab test: clip the segment's parameter
+ * range against each axis' slab in turn and answer whether anything survives.
+ *
+ * It also answers POINT-in-box when the two ends coincide — both deltas are zero, so each axis is
+ * asked only whether the point lies within its slab — which is why a caller testing a run of
+ * vertices needs no separate vertex test: every vertex is an end of some segment.
+ *
+ * **Here rather than in either surface that wants it.** The plan editor's marquee and the asset
+ * designer's each had their own copy, identical down to the identifier names and differing only in
+ * line wrapping — which is the shape a line-oriented clone detector is least likely to report, so
+ * the pair would have drifted with nothing watching. Exporting one surface's private copy was the
+ * other option and is worse: it would have the designer import a geometry primitive out of another
+ * surface's selection tool. This is a pure predicate over a segment and a box with no presentation
+ * dependency, so it belongs beside `contains`, which both callers already reach for from here.
+ */
+export function segmentMeetsBox(a: Point, b: Point, box: BoundingBox): boolean {
+	let near = 0;
+	let far = 1;
+	for (const axis of ['x', 'y'] as const) {
+		const delta = b[axis] - a[axis];
+		if (delta === 0) {
+			if (a[axis] < box.min[axis] || a[axis] > box.max[axis]) return false;
+			continue;
+		}
+		const first = (box.min[axis] - a[axis]) / delta;
+		const last = (box.max[axis] - a[axis]) / delta;
+		near = Math.max(near, Math.min(first, last));
+		far = Math.min(far, Math.max(first, last));
+		if (near > far) return false;
+	}
+	return true;
+}

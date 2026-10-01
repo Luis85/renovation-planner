@@ -126,12 +126,11 @@ describe('Delete', () => {
 });
 
 /**
- * The listener acts only under Select with no gesture in flight — `EditorSurface`'s arrow door asks the
- * same. Backspace is a trace's own word for "take that point back" in every drawing tool, so a user
+ * The listener acts only under Select or camera mode, with no gesture in flight (`selectionKeysRefused`). Backspace is a trace's own word for "take that point back" in every drawing tool, so a user
  * mid-trace with a detail still selected must not lose the detail to it; and a Delete pressed while a
  * drag of the selection is still held would delete the part the release is about to write.
  */
-describe('the selection keys outside a resting Select', () => {
+describe('the selection keys under a drawing tool or mid-gesture', () => {
 	it('deletes nothing for a Backspace pressed mid-trace', async () => {
 		const rig = await designerRig({ shape: TOILET });
 		await selectAt(rig, justInsideBottom(BOWL));

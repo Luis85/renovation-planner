@@ -4,7 +4,7 @@ import { polygonPolyline } from '../../../core/geometry/curvePolyline';
 import { distance } from '../../../core/geometry/operations';
 import type { Point } from '../../../core/geometry/Point';
 import type { Result } from '../../../core/result/Result';
-import { circle, rect } from '../../../domain/asset/presets/presetGeometry';
+import { circle, rect, roundedRect } from '../../../domain/asset/presets/presetGeometry';
 import { SNAP_TOLERANCE_PX } from '../../editor/handleMetrics';
 import { ARC_TOLERANCE_PX } from '../layers/footprintLayer';
 import type { EditorContext } from '../../editor/tools/editor-context';
@@ -37,6 +37,30 @@ export const rectOutline = (from: Point, to: Point): CurvedPolygon | null =>
 	from.x === to.x || from.y === to.y
 		? null
 		: rect(Math.abs(to.x - from.x), Math.abs(to.y - from.y), (from.x + to.x) / 2, (from.y + to.y) / 2);
+
+/**
+ * How much of the shorter side one corner takes. A quarter, so the radius is always strictly under
+ * the half at which two of the eight points would coincide — which is what makes AD11's *"changed
+ * dimensions cannot produce invalid corner geometry"* true by construction rather than by a check:
+ * there is no radius to go out of range, only a rectangle whose corners are a function of its sides.
+ */
+const CORNER_FRACTION = 1 / 4;
+
+/**
+ * The rounded box two corners describe; `null` with no width or no depth, exactly as `rectOutline`.
+ *
+ * The radius is DERIVED and never stored (AD11 item 2, and the precedent AD07 made a sentence the
+ * user reads): a stored one would have to be maintained by every later edit, and a vertex drag, a
+ * bend or a nonuniform resize can each put the geometry somewhere no single radius describes. What
+ * a later edit meets instead is ordinary geometry — a resize keeps each corner's bulge through its
+ * new chord, which is r1's stated approximation rather than a circle, and the bend handle edits a
+ * corner exactly as it edits any other curved edge.
+ */
+export const roundedRectOutline = (from: Point, to: Point): CurvedPolygon | null => {
+	const width = Math.abs(to.x - from.x), depth = Math.abs(to.y - from.y);
+	if (width === 0 || depth === 0) return null;
+	return roundedRect(width, depth, Math.min(width, depth) * CORNER_FRACTION, (from.x + to.x) / 2, (from.y + to.y) / 2);
+};
 
 /** A circle about `centre` through `rim`, as the presets draw one; `null` when the rim is the centre. */
 export const circleOutline = (centre: Point, rim: Point): CurvedPolygon | null => {

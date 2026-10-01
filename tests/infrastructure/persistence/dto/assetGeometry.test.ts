@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	AssetGeometrySchema,
 	AssetGeometrySchemaV1,
+	AssetGeometrySchemaV3,
 	AssetShapeSchemaV1,
 } from '../../../../src/infrastructure/persistence/dto/assetGeometry';
 import type { AssetGeometryDocument } from '../../../../src/application/ports/AssetGeometrySidecar';
@@ -159,15 +160,77 @@ describe('AssetGeometrySchema, which reads every version this build knows', () =
 		expect(AssetGeometrySchema.safeParse(null).success).toBe(false);
 	});
 
-	it('raises a version 1 document to version 2 with no details', () => {
+	it('raises a version 1 document to version 4, with no details, no groups and no review flag', () => {
 		const parsed = AssetGeometrySchema.parse(valid);
-		expect(parsed.schemaVersion).toBe(2);
+		expect(parsed.schemaVersion).toBe(4);
 		expect(parsed.shape?.details).toEqual([]);
+		expect(parsed.shape?.groups).toEqual([]);
+		expect(parsed.shape?.clearanceNeedsReview).toBe(false);
+	});
+
+	/**
+	 * The v2 half of the same migration (AD04 §5): every field version 3 adds defaults to what a
+	 * document written before it meant — closed graphics, no label, no groups — so nothing is
+	 * rewritten and nothing is inferred.
+	 */
+	it('raises a version 2 document to version 4, defaulting each graphic to closed', () => {
+		const v2 = { ...valid, schemaVersion: 2, shape: { ...validShape, details: [{ id: 'detail-1', name: 'seat', outline: validShape.footprint, line: 'solid', pending: false }] } };
+		const parsed = AssetGeometrySchema.parse(v2);
+		expect(parsed.schemaVersion).toBe(4);
+		expect(parsed.shape?.details[0]).toMatchObject({ kind: 'closed', name: 'seat' });
+		expect(parsed.shape?.groups).toEqual([]);
+	});
+
+	/** An OPEN graphic: two points is enough, and its bulge array is one per SEGMENT. */
+	it('reads an open graphic with two points and one bulge per segment', () => {
+		const open = { id: 'detail-1', name: 'swing', kind: 'open', outline: { points: [[0, 0], [100, 0]], bulges: [0.5] }, line: 'dashed', pending: false };
+		const parsed = AssetGeometrySchema.parse({ ...valid, schemaVersion: 3, shape: { ...validShape, details: [open] } });
+		expect(parsed.shape?.details[0]).toMatchObject({ kind: 'open' });
+	});
+
+	it('refuses an open graphic carrying a closed shape-s bulge array, which would name an edge it has not got', () => {
+		const open = { id: 'detail-1', name: 'swing', kind: 'open', outline: { points: [[0, 0], [100, 0]], bulges: [0.5, 0] }, line: 'solid', pending: false };
+		expect(AssetGeometrySchema.safeParse({ ...valid, schemaVersion: 3, shape: { ...validShape, details: [open] } }).success).toBe(false);
+	});
+
+	it('refuses a CLOSED graphic with only two points, which an open one may have', () => {
+		const thin = { id: 'detail-1', name: 'seat', kind: 'closed', outline: { points: [[0, 0], [100, 0]] }, line: 'solid', pending: false };
+		expect(AssetGeometrySchema.safeParse({ ...valid, schemaVersion: 3, shape: { ...validShape, details: [thin] } }).success).toBe(false);
+	});
+
+	/** A default is for an ABSENT field; a present malformed one fails the read (footprintPending-s rule). */
+	it('refuses a kind outside the union rather than defaulting it to closed', () => {
+		const odd = { id: 'detail-1', name: 'seat', kind: 'spline', outline: validShape.footprint, line: 'solid', pending: false };
+		expect(AssetGeometrySchema.safeParse({ ...valid, schemaVersion: 3, shape: { ...validShape, details: [odd] } }).success).toBe(false);
+	});
+
+	it('reads groups, and refuses one with no members', () => {
+		const withGroup = { ...validShape, groups: [{ id: 'group-1', label: 'Tank', members: ['detail-1'] }] };
+		expect(AssetGeometrySchema.parse({ ...valid, schemaVersion: 3, shape: withGroup }).shape?.groups).toEqual([{ id: 'group-1', label: 'Tank', members: ['detail-1'] }]);
+		const empty = { ...validShape, groups: [{ id: 'group-1', members: [] }] };
+		expect(AssetGeometrySchema.safeParse({ ...valid, schemaVersion: 3, shape: empty }).success).toBe(false);
 	});
 
 	it('is refused by a version-1-only schema, so an older build cannot drop details on its next write', () => {
 		const v2 = { ...valid, schemaVersion: 2, shape: { ...validShape, details: [] } };
 		expect(AssetGeometrySchemaV1.safeParse(v2).success).toBe(false);
+	});
+
+	/**
+	 * **The whole argument for the v4 bump, asked of the schema that would otherwise do the
+	 * damage.** A Zod object STRIPS unknown keys, so a v3-only build handed a v4 document would not
+	 * fail — it would load it, lose `clearanceNeedsReview`, and write it back without the flag,
+	 * presenting a clearance nobody has reviewed as reviewed. `z.literal(3)` is what makes that
+	 * build refuse the file instead, and this case is the only place that claim is checked.
+	 *
+	 * Both halves matter and are asserted together: the refusal, and that the field really would
+	 * have been stripped had the version matched.
+	 */
+	it('is refused by a version-3-only schema, which would otherwise strip the review flag on its next write', () => {
+		const v4 = { ...valid, schemaVersion: 4, shape: { ...validShape, clearanceNeedsReview: true } };
+		expect(AssetGeometrySchemaV3.safeParse(v4).success).toBe(false);
+		const disguised = AssetGeometrySchemaV3.parse({ ...v4, schemaVersion: 3 });
+		expect(disguised.shape).not.toHaveProperty('clearanceNeedsReview');
 	});
 
 	it('refuses a bulge beyond a semicircle', () => {
@@ -176,6 +239,20 @@ describe('AssetGeometrySchema, which reads every version this build knows', () =
 	});
 
 	it('refuses a version this build does not know', () => {
-		expect(AssetGeometrySchema.safeParse({ ...valid, schemaVersion: 3 }).success).toBe(false);
+		expect(AssetGeometrySchema.safeParse({ ...valid, schemaVersion: 5 }).success).toBe(false);
+	});
+
+	/**
+	 * AD14's v4 field, and the pair of rules `footprintPending` states one field up: an ABSENT key
+	 * is an older document and reads as not flagged; a PRESENT malformed one fails the read rather
+	 * than being coerced. Defaults are for absent fields, never for malformed present ones —
+	 * `.default(false)` and never `.catch(false)`, because coercing this one presents an unreviewed
+	 * boundary as reviewed.
+	 */
+	it('reads clearanceNeedsReview, and refuses a present non-boolean rather than defaulting it', () => {
+		const flagged = { ...validShape, clearanceNeedsReview: true };
+		expect(AssetGeometrySchema.parse({ ...valid, schemaVersion: 4, shape: flagged }).shape?.clearanceNeedsReview).toBe(true);
+		const malformed = { ...validShape, clearanceNeedsReview: 'true' };
+		expect(AssetGeometrySchema.safeParse({ ...valid, schemaVersion: 4, shape: malformed }).success).toBe(false);
 	});
 });

@@ -4,7 +4,7 @@ import type { CurvedPolygon } from '../../../core/geometry/CurvedPolygon';
 import { coincident } from '../../../core/geometry/operations';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { AssetId } from '../../../domain/asset/AssetId';
-import type { AssetBackgroundRef } from '../../../domain/asset/Asset';
+import type { Asset, AssetBackgroundRef } from '../../../domain/asset/Asset';
 import { assetDesignChanged } from '../../../domain/asset/Asset.events';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { validateAssetShape } from '../../../domain/asset/AssetShape';
@@ -15,7 +15,7 @@ import type {
 	AssetGeometrySidecar,
 	AssetGeometrySnapshot,
 } from '../../ports/AssetGeometrySidecar';
-import type { EntityVersion } from '../../ports/versioning';
+import type { EntityVersion, Loaded } from '../../ports/versioning';
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import { assetError, assetNotFound } from '../../../domain/asset/Asset.errors';
 import type { AssetRepository } from '../../ports/AssetRepository';
@@ -205,13 +205,36 @@ export interface AssetDesignRead {
 	readonly background: AssetBackgroundRef | null;
 }
 
+/**
+ * Read an asset's NOTE, refusing a read fault and a missing asset as two different things.
+ *
+ * **Extracted because four commands spelled these three lines themselves** — `UpdateAsset`,
+ * `SetAssetHeight`, `SetAssetBackground` and `DuplicateAsset` — and `npm run analyze` reported the
+ * last two as a clone group once AD13 and the reference-deletion arm landed beside each other.
+ * Written once here rather than reviewed as an accepted clone, because it is a named idea with a
+ * rule inside it rather than an accidental similarity.
+ *
+ * **The rule is the second arm, and it is why this is worth a function.** A failed READ is not
+ * "asset missing" (C08): collapsing them relabels a vault fault as a deletion, which is the
+ * mistake `assetNotFound`'s own docblock records this repository paying for twice. One function
+ * means one place that can ever get that wrong again.
+ */
+export async function loadAssetEntity(
+	assets: AssetRepository,
+	assetId: AssetId,
+): Promise<Result<Loaded<Asset>, RepositoryError | ReferenceError>> {
+	const loaded = await assets.getById(assetId);
+	if (isErr(loaded)) return loaded;
+	if (loaded.value === null) return err(assetNotFound(assetId));
+	return ok(loaded.value);
+}
+
 export async function loadAssetDocument(
 	deps: AssetShapeDeps,
 	assetId: AssetId,
 ): Promise<Result<AssetDesignRead, RepositoryError | ReferenceError>> {
-	const loaded = await deps.assets.getById(assetId);
+	const loaded = await loadAssetEntity(deps.assets, assetId);
 	if (isErr(loaded)) return loaded;
-	if (loaded.value === null) return err(assetNotFound(assetId));
 	const snapshot = await deps.sidecar.read(assetId);
 	if (isErr(snapshot)) return snapshot;
 	return ok({ snapshot: snapshot.value, background: loaded.value.entity.background });

@@ -48,8 +48,15 @@ export type AssetSidecarContent = Pick<AssetGeometryDTO, 'calibration' | 'shape'
  */
 const ABSENT_VERSION: EntityVersion = { revision: 0, observed: observeSidecar('') };
 
+/**
+ * The version this build EMITS, named once so the empty document and the write cannot disagree —
+ * they were two literal `2`s and a bump had to remember both. What it READS is wider and is
+ * `AssetGeometrySchema`'s business: v1, v2, v3 and v4 in, v4 out (AD14-R1; v3 was AD04 §5).
+ */
+const SCHEMA_VERSION = 4;
+
 const emptyDocument = (assetId: AssetId): AssetGeometryDTO => ({
-	schemaVersion: 2,
+	schemaVersion: SCHEMA_VERSION,
 	assetId,
 	revision: 0,
 	unit: 'mm',
@@ -84,7 +91,10 @@ const emptyDocument = (assetId: AssetId): AssetGeometryDTO => ({
  * because the runner is keyed by `DiagnosticEntityKind` and adding `asset-geometry` to that
  * closed union widens the diagnostics snapshot — a decision this task does not own. A
  * future-version sidecar is still REFUSED, by `AssetGeometrySchema`, which knows versions 1
- * and 2, and still never loaded; only the category and the sentence are less precise. Pinned by the
+ * through 4 — grepped in this edit rather than remembered, since the sentence said "1 and 2"
+ * for two allocations after it stopped being true: `schemaVersion: z.literal(n)` appears for
+ * 1, 2, 3 and 4 in `dto/assetGeometry.ts`, and its upgrade arm carries 1, 2 and 3 forward to
+ * 4 — and still never loaded; only the category and the sentence are less precise. Pinned by the
  * 'refuses a sidecar written by a newer build' case rather than left as a claim here.
  */
 export class AssetGeometryStore {
@@ -237,7 +247,7 @@ export class AssetGeometryStore {
 
 			const nextRevision = current.value.version.revision + 1;
 			const text = canonicalJson({
-				schemaVersion: 2,
+				schemaVersion: SCHEMA_VERSION,
 				assetId,
 				revision: nextRevision,
 				unit: 'mm',

@@ -15,6 +15,7 @@ import type { AppError } from '../../../core/errors/AppError';
 import { spatialMessage } from './spatialMessage';
 import { tr } from '../../i18n/strings';
 import DraftRecovery from '../forms/DraftRecovery.vue';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 
 const props = defineProps<{ structure: Structure; wallId: string; degrees: number; busy: Ref<boolean>; blocked: Readonly<Ref<boolean>>;
 	retired: Readonly<Ref<boolean>>; retry: () => Promise<void>; openSource: () => Promise<void>;
@@ -105,12 +106,9 @@ async function submit(): Promise<void> {
 		>
 			{{ tr('editor.structure.conflict') }}
 		</p>
-		<button
-			type="submit"
-			class="rp-dialog-button"
-			:aria-disabled="paused || !changed"
-		>
-			{{ tr(reviewed ? 'editor.rotation.wall-apply' : 'editor.structure.preview') }}
-		</button>
+		<FormSubmitRow
+			:submitting="paused || !changed"
+			:label="tr(reviewed ? 'editor.rotation.wall-apply' : 'editor.structure.preview')"
+		/>
 	</form>
 </template>

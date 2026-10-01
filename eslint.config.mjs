@@ -369,6 +369,35 @@ const ASSET_LIBRARY_ACRONYMS = [...DEFAULT_ACRONYMS, 'SKU'];
 const UNIT_SYMBOLS_PATTERN = '^(?:pcs|m|m²|m³|h|d|fixed)$';
 
 /**
+ * The exact `.one` strings that lead with the count itself as a bare numeral — '1 asset', '1
+ * matching asset', the some-unreadable sentence, and (AD18-R42) the used-in-plans unreadable
+ * sentence — rather than a placeholder (Task 6, AD18 UI critique round: the house
+ * `.one`/`.other` split for a `{count}` key with no singular form).
+ * `sentenceCaseUtil.js`'s own leading-content check strips a digit through `\p{Emoji}` — an
+ * ASCII digit carries the Unicode `Emoji_Component` property for a keycap sequence (`1️⃣`) — so
+ * a bare leading digit reads as NO leading content at all, and the rule then treats the WORD
+ * after it as the sentence's first word and demands it capitalise: '1 Asset'. That is the rule
+ * reaching past its own domain the same way `UNIT_SYMBOLS_PATTERN` above does, so the fix widens
+ * the RULE's vocabulary rather than the copy — 'One asset' is not this project's house style
+ * for a count (`editor.unsupported-width.body.one` keeps the numeral mid-sentence), and
+ * capitalising the noun only in the singular ('1 Asset' beside '5 assets') would be a second,
+ * inconsistent house style bought to satisfy a linter's blind spot rather than a reader's eye.
+ *
+ * **Enumerated and fully anchored (`^…$`), exactly as `UNIT_SYMBOLS_PATTERN` is, and NOT a bare
+ * leading shape.** A first version read `^\d+ [a-z]` — anchored at the front only — and
+ * `shouldIgnoreByRegex` (`sentenceCaseUtil.js`) skips the WHOLE STRING on any match, not just
+ * the leading token: it would have exempted every later sentence in a multi-sentence value too
+ * (the some-unreadable string's own second sentence, "Open the diagnostics report…", went
+ * unchecked only because it happens to already be correct), and a future `'3 items removed.
+ * yes, all of them.'` would have passed silently. Anchoring to the four exact, already-vetted
+ * strings closes that: a value this doesn't name gets no exemption, so its own second sentence
+ * is checked exactly as any other string's is. `tests/gates/localeModuleSentenceCase.test.ts`
+ * pins that with a NEGATIVE case built from that exact counter-example.
+ */
+const LEADING_COUNT_PATTERN =
+	'^(?:1 asset|1 matching asset|1 asset note could not be read\\. Open the diagnostics report to see which note refused\\.|1 note could not be read, so this list may be incomplete)$';
+
+/**
  * `eslint-plugin-vue`'s flat configs carry NO `files` of their own, so spreading them as
  * shipped applies every Vue rule to every linted file — and that is not a style objection:
  * `vue/multi-word-component-names` loading against `package.json` throws
@@ -790,7 +819,7 @@ export default defineConfig([
 		rules: {
 			'obsidianmd/ui/sentence-case-locale-module': [
 				'warn',
-				{ acronyms: ASSET_LIBRARY_ACRONYMS, ignoreRegex: [UNIT_SYMBOLS_PATTERN] },
+				{ acronyms: ASSET_LIBRARY_ACRONYMS, ignoreRegex: [UNIT_SYMBOLS_PATTERN, LEADING_COUNT_PATTERN] },
 			],
 		},
 	},

@@ -26,8 +26,8 @@ const RADIATOR = [
 	{ x: 0, y: 190 },
 ];
 
-const MEASURED: AssetOutline = { kind: 'measured', points: RADIATOR, extent: { width: 1200, depth: 190 } };
-const UNSCALED: AssetOutline = { kind: 'unscaled', points: RADIATOR, extent: { width: 1200, depth: 190 } };
+const MEASURED: AssetOutline = { kind: 'measured', points: RADIATOR, extent: { width: 1200, depth: 190 }, details: [] };
+const UNSCALED: AssetOutline = { kind: 'unscaled', points: RADIATOR, extent: { width: 1200, depth: 190 }, details: [] };
 const NONE: AssetOutline = { kind: 'none' };
 const REFUSED: AssetOutline = {
 	kind: 'refused',
@@ -138,7 +138,7 @@ describe('AssetMark', () => {
 		// Both axes zero: the scale is `Infinity` either way, `Number.isFinite` refuses it, and
 		// the mark draws no path rather than a string full of `NaN`.
 		const point = [{ x: 5, y: 5 }];
-		const degenerate: AssetOutline = { kind: 'measured', points: point, extent: { width: 0, depth: 0 } };
+		const degenerate: AssetOutline = { kind: 'measured', points: point, extent: { width: 0, depth: 0 }, details: [] };
 		const wrapper = shallowMount(AssetMark, { props: { outline: degenerate } });
 		expect(wrapper.get('path').attributes('d')).toBe('');
 	});
@@ -150,6 +150,7 @@ describe('AssetMark', () => {
 			kind: 'measured',
 			points: [{ x: 0, y: 10 }, { x: 100, y: 10 }],
 			extent: { width: 100, depth: 0 },
+			details: [],
 		};
 		const wrapper = shallowMount(AssetMark, { props: { outline: flat } });
 		const d = wrapper.get('path').attributes('d') ?? '';

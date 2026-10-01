@@ -3,9 +3,8 @@ import { computed } from 'vue';
 import type { CatalogueEntryDto } from '../../application/queries/ListCatalogueEntries';
 import type { AssetOutline } from '../../application/queries/ListAssetOutlines';
 import type { AssetId } from '../../domain/asset/AssetId';
-import type { AssetCategory } from '../../domain/asset/AssetCategory';
-import { ASSET_CATEGORY_LABELS } from '../views/assetLabels';
-import { currentLanguage, tr } from '../i18n/strings';
+import { tr } from '../i18n/strings';
+import { shelvesOf, type Shelf } from './shelfList';
 import { moveFocus } from './shelfFocus';
 import AssetShelf from './AssetShelf.vue';
 
@@ -16,40 +15,21 @@ const props = withDefaults(
 		expanded: ReadonlySet<string>;
 		selectedId?: AssetId | null;
 		outlineFor: (assetId: AssetId) => AssetOutline | null;
+		/** AD18-R18's sidebar filter: one category's shelf, or `''` for every shelf. */
+		category?: string;
 	}>(),
-	{ selectedId: null },
+	{ selectedId: null, category: '' },
 );
 
 const emit = defineEmits<{ toggle: [category: string]; select: [assetId: AssetId] }>();
 
-interface Shelf {
-	readonly category: string;
-	readonly label: string;
-	readonly entries: readonly CatalogueEntryDto[];
-}
-
-const DECLARED: readonly AssetCategory[] = Object.keys(ASSET_CATEGORY_LABELS) as AssetCategory[];
-
-const shelves = computed((): readonly Shelf[] => {
-	const declared = new Set<string>(DECLARED);
-	const byCategory = new Map<string, CatalogueEntryDto[]>();
-	for (const entry of props.entries) {
-		const bucket = byCategory.get(entry.category);
-		if (bucket === undefined) byCategory.set(entry.category, [entry]);
-		else bucket.push(entry);
-	}
-	const collator = new Intl.Collator(currentLanguage());
-	const undeclared = [...byCategory.keys()]
-		.filter((category) => !declared.has(category))
-		.toSorted(collator.compare);
-	return [...DECLARED, ...undeclared].map((category) => ({
-		category,
-		label: declared.has(category)
-			? tr(ASSET_CATEGORY_LABELS[category as AssetCategory])
-			: category,
-		entries: byCategory.get(category) ?? [],
-	}));
-});
+/**
+ * §3.2's derived list (`shelfList.ts`, shared with the category sidebar), narrowed to the one
+ * category AD18-R18's sidebar filters to, or all of them for `''`.
+ */
+const shelves = computed((): readonly Shelf[] =>
+	shelvesOf(props.entries).filter((shelf) => props.category === '' || shelf.category === props.category),
+);
 </script>
 
 <template>

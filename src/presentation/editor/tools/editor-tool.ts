@@ -22,6 +22,11 @@ import type { EditorContext } from './editor-context';
  * documentation nuance. `WallTool`/`OpeningTool`/`PathTool`/`BooleanTool` are explicitly
  * future (SDD §57) and are deliberately not members yet.
  *
+ * `'draw-line'` and `'draw-rounded-rect'` are AD11's: the first is the designer's OPEN graphic
+ * tool — click to place a vertex, Enter or a click on the last one to finish — and the second is
+ * one more `DrawDetailTool` registration beside the box and the circle. Both are the designer's,
+ * so the paragraph above's count of "the last seven members" is now nine.
+ *
  * `'draw-room'` is the Plan Editor's rectangular room tool (design spec §4,
  * "Add Room" increment): a primary drag writes one axis-aligned rectangle into the room
  * draft store rather than the polygon `DrawPolygonTool` accumulates vertex by vertex.
@@ -63,7 +68,9 @@ export type ToolId =
 	| 'set-facing'
 	| 'draw-rect'
 	| 'draw-circle'
-	| 'trace-detail';
+	| 'trace-detail'
+	| 'draw-line'
+	| 'draw-rounded-rect';
 
 /**
  * What a tool receives for one pointer interaction (design slice 6, ADR-009).

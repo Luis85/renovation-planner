@@ -1,0 +1,166 @@
+/*
+ * AD18 item 3 (the icon toolbar) and item 6 (canvas proportion at 560-900px). Two items in one
+ * partial because they are one squeeze measured twice: at a 580px leaf the toolbar spent 107px
+ * on three wrapped rows of text while the canvas — the only region that absorbs any loss — was
+ * down to 180px, narrower than the inspector beside it.
+ *
+ * A partial of its own rather than more of `designer.css`, which sits just under the assembler's
+ * 400-line cap — `wc -l` it rather than trusting this sentence, which has been wrong twice.
+ * Obsidian variables only (SDD
+ * §84), so a themed vault stays themed;
+ * the build refuses a literal colour here.
+ */
+
+/*
+ * The button is an icon and a label side by side. Qualified with `.rp-designer-tools` like every
+ * other rule on this class (`designer.css` carries the full argument: Obsidian's own
+ * `button:not(.clickable-icon)` scores (0,1,1) and outranks a bare class), and adding only what
+ * the icon needs — the padding, colour, border and focus ring stay where they already are, so
+ * there is one place to read a button's appearance and one more to read its box.
+ *
+ * **`button` is in the selector deliberately, and it is not tidying.** One element in this toolbar
+ * carries `.rp-designer-tool-button` and is not a button — named rather than counted, because the
+ * ordinal this sentence used to carry ("a FIFTEENTH element") was falsified by AD18 item 5 lifting
+ * four buttons out, and a name survives what a census does not: `DesignerViewMenu.vue`'s
+ * `<summary>`, whose own rules live in `editor-view.css` (`list-style: none` plus an `::after`
+ * chevron) and whose file is not this card's. An unqualified rule would hand that summary
+ * `display: inline-flex` as a side effect of a change about icons, turning its chevron into a
+ * flex item for no reason anybody asked for. Element-qualified, this reaches exactly the controls
+ * that draw a glyph, and `designerIconToolbar.test.ts` pins the spelling — widening it back turns
+ * that case red rather than being noticed in a vault.
+ */
+.rp-designer-tools button.rp-designer-tool-button {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-4-1);
+}
+
+/*
+ * THE LABEL IS HIDDEN AT EVERY WIDTH NOW (AD18-R17 Task 2), and the 80rem breakpoint this
+ * replaced is retired rather than widened: boards 01 and 02 both draw this row icon-only, with
+ * no width at which the text returns. `aria-label`, which `DesignerToolButton.vue` carries
+ * unconditionally, stays every button's accessible name and — Obsidian draws its own tooltip
+ * from it — its tooltip too, so icon-only is not icon-only-with-no-fallback.
+ *
+ * **80rem's history, kept short because the number itself (1280px at Obsidian's 16px root) no
+ * longer gates anything here.** The rule this replaced was measured PRE-ICON at one row at
+ * 1280px against two rows at 760 and three at 580, falsified once AD18 item 3's glyphs widened
+ * every label past that fit, and true again only once AD18-R3 moved the four Basic-shape buttons
+ * into the `Add` rail. `designerIconToolbar.test.ts` reads what this rule DECLARES — jsdom
+ * applies no container query — so none of those figures were ever a check, only an argument, and
+ * the argument this paragraph used to carry is superseded rather than corrected.
+ *
+ * **The trade the retired rule argued against is the one AD18-R17 takes.** It kept the label at
+ * 80rem and wider because "unlabelled glyphs are a learnability cost this surface has no tooltip
+ * test and no rendered check to price" — true still, and outweighed now by matching what both
+ * concept boards draw. The `Add` rail took the icon-only side of that same trade first
+ * (`styles/designer-add.css`'s history, before AD18-R16 Task 3 reversed IT the other way); this
+ * toolbar takes it second, for a different reason (board fidelity, not rail crowding).
+ *
+ * `display: none` and not the `.rp-visually-hidden` clip, unchanged: the accessible name is
+ * `aria-label`, so clipping the text would leave it in the accessibility tree SECOND,
+ * contributing nothing, where hiding it outright says what is meant.
+ *
+ * **Still not scoped to `.rp-designer-tools`, and the omission is still load-bearing** — it
+ * reaches the `Add` rail's own `.rp-designer-tool-label` too, at the identical (0,2,0)
+ * specificity `styles/designer-add.css`'s rule carries. The two now DISAGREE everywhere they
+ * overlap rather than agreeing as they did before Task 3 (the rail shows its tile labels at every
+ * width; this rule hides them at every width), and the rail wins regardless: `styles/index.css`
+ * imports `designer-add.css` after this partial, and equal specificity resolves to source order.
+ * `designerAddRail.test.ts`'s "shows the rail's tile label text at every width, unconditionally"
+ * is the check on the rail's half of that; this file has no case of its own on the overlap,
+ * because jsdom cannot render either import to see which one paints.
+ */
+.renovation-asset-designer .rp-designer-tool-label {
+	display: none;
+}
+
+/*
+ * `.rp-designer-shape-tools` WAS here, and AD18 item 5 took it. Wave 10 wrote the four drawing
+ * tools into one named group so that this card could lift it into the `Add` rail whole, and said
+ * so in this rule's own comment; the group is in `DesignerAddPanel.vue` now under
+ * `.rp-designer-add-shapes`, and its rules are in `styles/designer-add.css`. The class is gone
+ * from the tree rather than left as a selector matching nothing — `grep -rn
+ * "rp-designer-shape-tools" src/ styles/ tests/` prints THREE lines after this edit and no
+ * element and no rule among them: these two sentences, and `designerIconToolbar.test.ts`'s
+ * assertion that the toolbar draws no such element. Written from what the grep printed rather
+ * than from what it was expected to print — the first draft of this paragraph said "nothing".
+ */
+
+/*
+ * ITEM 6: THE RAILS ARE CAPPED AT A SHARE OF THE LEAF, SO THE CANVAS NEVER FALLS BELOW HALF.
+ *
+ * Measured before: `.rp-designer-parts` / canvas / `.rp-designer-inspector` were 176 / 880 / 224
+ * at 1280 (canvas 68.8%), 176 / 360 / 224 at 760 (47.4%) and 176 / 180 / 224 at 580 (31.0%).
+ * Both rails were fixed at every width, so the canvas — `flex: 1` over a zero basis — absorbed
+ * 100% of the loss, and at 580 it was narrower than the inspector alone. §4 row 1 is an ADOPT
+ * row and it asks for "a large central canvas"; AD06's own criterion ("controls do not overlap
+ * the drawing or disappear offscreen") passed throughout, which is why no gate saw this.
+ *
+ * `22cqi + 28cqi = 50cqi` is the whole mechanism: the two caps sum to half the container, so
+ * `width - (parts + inspector) >= width / 2` at every width this block applies to. The `min()`
+ * keeps each rail's measured resting width wherever the leaf can afford it — both caps bite only
+ * below 800px, so 1280 is unchanged — and shrinks them in proportion below that. At 580 that is
+ * 128 / 290 / 162: the canvas goes from 31.0% to 50.0%.
+ *
+ * **Flex-shrink cannot do this and that was measured, not assumed.** The canvas takes
+ * `flex: 1`, whose basis is 0, so the sum of the three bases is 400px against a 580px container
+ * — POSITIVE free space, which the canvas grows into and no shrink factor is ever consulted for.
+ * A rail that shrinks has to be sized as a function of the container, which is what `cqi` is.
+ *
+ * **A second breakpoint was the alternative and is refused**: a stepped rail width would be
+ * right at one width in the band and wrong at the rest of it, and it would add a third state to
+ * a shell that already has two.
+ *
+ * **WHAT THIS COSTS, ON THE RAIL SIDE, BECAUSE THE CANVAS DOES NOT GAIN FROM NOWHERE.** Across
+ * 560-800px the inspector goes from a fixed 224px to 157-224px and the Parts panel from 176px to
+ * 123-176px. That is a NARROWER inspector in exactly the band this block targets, and it lands on
+ * a panel already known to be too narrow: AD18's "Two smaller things found in the same pass"
+ * records `Used in plans` wrapping badly AT 224px — `Loft conversion — 1 placement(s)` over two
+ * lines with the hyphen orphaned — so this makes a known-bad wrap worse rather than introducing a
+ * new one. The trade was taken anyway: the canvas is the subject of the surface and was the
+ * smallest column of the three, where the inspector's cost is a line of wrapped text in a panel
+ * that already scrolls (`designer.css`'s `overflow-y: auto`). **How much worse is NOT estimated
+ * here** — nothing in this repository lays text out, so the wrap is a rendered measurement and a
+ * number written from arithmetic would be a guess wearing a decimal point.
+ *
+ * The 35rem floor is `designer-narrow.css`'s own stacking breakpoint, spelled as the complement
+ * of it so the two blocks are DISJOINT: below it the body is a column and both rails take
+ * `width: auto`, and a cap that reached in there would pin a stacked rail to 22% of the leaf.
+ * Disjoint rather than ordered deliberately — `styles/index.css`'s import order then decides
+ * nothing here, which is the precedence this repository refuses to rely on elsewhere.
+ *
+ * Declared and unrendered, like everything above: jsdom resolves no `cqi` and no `min()`.
+ */
+@container rp-designer (width >= 35rem) {
+	.renovation-asset-designer .rp-designer-parts {
+		width: min(11rem, 22cqi);
+	}
+
+	.renovation-asset-designer .rp-designer-inspector {
+		width: min(14rem, 28cqi);
+	}
+}
+
+/*
+ * AD18 item 1's zoom cluster (ruling AD18-R16, Task 1), beside undo/redo in the trailing group —
+ * board 01's `− 100% +`. Its buttons carry `.rp-designer-tool-button` like every other control in
+ * this toolbar, so the row above (padding, colour, the focus ring, `:hover`, `:disabled`) already
+ * covers them at no new specificity cost; this rule adds only what those buttons do not already
+ * have, the row layout and the readout's own width.
+ */
+.renovation-asset-designer .rp-designer-zoom {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-1);
+}
+
+/*
+ * A fixed width so the cluster does not resize its neighbours by a digit — `2%` reads narrower
+ * than `43%` — the same reading `styles/editor-reference-viewport.css` gives its own zoom output.
+ */
+.renovation-asset-designer .rp-designer-zoom output {
+	min-width: 3em;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+}

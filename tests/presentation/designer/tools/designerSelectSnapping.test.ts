@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import type { CurvedPolygon } from '../../../../src/core/geometry/CurvedPolygon';
 import { rect } from '../../../../src/domain/asset/presets/presetGeometry';
 import { designerSnapCandidates } from '../../../../src/presentation/designer/selection/snapCandidates';
-import { editableShape } from '../../../helpers/assetShapes';
+import { editableShape, openGraphic } from '../../../helpers/assetShapes';
 import { selectToolRig, type SelectToolRig } from '../../../helpers/designerSelection';
 import { flushGesture, pointerAt, shiftPointerAt } from '../../../helpers/tool-context';
 
@@ -153,5 +153,34 @@ describe('resizing from a box handle', () => {
 
 		expect(Math.max(...(written(rig, 'detail-1') ?? []).map((point) => point.x))).toBeCloseTo(143, 9);
 		expect(midDrag).toEqual([]);
+	});
+});
+
+/**
+ * **A body drag of an OPEN graphic, which crashed before AD11 rather than refusing.**
+ * `hitDesign` has hit a path by its stroke since AD05, and `dragTarget` read the pressed part
+ * through `outlineOf(...) as CurvedPolygon` — `null` for a path by design — then reached
+ * `.points` on it. Unreachable while nothing could create one; live the moment the line tool
+ * could. It asks `partPoints` now, which answers for either kind, and `moveOutline` writes
+ * through `mapPartOutline`, which keeps the kind.
+ *
+ * `LINE_SHAPE` holds the line alone so the landing is arithmetic with no neighbour to snap to:
+ * a press on the stroke at (0, -200), released 100 mm down.
+ */
+describe('moving an open graphic', () => {
+	const LINE = openGraphic('detail-1', [{ x: -300, y: -200 }, { x: 300, y: -200 }]);
+	const LINE_SHAPE = editableShape({ details: [LINE] });
+
+	it('drags it by its stroke and writes it back OPEN, not as a ring', async () => {
+		const rig = selectToolRig({ shape: LINE_SHAPE });
+		rig.tool.activate(rig.harness.context);
+
+		rig.tool.pointerDown(pointerAt(0, -200));
+		rig.tool.pointerMove(pointerAt(0, -100));
+		rig.tool.pointerUp(pointerAt(0, -100));
+		await flushGesture();
+
+		expect(rig.written[0]?.shape.details[0].kind).toBe('open');
+		expect(written(rig, 'detail-1')).toEqual([{ x: -300, y: -100 }, { x: 300, y: -100 }]);
 	});
 });

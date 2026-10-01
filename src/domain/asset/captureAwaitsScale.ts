@@ -2,8 +2,26 @@ import type { AssetShape } from './AssetShape';
 
 /**
  * Do coordinates captured on this surface RIGHT NOW await a scale, or are they already true
- * millimetres? The one answer, asked once per write by `updateAssetShape` and by a draw tool
- * building a detail in presentation before any command runs.
+ * millimetres? Asked once per write by `updateAssetShape` and by a draw tool building a detail in
+ * presentation before any command runs.
+ *
+ * **It used to call itself "the one answer" and that stopped being true at AD12.** This function is
+ * about a coordinate the user POINTS AT — a click on a canvas, which is why its second arm resolves
+ * an uncalibrated sheet beside a typed footprint towards the sheet: somebody who has just picked a
+ * spec sheet is tracing it. AD12 added two writes that DERIVE a coordinate from the object's own
+ * outline instead — `DesignerReferencePlacement`'s anchor presets and `DesignerClearanceHelper`'s
+ * generated rectangle — and those are in the outline's space by construction, whatever is on the
+ * canvas behind them. They therefore write `footprintPending` directly and do not ask this, which
+ * is correct and is the reason the sentence above is narrowed rather than the call sites changed.
+ *
+ * **So the rule is: a POINTED-AT coordinate asks this; a DERIVED one inherits the space of what it
+ * was derived from.** Counted rather than remembered, and the first draft of this sentence said
+ * "this module and its two callers", which is not what the grep prints: `grep -rn
+ * "captureAwaitsScale" src/` gives fifteen lines in eight files, of which exactly **two CALL it** —
+ * `updateAssetShape.ts` and `runtime.ts` — and the rest name it in prose (four command docblocks,
+ * the designer's tool registration, and `BackgroundRenderModel`). The two derived writes named
+ * above ask it in neither form. A third kind of capture is the trigger to decide whether the
+ * pointed-at/derived split wants a function of its own.
  *
  * **It used to be `!calibrated`, and that was wrong in a way the shipped UI could reach.**
  * Create an asset with a Width and a Depth typed: the designer opens on a drawn 1200 x 800

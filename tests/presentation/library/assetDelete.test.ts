@@ -123,6 +123,9 @@ async function library(options: Options) {
 		}),
 		listOverridingProjects: () => Promise.resolve(ok([])),
 		listReassignmentTargets: () => Promise.resolve(ok(options.targets ?? [])),
+		// This file drives the DELETE gesture; the usage scope belongs to the duplicate panel and
+		// is never opened here, so it rejects rather than answering a scope nobody asked for.
+		listPlansUsingAsset: () => Promise.reject(new Error('not exercised')),
 	};
 	const deleteAsset = {
 		execute: (input: DeleteAssetInput) => {

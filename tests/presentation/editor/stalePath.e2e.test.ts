@@ -200,7 +200,13 @@ describe('Scenario D — the write succeeded and the refresh failed', () => {
 		flaky.heal();
 		await pressRetry(harness);
 		expect(harness.wrapper.find('[data-rp-warning="stale"]').exists()).toBe(false);
-		expect(harness.wrapper.find('.rp-save-state-label').text()).toBe(t('en', 'save-state.saved'));
+		// The qualifier is gone and the state is plain `saved` again. The undo's write landed this
+		// session, so the label now carries its relative time (AD18-R19): the state word as the
+		// accessible copy beside the visible `Saved just now`. Exact text, so no qualifier survives.
+		const label = harness.wrapper.find('.rp-save-state-label');
+		expect(label.classes()).toContain('rp-save-state-saved');
+		expect(label.classes()).not.toContain('rp-save-state-saved-refresh-needed');
+		expect(label.text()).toBe(t('en', 'save-state.saved') + t('en', 'save-state.saved-just-now'));
 		expect(projectStore.stale).toBe(false);
 		expect(projectStore.retriesFailed).toBe(0);
 		expect(harness.wrapper.find('.rp-editor-inspector-delete').attributes('aria-disabled')).toBeUndefined();

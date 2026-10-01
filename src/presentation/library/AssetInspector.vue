@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useLibraryDraftGuard } from './libraryDraftGuard';
-import { computed, useId, watch } from 'vue';
+import { computed, ref, useId, watch } from 'vue';
 import type { AssetId } from '../../domain/asset/AssetId';
 import { tr } from '../i18n/strings';
 import { useAssetLibraryContext } from './AssetLibraryContext';
@@ -9,6 +9,8 @@ import { useAssetSelectionStore } from '../stores/AssetSelectionStore';
 import AssetInspectorFields from './AssetInspectorFields.vue';
 import AssetInspectorShape from './AssetInspectorShape.vue';
 import AssetInspectorUsedIn from './AssetInspectorUsedIn.vue';
+import AssetUsageDuplicate from './AssetUsageDuplicate.vue';
+import AssetInspectorActions from './AssetInspectorActions.vue';
 
 const props = defineProps<{ assetId: AssetId | null }>();
 
@@ -66,6 +68,21 @@ const canOpenDesigner = computed(
 const canOpenNote = computed(() => state.value === 'ready' || state.value === 'note-unreadable');
 
 const canDelete = computed(() => state.value === 'ready' && selection.usedInStatus === 'ready');
+
+/**
+ * Whether the duplicate panel is open — a plain `ref` and NOT part of the panel's `PanelState`,
+ * because it is not a state of the asset: the union above says what is known about the selected
+ * definition, and a gesture somebody started is a different axis. It is reset on every selection
+ * change below, so a panel left open cannot carry a name prefilled from the previous asset.
+ */
+const duplicating = ref(false);
+
+watch(
+	() => props.assetId,
+	() => {
+		duplicating.value = false;
+	},
+);
 
 const deleteReason = computed((): string | null =>
 	selection.usedInStatus === 'failed' ? tr('view.asset-library.used-in.failed') : null,
@@ -178,39 +195,25 @@ async function onOpenNote(): Promise<void> {
 		>
 			{{ failure }}
 		</p>
-		<div class="rp-al-actions">
-			<button
-				v-if="canOpenDesigner"
-				type="button"
-				class="rp-al-action rp-al-action--designer"
-				@click="onOpenDesigner"
-			>
-				{{ tr('view.asset-library.open-designer') }}
-			</button>
-			<button
-				v-if="canOpenNote"
-				type="button"
-				class="rp-al-action rp-al-action--note"
-				@click="void onOpenNote()"
-			>
-				{{ tr('view.asset-library.open-note') }}
-			</button>
-			<button
-				v-if="state === 'ready'"
-				type="button"
-				class="rp-al-action rp-al-action--delete"
-				v-bind="deleteAttributes"
-				@click="onDelete"
-			>
-				{{ tr('view.asset-library.delete') }}
-			</button>
-		</div>
-		<p
-			v-if="state === 'ready' && deleteReason !== null"
-			:id="deleteReasonId"
-			class="rp-al-actions__reason"
-		>
-			{{ deleteReason }}
-		</p>
+		<AssetInspectorActions
+			:can-open-designer="canOpenDesigner"
+			:can-open-note="canOpenNote"
+			:can-duplicate="state === 'ready' && !duplicating"
+			:can-delete="state === 'ready'"
+			:delete-attributes="deleteAttributes"
+			:delete-reason="state === 'ready' ? deleteReason : null"
+			:delete-reason-id="deleteReasonId"
+			@open-designer="onOpenDesigner"
+			@open-note="void onOpenNote()"
+			@duplicate="duplicating = true"
+			@remove="onDelete"
+		/>
+		<AssetUsageDuplicate
+			v-if="duplicating && entry !== null && assetId !== null"
+			:asset-id="assetId"
+			:source-name="entry.name"
+			@cancel="duplicating = false"
+			@duplicated="duplicating = false"
+		/>
 	</aside>
 </template>

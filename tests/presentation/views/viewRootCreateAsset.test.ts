@@ -292,16 +292,25 @@ describe('ViewRoot, creating an asset', () => {
 		expect(openAsset).toHaveBeenCalledWith('existing');
 	});
 
-	/** The other half: a cancelled dialog made nothing, so there is nothing to open. */
-	it('opens nothing when the dialog is cancelled', async () => {
+	/**
+	 * The other half: a cancelled dialog made nothing, so there is nothing to open.
+	 *
+	 * AD07's third acceptance criterion — "cancellation creates no orphan catalogue entry or
+	 * sidecar" — asserted at the two commands rather than only at the navigation: a build that
+	 * created the note and then declined to open it would satisfy `openAsset` alone while
+	 * leaving exactly the orphan the criterion is about.
+	 */
+	it('opens nothing and creates nothing when the dialog is cancelled', async () => {
 		setActivePinia(createPinia());
-		const { context, openAsset } = deps();
+		const { context, openAsset, createAsset, setAssetFootprintFromDimensions } = deps();
 		const wrapper = await openTheForm(context);
 
 		await wrapper.get('[data-rp-action="cancel"]').trigger('click');
 		await flushPromises();
 
 		expect(openAsset).not.toHaveBeenCalled();
+		expect(createAsset).not.toHaveBeenCalled();
+		expect(setAssetFootprintFromDimensions).not.toHaveBeenCalled();
 	});
 
 	/**

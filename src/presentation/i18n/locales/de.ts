@@ -466,11 +466,11 @@ export const de: Partial<Record<StringKey, string>> = {
 	// weiter oben in dieser Datei; "Material" ist hier eine Kategorie und kein Synonym.
 	'empty.asset.no-shape.headline': 'Noch kein Umriss',
 	'empty.asset.no-shape.body':
-		'Ein Objekt erhält seinen Umriss aus eingegebenen Maßen oder aus einer über ein Datenblatt gezeichneten Kontur. Beides macht daraus etwas, das ein Grundriss aufnehmen kann.',
+		'Ein Objekt erhält seinen Umriss aus einer Vorlage, aus eingegebenen Maßen oder aus einer über ein Datenblatt gezeichneten Kontur. Alle drei machen daraus etwas, das ein Grundriss aufnehmen kann.',
 	'empty.asset.no-shape.action': 'Maße festlegen',
 	'empty.asset.no-background.headline': 'Noch kein Datenblatt',
 	'empty.asset.no-background.body':
-		'Legen Sie ein Foto, eine Zeichnung oder ein Datenblatt als Hintergrund dieses Objekts fest und kalibrieren Sie es, damit eine gezeichnete Kontur in echten Einheiten herauskommt.',
+		'Legen Sie ein Foto, eine Zeichnung oder ein Datenblatt als Hintergrund dieses Objekts fest und kalibrieren Sie es, damit eine gezeichnete Kontur in echten Einheiten herauskommt. Eine Vorlage oder eingegebene Maße brauchen gar keinen Hintergrund.',
 	'empty.asset.no-background.action': 'Hintergrund wählen',
 	'view.asset-designer.name': 'Objekt-Designer',
 	'designer.canvas': 'Objekt-Zeichenfläche',
@@ -483,6 +483,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'designer.toolbar.set-anchor': 'Ankerpunkt setzen',
 	'designer.toolbar.set-facing': 'Ausrichtung setzen',
 	'designer.toolbar.calibrate': 'Kalibrieren',
+	'designer.toolbar.zoom': 'Zoom',
+	'designer.toolbar.zoom-fit': 'Entwurf einpassen',
 	'designer.calibrate.recalibrate.title': 'Ohne Maßstab Nachgezeichnetes neu skalieren?',
 	'designer.calibrate.recalibrate.message':
 		'Ein Teil der Geometrie dieses Objekts wurde nachgezeichnet, bevor ein Maßstab vorlag. Beim Festlegen des Maßstabs wird sie in Millimeter umgerechnet. Sie können den Vorgang rückgängig machen.',
@@ -503,8 +505,9 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Dieser Umriss wurde gezeichnet, bevor ein Maßstab vorlag; diese Zahlen sind noch keine echten Maße.',
 	'designer.inspector.edit-dimensions': 'Maße bearbeiten',
 	'designer.inspector.set-dimensions': 'Maße festlegen',
-	'designer.inspector.height': 'Höhe in Millimetern',
-	'designer.inspector.height.unparseable': 'Geben Sie eine Höhe als Zahl ein, oder leeren Sie das Feld.',
+	// `designer.inspector.height` and its two siblings moved to `de/assetSymbols.ts` (AD18-R16
+	// Task 5's follow-up): `en.ts`'s counterpart was already over its 400-line cap, and every
+	// other `designer.inspector.*` key already lives in that pair of modules.
 	'designer.dimensions.edit.title': 'Maße dieses Objekts festlegen',
 	// „Objekt“, nie „Material“. Statt der aktuellen Zahlen und nicht daneben: das Formular
 	// bleibt leer, damit Platzhalterwerte nicht als echte Millimeter gespeichert werden.

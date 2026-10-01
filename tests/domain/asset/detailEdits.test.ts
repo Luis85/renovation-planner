@@ -11,7 +11,7 @@ import {
 } from '../../../src/domain/asset/detailEdits';
 import type { AssetShape } from '../../../src/domain/asset/AssetShape';
 import { rect } from '../../../src/domain/asset/presets/presetGeometry';
-import { editableShape, QUARTER } from '../../helpers/assetShapes';
+import { editableShape, QUARTER, shapeWithOpenGraphic } from '../../helpers/assetShapes';
 import { expectErr, expectOk } from '../../helpers/domain';
 
 /**
@@ -45,6 +45,8 @@ describe('addDetail', () => {
 		expect(added.details[2]).toEqual({
 			id: 'detail-3',
 			name: 'seat',
+			// Stamped by the validator: a graphic proposed without a kind is the closed one (AD04 §3).
+			kind: 'closed',
 			line: 'solid',
 			pending: false,
 			outline: { points: [{ x: -50, y: 150 }, { x: 50, y: 150 }, { x: 50, y: 250 }, { x: -50, y: 250 }] },
@@ -73,6 +75,51 @@ describe('duplicateDetail', () => {
 		expect([copy.name, copy.line, copy.pending]).toEqual(['bowl', 'dashed', true]);
 		expect(copy.outline.points[1]).toEqual({ x: 450, y: 100 });
 		expect(copy.outline.bulges).toEqual([QUARTER, QUARTER, QUARTER, QUARTER]);
+	});
+
+	/**
+	 * AD09's rename. It writes `label` and NEVER `name`: `name` is the stable semantic key a preset,
+	 * a test and `detailLabel`'s locale lookup resolve by (C02), so a Parts panel that renamed it
+	 * would rename the key every one of those consumers addresses.
+	 */
+	it('writes a user label beside the semantic name rather than over it', () => {
+		const updated = expectOk(updateDetail(editableShape(), 'detail-2', { label: '  Pan  ' }));
+		expect([updated.details[1].name, updated.details[1].label]).toEqual(['bowl', 'Pan']);
+	});
+
+	/**
+	 * A CLEARED label is a removal, which is the opposite of `name`'s blank rule two cases up — and
+	 * deliberately so. A graphic must always have a name, so a blank one is an unfinished edit; a
+	 * label is optional by construction, so clearing the field is the only way back to the semantic
+	 * fallback the panel shows when there is none.
+	 */
+	it('removes the label when the field is cleared, rather than storing an empty string', () => {
+		const labelled = expectOk(updateDetail(editableShape(), 'detail-2', { label: 'Pan' }));
+		// Asserted before the clearing, or the case passes on a build that never stored one at all.
+		expect(labelled.details[1].label).toBe('Pan');
+		const cleared = expectOk(updateDetail(labelled, 'detail-2', { label: '   ' }));
+		expect(cleared.details[1]).not.toHaveProperty('label');
+		expect(cleared.details[1].name).toBe('bowl');
+	});
+
+	/**
+	 * `relabelled` narrows on `kind` to put the geometry back with its brand intact, and the OPEN arm
+	 * is the one a closed fixture can never reach. The path matters more than the branch: an open
+	 * graphic's `outline` is a `CurvedPath`, so a relabel that dropped the narrowing would either stop
+	 * compiling or hand the validator a polygon-shaped path.
+	 */
+	it('labels an open graphic without disturbing its path', () => {
+		const before = shapeWithOpenGraphic();
+		const updated = expectOk(updateDetail(before, 'detail-3', { label: 'Hinge swing' }));
+
+		expect(updated.details[2]).toMatchObject({ id: 'detail-3', kind: 'open', label: 'Hinge swing' });
+		expect(updated.details[2].outline.points).toEqual(before.details[2].outline.points);
+	});
+
+	it('leaves an existing label alone when only the line is given', () => {
+		const labelled = expectOk(updateDetail(editableShape(), 'detail-1', { label: 'Lid' }));
+		const relined = expectOk(updateDetail(labelled, 'detail-1', { line: 'dashed' }));
+		expect([relined.details[0].label, relined.details[0].line]).toEqual(['Lid', 'dashed']);
 	});
 
 	it('refuses an unknown detail', () => {

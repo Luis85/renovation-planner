@@ -20,7 +20,10 @@ it('locks a zone from the sidebar, takes it off the canvas hit list, and undoes 
 	await settleUntil(() => rig.project.zones.get(rig.room.id)?.locked === true, 'zone locked');
 	expect(expectFound(await rig.stack.zones.getById(rig.room.id)).entity.locked).toBe(true);
 	expect(hittable()).not.toContain(rig.room.id);
-	expect(rig.wrapper.get(`[data-rp-lock="${rig.room.id}"]`).attributes('aria-pressed')).toBe('true');
+	const toggle = rig.wrapper.get(`[data-rp-lock="${rig.room.id}"]`);
+	expect(toggle.attributes('aria-label')).toMatch(/^Unlock /);
+	expect(toggle.attributes()).not.toHaveProperty('aria-pressed');
+	expect(toggle.find('.lucide-lock').exists()).toBe(true);
 
 	await rig.runtime.undo();
 	await settleUntil(() => rig.project.zones.get(rig.room.id)?.locked !== true, 'zone unlocked');

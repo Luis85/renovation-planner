@@ -150,6 +150,36 @@ describe('gestures made before the last write lands', () => {
 		rig.unmount();
 	});
 
+	/**
+	 * **Undo waits for the write it is about** (AD03). Undo, redo, Choose a drawing, Start from preset
+	 * and Set dimensions' replace-with-a-rectangle path dispatched straight past the chain until that
+	 * task; an undo clicked before the drag's write had settled therefore ran against a history the
+	 * drag had not yet been pushed onto, and undid the gesture BEFORE it — or nothing at all, leaving
+	 * the drag standing.
+	 *
+	 * **The first drag is settled and the second is not**, which is the only shape where this is
+	 * reachable at all: the toolbar's Undo is disabled while the history is empty, so an undo clicked
+	 * during the leaf's FIRST write is a click on a dead control. One landed entry later the button is
+	 * live, and an unqueued undo would then pop the entry the first drag pushed while the second
+	 * drag's write was still in flight — undoing a gesture the user was not looking at, and leaving
+	 * the second one standing. Queued, it undoes the second drag, which is the one that just happened.
+	 */
+	it('undo clicked while a second drag is still being written undoes THAT drag, not the one before it', async () => {
+		const rig = await designerRig({ shape: TOILET });
+		await toolbar(rig, 'designer.toolbar.select');
+
+		drag(rig, IN_BOWL, IN_MOVED_BOWL);
+		await settle();
+		drag(rig, IN_MOVED_BOWL, FURTHER);
+		// Not awaited: Undo is clicked while the second drag's write is still queued.
+		rig.toolbarButton(t('en', 'designer.toolbar.undo')).click();
+		await settle();
+
+		await expectBowlMoved(rig, 1);
+		expect(useSaveStateStore(rig.pinia).state).toBe('saved');
+		rig.unmount();
+	});
+
 	it('compose a detail drawn straight after a drag with that drag', async () => {
 		const rig = await designerRig({ shape: TOILET });
 		await toolbar(rig, 'designer.toolbar.select');

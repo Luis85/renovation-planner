@@ -29,7 +29,7 @@
  * level up and leaves it unchecked. A registry the root iterates has the same hole — nothing
  * makes a later task add its entry.
  */
-import { computed, markRaw, onMounted, ref } from 'vue';
+import { computed, markRaw, onMounted, ref, useId, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
@@ -37,25 +37,31 @@ import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import DialogHost from '../dialogs/DialogHost.vue';
 import { useDialogStore } from '../dialogs/dialog-store';
 import type { AssetShape } from '../../domain/asset/AssetShape';
-import { scaleDesignToDimensions } from '../../domain/asset/shapeEdits';
+import { landDimensions } from './selection/typedLanding';
 import { notifyIfRefused } from '../editor/report-failure';
 import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
-import SaveStateIndicator from '../editor/save-state/SaveStateIndicator.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState, type EmptyStateProps } from '../emptyStates/resolve';
 import { selectAssetDesignerEmptyState } from '../emptyStates/selectors';
 import { constrainsAngle } from '../editor/snapping/editorSnapping';
 import type { BackgroundStatus } from '../editor/layers/background/BackgroundRenderModel';
 import type { StringKey } from '../i18n/locales/en';
-import { isOutlineSelection } from './selection/designerSelection';
+import { isOpenGraphicSelection, isOutlineSelection } from './selection/designerSelection';
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { provideDesignerRuntime } from './runtime';
 import { isMissingAsset, useAssetDesignStore } from './stores/assetDesignStore';
-import { designerShortcut, selectionKeyActions } from './designerKeys';
+import { designerShortcut, selectionKeyActions, selectionKeysRefused } from './designerKeys';
 import DesignerCanvas from './DesignerCanvas.vue';
+import DesignerHeader from './DesignerHeader.vue';
 import DesignerToolbar from './DesignerToolbar.vue';
 import DesignerInspector from './inspector/DesignerInspector.vue';
+import DesignerAddPanel from './DesignerAddPanel.vue';
+import DesignerPartsPanel from './parts/DesignerPartsPanel.vue';
+import DesignerEntryPaths from './DesignerEntryPaths.vue';
+import DesignerContextMenu from './DesignerContextMenu.vue';
+import { useDesignerContextMenu } from './designerMenu';
+import { editorHistoryShortcut } from '../editor/surface/historyShortcut';
 import AssetPresetForm from './presets/AssetPresetForm.vue';
 import { useViewPreferences } from '../editor/shell/useViewPreferences';
 import { STAGE_PIXELS, worldPerScreenPixel } from '../editor/viewport/Viewport';
@@ -70,13 +76,23 @@ const workspace = useWorkspaceStore(), editorStore = useEditorStore();
 
 /**
  * The leaf's live machinery (Task B3a), provided here so the regions later tasks mount can
- * inject it. The return value is used immediately: `runtime.hydrate` is THE read — the mount,
- * the retry below, and the cross-leaf subscription the runtime itself disposes all go through
- * one routine rather than three spellings of it.
+ * inject it. The return value is used immediately: this file performs THREE reads through it,
+ * and they are not all the same door — and it hands the runtime on, to the selection keys and the
+ * context menu (`onCanvasKeyDown` below), which read no design through it.
+ *
+ * `runtime.hydrate` (blank on failure) is the mount and `onFailureAction`'s retry — a leaf with
+ * nothing on screen has nothing to keep. `runtime.refresh` (keep-previous) is `onRetry`, the
+ * stale notice's own retry, which runs over a canvas that is still drawn.
+ *
+ * **This paragraph said `runtime.hydrate` was THE read, naming the mount, "the retry" and the
+ * cross-leaf subscription.** Two thirds of that was already false when W20-A arrived — the
+ * subscription takes `refresh` inside `runtime.ts` and never reaches this file — and "the
+ * retry" stopped being singular the moment this surface had two. Rewritten from the call sites
+ * rather than from the old sentence.
  */
 const runtime = provideDesignerRuntime(context);
 const designStore = useAssetDesignStore();
-const { design, error, status, stale, selection } = storeToRefs(designStore);
+const { design, error, status, stale, selection, selected } = storeToRefs(designStore);
 
 /**
  * The canvas is drawing a design it can no longer confirm.
@@ -86,8 +102,120 @@ const { design, error, status, stale, selection } = storeToRefs(designStore);
  * the write succeeded, the indicator said Saved, and the canvas silently showed pre-command
  * geometry. `'ready'` is the whole point of the guard: any other status is already replaced by
  * the failure state, and this exists only for the case where there IS content to keep showing.
+ *
+ * **Rendered TWICE, and that is the point rather than a duplication (W18-C, contract C08).** It
+ * qualifies the header's save state — `Saved · refresh needed`, the standing answer to "is my
+ * work safe" — and it draws the strip below, the sentence saying what happened. ONE expression
+ * behind both, so the two cannot disagree the way they did while the header read a flat `Saved`
+ * over this very strip. Not a second answer to one question: the pairing is the one
+ * `stalePath.e2e.test.ts` already pins on the Plan Editor as "the two surfaces that say so, in
+ * the two places a user looks".
  */
 const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value);
+
+/**
+ * The way OUT of that notice — ruling AD18-R13, and contract C08's *"a retry after an uncertain
+ * write must reconcile before repeating it"*. A re-read IS that reconcile: a successful one is
+ * what `assetDesignStore` calls *"the ONE event that retires a stale-data warning"*, and this
+ * closure takes no command, so the control can re-read and can never replay a write.
+ *
+ * **`runtime.refresh` and never `runtime.hydrate`.** They are one word apart at this call site
+ * and they are not interchangeable: `hydrate` blanks on failure, so a press whose own read
+ * failed would take the canvas away from a user who is still drawing on it and put the failure
+ * panel over a design the vault still has. AD18-R13 rules the retry a door OUT of the notice
+ * rather than a way to lose the canvas, and `runtime.ts`'s `refresh` member carries the rest.
+ *
+ * **TWO refs, because they answer different questions.** `retrying` is a press in flight, which
+ * `onRetry` withholds the second read on. `retriesFailed` is how many presses in a row have come
+ * back still stale, and it exists so the sentence can MOVE: a notice whose text is identical
+ * after a press cannot be told apart from a press that did nothing. The Plan Editor's strip
+ * swaps `editor.refresh-failed` for `editor.refresh-failed.again` off the same fact, held there
+ * in `ProjectStore` because that store has one and this one does not.
+ *
+ * **The count is reset by the EPISODE ending, not by the handler**, which is the review finding
+ * this watcher exists for and not a refactor of one. `stale` is cleared by ANY successful
+ * hydration, and three doors reach one without ever running `onRetry`'s `finally`: the mount,
+ * the post-command read-back and the cross-leaf subscription. A reset written only into that
+ * `finally` therefore survived all three, and the NEXT unrelated failure — one nobody had
+ * retried — opened reading "failed again". Watching the fact itself is what makes the rule
+ * hold for the fourth door too, whoever adds it.
+ */
+const retrying = ref(false);
+const retriesFailed = ref(0);
+watch(stale, (isStale) => {
+	if (!isStale) retriesFailed.value = 0;
+});
+const staleMessage = computed<StringKey>(() => (retriesFailed.value > 0 ? 'designer.refresh-failed.again' : 'designer.refresh-failed'));
+/**
+ * `useId` is unique only PER APP — its counter lives on the `AppContext` and every app defaults
+ * to the prefix `v` — so two designer leaves would otherwise mint the same `v-…-N`. What makes
+ * this unique across leaves is `AssetDesignerView`'s `app.config.idPrefix = nextAppIdPrefix()`,
+ * pinned by `tests/gates/appIdPrefix.test.ts`. `DialogHost.vue` and `PropertyTreeNode.vue` state
+ * the same pairing; this comment claimed per-app uniqueness was the reason, which is the reason
+ * the collision exists rather than the reason it does not.
+ */
+const staleNoticeId = useId();
+
+/**
+ * The control is `aria-disabled` while busy and never `:disabled`, so the click still arrives
+ * and THIS early return is what withholds the read — the repository's rule about a control that
+ * does nothing, and the pairing `PersistentWarningStrip` already uses for the same gesture. A
+ * build that only dimmed the button would issue a second read on the second press.
+ *
+ * `finally` and not `then`, so a REJECTED read releases the control and counts as the failed
+ * retry it is. Detached with `void` exactly as this file's other two reads are
+ * (`onFailureAction` and the mount), and **that is a real divergence from the Plan Editor
+ * rather than a match**: its own stale retry wraps `runtime.refreshProjection()` in
+ * `.catch(cause => notifyFault(…, 'editor.refresh.failed'))`. Here a thrown read still reaches
+ * the user — the `finally` runs, the control releases and the sentence becomes the "again" one —
+ * but the FAULT itself is neither logged nor toasted. Closing that is a change to all three
+ * reads on this surface plus the copy they would need, not to this button, and it is named here
+ * so the next reader finds the difference rather than assuming the two surfaces agree.
+ *
+ * A read that threw SYNCHRONOUSLY would skip the `finally` and strand `retrying`. Not
+ * reachable through the async `store.hydrate` — an `async function` rejects rather than
+ * throwing — and reachable in principle through `readingFor`'s own `context.indexScanCompleted()`,
+ * evaluated before that call. Left unguarded deliberately: an unreachable guard costs a branch
+ * it can never pay back, which is this repository's own rule about coverage headroom.
+ *
+ * **The button is a SIBLING of `.rp-designer-notice` in the template, not a child of it**, and
+ * that is measured rather than preferred. Three cases in three files
+ * (`assetDesignerRoot.test.ts`, `designerResponsiveShell.test.ts`,
+ * `designerSaveStateStale.test.ts`) read that element's WHOLE text as equal to the sentence, and
+ * `designerBackground.test.ts` maps every element wearing the class to its text: across this
+ * suite the class means "a message", and a control inside one of them would make it mean two
+ * things. The cost is that the control sits outside the live region, which `aria-describedby`
+ * answers for a reader who tabs to it without having read the sentence.
+ *
+ * **`class="rp-designer-retry"` is PRESENTATION and carries no behaviour** (card W22-A, ruling
+ * AD18-R15). Being a direct child of `.renovation-asset-designer` — a column flex container that
+ * declares no `align-items` — the unclassed button stretched to the leaf, drawing 1024 x 30 at a
+ * 1024 px leaf and reading as a second toolbar rather than as an action. The class exists so that
+ * `styles/designer-recovery.css` has something to hang `align-self: flex-start` on, and that file
+ * carries the rest, including what it refused. The accessible name, the `aria-describedby`
+ * association and the `aria-disabled` semantics are untouched by it.
+ *
+ * **What none of this can claim**: `role="status"` announces a CHANGE, and this region enters
+ * the document already carrying its text, so the FIRST appearance may not be announced at all.
+ * That is the property `PersistentWarningStrip` engineers by rendering its container
+ * unconditionally and a `v-if`'d paragraph cannot have; it is unchanged by this card and stated
+ * rather than implied. What a retry does move is the TEXT, which is the change an announcement
+ * needs — and no assertion here reaches the announcement itself, since jsdom has no AT.
+ */
+function onRetry(): void {
+	if (retrying.value) return;
+	retrying.value = true;
+	void runtime.refresh().finally(() => {
+		retrying.value = false;
+		// Counting only. The RESET belongs to the watcher above, because three other doors end
+		// an episode without reaching this line. Read once the read has settled, which is what
+		// makes it this retry's outcome: `stale` survives a keep-previous failure and is
+		// cleared by the one success arm — so a press superseded by a peer read that already
+		// succeeded counts as nothing, which is the right answer for a press whose own read
+		// never decided anything.
+		if (stale.value) retriesFailed.value += 1;
+	});
+}
 
 /**
  * What became of the spec sheet this asset names — the plan editor's own
@@ -154,9 +282,15 @@ const hintKey = computed<StringKey | null>(() => {
 	const id = runtime.activeToolId.value;
 	if (constrainsAngle(id)) return 'editor.hint.constrain-angle';
 	if (id !== 'select') return null;
-	const selected = selection.value;
-	if (selected?.kind === 'facing') return 'editor.hint.constrain-angle';
-	return isOutlineSelection(selected) && designStore.mode === 'transform' ? 'designer.hint.shift-transform' : null;
+	const focused = selection.value;
+	if (focused?.kind === 'facing') return 'editor.hint.constrain-angle';
+	// An OPEN graphic is an outline selection and has no handles, so it is excluded here for the
+	// reason `DesignerSelectionModes` drops two of its buttons: this hint promises that Shift keeps
+	// proportions and snaps the rotation, and a path offers neither — it has no box handle to
+	// constrain and no rotate handle to snap. Advertising a modifier that cannot act is the same
+	// defect as drawing a button that cannot, one surface over.
+	if (isOpenGraphicSelection(design.value?.shape, focused)) return null;
+	return isOutlineSelection(focused) && designStore.mode === 'transform' ? 'designer.hint.shift-transform' : null;
 });
 
 /**
@@ -177,7 +311,7 @@ const gridStep = computed<number | null>(() => {
  */
 const emptyStateKey = computed<'noShape' | 'noBackground' | null>(() => {
 	const current = design.value;
-	if (current === null || runtime.activeToolId.value !== null) return null;
+	if (current === null || (runtime.activeToolId.value !== null && runtime.activeToolId.value !== 'select')) return null;
 	return selectAssetDesignerEmptyState(current);
 });
 
@@ -191,6 +325,11 @@ const emptyStateKey = computed<'noShape' | 'noBackground' | null>(() => {
  * `noShape` needs no such guard: Task B8's dimensions dialog is a member of THIS component's
  * own script, not a port that might be unbound, so `EMPTY_STATE_CONTENT.assetDesigner.noShape`'s
  * `actionLabel` is reachable unconditionally the moment it is declared.
+ *
+ * **This is the RANKED path alone since AD07.** The other two entry paths are buttons in
+ * `EmptyState`'s `actions` slot below, which is why a `noBackground` state with no picker bound
+ * still draws a panel with two live controls in it rather than none: the stripped label is the
+ * one gesture nothing can perform, not the whole offer.
  */
 const overlay = computed<EmptyStateProps | null>(() => {
 	const key = emptyStateKey.value;
@@ -221,8 +360,14 @@ const overlay = computed<EmptyStateProps | null>(() => {
  * inspector puts a warning over — "traced before a scale existed, so these numbers are not real
  * measurements yet" — and offering them back as the default made *Edit dimensions → Save* write
  * them as a `typed` rectangle in true millimetres, in two clicks, with the warning then
- * correctly gone because the footprint really is typed now. Nothing anywhere said so:
- * `DesignerInspector` was the only reader of that flag in the whole tree.
+ * correctly gone because the footprint really is typed now. Nothing anywhere said so —
+ * `DesignerInspector` was then the only reader of that flag, which was EXACT at `d852733bd^`
+ * and stopped holding inside `d852733bd` itself, the commit that wrote this paragraph and added
+ * `editDimensions`'s own read a few lines below it. The past tense is the one it earned, and it
+ * is kept rather than corrected into a number: what falsifies such a sentence is not being wrong
+ * but being unreadable, and three separate readers in a row took this one for a statement about
+ * the tree in front of them. For who reads the flag TODAY, run `grep -rn "dimensionsUnscaled"
+ * src/` — and read each hit, because it also prints prose that only names the field.
  *
  * Both halves, and each closes a different thing. The form is left EMPTY, so no gesture
  * promotes an unscaled number by accident — the ratio between two placeholder pixel counts is
@@ -236,14 +381,22 @@ async function editDimensions(): Promise<void> {
 	const current = design.value;
 	const unscaled = current?.dimensionsUnscaled === true;
 	const dimensions = current?.dimensions ?? null;
+	// In the whole millimetres `DesignerInspector` shows, never a curve's irrational box.
+	const initial = dimensions !== null && !unscaled ? { width: Math.round(dimensions.width), depth: Math.round(dimensions.depth) } : null;
 	const result = await dialogs.openDialog({
 		kind: 'asset-dimensions',
 		title: tr('designer.dimensions.edit.title'),
-		// In the whole millimetres `DesignerInspector` shows, never a curve's irrational box.
-		...(dimensions !== null && !unscaled ? { initial: { width: Math.round(dimensions.width), depth: Math.round(dimensions.depth) } } : {}),
+		...(initial !== null ? { initial } : {}),
 		...(unscaled ? { warning: tr('designer.dimensions.unscaled') } : {}),
 	});
 	if (result === null) return;
+	// Typing back the numbers this form OFFERED is not an edit, so it dispatches nothing and pushes no
+	// undo entry (contract C03, and AD02's own acceptance criterion). Compared against `initial` rather
+	// than against the canonical extent on purpose: a footprint measuring 1200.4 is offered as 1200, and
+	// a user typing 1200 there means "leave it as it is" rather than "trim four tenths of a millimetre".
+	// The two states with no `initial` — no shape, and a footprint still in placeholder pixels — cannot
+	// reach this, which is right: there is nothing to have typed back.
+	if (initial !== null && result.width === initial.width && result.depth === initial.depth) return;
 	// A footprint in real millimetres is SCALED, whatever it is drawn as — a traced L-shape keeps its
 	// corners, and its anchor keeps whatever relationship to the shape the user gave it. The rectangle
 	// is for the two states where there is nothing to scale: no shape at all, and a footprint still in
@@ -253,7 +406,16 @@ async function editDimensions(): Promise<void> {
 		await runtime.setFootprintFromDimensions(result.width, result.depth);
 		return;
 	}
-	await notifyIfRefused(runtime.editShape((shape) => scaleDesignToDimensions(shape, result.width, result.depth)));
+	await notifyIfRefused(landDimensions(runtime.editShape, result.width, result.depth));
+}
+
+/**
+ * Task 8's `Custom` placement segment (AD18-R16): the same `set-anchor` tool the toolbar's own
+ * `Set anchor` button already activates, through the one `setTool` door (SDD §66's "one action,
+ * every input") rather than a second, independently-decided activation.
+ */
+function activateAnchorTool(): void {
+	runtime.setTool('set-anchor');
 }
 
 /** `FormDialog` carries its payload as `unknown`; the command validates the shape itself. */
@@ -278,20 +440,32 @@ async function startFromPreset(): Promise<void> {
 }
 
 /**
- * The empty state's `@action`, for BOTH entries now that Task B8 has given `noShape` one too.
+ * The reference gesture, and the ONE place it is written — `editDimensions`'s rule applied to
+ * the third entry path, because AD07 gave it two callers: the ranked action of the
+ * `noBackground` state, and the alternative offered from `noShape`.
  *
  * Cancelling the picker (`null`) dispatches nothing: a cancelled pick is not a chosen
  * reference, and `SetAssetBackground` has no meaning applied to data the user never supplied.
  */
+async function traceReference(): Promise<void> {
+	const picker = context.picker;
+	if (picker === null) return;
+	// `picked`, not `ref`: this script imports Vue's own `ref` since the background status
+	// arrived, and `no-shadow` fails the build on the collision.
+	const picked = await picker.pick();
+	if (picked === null) return;
+	await runtime.setBackground(picked);
+}
+
+/**
+ * The empty state's `@action` — the path `selectAssetDesignerEmptyState` RANKS FIRST, which is
+ * all that selector has ever decided (`selectors.ts`'s own header: "prominence rather than
+ * access"). The other two paths are offered beside it in the `actions` slot below and call the
+ * same two functions this does.
+ */
 async function onEmptyStateAction(): Promise<void> {
 	if (emptyStateKey.value === 'noBackground') {
-		const picker = context.picker;
-		if (picker === null) return;
-		// `picked`, not `ref`: this script imports Vue's own `ref` since the background status
-		// arrived, and `no-shadow` fails the build on the collision.
-		const picked = await picker.pick();
-		if (picked === null) return;
-		await runtime.setBackground(picked);
+		await traceReference();
 		return;
 	}
 	if (emptyStateKey.value === 'noShape') await editDimensions();
@@ -376,30 +550,46 @@ function onFailureAction(): void {
 }
 
 /**
- * Delete and Ctrl+D for the designer's selection (symbols spec, Decision 10), bound on the canvas
- * ELEMENT — `<DesignerCanvas @keydown>` falls through to `EditorSurface`'s focusable root — because
- * `EditorSurface` routes neither key. The inspector is a sibling region, so a Backspace typed in one
- * of its fields never reaches this listener.
+ * Delete, Ctrl+D, Ctrl+G and Ctrl+Shift+G for the designer's selection (symbols spec, Decision 10;
+ * AD18-R16 Task 11), bound on the canvas ELEMENT — `<DesignerCanvas @keydown>` falls through to
+ * `EditorSurface`'s focusable root — because `EditorSurface` routes none of them. The inspector is a
+ * sibling region, so a Backspace typed in one of its fields never reaches this listener. `keyActions`
+ * is ALSO the context menu's (`designerMenu.ts`), so an item and its key are one function.
  *
  * Three refusals, each someone else's key:
  * - a key whose target is not that element itself — `keyDoors.ts`'s `isCanvasKey` rule, so a
  *   control inside the canvas (the overlay's action button, a later field) keeps its own Backspace;
  * - any tool but Select — the plan editor's `nudge.ts` rule, since every other tool owns the keyboard
- *   for its own gesture, and Backspace mid-trace must not delete the part still selected;
+ *   for its own gesture, and Backspace mid-trace must not delete the part still selected. Camera mode
+ *   is not a tool and is admitted (`selectionKeysRefused`, AD18-R20);
  * - a press still held on the selection (`hasDraft`), whose release is about to write that very part.
  */
-const keyActions = selectionKeyActions(designStore, runtime.editShape, runtime.activeToolId);
+const keyActions = selectionKeyActions(designStore, runtime.editShape, runtime);
+const contextMenu = useDesignerContextMenu(runtime, keyActions);
 function onCanvasKeyDown(event: KeyboardEvent): void {
-	if (event.target !== event.currentTarget || runtime.activeToolId.value !== 'select' || runtime.toolManager.activeToolHasDraft()) return;
-	designerShortcut(event, {
-		selection: designStore.selection,
-		deleteSelection: () => {
-			void keyActions.deleteSelection();
-		},
-		duplicateSelection: () => {
-			void keyActions.duplicateSelection();
-		},
-	});
+	if (event.target !== event.currentTarget || selectionKeysRefused(runtime)) return;
+	designerShortcut(event, designStore, keyActions, runtime);
+}
+
+/**
+ * Ctrl+Z, Ctrl+Shift+Z and Ctrl+Y (Cmd on macOS) over this leaf's history, through the Plan Editor's
+ * own `editorHistoryShortcut` (contract C12) — which owns the chord, a focused field's native undo, a
+ * dialog's keys, autorepeat and the mid-gesture refusal. Bound CAPTURE on the root, as `PlanEditorRoot`
+ * binds it, so the canvas, the Parts rows, the Inspector and the toolbar all reach it and a descendant's
+ * `@keydown.stop` (a dimension label's form) does not hide it. A claimed chord goes no further, so
+ * `contextMenu.key` and the canvas's own keys below it never see one — and the chord is claimed even
+ * with nothing to undo, as the Plan Editor does, unlike the Ctrl+G rule in `designerKeys.ts`.
+ *
+ * `gesture` is the toolbar's `blocked()`: a tool's press still held, or a camera pan. `writesBlocked` is
+ * `false` because this surface blocks no write — `runtime.ts`'s `writesBlocked: () => false` carries why
+ * (AD18-R13); the toolbar's Undo and Redo gate on `canUndo`/`canRedo` alone as well.
+ * `modal` is a `DialogHost` dialog. The host is the root's last child, a sibling of the regions rather than
+ * nested in one: it makes its parent's OTHER children inert while a dialog is open, so every region has to
+ * be a sibling of it for the background to actually go inert.
+ */
+const history = { ...runtime, writesBlocked: ref(false) };
+function onRootKeydown(event: KeyboardEvent): void {
+	editorHistoryShortcut(event, history, { modal: dialogs.current !== null, gesture: runtime.toolManager.gestureInFlight || editorStore.dragState !== null });
 }
 
 onMounted(() => {
@@ -408,7 +598,30 @@ onMounted(() => {
 </script>
 
 <template>
-	<div class="renovation-asset-designer">
+	<div
+		class="renovation-asset-designer"
+		@contextmenu="contextMenu.context"
+		@keydown.capture="onRootKeydown"
+		@keydown="contextMenu.key"
+		@pointerdown.capture="contextMenu.outside"
+		@focusout="contextMenu.leave"
+	>
+		<!--
+			AD18 item 2's header region, FIRST in the shell: the asset's name, the way back to the
+			catalogue, the save state and the way into a plan. `DesignerHeader` decides on its own
+			what it can say about a leaf whose read is in flight or refused, which is why this region
+			mounts its component unconditionally where the Parts and Inspector regions gate theirs —
+			the save state is true of every state and the other three are not. It is not alone in
+			mounting unconditionally: the toolbar region does too, and always has.
+		-->
+		<div class="rp-designer-header">
+			<DesignerHeader
+				:design="design"
+				:open-library="context.openLibrary"
+				:use-plan="context.usePlan"
+				:stale="staleAfterRefresh"
+			/>
+		</div>
 		<!--
 			Design slice B5's toolbar, mounted. The REGION is this div and the component is its
 			child, which is the shape the canvas and the status regions already take — and it is
@@ -420,6 +633,44 @@ onMounted(() => {
 			<DesignerToolbar />
 		</div>
 		<div class="rp-designer-body">
+			<!--
+				AD09's rail, FIRST in the body so its visual position at every width matches its
+				focus order — the concept board's "Parts left, properties right" (AD01 §3), and the
+				same stacking order the narrow container query keeps.
+
+				**It holds TWO panels since AD18 item 5, stacked and not tabbed (AD18-R5), and the
+				region div is still the one `.rp-designer-parts` the rest of the stylesheet knows.**
+				That is deliberate: `designer-parts.css` gives this div the rail's width, padding,
+				background and border, and `designer-narrow.css` and `designer-toolbar.css` each
+				name it again for the stacked layout and for item 6's cap. A wrapper element
+				introduced here would move all four of those and buy nothing the `Add` panel needs.
+				The class therefore names less than the div now holds, which is the honest cost of
+				not moving three container queries; a rename is its own change.
+
+				`design !== null` on the Parts panel alone, for `.rp-designer-inspector`'s reason: a
+				loading leaf and a hard failure both blank the design, and the region survives as an
+				empty one rather than drawing a list of parts nobody has read. **`DesignerAddPanel`
+				takes no such gate** — a shape button activates a tool, and the tools exist whether
+				or not a design has been read — which is AD18-R5's whole argument for stacking
+				rather than tabbing: a condition on one child and none on the other is a shape this
+				file already had, where a tab pair would have had to answer what `Parts` shows while
+				`design` is `null`.
+			-->
+			<div class="rp-designer-parts">
+				<DesignerAddPanel :start-from-preset="startFromPreset" />
+				<DesignerPartsPanel
+					v-if="design !== null"
+					:design="design"
+					:selected="selected"
+					:select="designStore.select"
+					:edit-shape="runtime.editShape"
+					:view="runtime.partView"
+					:multi-selection-mode="runtime.multiSelectionMode.value"
+					:set-multi-selection-mode="(next: boolean) => (runtime.multiSelectionMode.value = next)"
+					:selection-store="designStore"
+					:tools="runtime"
+				/>
+			</div>
 			<!--
 				Task B4's `DesignerCanvas`, mounted. The region is ALWAYS drawn — the empty
 				state, the failure state and the loading line all live inside it rather than in
@@ -462,7 +713,17 @@ onMounted(() => {
 						v-bind="overlay"
 						overlay
 						@action="onEmptyStateAction"
-					/>
+					>
+						<template #actions>
+							<DesignerEntryPaths
+								:empty-state-key="emptyStateKey"
+								:has-picker="context.picker !== null"
+								:edit-dimensions="editDimensions"
+								:trace-reference="traceReference"
+								:start-from-preset="startFromPreset"
+							/>
+						</template>
+					</EmptyState>
 				</DesignerCanvas>
 			</div>
 			<!--
@@ -477,22 +738,41 @@ onMounted(() => {
 					v-if="design !== null"
 					:design="design"
 					:set-height="runtime.commitHeight"
+					:remove-background="runtime.removeBackground"
 					:edit-dimensions="editDimensions"
-					:start-from-preset="startFromPreset"
+					:activate-anchor-tool="activateAnchorTool"
 					:logger="context.logger"
 					:selection="selection"
 					:edit-shape="runtime.editShape"
 					:select="designStore.select"
+					:selected="selected"
+					:locked-graphics="runtime.partView.locked.value"
 				/>
 			</div>
 		</div>
-		<p
-			v-if="staleAfterRefresh"
-			class="rp-designer-notice"
-			role="status"
-		>
-			{{ tr('designer.refresh-failed') }}
-		</p>
+		<!-- The stale notice and the one control AD18-R13 gives it; `onRetry`'s docblock above
+			carries why the button is a SIBLING of the notice rather than a child, and what
+			`role="status"` does and does not announce here. -->
+
+		<template v-if="staleAfterRefresh">
+			<p
+				:id="staleNoticeId"
+				class="rp-designer-notice"
+				role="status"
+			>
+				{{ tr(staleMessage) }}
+			</p>
+			<button
+				type="button"
+				class="rp-designer-retry"
+				data-rp-action="retry"
+				:aria-describedby="staleNoticeId"
+				:aria-disabled="retrying ? 'true' : undefined"
+				@click="onRetry"
+			>
+				{{ tr('designer.refresh-failed.retry') }}
+			</button>
+		</template>
 		<p
 			v-if="backgroundStatus === 'missing'"
 			class="rp-designer-notice"
@@ -514,6 +794,15 @@ onMounted(() => {
 			announced status change — it is a standing note about a modifier, not an event. Giving
 			the designer's save state a live region of its own is a decision about THAT surface,
 			which this task does not take.
+
+			**The save state left this region in AD18** and is in the header above, which is where
+			AD06 item 1 asks for it and where a user looking for "is my work safe" looks first. It
+			is not drawn in both: a second indicator reading the same store would be a second answer
+			to one question. **The camera's scale left it too, since AD18-R16's Task 1**, into the
+			toolbar's own zoom cluster beside undo/redo — the concept boards draw it there, and a
+			reading in both places would be the identical second-answer defect the save state was
+			already moved to avoid. What is left here is the two standing facts about the VIEW — what
+			Shift does and the grid's step — which is a coherent region rather than a remainder.
 		-->
 		<div class="rp-designer-status">
 			<span
@@ -524,13 +813,9 @@ onMounted(() => {
 				v-if="gridStep !== null"
 				class="rp-designer-grid-step"
 			>{{ tr('designer.status.grid', { step: String(gridStep) }) }}</span>
-			<SaveStateIndicator />
 		</div>
-		<!--
-			Last child, and a sibling of the regions rather than nested in one: the host makes
-			its parent's OTHER children inert while a dialog is open, so every region has to be
-			a sibling of it for the background to actually go inert.
-		-->
+		<!-- Last child, a sibling of the regions: `onRootKeydown`'s docblock carries why. -->
+		<DesignerContextMenu :menu="contextMenu" />
 		<DialogHost />
 	</div>
 </template>

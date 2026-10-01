@@ -21,6 +21,7 @@ import WorkFields from './WorkFields.vue';
 import DecisionFields from './DecisionFields.vue';
 import PlannedFields from './PlannedFields.vue';
 import type { MaterialChoice } from './materialChoices';
+import FormSubmitRow from '../../dialogs/FormSubmitRow.vue';
 
 const props = defineProps<{ draft: RenovationDraft; baseline: RenovationBaseline; busy: Ref<boolean>; paused: Readonly<Ref<boolean>>; retry?: () => Promise<void>; openSource?: () => Promise<void>; dispatch: (input: RenovationInput) => Promise<DispatchResult>; catalogue?: readonly MaterialChoice[] }>();
 const emit = defineEmits<{ submit: [] }>();
@@ -152,11 +153,9 @@ function changed(): void { if (!frozen.value) reviewed.value = false; }
 		>
 			{{ tr('renovation.impact') }}
 		</p>
-		<button
-			type="submit"
-			:aria-disabled="submitBlocked"
-		>
-			{{ submitLabel }}
-		</button>
+		<FormSubmitRow
+			:submitting="submitBlocked"
+			:label="submitLabel"
+		/>
 	</form>
 </template>

@@ -77,9 +77,17 @@ export interface DraftFinishDoors {
 	undoDraftPoint(): void;
 }
 
-/** The tools whose draft Enter finishes through the existing guarded task. */
+/**
+ * The tools whose draft Enter finishes through the existing guarded task.
+ *
+ * `'draw-line'` is the asset designer's open-graphic tool (AD11) and is the first member from that
+ * surface. It reaches `finishActiveTool`, which is `ToolManager.activeTool?.finish?.()` — the same
+ * door a click on its last vertex takes, so pointer and keyboard are one action rather than two
+ * implementations of completion. A run of fewer than two vertices finishes nothing; the tool
+ * decides that, not this table.
+ */
 function finishesOnEnter(tool: ToolId): boolean {
-	return tool === 'draw-area' || tool === 'draw-wall' || tool.startsWith('place-') || isElementTool(tool);
+	return tool === 'draw-area' || tool === 'draw-wall' || tool === 'draw-line' || tool.startsWith('place-') || isElementTool(tool);
 }
 
 /**

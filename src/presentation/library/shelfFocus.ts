@@ -88,16 +88,61 @@ export function focusStops(region: HTMLElement): readonly HTMLElement[] {
  * is already the next stop, never around to the first.
  */
 export function moveFocus(event: KeyboardEvent, step: 1 | -1): void {
+	stepFocus(event, (here) => here + step);
+}
+
+/**
+ * The one focus manager, parameterised by WHERE the next stop is rather than duplicated per
+ * axis: `moveFocus` steps one stop, `moveFocusByRow` one row of the grid (AD18-R18). Landing on
+ * the stop that already has focus does nothing, which is the clamp's own end.
+ */
+function stepFocus(event: KeyboardEvent, pick: (here: number, count: number, stop: HTMLElement) => number): void {
 	// `currentTarget` is non-null for the whole of a dispatch, and this handler is bound in a
 	// template on the region itself — so there is no null arm here for a test to drive.
 	const region = event.currentTarget as HTMLElement;
 	const stops = focusStops(region);
 	const here = stops.indexOf(region.ownerDocument.activeElement as HTMLElement);
 	if (here === -1) return;
-	const next = stops[here + step];
-	if (next === undefined) return;
+	const next = stops[pick(here, stops.length, stops[here])];
+	if (next === undefined || next === stops[here]) return;
 	event.preventDefault();
 	next.focus();
+}
+
+/**
+ * How many column tracks a grid resolves to, which is how many stops one row holds.
+ *
+ * A browser answers `getComputedStyle(...).gridTemplateColumns` with the USED track list
+ * (`129.33px 129.33px …`), `auto-fill` expanded, so counting the lengths counts the columns.
+ * jsdom answers the SPECIFIED value (`repeat(auto-fill, …)`) and lays nothing out, so it counts
+ * no lengths and the grid steps by one stop, which is the honest answer for a grid nobody measured.
+ */
+function columnsOf(grid: HTMLElement): number {
+	const tracks = getComputedStyle(grid).gridTemplateColumns.split(' ').filter((track) => track.endsWith('px'));
+	return Math.max(tracks.length, 1);
+}
+
+/** Marks a grid item that spans every column (the Grid view's `Create your own` card). */
+const FULL_ROW = '[data-full-row]';
+
+/**
+ * `↑`/`↓` over the Grid view's tiles (AD18-R18): the SAME model as the shelves, with one row of
+ * the grid as the step instead of one stop — `←`/`→` stay `moveFocus`. Bound on the grid element
+ * itself, so `currentTarget` is both the region and the element whose tracks are counted.
+ *
+ * Down CLAMPS to the last stop, so a tile over the short last row (or the full-width create card
+ * below it) is reachable; up does not, because every tile has a row above it until the first,
+ * where nothing happens, exactly as `moveFocus` does at its ends. The one exception is a stop
+ * marked `data-full-row`, whose row above is the last row of tiles however short it is.
+ */
+export function moveFocusByRow(event: KeyboardEvent, sign: 1 | -1): void {
+	const columns = columnsOf(event.currentTarget as HTMLElement);
+	stepFocus(event, (here, count, stop) => {
+		if (sign > 0) return Math.min(here + columns, count - 1);
+		// A stop spanning the whole row sits under the LAST row of tiles however short that row
+		// is, so `↑` lands on that row's first stop rather than a full row of tracks further up.
+		return stop.closest(FULL_ROW) === null ? here - columns : Math.floor((here - 1) / columns) * columns;
+	});
 }
 
 /** The class §7's narrow composition takes off the layout, and the element this asks about. */
@@ -167,8 +212,11 @@ export interface RowPosition {
 	readonly index: number;
 }
 
-/** The class §3.3's rows are drawn into, by both the shelves and §6.1's flat Results list. */
-const ROWS = '.rp-al-rows';
+/**
+ * The classes §3.3's rows are drawn into, by both the shelves and §6.1's flat Results list — and
+ * the Grid view's tile list (AD18-R18), which §3.5's post-deletion rule serves the same way.
+ */
+const ROWS = '.rp-al-rows, .rp-al-tiles';
 
 /**
  * The row control itself — ONE selector, asked by both halves of this pair.
@@ -180,7 +228,7 @@ const ROWS = '.rp-al-rows';
  * caret silently, in the direction of focusing the WRONG asset. Two expressions of one question,
  * three lines apart, drift immediately; this is the one expression.
  */
-const ROW = '.rp-al-row';
+const ROW = '.rp-al-row, .rp-al-tile';
 
 /** The rows of one list, in DOM order — the one instrument both halves of this pair count on. */
 function rowsIn(list: HTMLElement): readonly HTMLElement[] {

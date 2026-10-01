@@ -139,14 +139,20 @@
  * with no rule behind it is exactly what this sheet's header calls invisible in the
  * harness.
  *
- * A plain column, deliberately. `.rp-dialog` owns `overflow-y` and `max-height`, so the
- * PANEL is what scrolls; a `flex: 1` with `min-height: 0` here would nest a second scroll
- * container inside the first and give a tall form two scrollbars.
+ * It is the form dialog's SCROLLER (AD18 UI critique, Task 4). `min-height: 0` lets it shrink
+ * inside the panel's `max-height`, so the panel itself stops overflowing and this scrolls instead —
+ * one scrollbar, not two — while the title stays put above it and `.rp-dialog-footer` pins to its
+ * foot. The inset padding, cancelled by an equal negative margin, is room for the focus rings a
+ * scroller would otherwise clip at its edges: `overflow-y: auto` makes `overflow-x` clip too.
  */
 .rp-dialog-body {
 	display: flex;
 	flex-direction: column;
 	gap: var(--size-4-2);
+	min-height: 0;
+	overflow-y: auto;
+	padding: var(--size-4-1);
+	margin: calc(-1 * var(--size-4-1));
 }
 
 .rp-dialog-actions {
@@ -154,6 +160,37 @@
 	flex-wrap: wrap;
 	justify-content: flex-end;
 	gap: var(--size-4-2);
+}
+
+/*
+ * A form dialog's ONE action row (`FormSubmitRow.vue`: Cancel, then the submit), pinned at the foot
+ * of the scrolling `.rp-dialog-body` so a long form — the preset gallery — scrolls above it rather
+ * than carrying the submit off below the fold. Opaque, since the body scrolls underneath it, and
+ * padded below by the body's own inset so the submit's focus ring is not clipped at the edge.
+ */
+.rp-dialog-footer {
+	position: sticky;
+	bottom: 0;
+	padding-block: var(--size-4-2) var(--size-4-1);
+	background-color: var(--background-primary);
+}
+
+/*
+ * WHAT THE PINNED ROW COVERS IS NOT "IN VIEW" (WCAG 2.2 SC 2.4.11, Focus Not Obscured). A field
+ * scrolled to the body's foot can sit entirely under the row, and the browser's focus scroll counts
+ * it as visible and does not move it: Tab lands on a control nobody can see. `scroll-padding` is what
+ * every scroll-into-view — the focus scroll included — reads as the edge of the viewing region, so it
+ * is the row's own height: its two paddings and one Obsidian button (`--input-height`), plus the
+ * body's own inset, since the row sticks inside that inset rather than on the body's edge. A row that
+ * WRAPS onto a second line (two buttons wider than the panel) is taller than this; the narrowest
+ * window measured, 360 px, keeps one line.
+ *
+ * Scoped with `:has()` to a body that holds a pinned row: a component with no `FormSubmitRow` (none
+ * ships; `FormDialog`'s fallback Cancel row sits below the scroller for one) pins nothing inside it,
+ * so nothing there can be covered and no padding is owed.
+ */
+.rp-dialog-body:has(> * > .rp-dialog-footer) {
+	scroll-padding-block-end: calc(var(--input-height) + var(--size-4-2) + 2 * var(--size-4-1));
 }
 
 /*
@@ -188,8 +225,9 @@
  * `<button>` and outranks this single-class selector at (0,1,1) vs (0,1,0) — source order
  * never gets consulted, specificity settles it first. Left as-is on purpose: it states the
  * SAME value Obsidian's own rule would apply anyway, so it is harmless, and NOT raising its
- * specificity is what lets a themed vault's own button appearance win here undisturbed —
- * only `.rp-dialog-button-danger` below genuinely needs to beat Obsidian's rule.
+ * specificity is what lets a themed vault's own appearance for a PLAIN button win here
+ * undisturbed. Two rules below do outrank the host on purpose, each for its own reason:
+ * `.rp-dialog-button-danger`, and the primary submit's `.mod-cta` fill.
  */
 .rp-dialog-button {
 	padding: var(--size-4-1) var(--size-4-3);
@@ -202,6 +240,37 @@
 
 .rp-dialog-button:hover {
 	background-color: var(--interactive-hover);
+}
+
+/*
+ * THE PRIMARY SUBMIT, and why it does not keep Obsidian's own `mod-cta` paint. `FormSubmitRow`'s
+ * submit wears `mod-cta` — Obsidian's primary-action class, what a theme styles — but the host's
+ * pairing, `--text-on-accent` on `--interactive-accent`, measured **3.43:1 in the light theme and
+ * 4.26:1 in the dark** on this button in Obsidian 1.13.7 on Windows (`tests/e2e/dialogFooter.e2e.ts`), both
+ * under WCAG 1.4.3's 4.5:1 — the same failure `styles/editor-shell.css` records for the pairing.
+ * So the accent is mixed toward `--text-normal` (darker in light, lighter in dark) and the label
+ * takes `--background-primary` — 70% at rest and 55% on hover, the recipe
+ * `styles/editor-inspector-skeleton.css`'s resize action and `styles/editor-task-bar.css` already
+ * ship. Measured on this button in the same run: 5.33:1 light and 5.64:1 dark at rest, 6.78:1 and
+ * 6.72:1 hovered, each asserted against 4.5:1 in `tests/e2e/dialogFooter.e2e.ts`.
+ *
+ * THE TRADE, stated: a theme's own `.mod-cta` fill and label are OVERRIDDEN inside these dialogs,
+ * deliberately. Deferring to the host here would ship its measured AA failure; the same choice was
+ * made for the same reason at the two precedents above and in `styles/editor-shell.css`. The theme's
+ * accent still decides the hue, since the mix starts from `--interactive-accent`.
+ *
+ * Qualified to (0,3,0) because it must beat `button.mod-cta` (0,1,1), its (0,2,1) hover and
+ * Obsidian's `button:not(.clickable-icon)` colour; `box-shadow` is left alone, so the host's focus
+ * ring and the `aria-disabled` dimming both still apply. The hover skips an inoperative submit (the
+ * preset form's refused Apply, a submit mid-write), which has nothing to offer a pointer.
+ */
+.rp-dialog .rp-dialog-button.mod-cta {
+	background-color: color-mix(in srgb, var(--interactive-accent) 70%, var(--text-normal));
+	color: var(--background-primary);
+}
+
+.rp-dialog .rp-dialog-button.mod-cta:not([aria-disabled='true']):hover {
+	background-color: color-mix(in srgb, var(--interactive-accent) 55%, var(--text-normal));
 }
 
 /*

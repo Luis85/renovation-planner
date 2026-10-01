@@ -4,26 +4,34 @@
  * `Escape` semantics and the resolution Promise; it holds no field knowledge, which is why
  * the descriptor names a component rather than describing fields.
  *
- * The form component owns its own fields, its own validation and its own submit control,
- * and lives with whoever owns the form — `presentation/editor/shell/KnownDistanceForm.vue`
- * is this slice's own caller, and slice 16's creation forms will be others. What a resolved
- * `'submit'` means is `FormDialogResult`'s own docblock to state (`dialog-store.ts`), not
- * repeated here — a caller-dispatches form and a form that owns its dispatch answer that
- * question differently, and this file once repeated the FIRST answer after slice 16 made
- * the second one real, which is exactly how the two came to disagree.
+ * The form component owns its own fields, its own validation and its own submit control — drawn
+ * through `FormSubmitRow`, the one action row every shipped dialog form ends with
+ * (`tests/presentation/dialogs/dialogFormSubmitRow.test.ts`) — and lives with whoever owns the
+ * form — `presentation/editor/shell/KnownDistanceForm.vue` is this slice's own caller, and
+ * slice 16's creation forms will be others. What a resolved `'submit'` means is
+ * `FormDialogResult`'s own docblock to state (`dialog-store.ts`), not repeated here — a
+ * caller-dispatches form and a form that owns its dispatch answer that question differently,
+ * and this file once repeated the FIRST answer after slice 16 made the second one real, which
+ * is exactly how the two came to disagree.
  *
  * The mounted component's `submit` payload is passed through untyped, deliberately — it is
  * typed by that component, for the same reason `FormDescriptor` carries a component and
  * not a field list.
  */
+import { provide, ref } from 'vue';
 import { tr } from '../i18n/strings';
 import type { FormDescriptor, FormDialogResult } from './dialog-store';
+import { FORM_FOOTER } from './formFooter';
 
 const props = defineProps<{ descriptor: FormDescriptor; titleId: string }>();
 const emit = defineEmits<{ resolve: [result: FormDialogResult] }>();
 
 function onSubmit(values: unknown): void {
 	emit('resolve', { action: 'submit', values });
+}
+
+function busy(): boolean {
+	return props.descriptor.busy?.value === true;
 }
 
 /**
@@ -46,9 +54,24 @@ function onSubmit(values: unknown): void {
  * dims `button[aria-disabled="true"]` exactly as it dims `button[disabled]`.
  */
 function onCancel(): void {
-	if (props.descriptor.busy?.value === true) return;
+	if (busy()) return;
 	emit('resolve', 'cancel');
 }
+
+/**
+ * Whether the mounted form drew the dialog's one action row (`FormSubmitRow`, via `formFooter.ts`).
+ * When it did, the Cancel below is not drawn: a second row under the form's own submit is the
+ * stacked Save-over-Cancel the UI critique found. A component with no `FormSubmitRow` claims
+ * nothing and keeps this row, so a dialog is never left with no way out; no shipped form is one.
+ */
+const claimed = ref(false);
+provide(FORM_FOOTER, {
+	claim: () => {
+		claimed.value = true;
+	},
+	cancel: onCancel,
+	busy,
+});
 </script>
 
 <template>
@@ -65,12 +88,15 @@ function onCancel(): void {
 			@submit="onSubmit"
 		/>
 	</div>
-	<div class="rp-dialog-actions">
+	<div
+		v-if="!claimed"
+		class="rp-dialog-actions"
+	>
 		<button
 			type="button"
 			class="rp-dialog-button"
 			data-rp-action="cancel"
-			:aria-disabled="descriptor.busy?.value === true"
+			:aria-disabled="busy()"
 			@click="onCancel"
 		>
 			{{ tr('dialog.cancel') }}

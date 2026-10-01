@@ -7,7 +7,7 @@
 
 ## Current implementation handoff
 
-For continuation after a usage limit or a later session, start with [RESUME.md](implementation/RESUME.md). It records the pushed integration and WIP branches, verification results, live-process checks, ownership and the remaining acceptance work. Revalidate the snapshot against current repository and task state before acting.
+For continuation after a usage limit or a later session, start with [RESUME.md](implementation/RESUME.md). It records the pushed integration and WIP branches, verification results, live-process checks, ownership and the remaining acceptance work as of its own date; it is history, and the beta's status lives only in [first beta readiness](../../releases/first-beta-readiness/README.md). Revalidate the snapshot against current repository and task state before acting.
 
 ## Purpose
 

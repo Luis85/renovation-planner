@@ -37,14 +37,14 @@ participant/native acceptance complete. The original received editor designs rem
 | `bugs/` | Defects, with what was learned from them | `Bug` |
 | `deliverables/` | An artifact a Feature owes — the thing itself, not a promise of it. Derived, and edited as the design is refined | `Deliverable` |
 | `iterations/` | The time boxes work is scheduled into. A marker: it states a date rather than work, and holds nothing | `Iteration` |
-| `tests/cases/` | One live-vault check each, meant to be walked before a release; each case's `## Runs` table says whether it has been | `Test case` |
-| `adrs/` | **How** it is built — architecture decision records | *(none — not backlog items)* |
-| `prds/` | Requirements documents as received, which the epics here are derived from | *(none — not backlog items)* |
-| `sdds/` | Design documents as received, the architecture those epics are built against | *(none — not backlog items)* |
+| `tests/cases/` | One live-vault check each, meant to be walked before a release; most carry a `## Runs` table saying whether it has been | `Test case` |
+| `development/adrs/` | **How** it is built — architecture decision records | *(none — not backlog items)* |
+| `product/prds/` | Requirements documents as received, which the epics here are derived from | *(none — not backlog items)* |
+| `development/sdds/` | Design documents as received, the architecture those epics are built against | *(none — not backlog items)* |
 | `user-experience/` | Design specifications and delivery packages as received — screens, interaction rules, decision registers, and the packages' own proposed item lists. `archive/` holds the ones a later package superseded | *(none — not backlog items)* |
 | `actors/` | Who and what the plugin deals with — one note per human or system actor. Derived | *(none — not backlog items)* |
 | `entities/` | The business objects the plugin works with — one note per object. Derived | *(none — not backlog items)* |
-| `business-rules/` | The rules the product must obey — one note per rule, only where no single entity owns it. Derived | *(none — not backlog items)* |
+| `product/business-rules/` | The rules the product must obey — one note per rule, only where no single entity owns it. Derived | *(none — not backlog items)* |
 | `components/` | The UI parts every screen is assembled from — one note per component, each `partOf` a [[Design System]]. Derived. Since 2026-09-05 each names the design-package component that supersedes the archived concept drawing it was written from | *(none — not backlog items)* |
 | `reviews/` | Findings ledgers from code and document reviews, and the record of what was done about each | *(none — not backlog items)* |
 | `setup/` | How this repository's own tooling was built and is released | *(none — not backlog items)* |
@@ -280,7 +280,7 @@ something someone is about to fix.
 | `Task` | A piece of engineering work, and the evidence that justified it | Evidence · Why it matters · Approach · Acceptance criteria · Risks · Outcome |
 | `Deliverable` | An artifact its parent owes, and the note **is** that artifact | The artifact · what it may not restate · what is open · **References** |
 | `Issue` | A question, a decision taken, or a limitation accepted | Varies by which |
-| `Test case` | What to check in a live vault, and whether it passed | Why this exists · Preconditions · How to check · Acceptance criteria · Outcome |
+| `Test case` | What to check in a live vault, and whether it passed | No fixed shape: most carry Steps · Runs, many add Deliberately NOT checked · Outcome, and a few older ones use other headings |
 | `Bug` | What happened, what fixed it, and what it taught | What happened · Fix · Lesson |
 | `Iteration` | Which time box work is scheduled into, and what that box is for | Prose · **Goal**, plus `goal`, `start` and `due` in frontmatter |
 | ADR | What was chosen, what it cost, what would change it | Context · Decision · Consequences · Alternatives · Revisit when — **in that order** |

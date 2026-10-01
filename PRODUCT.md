@@ -115,8 +115,8 @@ Each has a design authority:
   Renovate / Review perspectives, the property tree, walls and openings, Existing and Planned
   states, Work, Materials, Costs, documents and photos, and Review findings. What each does is
   in [Plan a renovation from the floor](docs/using-plan-editor.md) and `CHANGELOG.md`; which
-  of it has been walked in Obsidian is in each case's `## Runs` table under
-  `docs/tests/cases/`.
+  of it has been walked in Obsidian is in the cases under `docs/tests/cases/`, most of which
+  carry a `## Runs` table.
 - **Asset library** — one vault-wide catalogue: category shelves and a right inspector,
   search by name, supplier or SKU, usage and price source, duplicate, delete with a
   reference check; read-only on mobile. Authority: `asset-library-delivery/` (AL00–AL11).
@@ -134,9 +134,10 @@ acts and validates it first. A missing read is never shown as zero or as "no pro
 No cross-project budgets, progress percentages or plan thumbnails on the overview.
 Starting without a plan is valid. Commit gestures differ by surface: project price rows use
 an explicit Apply and Cancel, the asset library inspector an explicit Save and Discard
-(`useDefinitionDraft`), and the Plan editor Inspector's fields still commit on blur or Enter
-(`useFieldCommit`). The issue that recorded the conflict (`docs/issues/`) is closed for the two
-catalogue surfaces; whether the Inspector follows is not decided.
+(`useDefinitionDraft`), and the Plan editor Inspector's and the Asset designer's inspector
+fields still commit as you leave a field or press Enter, with no Apply (`useFieldCommit`, or a
+plain `change` event). The issue that recorded the conflict (`docs/issues/`) is closed for the
+two catalogue surfaces; whether the two inspectors follow is not decided.
 
 Scope is staged. The stages are the PRD's planning buckets — intent, not a record of what is
 built: several V1 and V2 items already have implemented surfaces (trades, work with dates and
@@ -180,8 +181,8 @@ type; German is partial and falls back per string. The language comes from Obsid
 
 **Open, and not to be invented:** which locales beyond English and German; regional
 fallback (`de-AT` → `de`), which arrives with the first regional locale; whether a demo
-project ships (PRD §95 leaves it optional); whether the Plan editor Inspector's fields keep
-committing on blur or move to an explicit Apply; what has to ship for the asset catalogue's Bases route to count
+project ships (PRD §95 leaves it optional); whether the Plan editor's and the Asset designer's
+inspector fields keep committing on blur or move to an explicit Apply; what has to ship for the asset catalogue's Bases route to count
 as reachable; and the editor package's own open design questions (its §86 — left-panel
 composition, the perspective control's form, Inspector tabs versus stacked sections,
 whether Existing/Planned is a property or a comparison), each of which it says needs

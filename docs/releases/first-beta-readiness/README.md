@@ -20,7 +20,7 @@ the user guides link here rather than restating it.
 **Older evidence is history, not acceptance.** Every release, acceptance or evidence record
 written before a candidate is named — the ledgers under
 `docs/user-experience/*/implementation/`, the asset-library and project-specs delivery records,
-and each case's dated `## Runs` rows under `docs/tests/cases/` — describes the build it names. None
+and the dated run rows the cases under `docs/tests/cases/` record — describes the build it names. None
 of it is acceptance of a beta candidate.
 
 ## Files

@@ -1,5 +1,7 @@
 # Wiederaufnahme der Editor-Finalisierung
 
+> **Historical record — status added 2026-10-02.** This records the build and date it names. It is not acceptance of a beta release candidate; that status lives only in [first beta readiness](../../../releases/first-beta-readiness/README.md).
+
 ## Maßgeblicher nächster Arbeitsstand — 2026-09-09
 
 Der [oberste Stack-Plan](remaining-plan.md) nennt die veröffentlichten Fach-PRs, den bestandenen vollständigen Check auf `15e4b0d7`, die noch offenen visuellen und nativen Abnahmen und die verbleibende Implementierungsreihenfolge. Ältere laufende oder fehlgeschlagene Checkpoints unten bleiben historische Nachweise und sind nicht der aktuelle Abschlussstatus.

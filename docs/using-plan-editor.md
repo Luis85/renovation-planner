@@ -1,9 +1,10 @@
 # Plan a renovation from the floor
 
 > **What this guide is.** It describes behaviour that is **implemented** in this build: each
-> control it names exists, and the automated suite exercises it. It is not a record of
-> **verification**. Whether a route has been walked in Obsidian is in its case's `## Runs` table
-> under [`tests/cases/`](tests/cases/), on the build that row names; most record no run. The
+> control it names exists in this build, and the automated suite exercises the behaviour behind
+> them, not every route end to end. It is not a record of **verification**. Whether a route has
+> been walked in Obsidian is in its case under [`tests/cases/`](tests/cases/), most of which carry
+> a `## Runs` table, on the build that row names; most record no run. The
 > Plan editor is desktop-only. What is limited or unsupported is in
 > [Known limitations](known-limitations.md), and the beta's status in
 > [first beta readiness](releases/first-beta-readiness/README.md).

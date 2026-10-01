@@ -108,12 +108,12 @@ and the [beta acceptance matrix](docs/releases/first-beta-readiness/04-beta-acce
 [first beta readiness](docs/releases/first-beta-readiness/README.md) is where that status lives.
 
 **The case catalogue is [`docs/tests/cases/`](docs/tests/cases/)**; the two suites under
-[`docs/tests/suites/`](docs/tests/suites/) walk subsets of it. Each case says what to check and carries a `## Runs`
-table recording who or what walked it, on which build. Most of those tables record no run, so
-walking the catalogue is still a judgement call rather than a checklist to tick: read a case's
-`## Runs` table before trusting it, and treat a recorded run as evidence about the build it
-names, not about this one. `npm run test:e2e` drives some steps in a real Obsidian and records
-them in the same tables; it covers neither a themed vault nor a device. What to walk today: every
+[`docs/tests/suites/`](docs/tests/suites/) walk subsets of it. Each case says what to check. Most carry a `## Runs` table recording who
+or what walked them, on which build; a few older ones record runs under another heading or not at
+all. Most of those records hold no run, so walking the catalogue is still a judgement call rather
+than a checklist to tick: read a case's runs before trusting it, and treat a recorded run as
+evidence about the build it names, not about this one. `npm run test:e2e` drives some steps in a
+real Obsidian, and its runs are recorded in the same tables; it covers neither a themed vault nor a device. What to walk today: every
 surface the release touches, plus these, which nothing automated here can see —
 
 - the plugin loads with no console error, and unloads without leaving a view behind;

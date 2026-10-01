@@ -2,9 +2,9 @@ import { describe, expect } from 'vitest';
 import { en } from '../../src/presentation/i18n/locales/en';
 import { test } from './fixture';
 import { writeEvidence } from './diagnostics';
+import { noticeMessages } from './helpers';
 import {
 	dragCorner,
-	noticeSentences,
 	outlineOf,
 	readSidecar,
 	recordSaveStates,
@@ -72,6 +72,8 @@ const GEOMETRY = en['error.category.geometry'];
 const TAB_BOUND = 300;
 
 const at = ([x, y]: StoredPoint): WorldPoint => ({ x, y });
+/** What a control renders, read whether or not a narrow pane shows it right now, and from the DOM rather than `getText`. */
+const textOf = async (element: Pane): Promise<string> => String(await (await element.getElement()).getProperty('textContent')).trim();
 const zoneNamed = async (ui: Ui, name: string): Promise<[string, Record<string, unknown>]> => {
 	const found = Object.entries(await ui.notesOfType('renovation-zone')).filter(([, zone]) => zone.name === name);
 	expect(found).toHaveLength(1);
@@ -103,7 +105,7 @@ async function expectWritten(browser: NativeBrowser, path: string, id: string, m
  * may still be fading out while the case runs, and it is not this step's subject.
  */
 const geometryNotices = async (browser: NativeBrowser): Promise<string[]> =>
-	(await noticeSentences(browser)).filter((sentence) => sentence === GEOMETRY);
+	(await noticeMessages(browser)).filter((sentence) => sentence === GEOMETRY);
 
 /** Both halves' verdict: one geometry notice, never Save error, Saved at rest, the sidecar untouched. */
 async function expectRefusedAtRest(browser: NativeBrowser, directory: string, sidecarBefore: string, path: string): Promise<void> {
@@ -197,8 +199,9 @@ describe('Notices step 25: the report button, reached and pressed from the keybo
 
 		const action = () => browser.$('.rp-notice-action');
 		await expect.poll(() => action().isExisting()).toBe(true);
-		expect(await browser.$('.rp-notice:has(.rp-notice-action) .rp-notice-message').getText()).toBe(en['zone.listing-incomplete']);
-		expect(await action().getText()).toBe(en['command.show-diagnostics-report']);
+		// Read from the DOM: `getText` answers '' for a notice still sliding in (`noticeMessages`).
+		expect(await noticeMessages(browser, '.notice-container .notice:has(.rp-notice-action)')).toEqual([en['zone.listing-incomplete']]);
+		expect(await textOf(action())).toBe(en['command.show-diagnostics-report']);
 		expect(await browser.$('.rp-notice:has(.rp-notice-action) .rp-notice-dismiss').isExisting()).toBe(true);
 
 		const unfocused = await ringOf(browser);
@@ -237,9 +240,6 @@ const commandLabels = (browser: NativeBrowser, ids: readonly string[]): Promise<
 		PLUGIN_ID,
 		ids,
 	);
-
-/** What a control renders, read whether or not a narrow pane shows it right now. */
-const textOf = async (element: Pane): Promise<string> => String(await (await element.getElement()).getProperty('textContent')).trim();
 
 /**
  * Every desktop control the guide quotes, walked to in the real host and read as it renders:

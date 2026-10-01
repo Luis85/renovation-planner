@@ -187,7 +187,3 @@ export const saveLabel = (browser: NativeBrowser): Promise<{ state: string; text
 			text: label?.textContent?.trim() ?? '',
 		};
 	}, EDITOR);
-
-/** Every plugin notice's sentence on screen, in the host's `.notice-container`. */
-export const noticeSentences = (browser: NativeBrowser): Promise<string[]> =>
-	browser.execute(() => [...document.querySelectorAll('.rp-notice .rp-notice-message')].map((element) => element.textContent ?? ''));

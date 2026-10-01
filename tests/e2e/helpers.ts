@@ -1,6 +1,23 @@
 import { expect } from 'vitest';
 import { PLUGIN_ID, type NativeBrowser } from './session';
 
+/**
+ * Every toast in the notice container matching `scope`, as its message alone — read from the DOM, not
+ * with WebDriver's `getText`. Obsidian builds a notice at `translateX(350px)` and slides it in
+ * over ~100 ms inside `.notice-container`, which clips (`overflow: hidden`), so `getText` —
+ * visible text only — answers `''` for a notice read inside that slide: the empty-catalogue
+ * case failed on exactly that, `[ '' ]`, three times on CI, and Notices step 25 the same way.
+ * `isDisplayed` says `true` there, so waiting on it does not help either.
+ */
+export const noticeMessages = (browser: NativeBrowser, scope = '.notice-container .notice'): Promise<string[]> =>
+	browser.execute(
+		(selector: string) =>
+			[...document.querySelectorAll(selector)].map(
+				(notice) => (notice.querySelector('.rp-notice-message') ?? notice.querySelector('.notice-message') ?? notice).textContent ?? '',
+			),
+		scope,
+	);
+
 export type PlannerPage = ReturnType<typeof createPlannerPage>;
 
 /** The plugin's surfaces as a user reaches them: commands, the ribbon, the view's own controls. */

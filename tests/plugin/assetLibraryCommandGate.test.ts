@@ -14,14 +14,16 @@
  *
  * **The leaf count is the load-bearing assertion.** A plain callback driven through optional
  * chaining (`callback?.()`) goes silently inert if the member is ever renamed back to a
- * `checkCallback`; asserting the leaf the run opened is what turns that into a red. What the
- * opened library then OFFERS on a phone is `tests/presentation/library/assetLibraryMobile.test.ts`'s,
- * against the real view — `FakeLeaf` records asks and constructs no view.
+ * `checkCallback`; asserting the leaf the run opened is what turns that into a red. `FakeLeaf`
+ * records asks and constructs no view, so the mobile case builds the registered view on that leaf
+ * itself and asserts it MOUNTED read-only — a leaf count alone stayed green with AD13's refusal
+ * planted back into `onOpen`. What the library then OFFERS on a phone, control by control, is
+ * `tests/presentation/library/assetLibraryMobile.test.ts`'s.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Platform } from 'obsidian';
 import { installObsidianDom } from '../helpers/dom';
-import { ASSET_LIBRARY_VIEW } from '../../src/presentation/library/AssetLibraryView';
+import { ASSET_LIBRARY_VIEW, type AssetLibraryView } from '../../src/presentation/library/AssetLibraryView';
 import { loadedPlugin, type LoadedPlugin } from '../helpers/plugin';
 import { type FakeWorkspace } from '../helpers/workspace';
 import { resetRecorder } from '../helpers/logger';
@@ -67,7 +69,15 @@ describe('open-asset-library on every device', () => {
 		command()?.callback?.();
 		await settle();
 
-		expect(workspace.getLeavesOfType(ASSET_LIBRARY_VIEW)).toHaveLength(1);
+		const leaves = workspace.getLeavesOfType(ASSET_LIBRARY_VIEW);
+		expect(leaves).toHaveLength(1);
+
+		const view = plugin.views.get(ASSET_LIBRARY_VIEW)?.(leaves[0]) as AssetLibraryView;
+		await view.onOpen();
+		await settle();
+		const drawn = (selector: string) => view.contentEl.querySelectorAll(selector).length;
+		expect([drawn('[data-rp-notice="mobile-read-only"]'), drawn('.renovation-asset-library')]).toEqual([1, 1]);
+		await view.onClose();
 	});
 
 	it('opens the library on a desktop', async () => {

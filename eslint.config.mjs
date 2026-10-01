@@ -91,6 +91,24 @@ const TS_EXTENSION_BAN = {
 };
 
 /**
+ * `createApp` is reached through `createViewApp` and nowhere else in `src/`, because that helper is
+ * where an app gets the two things every mount owes: `app.config.idPrefix` (`app-id-prefix.ts`)
+ * and `trackVueApp`, without which the release of Vue's window globals can run under a live app
+ * (`vueGlobals.ts`). Both were a line at each of four sites, held by memory.
+ *
+ * In EVERY block that lets a file name `vue` — the catch-all and root blocks below, and
+ * `forbidden(...)` for a layer whose packages do not already ban `vue` outright — because two
+ * blocks matching one file override `no-restricted-imports` rather than merging it. One block,
+ * `CREATE_VIEW_APP_DOOR`, lifts it for the helper's own file.
+ *
+ * What it cannot see: `createApp` re-exported from a module of our own and imported from
+ * there (the ban reads the specifier `vue`), a namespace import (`import * as Vue`), a
+ * dynamic `import('vue')`, `createSSRApp`, and `defineCustomElement`, which mounts an app of its
+ * own. `src/` uses none of them today; `tests/gates/layer-boundaries.test.ts` drives the ban.
+ */
+const CREATE_APP_BAN = { name: 'vue', importNames: ['createApp'], message: "Use createViewApp (src/presentation/views/createViewApp.ts): it sets app.config.idPrefix and registers the app with trackVueApp, which every mount owes." };
+
+/**
  * `groups` are sibling LAYERS this one may not reach; `packages` are npm packages it may
  * not name at all. Both in one rule because both are the same statement — what this layer
  * is not allowed to know about — and because two `no-restricted-imports` entries for one
@@ -105,7 +123,7 @@ const forbidden = (layer, { groups = [], packages = [] }, reason) => ({
 		'no-restricted-imports': [
 			'error',
 			{
-				paths: packages.map((name) => ({ name, message: reason })),
+				paths: [...packages.map((name) => ({ name, message: reason })), ...(packages.includes('vue') ? [] : [CREATE_APP_BAN])],
 				patterns: [
 					{
 						group: [
@@ -261,6 +279,9 @@ const networkFree = (layer, layerBan, reason) => {
 
 const PROTOTYPES_GROUP = ['**/prototypes', '**/prototypes/*', '**/prototypes/**/*'];
 
+/** The ban for the two blocks outside `forbidden(...)`: the catch-all and the root of `src/`. */
+const prototypesOnly = (message) => ['error', { paths: [CREATE_APP_BAN], patterns: [{ group: PROTOTYPES_GROUP, message }, TS_EXTENSION_BAN] }];
+
 /**
  * The four the SDD prohibits in the inner layers (§3.4): a `Zone` is not a Konva polygon
  * and a `WorkPackage` is not a Markdown file, so the code that decides what they ARE may
@@ -304,6 +325,17 @@ const INFRASTRUCTURE_LAYER = {
 	reason:
 		'infrastructure/ implements the ports the inner layers declare. It may name obsidian — that is its job — but nothing about how anything is drawn.',
 };
+
+const PRESENTATION_BLOCK = forbidden('presentation', { groups: ['infrastructure', 'plugin', 'prototypes'] }, 'presentation/ talks to application/, never to a repository directly. What it gets handed is composed in plugin/.');
+
+/**
+ * `createViewApp.ts` is the one file `CREATE_APP_BAN` does not reach. Built FROM
+ * `PRESENTATION_BLOCK` with that one entry filtered out, never restated: this block overrides
+ * the presentation ban for the file, so a hand-written copy would be a second list of that
+ * layer's groups, which is the defect `networkFree`'s docblock describes.
+ */
+const [, PRESENTATION_BAN] = PRESENTATION_BLOCK.rules['no-restricted-imports'];
+const CREATE_VIEW_APP_DOOR = { files: ['**/src/presentation/views/createViewApp.ts'], rules: { 'no-restricted-imports': ['error', { ...PRESENTATION_BAN, paths: PRESENTATION_BAN.paths.filter((entry) => entry !== CREATE_APP_BAN) }] } };
 
 /**
  * The Obsidian ruleset is about *shipped plugin* code, and it is type-aware, which
@@ -936,19 +968,7 @@ export default defineConfig([
 		 */
 		files: SRC_EXTENSIONS.map((ext) => `**/src/**/*.${ext}`),
 		rules: {
-			'no-restricted-imports': [
-				'error',
-				{
-					patterns: [
-						{
-							group: PROTOTYPES_GROUP,
-							message:
-								'src/prototypes/ is design scaffolding: nothing outside it may import from it, including a subtree with no forbidden(...) call of its own yet.',
-						},
-						TS_EXTENSION_BAN,
-					],
-				},
-			],
+			'no-restricted-imports': prototypesOnly('src/prototypes/ is design scaffolding: nothing outside it may import from it, including a subtree with no forbidden(...) call of its own yet.'),
 		},
 	},
 	forbidden(
@@ -969,11 +989,7 @@ export default defineConfig([
 	),
 	forbidden('application', APPLICATION_LAYER.ban, APPLICATION_LAYER.reason),
 	forbidden('infrastructure', INFRASTRUCTURE_LAYER.ban, INFRASTRUCTURE_LAYER.reason),
-	forbidden(
-		'presentation',
-		{ groups: ['infrastructure', 'plugin', 'prototypes'] },
-		'presentation/ talks to application/, never to a repository directly. What it gets handed is composed in plugin/.',
-	),
+	PRESENTATION_BLOCK,
 	forbidden(
 		'plugin',
 		{ groups: ['prototypes'] },
@@ -996,19 +1012,7 @@ export default defineConfig([
 		 */
 		files: SRC_EXTENSIONS.map((ext) => `**/src/*.${ext}`),
 		rules: {
-			'no-restricted-imports': [
-				'error',
-				{
-					patterns: [
-						{
-							group: PROTOTYPES_GROUP,
-							message:
-								'src/main.ts is the build entry, so an import of src/prototypes/ here puts design scaffolding in every user’s plugin.',
-						},
-						TS_EXTENSION_BAN,
-					],
-				},
-			],
+			'no-restricted-imports': prototypesOnly('src/main.ts is the build entry, so an import of src/prototypes/ here puts design scaffolding in every user’s plugin.'),
 		},
 	},
 	forbidden(
@@ -1032,6 +1036,8 @@ export default defineConfig([
 	// see `APPLICATION_LAYER`'s docblock for what a copy silently costs.
 	networkFree('application/queries', APPLICATION_LAYER.ban, APPLICATION_LAYER.reason),
 	networkFree('infrastructure/logging', INFRASTRUCTURE_LAYER.ban, INFRASTRUCTURE_LAYER.reason),
+	// After `PRESENTATION_BLOCK`, which it has to override for its one file.
+	CREATE_VIEW_APP_DOOR,
 	{
 		// -- invariants that are checked rather than described ----------------------
 		// Everything in src/ EXCEPT the sanctioned writer: `src/infrastructure/obsidian/`

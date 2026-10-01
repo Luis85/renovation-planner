@@ -957,8 +957,15 @@ The rules this suite is actually held to:
   earned `onunload` an existence — it releases the global, and only while it is still the one
   that load claimed, since another Konva-bundling plugin may have replaced it since.
   `pdfjs-dist` had the same shape (`globalThis.pdfjsWorker`) and lost it by ceasing to be
-  bundled. Check what a new dependency writes to `window`, and check it in the BUILT bundle
-  rather than in the dependency's docs.
+  bundled. Vue pushes a setter onto two SHARED lists, `__VUE_INSTANCE_SETTERS__` and
+  `__VUE_SSR_SETTERS__`, and its own lifecycle hooks call through them, so `vueGlobals.ts`
+  takes this load's entry back by identity only after this load's LAST app has unmounted —
+  released under a live app, the next hook throws or writes into another plugin's Vue. That
+  is why every view mounts through `createViewApp`, and why `eslint.config.mjs` bans
+  `createApp` elsewhere in `src/`. zod's `__zod_globalConfig` and `__zod_globalRegistry` are
+  written once and kept, so they pin the FIRST load's bundle; whether to release them is an
+  open question awaiting an owner decision. Check what a new dependency writes to `window`,
+  and check it in the BUILT bundle rather than in the dependency's docs.
 - **A test that writes into a directory another test WALKS is a race, and the exclusion has to
   live with the walk rather than with whoever remembered it.** `tests/gates/lint-edited.test.ts`
   plants real `.vue` probes under `tests/harness/` — it must, because only a path matching

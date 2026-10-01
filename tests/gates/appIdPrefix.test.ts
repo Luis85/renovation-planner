@@ -38,6 +38,11 @@
  * mounts two apps and prefixes only one satisfies it; and the scope is `src/` alone, so the
  * harness's own mounts (`tests/harness/`) are outside it — they are not the surface a user can
  * split, and the harness index deliberately mounts one entry at a time.
+ *
+ * **Since `createViewApp` the views mount through it**, and `eslint.config.mjs` refuses
+ * `createApp` everywhere else in `src/` — so the prefix is set in ONE place, and this file
+ * counts a `createViewApp(` call as a mount that sets it. The set below keeps its job: a fifth
+ * view still announces itself here.
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
@@ -75,8 +80,8 @@ interface MountSite {
 function mountSites(): MountSite[] {
 	return sourceFilesUnder('src')
 		.map((path) => ({ path: toPosix(path), source: withoutCommentary(readFileSync(path, 'utf8')) }))
-		.filter((file) => file.source.includes('createApp('))
-		.map((file) => ({ path: file.path, setsPrefix: file.source.includes('idPrefix') }))
+		.filter((file) => file.source.includes('createApp(') || file.source.includes('createViewApp('))
+		.map((file) => ({ path: file.path, setsPrefix: file.source.includes('idPrefix') || file.source.includes('createViewApp(') }))
 		.toSorted((a, b) => a.path.localeCompare(b.path));
 }
 
@@ -114,12 +119,13 @@ describe('app id prefixes', () => {
 	/**
 	 * The exact set, so a fifth mounted surface fails HERE — beside the reasoning — rather than
 	 * passing silently and leaving four docblocks to be re-checked by hand. Add the path when a
-	 * view is added, having confirmed it calls `nextAppIdPrefix()`.
+	 * view is added, having confirmed it calls `createViewApp`.
 	 */
-	it('mounts exactly these four apps, so the walk cannot quietly reach nothing', () => {
+	it('mounts exactly these four apps through the one door, so the walk cannot quietly reach nothing', () => {
 		expect(mountSites().map((site) => site.path)).toEqual([
 			'src/presentation/designer/AssetDesignerView.ts',
 			'src/presentation/library/AssetLibraryView.ts',
+			'src/presentation/views/createViewApp.ts',
 			'src/presentation/views/PlanEditorView.ts',
 			'src/presentation/views/RenovationProjectView.ts',
 		]);

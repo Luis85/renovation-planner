@@ -1,12 +1,11 @@
 import { Platform, ItemView, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
-import { createApp, type App as VueApp } from 'vue';
+import type { App as VueApp } from 'vue';
 import { createPinia } from 'pinia';
 import ViewRoot from './ViewRoot.vue';
 import { projectRouteFrom, projectDestinationState, type ProjectRoute } from '../../application/navigation/ProjectDestination';
 import { RENOVATION_PROJECT_CONTEXT, type RenovationProjectDeps, type ProjectSession } from './RenovationProjectContext';
 import { tr } from '../i18n/strings';
-import { nextAppIdPrefix } from './app-id-prefix';
-import { trackVueApp } from './vueGlobals';
+import { createViewApp } from './createViewApp';
 
 /**
  * The one member `ViewRoot.vue`'s `defineExpose` puts on the mounted root — what `<script
@@ -345,9 +344,7 @@ export class RenovationProjectView extends ItemView {
 		this.contentEl.empty();
 		// One isolated app per ItemView with its OWN Pinia (ADR-004, SDD §12) rather than a
 		// shared singleton.
-		const app = createApp(ViewRoot);
-		app.config.idPrefix = nextAppIdPrefix();
-		trackVueApp(app);
+		const app = createViewApp(ViewRoot);
 		app.use(createPinia());
 		// Provided BEFORE mount, the same order `PlanEditorView` uses: a component's setup
 		// runs during `mount`, and `useRenovationProjectContext` throws if it runs before the

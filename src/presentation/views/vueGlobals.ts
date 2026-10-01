@@ -41,7 +41,7 @@ const SETTER_LISTS = ['__VUE_INSTANCE_SETTERS__', '__VUE_SSR_SETTERS__'] as cons
 /** `window` and not `globalThis`, for `konvaGlobal.ts`'s reason. */
 const host = window as unknown as Record<string, unknown>;
 
-/** This load's Vue apps that have mounted and not yet unmounted. */
+/** This load's Vue apps that have been created and not yet unmounted. */
 const live = new Set<App>();
 
 /** The release `onunload` asked for while an app was still mounted. */
@@ -55,8 +55,10 @@ function settle(): void {
 }
 
 /**
- * Count `app` as live until it unmounts. Called at every `createApp` site, beside
- * `nextAppIdPrefix()`.
+ * Count `app` as live from its CREATION until it unmounts — not from `mount`, so an app whose
+ * mount threw, or that never mounted, withholds the release for good: the old one-entry-per-load
+ * leak, and no throw. Called by `createViewApp`, which `eslint.config.mjs` makes the only
+ * `createApp` site in `src/`.
  *
  * A microtask rather than the `onUnmount` callback itself: Vue runs those cleanups BEFORE it
  * tears the tree down, and the teardown's own `onBeforeUnmount`/`onUnmounted` hooks still call
@@ -76,6 +78,15 @@ export function trackVueApp(app: App): void {
  * Claimed at load, as Konva's global is: Vue's module scope has already run by the time Obsidian
  * calls `onload`, so the LAST entry of each list is this load's. A list that is absent, or an
  * entry another load has since removed, is left alone.
+ *
+ * **That is an ASSUMPTION, unmeasured**: that no other plugin's Vue evaluates between this
+ * bundle's evaluation and its `onload`. If one did, the claim would take THAT plugin's live
+ * setter, and the release would splice it out from under it: its Vue would stop setting its OWN
+ * current instance, and its next lifecycle hook would throw (`setters[0] is not a function`,
+ * with the list empty) or write its component instance into whichever Vue's entries are left.
+ * That costs more than the same assumption costs Konva, whose wrong claim can only fail to
+ * delete a foreign global. Claiming at module scope would make it exact, and was not taken, to
+ * keep the shape Konva's claim and the suite's planted entries share.
  */
 export function claimVueGlobals(): () => void {
 	const claimed = SETTER_LISTS.map((key) => [key, (host[key] as unknown[] | undefined)?.at(-1)] as const);

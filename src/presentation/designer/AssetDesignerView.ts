@@ -1,12 +1,11 @@
 import { ItemView, Platform, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
-import { createApp, type App as VueApp } from 'vue';
+import type { App as VueApp } from 'vue';
 import VueKonva from 'vue-konva';
 import { createPinia } from 'pinia';
 import AssetDesignerRoot from './AssetDesignerRoot.vue';
 import { ASSET_DESIGNER_CONTEXT, type AssetDesignerContext, type AssetDesignerDeps } from './AssetDesignerContext';
 import { tr } from '../i18n/strings';
-import { nextAppIdPrefix } from '../views/app-id-prefix';
-import { trackVueApp } from '../views/vueGlobals';
+import { createViewApp } from '../views/createViewApp';
 import { drawMobileRefusal } from '../views/mobileRefusal';
 
 /**
@@ -226,11 +225,7 @@ export class AssetDesignerView extends ItemView {
 			},
 		};
 
-		const app = createApp(AssetDesignerRoot);
-		// Two Vue apps' `useId()` calls must not collide, and this view is the third app that
-		// can be on screen at once.
-		app.config.idPrefix = nextAppIdPrefix();
-		trackVueApp(app);
+		const app = createViewApp(AssetDesignerRoot);
 		app.use(createPinia());
 		// On the APP instance and not globally, for `PlanEditorView`'s reason: each ItemView's
 		// Vue app is isolated (ADR-0004), and a global `app.use` at plugin scope would leak

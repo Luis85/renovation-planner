@@ -107,12 +107,24 @@ describe('A01 smoke in the real host', () => {
 		const before = await vueSetterCounts(browser);
 		// Vue's module scope has run, or the comparison below proves nothing.
 		expect(before).not.toEqual([0, 0]);
+		// This load's own entries, by IDENTITY: equal lengths alone would also hold if Obsidian
+		// never re-evaluated `main.js` on re-enable, with nothing pushed and nothing released.
+		await browser.execute(() => {
+			const host = window as unknown as Record<string, unknown>;
+			host.__rpVueEntries = [(host.__VUE_INSTANCE_SETTERS__ as unknown[]).at(-1), (host.__VUE_SSR_SETTERS__ as unknown[]).at(-1)];
+		});
 
 		await page.disablePlugin(PLUGIN_ID);
 		await page.enablePlugin(PLUGIN_ID);
 		await page.disablePlugin(PLUGIN_ID);
 		await page.enablePlugin(PLUGIN_ID);
 		expect(await vueSetterCounts(browser)).toEqual(before);
+		const firstLoadStillListed = await browser.execute(() => {
+			const host = window as unknown as Record<string, unknown[] | undefined>;
+			const [instance, ssr] = host.__rpVueEntries ?? [];
+			return [host.__VUE_INSTANCE_SETTERS__?.includes(instance) ?? false, host.__VUE_SSR_SETTERS__?.includes(ssr) ?? false];
+		});
+		expect(firstLoadStillListed).toEqual([false, false]);
 	});
 
 	// Empty States step 4. `PlanEditorRoot.vue`'s `overlay` computed returns `null` for the

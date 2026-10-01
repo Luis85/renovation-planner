@@ -1,13 +1,12 @@
 import { ItemView, Platform, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
-import { createApp, ref, type App as VueApp, type Ref } from 'vue';
+import { ref, type App as VueApp, type Ref } from 'vue';
 import { createPinia } from 'pinia';
 import AssetLibraryRoot from './AssetLibraryRoot.vue';
 import { ASSET_LIBRARY_CONTEXT, type AssetLibraryContext } from './AssetLibraryContext';
 import type { AssetLibraryDeps } from './AssetLibraryDeps';
 import { browseFrom, browseState, DEFAULT_BROWSE, type LibraryBrowse } from './libraryBrowse';
 import { tr } from '../i18n/strings';
-import { nextAppIdPrefix } from '../views/app-id-prefix';
-import { trackVueApp } from '../views/vueGlobals';
+import { createViewApp } from '../views/createViewApp';
 
 /**
  * §2's asset-library view: the vault-wide catalogue, a SINGLETON exactly as the Renovation
@@ -24,7 +23,7 @@ import { trackVueApp } from '../views/vueGlobals';
  * types by exact array in `tests/plugin/settings/unrecovered.test.ts` instead. A citation
  * nobody checks is the same defect as an unchecked comment, so the argument is stated on its
  * own terms rather than against a moving quotation, and this view claims no ordinal.
- * `app.config.idPrefix` is set below like every other mount, which
+ * `app.config.idPrefix` is set by `createViewApp` like every other mount, which
  * `tests/gates/appIdPrefix.test.ts` holds as a category.
  *
  * The view TYPE is persisted in Obsidian's workspace layout, so it is DATA and never renamed —
@@ -297,9 +296,7 @@ export class AssetLibraryView extends ItemView {
 		// they inherit is the one that fixed that defect — resolve the store handle BEFORE the
 		// first `await`, or take an explicit `pinia` argument, never a bare `useXStore()` after
 		// one.
-		const app = createApp(AssetLibraryRoot);
-		app.config.idPrefix = nextAppIdPrefix();
-		trackVueApp(app);
+		const app = createViewApp(AssetLibraryRoot);
 		app.use(createPinia());
 
 		// Provided BEFORE mount, the same order every sibling view uses: a component's setup

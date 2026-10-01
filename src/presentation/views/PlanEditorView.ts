@@ -1,6 +1,6 @@
 import { projectOriginFrom, type ProjectOrigin } from '../../application/navigation/ProjectDestination';
 import { ItemView, Platform, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
-import { createApp, watch, type App as VueApp } from 'vue';
+import { watch, type App as VueApp } from 'vue';
 import { createPinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import PlanEditorRoot from '../editor/PlanEditorRoot.vue';
@@ -19,8 +19,7 @@ import type { BackgroundVault } from '../editor/layers/background/BackgroundRend
 import type { EditorClipboard } from '../editor/clipboard/editorClipboard';
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
 import { tr } from '../i18n/strings';
-import { nextAppIdPrefix } from './app-id-prefix';
-import { trackVueApp } from './vueGlobals';
+import { createViewApp } from './createViewApp';
 import { drawMobileRefusal } from './mobileRefusal';
 import { notifyFault, notifyWarning } from '../notices/notify';
 import type { ProjectOpenOutcome } from './RenovationProjectContext';
@@ -511,9 +510,7 @@ export class PlanEditorView extends ItemView {
 			openDiagnosticsReport: this.deps.openDiagnosticsReport,
 		};
 
-		const app = createApp(PlanEditorRoot);
-		app.config.idPrefix = nextAppIdPrefix();
-		trackVueApp(app);
+		const app = createViewApp(PlanEditorRoot);
 		const pinia = createPinia();
 		app.use(pinia);
 		// **Both directions of this leaf's incident, before anything in the tree reads the

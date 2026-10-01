@@ -27,6 +27,7 @@ import { registerAssetDesignerCommands } from './assetDesignerCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { registerHelpCommand } from './help/GettingStartedModal';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
+import { claimVueGlobals } from '../presentation/views/vueGlobals';
 import { activateNotices, disposeNotices, noticeOnlySinks, notifyFault } from '../presentation/notices/notify';
 import { surfaceError } from '../presentation/errors/surfaceError';
 import { assetDesignerDeps, assetDesignerDeviceSlots } from './assetDesignerDeps';
@@ -93,7 +94,8 @@ function swallow(): void {
  * class already does is a place for a future mistake to hide. What IS there is
  * `window.Konva`: Konva assigns it at module scope on every load and nothing took it back
  * off, so reactivating the plugin logged "Several Konva instances detected" and the previous
- * load's whole bundle stayed reachable from `window`.
+ * load's whole bundle stayed reachable from `window`. Vue's two setter lists had the same
+ * shape and are released beside it (`vueGlobals.ts`).
  *
  * Measured by coverage like everything else in `src/` — only `src/main.ts` is excluded
  * (`vitest.config.ts`). The wiring here is exactly what breaks silently, so
@@ -178,6 +180,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// `window` — its module scope runs before Obsidian calls `onload` — so this is the
 		// moment at which that global is provably this load's own and safe to claim.
 		this.disposers.push(claimKonvaGlobal());
+		// Vue's two setter lists, for the same reason and at the same moment; the release waits
+		// for this load's last Vue app to unmount (`vueGlobals.ts` says why).
+		this.disposers.push(claimVueGlobals());
 
 		// Design slice 13's notices outlive any view — they report things that have nothing to
 		// do with an open leaf — so the queue is plugin-scoped and its teardown belongs on the

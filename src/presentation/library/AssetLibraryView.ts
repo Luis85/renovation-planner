@@ -7,6 +7,7 @@ import type { AssetLibraryDeps } from './AssetLibraryDeps';
 import { browseFrom, browseState, DEFAULT_BROWSE, type LibraryBrowse } from './libraryBrowse';
 import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from '../views/app-id-prefix';
+import { trackVueApp } from '../views/vueGlobals';
 
 /**
  * §2's asset-library view: the vault-wide catalogue, a SINGLETON exactly as the Renovation
@@ -298,6 +299,7 @@ export class AssetLibraryView extends ItemView {
 		// one.
 		const app = createApp(AssetLibraryRoot);
 		app.config.idPrefix = nextAppIdPrefix();
+		trackVueApp(app);
 		app.use(createPinia());
 
 		// Provided BEFORE mount, the same order every sibling view uses: a component's setup

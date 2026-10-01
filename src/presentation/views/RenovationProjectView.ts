@@ -6,6 +6,7 @@ import { projectRouteFrom, projectDestinationState, type ProjectRoute } from '..
 import { RENOVATION_PROJECT_CONTEXT, type RenovationProjectDeps, type ProjectSession } from './RenovationProjectContext';
 import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from './app-id-prefix';
+import { trackVueApp } from './vueGlobals';
 
 /**
  * The one member `ViewRoot.vue`'s `defineExpose` puts on the mounted root — what `<script
@@ -346,6 +347,7 @@ export class RenovationProjectView extends ItemView {
 		// shared singleton.
 		const app = createApp(ViewRoot);
 		app.config.idPrefix = nextAppIdPrefix();
+		trackVueApp(app);
 		app.use(createPinia());
 		// Provided BEFORE mount, the same order `PlanEditorView` uses: a component's setup
 		// runs during `mount`, and `useRenovationProjectContext` throws if it runs before the

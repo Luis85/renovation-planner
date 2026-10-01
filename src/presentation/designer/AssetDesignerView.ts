@@ -6,6 +6,7 @@ import AssetDesignerRoot from './AssetDesignerRoot.vue';
 import { ASSET_DESIGNER_CONTEXT, type AssetDesignerContext, type AssetDesignerDeps } from './AssetDesignerContext';
 import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from '../views/app-id-prefix';
+import { trackVueApp } from '../views/vueGlobals';
 import { drawMobileRefusal } from '../views/mobileRefusal';
 
 /**
@@ -229,6 +230,7 @@ export class AssetDesignerView extends ItemView {
 		// Two Vue apps' `useId()` calls must not collide, and this view is the third app that
 		// can be on screen at once.
 		app.config.idPrefix = nextAppIdPrefix();
+		trackVueApp(app);
 		app.use(createPinia());
 		// On the APP instance and not globally, for `PlanEditorView`'s reason: each ItemView's
 		// Vue app is isolated (ADR-0004), and a global `app.use` at plugin scope would leak

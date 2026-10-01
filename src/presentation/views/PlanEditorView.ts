@@ -20,6 +20,7 @@ import type { EditorClipboard } from '../editor/clipboard/editorClipboard';
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
 import { tr } from '../i18n/strings';
 import { nextAppIdPrefix } from './app-id-prefix';
+import { trackVueApp } from './vueGlobals';
 import { drawMobileRefusal } from './mobileRefusal';
 import { notifyFault, notifyWarning } from '../notices/notify';
 import type { ProjectOpenOutcome } from './RenovationProjectContext';
@@ -512,6 +513,7 @@ export class PlanEditorView extends ItemView {
 
 		const app = createApp(PlanEditorRoot);
 		app.config.idPrefix = nextAppIdPrefix();
+		trackVueApp(app);
 		const pinia = createPinia();
 		app.use(pinia);
 		// **Both directions of this leaf's incident, before anything in the tree reads the

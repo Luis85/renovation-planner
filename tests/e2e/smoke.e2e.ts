@@ -33,6 +33,13 @@ const collecting = (browser: NativeBrowser): Promise<boolean> =>
 const konvaType = (browser: NativeBrowser): Promise<string> =>
 	browser.execute(() => typeof (window as unknown as { Konva?: unknown }).Konva);
 
+/** The lengths of Vue's two global setter lists, `0` for an absent one. */
+const vueSetterCounts = (browser: NativeBrowser): Promise<number[]> =>
+	browser.execute(() => {
+		const host = window as unknown as Record<string, unknown[] | undefined>;
+		return [host.__VUE_INSTANCE_SETTERS__?.length ?? 0, host.__VUE_SSR_SETTERS__?.length ?? 0];
+	});
+
 /**
  * The names of the children of the editor stage's `zone` layer, sorted, or `null` with no such
  * layer. Each child is one `ZoneShape`'s group, named by its zone's id.
@@ -89,6 +96,23 @@ describe('A01 smoke in the real host', () => {
 		expect(await konvaType(browser)).not.toBe('undefined');
 		expect(await collecting(browser)).toBe(true);
 		expect((await rendererErrors(browser)).filter((line) => line.includes('Several Konva instances'))).toEqual([]);
+	});
+
+	// `vueGlobals.ts`: each load's bundle pushes one setter onto each list, and the release takes
+	// it back once the plugin's views have closed, so two re-enables leave the length unchanged.
+	desktop('releases Vue\'s setters on disable, so re-enables do not grow the lists', async ({ native: { browser, page, ui } }) => {
+		await seedSampleProject(browser, ui);
+		// A view open across the disable, so the gate is driven and not just the idle path.
+		await expect.poll(() => browser.$(EDITOR).isExisting()).toBe(true);
+		const before = await vueSetterCounts(browser);
+		// Vue's module scope has run, or the comparison below proves nothing.
+		expect(before).not.toEqual([0, 0]);
+
+		await page.disablePlugin(PLUGIN_ID);
+		await page.enablePlugin(PLUGIN_ID);
+		await page.disablePlugin(PLUGIN_ID);
+		await page.enablePlugin(PLUGIN_ID);
+		expect(await vueSetterCounts(browser)).toEqual(before);
 	});
 
 	// Empty States step 4. `PlanEditorRoot.vue`'s `overlay` computed returns `null` for the

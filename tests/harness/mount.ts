@@ -26,7 +26,7 @@
  * builds a real `InMemoryProjectRepository` with a `ListProjects` reading it and a
  * `CreateProjectCommand` writing it — see that file's own docblock for why a refusing stand-in
  * would have been the wrong fake here. The repository starts EMPTY, so the page still opens on
- * the "no renovation projects yet" empty state; the difference is that its button now works.
+ * the "No projects yet" (`empty.project.no-projects.headline`) empty state; the difference is that its button now works.
  *
  * And the populated surface is no longer "nothing else to draw until a later slice": slice 16
  * built `ProjectList.vue`, so creating a project through that button replaces the empty state

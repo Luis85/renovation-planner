@@ -127,8 +127,11 @@ describe('Recover an asset design rather than lose it, the rows the first pass l
 		expect(designer.readSidecar(assetId)).toMatchObject({ revision: calibrated + 2, calibration: original.calibration });
 	});
 
-	// Step 19 — fault 3: the note restore lands and the sidecar restore refuses.
-	desktop('restores the sheet but not its scale when the undo cannot write the sidecar, and names neither', async ({
+	// Step 19 — fault 3: the note restore lands and the sidecar restore refuses. On this branch the
+	// undo then PUTS THE NOTE BACK (`ReversibleAssetBackgroundEdit.putNoteBack`, `ede046a05`, owner
+	// rulings 17 and 18), so it leaves no half behind: main's version of this case, and the manual
+	// step it cites, expect the background back over an uncalibrated sidecar, which this code refuses.
+	desktop('restores neither the sheet nor its scale when the undo cannot write the sidecar, and names nothing', async ({
 		native: { browser, page, ui },
 	}) => {
 		const designer = createDesignerPage(browser, page, ui);
@@ -140,15 +143,15 @@ describe('Recover an asset design rather than lose it, the rows the first pass l
 		chmodSync(designer.sidecarPath(assetId), 0o444);
 		try {
 			await designer.undoButton().click();
-			// The background comes back — the note restore landed and was announced.
-			await expect.poll(() => noteBackground(browser, 'Half-undone hob')).toBe(FIXTURE_PNG);
-			await expect.poll(() => designer.referenceRow('Sheet').getText()).toBe(FIXTURE_PNG);
+			// The badge settles once the whole undo has answered, put-back included.
 			await expect.poll(designer.header).toBe('Save error');
-			// The calibration does not, on screen or on disk; the sidecar half wrote nothing.
-			expect(await designer.referenceRow('Scale').getText()).toBe('Not calibrated');
-			expect(designer.readSidecar(assetId)).toMatchObject({ revision: calibrated + 1, calibration: null });
-			// And nothing names the half-restored state: no toast, no notice, no alert.
+			// Long enough for a restore that stood to reach the metadata cache, and for a notice to arrive.
 			await browser.pause(1000);
+			// Neither half came back: not the sheet on the note, nor the calibration on disk.
+			expect(await noteBackground(browser, 'Half-undone hob')).toBeNull();
+			expect(await designer.designer().$('.rp-designer-reference-fields').isExisting()).toBe(false);
+			expect(designer.readSidecar(assetId)).toMatchObject({ revision: calibrated + 1, calibration: null });
+			// And nothing else names the refusal: no toast, no notice, no alert.
 			expect(await designer.notices()).toEqual([]);
 			expect(await staleNotice(designer).isExisting()).toBe(false);
 			expect(await designer.designer().$$('[role="alert"]').length).toBe(0);

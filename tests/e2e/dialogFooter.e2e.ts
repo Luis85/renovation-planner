@@ -283,7 +283,7 @@ describe('a form dialog’s one action row in the real Obsidian host', () => {
 				body.scrollTop = edge === 'top' ? 0 : body.scrollHeight;
 				return { overflow: body.scrollHeight - body.clientHeight, scrollTop: body.scrollTop, viewport: window.innerHeight };
 			}, where);
-			await expect.poll(() => browser.execute(() => document.querySelector('.rp-dialog-body')?.scrollTop)).toBe(scroll.scrollTop);
+			// No wait: `scrollTop` is synchronous and `layout`'s `getBoundingClientRect` forces layout.
 			return { ...scroll, ...(await layout(browser)) };
 		};
 		const top = await at('top');

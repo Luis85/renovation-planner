@@ -3,7 +3,7 @@ import type Konva from 'konva';
 import { describe, expect } from 'vitest';
 import { en } from '../../src/presentation/i18n/locales/en';
 import { test } from './fixture';
-import { writeEvidence } from './diagnostics';
+import { logEvidence } from './diagnostics';
 import { setWindowSize, windowSize } from './helpers';
 import { contextClick, outlineOf, readSidecar, recordSaveStates, saveLabel, saveStates, settleCamera, sidecarPath, type StoredPoint, type WorldPoint } from './canvas';
 import { EDITOR, seedSampleProject, selectRoom, textOf, type Ui } from './planner';
@@ -94,7 +94,9 @@ async function chooseCorner(browser: NativeBrowser, n: number): Promise<void> {
 	expect(await choose[n - 1].getAttribute('aria-label')).toBe(en['editor.area.edit-corner'].replace('{n}', String(n)));
 	await choose[n - 1].click();
 	await expect.poll(() => textOf(form.$('[data-rp-corner-status]'))).toBe(en['editor.area.corner'].replace('{n}', String(n)));
-	expect(await form.$$('[data-rp-corner="choose"]').map((button) => button.getAttribute('aria-pressed'))).toEqual(choose.map((_, index) => String(index === n - 1)));
+	// WebdriverIO's element array has an ASYNC `map`, so the expectation is built from the awaited plain array, never from `choose`.
+	const pressed = await form.$$('[data-rp-corner="choose"]').map((button) => button.getAttribute('aria-pressed'));
+	expect(pressed).toEqual(pressed.map((_, index) => String(index === n - 1)));
 	expect(await browser.execute(() => (document.activeElement as HTMLInputElement | null)?.name ?? null)).toBe(`${String(n - 1)}.x`);
 }
 
@@ -195,7 +197,7 @@ describe('Edit a zone corner by typing its position (BP-04), in the real Obsidia
 			});
 		}, DIALOG);
 		// Step 9 is recorded, not judged: the submit reads `dialog.form.submit`.
-		await writeEvidence(directory, 'actions-row', row);
+		await logEvidence(directory, 'actions-row', row);
 		expect(row).toEqual([{ text: en['dialog.cancel'], inside: true }, { text: en['dialog.form.submit'], inside: true }]);
 		await shot(browser, directory, 'corner-actions-row');
 
@@ -222,9 +224,10 @@ describe('Edit a zone corner by typing its position (BP-04), in the real Obsidia
 		await expect.poll(() => outlineOf(browser, path, id)).toEqual(edited);
 		await expect.poll(() => saveLabel(browser)).toEqual(SAVED);
 		// The keymap's precondition: focus is back inside the editor and not in a text field.
-		const focus = await browser.execute((editor: string) => ({ inEditor: document.activeElement?.closest(editor) !== null, tag: document.activeElement?.tagName ?? '' }), EDITOR);
-		await writeEvidence(directory, 'focus-before-keys', focus);
-		expect(focus).toEqual({ inEditor: true, tag: 'BUTTON' });
+		// Polled: focus is handed back once the dialog has resolved (`restoreInspectorActionFocus.ts`).
+		const focusOf = () => browser.execute((editor: string) => ({ inEditor: document.activeElement?.closest(editor) !== null, tag: document.activeElement?.tagName ?? '' }), EDITOR);
+		await expect.poll(focusOf).toEqual({ inEditor: true, tag: 'BUTTON' });
+		await logEvidence(directory, 'focus-before-keys', await focusOf());
 
 		await browser.keys(['Control', 'z']);
 		await expect.poll(() => outlineOf(browser, path, id)).toEqual(outline);
@@ -341,6 +344,8 @@ describe('Edit a zone corner, across pane widths and from the keyboard', () => {
 			widths.push({ ...(await shellNow(browser)), openerShown: await browser.$(EDITOR).$(INSPECTOR_DOOR).isDisplayed() });
 			expect(await field().getValue()).toBe('3.9');
 		}
+		// Printed before anything below can fail: the widths reached and whether the opener stayed shown (R7's condition).
+		await logEvidence(directory, 'widths', widths);
 		await dialog(browser).$('[data-rp-action="cancel"]').click();
 		await expect.poll(() => dialog(browser).isExisting()).toBe(false);
 		// Focus is handed back once the dialog has resolved (`restoreInspectorActionFocus.ts`), so it is waited for.
@@ -357,9 +362,9 @@ describe('Edit a zone corner, across pane widths and from the keyboard', () => {
 		await chooseCorner(browser, 3);
 		const narrow = await marks(browser, outline.map((point) => at(point)));
 		await shot(browser, directory, 'corner-460');
-		// Recorded, not asserted (step 15): the widths reached, whether the opener stayed shown, where
-		// focus landed, and which handle is drawn at 460 px — the screenshot shows whether it can be seen.
-		await writeEvidence(directory, 'widths', { widths, focusAfterCancel: focus, narrowMarks: narrow });
+		// Recorded, not asserted (step 15): the widths above, where focus landed, and which handle is
+		// drawn at 460 px — the screenshot shows whether it can be seen.
+		await logEvidence(directory, 'step-15', { focusAfterCancel: focus, narrowMarks: narrow });
 	});
 
 	desktop('step 18: the Inspector door, a corner, its field and the submit are all reached from the keyboard, and focus returns to the door', async ({ native: { browser, ui, directory } }) => {
@@ -387,6 +392,6 @@ describe('Edit a zone corner, across pane widths and from the keyboard', () => {
 		await expect.poll(() => dialog(browser).isExisting()).toBe(false);
 		await expect.poll(() => outlineOf(browser, path, id)).toEqual(outline.map((point, index): StoredPoint => (index === 2 ? [4100, point[1]] : point)));
 		await expect.poll(() => browser.execute((door: string) => document.activeElement?.matches(door) === true, INSPECTOR_DOOR)).toBe(true);
-		await writeEvidence(directory, 'keyboard-walk', { stops: walk.length, walk });
+		await logEvidence(directory, 'keyboard-walk', { stops: walk.length, walk });
 	});
 });

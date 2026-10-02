@@ -2,7 +2,7 @@ import { describe, expect } from 'vitest';
 import { de } from '../../src/presentation/i18n/locales/de';
 import { en, type StringKey } from '../../src/presentation/i18n/locales/en';
 import { test } from './fixture';
-import { writeEvidence } from './diagnostics';
+import { logEvidence } from './diagnostics';
 import { setWindowSize } from './helpers';
 import { recordSaveStates, saveLabel, saveTexts } from './canvas';
 import { EDITOR, expectGuide, openDetails, seedSampleProject, selectRoom, textOf, type GuideLocale, type Pane } from './planner';
@@ -70,8 +70,10 @@ async function switchToGerman(browser: NativeBrowser, directory: string): Promis
 	await browser.reloadObsidian();
 	const language = await browser.executeObsidian(({ obsidian }) => obsidian.getLanguage());
 	const host = await paletteCommandName(browser);
-	await writeEvidence(directory, 'language', { english, language, host });
+	await logEvidence(directory, 'language', { english, language, host });
 	expect(language, 'Obsidian came back from localStorage.language=de and a restart NOT in German').toBe('de');
+	// A null host name would satisfy the `not.toBe` below without proving anything.
+	expect(host, 'after the restart the core palette command has no name to compare').toEqual(expect.any(String));
 	expect(host, "getLanguage() says de, but Obsidian's own palette command still reads as it did in English").not.toBe(english);
 	// The plugin names its commands through `tr` when it loads, so this is the plugin loaded under German.
 	await expect
@@ -80,14 +82,20 @@ async function switchToGerman(browser: NativeBrowser, directory: string): Promis
 }
 
 /**
- * Where each host word appears in Obsidian's own German: every core command's name (what its
- * palette lists) and, when the host exposes it, i18next's loaded string table. This plugin's own
- * commands are left out, so a hit is Obsidian's word and never this plugin's echo of it.
+ * Where each host word appears in Obsidian's own German, and what Obsidian's German calls the ribbon.
+ * Three sources: every core command's name (what the palette lists, this plugin's own left out so a hit
+ * is Obsidian's word and never this plugin's echo), i18next's loaded table when `window.i18next` is
+ * exposed, and the Appearance settings tab's own rows, which carry the ribbon's show/hide setting.
+ * Besides the word hits it returns `candidates` (every string with "band" or "Menü" in it) and
+ * `ribbon` (every string naming a toolbar, ribbon or bar), so a missing word shows what was said instead.
  */
 const hostWords = (browser: NativeBrowser) =>
 	browser.executeObsidian(
-		({ app }, words, plugin) => {
-			const host = app as unknown as { commands: { listCommands(): { id: string; name: string }[] } };
+		async ({ app }, words, plugin) => {
+			const host = app as unknown as {
+				commands: { listCommands(): { id: string; name: string }[] };
+				setting: { open(): void; close(): void; openTabById(id: string): unknown };
+			};
 			const strings: string[][] = host.commands.listCommands().filter((command) => !command.id.startsWith(`${plugin}:`)).map((command) => [`command ${command.id}`, command.name]);
 			const commands = strings.length;
 			const walk = (node: unknown, path: string): void => {
@@ -96,8 +104,22 @@ const hostWords = (browser: NativeBrowser) =>
 			};
 			const i18n = (window as unknown as { i18next?: { language?: string; store?: { data?: Record<string, unknown> } } }).i18next;
 			walk(i18n?.store?.data?.[i18n.language ?? ''] ?? null, i18n?.language ?? '');
-			const hits = Object.fromEntries(words.map((word) => [word, strings.filter(([, text]) => text.includes(word)).slice(0, 8).map(([where, text]) => `${where}: ${text}`)]));
-			return { commands, i18next: strings.length - commands, i18nLanguage: i18n?.language ?? null, hits };
+			const i18next = strings.length - commands;
+			host.setting.open();
+			host.setting.openTabById('appearance');
+			await new Promise((resolve) => { setTimeout(resolve, 500); });
+			for (const row of document.querySelectorAll('.vertical-tab-content .setting-item-name, .vertical-tab-content .setting-item-description')) strings.push(['appearance row', row.textContent?.trim() ?? '']);
+			host.setting.close();
+			const show = (matching: RegExp, limit: number) => strings.filter(([, text]) => matching.test(text)).slice(0, limit).map(([where, text]) => `${where}: ${text}`);
+			return {
+				commands,
+				i18next,
+				appearance: strings.length - commands - i18next,
+				i18nLanguage: i18n?.language ?? null,
+				hits: Object.fromEntries(words.map((word) => [word, show(new RegExp(word, 'u'), 8)])),
+				candidates: show(/band|Menü/iu, 40),
+				ribbon: show(/ribbon|leiste|toolbar/iu, 40),
+			};
 		},
 		[...HOST_WORDS],
 		PLUGIN_ID,
@@ -113,9 +135,10 @@ describe('the getting-started guide in a German Obsidian (BP-10, ruling 49)', ()
 	desktop('"Befehlspalette" and "Menüband" are Obsidian\'s own German words, and the guide\'s step 1 uses both', async ({ native: { browser, ui, directory } }) => {
 		await switchToGerman(browser, directory);
 		const found = await hostWords(browser);
-		await writeEvidence(directory, 'host-words', found);
+		await logEvidence(directory, 'host-words', found);
 		// The instrument reached something: an empty list would find no word and say nothing about Obsidian.
 		expect(found.commands).toBeGreaterThan(0);
+		expect(found.appearance, 'the Appearance tab drew no rows, so the ribbon setting was not read').toBeGreaterThan(0);
 		for (const word of HOST_WORDS) expect(found.hits[word], `Obsidian's German says "${word}" nowhere this case can read`).not.toEqual([]);
 
 		await ui.command('open-help');
@@ -167,7 +190,7 @@ describe('Notices and save state step 19, in German', () => {
 		await expect
 			.poll(() => noticeParts(browser))
 			.toContainEqual({ severity: german('notice.severity.warning'), message: german('background.unsupported'), dismiss: german('notice.dismiss') });
-		await writeEvidence(directory, 'notices', await noticeParts(browser));
+		await logEvidence(directory, 'notices', await noticeParts(browser));
 
 		// Step 13, and the two more states one write shows: Saved at rest, then Saving, then "just now".
 		const saved = { state: 'rp-save-state-saved', text: german('save-state.saved') };
@@ -180,7 +203,7 @@ describe('Notices and save state step 19, in German', () => {
 		await browser.execute((button: HTMLElement) => button.click(), await lock.getElement());
 		await expect.poll(() => saveTexts(browser)).toContainEqual(expect.stringContaining(german('save-state.saving')));
 		await expect.poll(() => saveLabel(browser)).toEqual(saved);
-		await writeEvidence(directory, 'save-texts', await saveTexts(browser));
+		await logEvidence(directory, 'save-texts', await saveTexts(browser));
 		expect(await textOf(browser.$(EDITOR).$('.rp-save-state-label'))).toContain(german('save-state.saved-just-now'));
 	});
 });
@@ -308,11 +331,11 @@ describe('the Renovation project view, in German', () => {
 		// Step 5: the detail's own way back, to a list whose header is German too.
 		await view.$('.rp-project-detail__back').click();
 		await expect.poll(() => textOf(view.$('.rp-project-list__create'))).toBe(german('view.project.create'));
-		await writeEvidence(directory, 'project-view', { done: true });
+		await logEvidence(directory, 'project-view', { done: true });
 	});
 });
 
-/** Whether a sentence stays inside its pane: its box within the leaf's, and nothing clipped inside it. */
+/** Whether a sentence is drawn (a box with size) and stays inside its pane: its box within the leaf's, nothing clipped inside it. */
 const fitsPane = (browser: NativeBrowser, element: WebdriverIO.Element) =>
 	browser.execute((sentence: HTMLElement) => {
 		const pane = sentence.closest('.workspace-leaf-content')?.getBoundingClientRect();
@@ -321,6 +344,7 @@ const fitsPane = (browser: NativeBrowser, element: WebdriverIO.Element) =>
 			paneWidth: Math.round(pane?.width ?? 0),
 			inside: pane !== undefined && box.left >= pane.left - 0.5 && box.right <= pane.right + 0.5,
 			clipped: sentence.scrollWidth > sentence.clientWidth,
+			shown: box.width > 0 && box.height > 0,
 		};
 	}, element);
 
@@ -340,8 +364,8 @@ describe('Read projects on mobile step 9, in German', () => {
 		const refusal = ui.leaf('renovation-plan-editor').$('.rp-view-message');
 		await expect.poll(() => textOf(refusal)).toBe(german('view.mobile.desktop-only'));
 		const editorFit = await fitsPane(browser, await refusal.getElement());
-		await writeEvidence(directory, 'mobile-fit', { listFit, editorFit });
-		for (const fit of [listFit, editorFit]) expect(fit).toEqual({ paneWidth: expect.any(Number), inside: true, clipped: false });
+		await logEvidence(directory, 'mobile-fit', { listFit, editorFit });
+		for (const fit of [listFit, editorFit]) expect(fit).toEqual({ paneWidth: expect.any(Number), inside: true, clipped: false, shown: true });
 		expect(Math.min(listFit.paneWidth, editorFit.paneWidth)).toBeGreaterThan(0);
 	});
 });

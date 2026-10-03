@@ -178,7 +178,13 @@ describe('Two panes on one plan under a planted write incident, the rows writeIn
 		await expect.poll(() => designer.readSidecar(assetId).revision).toBe(3);
 		await designer.editDimensions(1234, 777);
 		await expect.poll(() => designer.readSidecar(assetId).revision).toBe(4);
-		const centre = await designer.inspectorField('centre-x').getValue();
+		// The designer writes the sidecar first and updates the inspector after, so revision 4 on disk does
+		// not mean the field has redrawn: wait for the value the revision-4 sidecar holds (the bowl's box
+		// centre, drawn rounded by `DesignerFieldRow`) instead of reading whatever the field shows now. A
+		// wrong value times out with the field's last reading in the failure.
+		const bowlXs = designer.readSidecar(assetId).shape?.details.find((detail) => detail.id === BOWL_SHAPE)?.outline.points.map(([x]) => x) ?? [];
+		const centre = String(Math.round((Math.min(...bowlXs) + Math.max(...bowlXs)) / 2));
+		await expect.poll(() => designer.inspectorField('centre-x').getValue(), { message: `the inspector's bowl centre-x at revision 4 (sidecar box centre ${centre})` }).toBe(centre);
 		const sidecar = readFileSync(designer.sidecarPath(assetId), 'utf8');
 		const note = await asset();
 

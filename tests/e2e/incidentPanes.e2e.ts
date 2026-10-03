@@ -55,6 +55,10 @@ const SETTLE_MS = 1500;
 /** The bowl's SHAPE id on the stage. `BOWL` is its part-row key (`detail:detail-2`), which `partCentre` never finds. */
 const BOWL_SHAPE = 'detail-2';
 
+/** The first editor pane's warning rows, by their `data-rp-warning` id, in DOM order. */
+const warningRows = (browser: NativeBrowser): Promise<string[]> =>
+	browser.execute((editor: string) => [...(document.querySelector(editor)?.querySelectorAll('[data-rp-warning]') ?? [])].map((row) => row.getAttribute('data-rp-warning') ?? ''), EDITOR);
+
 /** Each editor pane's warning strip as text, in DOM order — `''` for a pane drawing none. */
 const strips = (browser: NativeBrowser): Promise<string[]> =>
 	browser.execute((editor: string) => [...document.querySelectorAll(editor)].map((pane) => pane.querySelector('.rp-warning-strip')?.textContent ?? ''), EDITOR);
@@ -349,6 +353,15 @@ describe('Notices and save state, the failure rows, over a real file system (Lin
 		await ui.activate(PLAN_EDITOR);
 		// A rebind is not a restore: the row keeps the room's sentence (the leaf carries it in memory).
 		await expectPaused(browser.$(EDITOR), ROOM_LEFT);
+		// Owner ruling 74: the pause refuses writes, not the planning panel's read, so the remount's re-read
+		// lands and draws no "could not be re-read" row, and the badge is plain Saved rather than
+		// "Saved · refresh needed". Waited out, since that read lands after the strip first draws.
+		await browser.pause(SETTLE_MS);
+		const rows = await warningRows(browser);
+		await logEvidence(directory, 'step-17b-after-rebind', { rows, label: await saveLabel(browser) });
+		expect(rows).toContain('unrecovered');
+		expect(rows).not.toContain('stale');
+		expect(await saveLabel(browser)).toEqual(SAVED);
 		const sidecar = await sidecarPath(browser);
 		const before = await readSidecar(browser, sidecar);
 		await selectRoom(browser, KITCHEN);

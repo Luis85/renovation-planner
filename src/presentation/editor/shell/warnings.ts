@@ -107,15 +107,22 @@ export interface EditorWarningInput {
 const ROOM_CODES = ['zone.sidecar-insert-uncompensated', 'zone.sidecar-update-uncompensated'] as const satisfies readonly StringKey[];
 const isRoomCode = (code: string): code is (typeof ROOM_CODES)[number] => (ROOM_CODES as readonly string[]).includes(code);
 
+/**
+ * The room a cause left behind, with the sentence naming its note — or `null` for the generic
+ * pair. Shared by the row below and `PlanEditorRoot.vue`'s `pausedReason` (owner ruling 73), so
+ * a screen reader on a paused control hears the instruction the strip shows.
+ */
+export function roomLeftBehind(cause: UnrecoveredCause | null): { readonly messageKey: StringKey; readonly zoneId: string } | null {
+	const room = cause?.entities.find((entity) => entity.entityKind === 'zone');
+	return cause !== null && room !== undefined && isRoomCode(cause.code) ? { messageKey: cause.code, zoneId: room.entityId } : null;
+}
+
 /** The row's sentence and door: the room's own when the cause names one, else the generic pair. */
 function unrecoveredRow(input: EditorWarningInput, openSourceNote: WarningAction): EditorWarning {
-	const cause = input.unrecoveredCause;
-	const room = cause?.entities.find((entity) => entity.entityKind === 'zone');
+	const room = roomLeftBehind(input.unrecoveredCause);
 	const action: WarningAction = { ...openSourceNote, busy: false };
-	if (cause === null || room === undefined || !isRoomCode(cause.code)) {
-		return { id: 'unrecovered', severity: 'error', messageKey: 'editor.unrecovered', actions: [action] };
-	}
-	return { id: 'unrecovered', severity: 'error', messageKey: cause.code, actions: [{ ...action, run: () => input.openRoomNote(room.entityId) }] };
+	if (room === null) return { id: 'unrecovered', severity: 'error', messageKey: 'editor.unrecovered', actions: [action] };
+	return { id: 'unrecovered', severity: 'error', messageKey: room.messageKey, actions: [{ ...action, run: () => input.openRoomNote(room.zoneId) }] };
 }
 
 /**

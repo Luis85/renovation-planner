@@ -557,6 +557,15 @@ describe('zone repository failure branches', () => {
 		expect(saved.error.message).not.toContain('was compensated');
 		// The note is still on disk: the whole reason the code has to say so.
 		expect(stack.vault.getAbstractFileByPath(notePath)).not.toBeNull();
+		// Owner ruling 73: the note left standing is INDEXED at once, so the warning's "Open
+		// source note" resolves it — waiting for the debounced vault pipeline lost that race in
+		// real Obsidian, and the door then said "could not be found" for a note on disk.
+		expect(stack.index.getPath(zone.id)).toBe(notePath);
+		expect(stack.index.getIdsByProject(projectId)).toContain(zone.id);
+		// The ruling's accepted side effect, at the reader the editor's unreadable-room row counts:
+		// the plan's listing now reaches the note, and refuses it (no geometry entry) rather than
+		// failing the whole listing.
+		expect(expectOk(await stack.zones.listByPlan(planId))).toEqual({ loaded: [], refused: 1 });
 		// BP-02 slice 2 task 2: `compensateFailedSidecarWrite`'s caller now threads the plan id
 		// through (`saveQueued`'s own `zone.planId`), so the stamp names BOTH inconsistent
 		// files rather than only the zone — matching what `delete()`'s sibling stamp already
@@ -584,6 +593,8 @@ describe('zone repository failure branches', () => {
 		expect(saved.error.code).toBe('zone.sidecar-insert-failed');
 		expect(leftWritesBehind(saved.error)).toBe(false);
 		expect(stack.vault.getAbstractFileByPath(notePath)).toBeNull();
+		// The control for ruling 73's index entry: a note that was removed again is not indexed.
+		expect(stack.index.getPath(zone.id)).toBeUndefined();
 	});
 
 	/**

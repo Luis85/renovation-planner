@@ -310,6 +310,7 @@ export class ObsidianZoneRepository implements ZoneRepository {
 			return this.compensateFailedSidecarWrite({
 				zoneId: zone.id,
 				planId: zone.planId,
+				projectId: zone.projectId,
 				wasUpdate: existing !== null,
 				notePath,
 				snapshotText: snapshotText ?? '',
@@ -357,12 +358,13 @@ export class ObsidianZoneRepository implements ZoneRepository {
 	private async compensateFailedSidecarWrite(write: {
 		readonly zoneId: ZoneId;
 		readonly planId: PlanId;
+		readonly projectId: ProjectId;
 		readonly wasUpdate: boolean;
 		readonly notePath: string;
 		readonly snapshotText: string;
 		readonly cause: RepositoryError;
 	}): Promise<Result<Loaded<Zone>, RepositoryError>> {
-		const { zoneId, planId, wasUpdate, notePath, snapshotText, cause } = write;
+		const { zoneId, planId, projectId, wasUpdate, notePath, snapshotText, cause } = write;
 		const compensated = wasUpdate
 			? await restoreNoteText(this.deps.vault, 'zone', notePath, snapshotText)
 			: await this.deleteCreatedNote(notePath);
@@ -371,6 +373,12 @@ export class ObsidianZoneRepository implements ZoneRepository {
 				id: zoneId,
 				cause: compensated.error,
 			});
+			// Owner ruling 73: an INSERT left standing is indexed NOW, with the entry step 6 would
+			// have written, so the warning's "Open source note" resolves the room. Left to the
+			// debounced vault pipeline it lost that race in real Obsidian (and a parse slower than
+			// the debounce drops the note until the next rebuild). The echo stays unmarked: these
+			// bytes are not a write this repository completed. An UPDATE's note is indexed already.
+			if (!wasUpdate) this.deps.index.upsert({ id: zoneId, type: 'renovation-zone', path: notePath, projectId, planId });
 			// The note is on disk in a state the sidecar does not match, and nothing here
 			// could put it back either. A DIFFERENT code, because `affectsSaveState` and the
 			// strip read the stamp, and a message that tells the truth: the return below says

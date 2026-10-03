@@ -35,7 +35,10 @@ whose read-back failed.
 
 An incomplete-write warning means a multi-file operation could neither finish nor undo its
 partial writes. Inspect the Plan note and related geometry against your backup before making
-further changes. This pauses writing everywhere in the vault, not only in the tab that raised
+further changes. When the half-written record is a room, the warning says so and its **Open
+source note** button opens that room's note instead; the room also counts as one that could not
+be read until it is repaired or removed. A tab reopened after Obsidian restarts no longer knows
+which room it was, and points at the Plan note. This pauses writing everywhere in the vault, not only in the tab that raised
 it — most of what the plugin offers as a command or form is refused until the incident is
 resolved. Not everything is inside this pause. The plugin checks for an open incident at two
 kinds of step — where it runs a command, and where the Plan editor or the Asset designer runs

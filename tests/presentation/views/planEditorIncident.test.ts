@@ -6,7 +6,8 @@
  * The incident is raised by `withSaveStateTracking` — the one caller of `markUnrecovered` that
  * RAISES one, when a refused dispatch `leftWritesBehind`. It is not the only caller:
  * `grep -rn "markUnrecovered(" src/` on 2026-09-16 prints that call, the store's own
- * definition, `PlanEditorView.mount`'s `if (this.unrecoveredWrite) saveState.markUnrecovered()`
+ * definition, `PlanEditorView.mount`'s `if (this.unrecoveredWrite) saveState.markUnrecovered(this.unrecoveredCause)`
+ * (the argument since owner ruling 72)
  * — which SEEDS a fresh store with the incident the leaf was already carrying, and is the fix
  * this file exists for — and two prose mentions in docblocks. Every case below that raises an
  * incident raises it the first way, through the leaf's real dispatcher with a command whose

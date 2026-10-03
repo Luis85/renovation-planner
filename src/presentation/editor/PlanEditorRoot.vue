@@ -44,7 +44,7 @@ import PropertyLayerPanel from './shell/PropertyLayerPanel.vue';
 import ResponsiveEditorShell from './shell/ResponsiveEditorShell.vue';
 import SelectionGuidance from './shell/SelectionGuidance.vue';
 import StatusBar from './shell/StatusBar.vue';
-import { editorWarnings } from './shell/warnings';
+import { editorWarnings, roomLeftBehind } from './shell/warnings';
 import AddMenu from './add/AddMenu.vue';
 import TemporaryToolBanner from './shell/TemporaryToolBanner.vue';
 import { useSelectionStore } from './selection/selection-store';
@@ -75,7 +75,11 @@ useViewPreferences(context.viewPreferences);
 const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);
 const { emptyStateKey } = storeToRefs(projectStore);
 const { unrecoveredWrite, unrecoveredCause } = storeToRefs(useSaveStateStore());
-const pausedReason = computed(() => tr(unrecoveredWrite.value ? 'editor.unrecovered' : 'editor.paused.reason'));
+// Owner ruling 73: the room/generic choice the standing warning makes, so a paused control's hidden
+// reason and the strip give one instruction.
+const pausedReason = computed(() =>
+	tr(unrecoveredWrite.value ? (roomLeftBehind(unrecoveredCause.value)?.messageKey ?? 'editor.unrecovered') : 'editor.paused.reason'),
+);
 /**
  * Whether either sentence `pausedReason` can say is TRUE right now — which is a narrower
  * question than `runtime.writesBlocked`, and used to be the same one.

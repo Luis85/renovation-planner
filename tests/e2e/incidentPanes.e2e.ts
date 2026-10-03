@@ -261,7 +261,10 @@ describe('Two panes on one plan under a planted write incident, the rows writeIn
 			await selectRoom(browser, KITCHEN, pane);
 			await nudgeRoom(browser, pane);
 			await expectPaused(pane);
-			expect(await paused()).toEqual(panes.map((_, other) => other <= index));
+			// A plain array: `panes` is WebdriverIO's element array, whose `map` (and, by its types,
+			// `length`) is ASYNC and hands `toEqual` a Promise (run `37118058600`, the second time this
+			// shape reached CI). Spread first, as the loop header does.
+			expect(await paused()).toEqual([...panes].map((_, other) => other <= index));
 		}
 		expect(await readSidecar(browser, sidecar)).toBe(before);
 		expect(await browser.executeObsidian(({ app }, file) => app.vault.adapter.read(file), await incidentsPath(browser))).toBe(JSON.stringify(PLANTED_INCIDENT));
@@ -322,7 +325,17 @@ describe('Notices and save state, the failure rows, over a real file system (Lin
 		// The row's Open source note opens the ROOM's note — the half-written `Pantry` — not the floor's.
 		await browser.$(EDITOR).$('[data-rp-warning="unrecovered"] [data-rp-action="open-source-note"]').click();
 		const openNotes = (): Promise<string[]> => browser.executeObsidian(({ app }) => app.workspace.getLeavesOfType('markdown').map((leaf) => (leaf.view as { file?: { basename: string } }).file?.basename ?? ''));
-		await expect.poll(openNotes).toContain('Pantry');
+		// What the click opened, recorded whether or not the poll below holds, so a red names its cause
+		// (run `37118058600` opened nothing and said nothing about why).
+		try {
+			await expect.poll(openNotes).toContain('Pantry');
+		} finally {
+			await logEvidence(directory, 'step-17a-after-open-source-note', {
+				active: await browser.executeObsidian(({ app }) => app.workspace.getActiveFile()?.path ?? null),
+				tabs: await openNotes(),
+				notices: await noticeMessages(browser),
+			});
+		}
 		expect(await openNotes()).not.toContain(PLAN);
 		await ui.activate(PLAN_EDITOR);
 		// Both permissions back, so a refusal now is the vault's gate and not the file system.

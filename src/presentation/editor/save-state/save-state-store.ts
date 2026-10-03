@@ -274,8 +274,9 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 		 * Never called for a gate refusal — that is `markVaultPaused` below, and keeping the two
 		 * doors apart is the whole point of there being two refs.
 		 *
-		 * TWO callers, re-measured in the edit that split the refs —
-		 * `grep -rn "\.markUnrecovered()" src/ | wc -l` prints **3**, and the third is the line you
+		 * TWO callers. Re-measured 2026-10-03: since ruling 72 both calls pass an argument, so the
+		 * empty-parens grep this line used to quote matched only itself —
+		 * `grep -rn "\.markUnrecovered(" src/ | wc -l` prints **3**, and the third is the line you
 		 * are reading, quoting its own command. The two CALLS are `withSaveStateTracking`, where a
 		 * stamped refusal becomes this flag, and `PlanEditorView.mount`, which seeds a fresh store
 		 * with the incident that leaf was already carrying. The second is why this stays an action

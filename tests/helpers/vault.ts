@@ -185,6 +185,16 @@ export class VaultEventBus {
  * headings, links, frontmatter — so a `.rpgeo` sidecar is drained silently rather than handed
  * to a `changed` listener Obsidian would never call for it.
  *
+ * **All of that is read from `obsidian.d.ts` 1.13.0's text, not measured on a real host**: that
+ * `changed` never fires for a `.rpgeo`, that it fires for an own write, and that the cache is
+ * current when it does. The first real-host data point is the next E2E run that exercises it.
+ * Pinned against this fake (not the host) in `vault.test.ts`.
+ *
+ * **Thinner than the host for OUTSIDE writes**: a test writing straight into `entries` — the
+ * fakes' "outside world", already parsed by their model — fires no `changed`, and neither does
+ * an own write whose `pendingParse` entry such a write retires. Real Obsidian fires `changed`
+ * for every hand edit; nothing in this suite drives a hand edit through that second pass.
+ *
  * A fake that drained SILENTLY was thinner than the host in exactly the event the vault-change
  * pipeline needs since owner ruling 76: a note dropped as "not ours" against a null cache is
  * re-read when its parse arrives, and nothing could drive that arrival.

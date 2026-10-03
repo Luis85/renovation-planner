@@ -24,8 +24,10 @@ import type { Logger } from '../../../../src/application/ports/Logger';
  * `echo.matches` of the result — so inside the window the fallback hands back exactly the
  * value that comparison is against, and the event is suppressed as this plugin's own echo.
  * A read recovers the moment Obsidian's parse queue catches up; the INDEX recovers when that
- * parse arrives as `changed`, which the plugin re-queues as a `modify` (owner ruling 76) — the
- * third case below. Before that ruling nothing re-issued the spent event.
+ * parse arrives as `changed`, which the plugin re-queues as a `modify` (owner ruling 76).
+ * `tests/plugin/lateParse.test.ts` is what proves that re-queue; the third case below proves
+ * only the ADAPTER half — a second `onModify` lands the edit — which held before the ruling
+ * too. Before that ruling nothing re-issued the spent event.
  *
  * The fake vault the repository suites use cannot produce this: its mtime is a monotonic
  * counter, so every write moves the stat. The readings are built by hand here for that
@@ -107,8 +109,10 @@ describe('an external edit arriving inside the echo window', () => {
 	 * Owner ruling 76's reach into the residue: the parse of the colliding edit arrives as
 	 * `changed`, which the plugin hands to `onModify`. The cache now shows THEIR frontmatter,
 	 * which is not a superseded state of ours, so `frontmatterOf` answers it and the edit lands.
+	 * Measured green on `5444b843e`'s adapter and `noteIo.ts` too (review M-4): it calls `onModify`
+	 * itself, so the wiring that makes the second call happen is `lateParse.test.ts`'s to prove.
 	 */
-	it('is applied when its parse arrives, after the collision suppressed the first pass', async () => {
+	it('is applied when its parse arrives, after the collision suppressed the first pass (an adapter guard, green before the ruling too)', async () => {
 		const shows: Record<string, unknown> = { ...PRE_WRITE };
 		const { adapter, announced, index } = wired(shows, fileWithStat(7, 120), '7:120');
 		adapter.onModify(fileWithStat(7, 120));

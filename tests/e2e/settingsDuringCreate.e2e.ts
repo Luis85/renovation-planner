@@ -75,10 +75,24 @@ interface ForceWindow {
 	__rpForceArmed?: boolean;
 	__rpForceInstalled?: boolean;
 	/**
-	 * One entry per forced swap: whether the metadata cache still had NO entry for the note, and
-	 * whether the OUTGOING adapter already held the path as pending — the gap and the hand-over.
+	 * One entry per forced swap: whether the metadata cache still had NO entry for the note,
+	 * whether the OUTGOING adapter already held the path as pending — the gap and the hand-over —
+	 * and whether that outgoing adapter then PROCESSED the path, which a flush does and a
+	 * hand-over does not.
 	 */
-	__rpForced?: { cold: boolean; pending: boolean }[];
+	__rpForced?: ForcedSwap[];
+}
+
+interface ForcedSwap {
+	cold: boolean;
+	pending: boolean;
+	retiredProcessed: boolean;
+}
+
+/** Private at compile time, present at run time — the unit cases spy on the same method. */
+interface Processing {
+	pending: Set<string>;
+	processPath(path: string): void;
 }
 
 /**
@@ -86,7 +100,7 @@ interface ForceWindow {
  * them, plus the change adapter's private pending set.
  */
 interface Swappable {
-	root: { settings: unknown; persistence: { changeAdapter: { pending: Set<string> } } | null };
+	root: { settings: unknown; persistence: { changeAdapter: Processing } | null };
 	applySettings(next: unknown): void;
 }
 
@@ -108,18 +122,31 @@ async function armSwapAtCreate(browser: NativeBrowser): Promise<void> {
 			if (!held.__rpForceArmed || !file.path.endsWith('.md')) return;
 			held.__rpForceArmed = false;
 			const note = app.vault.getFileByPath(file.path);
-			held.__rpForced?.push({
+			const outgoing = plugin.root.persistence?.changeAdapter;
+			const swap: ForcedSwap = {
 				cold: note !== null && app.metadataCache.getFileCache(note) === null,
 				// Without this a listener order that ran the swap BEFORE the plugin queued the path
 				// would still pass: nothing to hand over, and the new root's own event listed it.
-				pending: plugin.root.persistence?.changeAdapter.pending.has(file.path) === true,
-			});
+				pending: outgoing?.pending.has(file.path) === true,
+				retiredProcessed: false,
+			};
+			held.__rpForced?.push(swap);
+			// Owner ruling 76 lists the note on EITHER mechanism — a flush that drops it is undone
+			// when its parse arrives as `changed` — so `listed` cannot tell the hand-over from the
+			// flush it replaced. Whether the retired adapter processed the path can.
+			if (outgoing) {
+				const processPath = outgoing.processPath.bind(outgoing);
+				outgoing.processPath = (path) => {
+					if (path === file.path) swap.retiredProcessed = true;
+					processPath(path);
+				};
+			}
 			plugin.applySettings(plugin.root.settings);
 		});
 	}, PLUGIN_ID);
 }
 
-const forcedSwaps = (browser: NativeBrowser): Promise<{ cold: boolean; pending: boolean }[]> =>
+const forcedSwaps = (browser: NativeBrowser): Promise<ForcedSwap[]> =>
 	browser.execute(() => (window as unknown as ForceWindow).__rpForced ?? []);
 
 async function setProjectsFolder(browser: NativeBrowser, folder: string): Promise<void> {
@@ -196,6 +223,11 @@ describe('Q2: a settings save inside a live project create', () => {
 	 * root instead of flushing it against a cache that has not parsed it. The case above waits for
 	 * settings to settle, so it can no longer reach that gap; this one forces it, every iteration.
 	 * Unverified until CI runs it — the e2e packages are not installed where it was written.
+	 *
+	 * Since owner ruling 76 its `listed` half is an outcome guard and no longer a red for the
+	 * hand-over: a flushed note comes back when its parse arrives as `changed`. The premise's
+	 * `retiredProcessed: false` is what turns red with the hand-over reverted — written blind
+	 * (no e2e run where it was written), so its first CI run is its first measurement.
 	 */
 	desktop(
 		'a project whose create event meets a settings swap before the parse is listed without a reload (ruling 41)',
@@ -221,9 +253,10 @@ describe('Q2: a settings save inside a live project create', () => {
 			}
 			await writeEvidence(directory, 'ruling-41-forced-arms', arms);
 			// The premise, or this case proves nothing: every iteration's swap ran inside the gap,
-			// with the path already queued in the adapter the swap retired.
+			// with the path already queued in the adapter the swap retired — and, the ruling-41
+			// discriminator since ruling 76, that adapter handed the path over unprocessed.
 			expect(await forcedSwaps(browser)).toEqual(
-				Array.from({ length: FORCED_ITERATIONS }, () => ({ cold: true, pending: true })),
+				Array.from({ length: FORCED_ITERATIONS }, () => ({ cold: true, pending: true, retiredProcessed: false })),
 			);
 			expect(arms.map((arm) => arm.listed)).toEqual(Array.from({ length: FORCED_ITERATIONS }, () => true));
 		},

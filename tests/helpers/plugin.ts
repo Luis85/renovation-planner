@@ -64,7 +64,9 @@ export interface VaultSurface {
 	fileManager: Pick<FileManager, 'processFrontMatter' | 'trashFile'>;
 	/**
 	 * `on` because the plugin registers `changed` on it (owner ruling 76) — through THIS object,
-	 * unlike the vault's `on` above, so a stack's `catchUp()` reaches the plugin's listener.
+	 * unlike the vault's `on` above, so a stack's `catchUp()` reaches the plugin's listener. It
+	 * still reaches it after `onunload()`, which real Obsidian's would not: the mock
+	 * `Plugin.registerEvent` docblock says why that gap is recorded rather than closed.
 	 */
 	metadataCache: Pick<MetadataCache, 'getFileCache' | 'on'>;
 }

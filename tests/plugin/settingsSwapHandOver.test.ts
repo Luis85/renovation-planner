@@ -26,9 +26,18 @@ installObsidianDom();
  *
  * The fake models that gap already — `FakeVault.create` leaves the path in `pendingParse`, so
  * `getFileCache` answers `null` until `catchUp()` — which is what lets this case be the real
- * pipeline rather than a stand-in for it. What the fake does NOT do is deliver its own events to
- * the plugin: `loadedPlugin`'s app vault records the plugin's listeners separately, so every case
- * here forwards the fake's `create`/`delete` to them the way Obsidian's single vault would.
+ * pipeline rather than a stand-in for it. What the fake VAULT does NOT do is deliver its own
+ * events to the plugin: `loadedPlugin`'s app vault records the plugin's listeners separately, so
+ * every case here forwards the fake's `create`/`delete` to them the way Obsidian's single vault
+ * would. The fake CACHE does deliver: since owner ruling 76 `catchUp()` fires `changed` straight
+ * to the plugin's listener. That event's timing and scope are modelled from `obsidian.d.ts`
+ * 1.13.0's text, not from a real-host run — see `drainParseQueue` in `tests/helpers/vault.ts`.
+ *
+ * **Since ruling 76 the late `changed` lists a note on EITHER mechanism** — a flush that drops it
+ * as "not ours" is undone ~500 ms after its parse — so "indexed and listed" no longer tells the
+ * hand-over from the flush it replaced. What does is the outgoing adapter's silence: every case
+ * that expects the NEW root to index a pending note asserts `processPath` was never called on
+ * the retired adapter, and that assertion is what turns each red with the hand-over reverted.
  */
 
 /** `applySettings` is private; the e2e forced arm reaches it the same way, as `plugin.applySettings`. */
@@ -81,6 +90,7 @@ afterEach(() => {
 describe('a settings swap inside the create-to-parse gap', () => {
 	it('indexes a project created across the swap once the new adapter debounces, and lists it', async () => {
 		const { plugin, stack, triggerVault, persistence } = await wiredPlugin();
+		const retired = vi.spyOn(persistence().changeAdapter as unknown as Processing, 'processPath');
 		// The investigation's forced-at-create arm: exactly one extra apply, inside the create
 		// event of the project note, while the cache still has no entry for it.
 		const forced = forceSwapAtCreate(plugin, stack, triggerVault, (path) => path.endsWith('.md'));
@@ -94,6 +104,9 @@ describe('a settings swap inside the create-to-parse gap', () => {
 		stack.metadataCache.catchUp();
 		vi.advanceTimersByTime(500);
 
+		// The ruling-41 discriminator: since ruling 76 the late `changed` lists the note on EITHER
+		// mechanism, so only the outgoing adapter's silence tells a hand-over from a flush.
+		expect(retired).not.toHaveBeenCalled();
 		expect(persistence().index.getPath(id)).toBe('Renovation/Kitchen/Kitchen.md');
 		const listed = expectOk(await persistence().listProjects.execute());
 		expect(listed.projects.map((project) => project.name)).toEqual(['Kitchen']);
@@ -115,6 +128,7 @@ describe('a settings swap inside the create-to-parse gap', () => {
 		const { plugin, stack, triggerVault, persistence } = await wiredPlugin();
 		const project = expectOk(await persistence().createProject.execute({ name: 'House' }));
 		stack.metadataCache.catchUp();
+		const retired = vi.spyOn(persistence().changeAdapter as unknown as Processing, 'processPath');
 		const forced = forceSwapAtCreate(plugin, stack, triggerVault, at);
 
 		const created = expectOk(
@@ -126,6 +140,8 @@ describe('a settings swap inside the create-to-parse gap', () => {
 		stack.metadataCache.catchUp();
 		vi.advanceTimersByTime(500);
 
+		// As in the case above: the late `changed` would list the note on a flush too.
+		expect(retired).not.toHaveBeenCalled();
 		expect(persistence().index.getPath(planId)).toBe('Renovation/House/Plans/Ground.md');
 		expect(persistence().index.getGeometrySidecarPath(planId)).toBe(`Renovation/House/Geometry/${planId}.rpgeo`);
 		expectOk(await persistence().geometry.read(planId));

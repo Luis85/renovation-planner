@@ -450,7 +450,15 @@ export class Plugin {
 		this.extensions.set(extensions, viewType);
 	}
 
-	/** Every `registerEvent` ask; the base class unregisters these itself in real Obsidian. */
+	/**
+	 * Every `registerEvent` ask; the base class unregisters these itself in real Obsidian, and
+	 * this fake NEVER does — harsher than the host. Since owner ruling 76 that is reachable: the
+	 * stack's metadata cache is a live bus, so `metadataCache.catchUp()` after `onunload()` would
+	 * still reach a torn-down plugin's `changed` listener and arm its adapter's timer. No case
+	 * does that today (review M-3's grep). Recorded rather than fixed, because a release here
+	 * would reach nothing: this fake has no base `unload()` and suites call the plugin's own
+	 * `onunload()` directly, and the fake buses' refs do not carry the emitter an `offref` needs.
+	 */
 	readonly eventRefs: unknown[] = [];
 
 	registerEvent(_ref: unknown): void {

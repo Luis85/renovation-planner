@@ -1024,6 +1024,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 				if (file instanceof TFile) adapterOf()?.onRename(file, oldPath);
 				void evidenceRenamed(this.root, oldPath, file.path);
 			}));
+			// Owner ruling 76: a parse that lands after the debounce re-enters as a `modify` would.
+			// Every `changed`, not only a null-cache path — `VaultChangeAdapter.onModify` says why.
+			this.registerEvent(this.app.metadataCache.on('changed', onNoteFile(adapterOf, 'onModify')));
 		} catch (cause) {
 			// G4: the scan READS the vault and can throw — `libraryMigration.ts` already wraps
 			// this same call for that reason, and this site did not. A throw here used to leave

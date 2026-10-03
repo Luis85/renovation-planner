@@ -2,6 +2,7 @@ import type { FileManager, MetadataCache, TAbstractFile, TFile, Vault } from 'ob
 import RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
 import type { Plugin as MockPlugin } from './obsidian-mock';
 import { FakeLeaf, FakeWorkspace } from './workspace';
+import { VaultEventBus } from './vault';
 
 /**
  * What the plugin reaches through the host surfaces — a STRUCTURAL contract, not the fake's
@@ -61,7 +62,11 @@ export interface VaultSurface {
 		createFolder(path: string): Promise<unknown>;
 	};
 	fileManager: Pick<FileManager, 'processFrontMatter' | 'trashFile'>;
-	metadataCache: Pick<MetadataCache, 'getFileCache'>;
+	/**
+	 * `on` because the plugin registers `changed` on it (owner ruling 76) — through THIS object,
+	 * unlike the vault's `on` above, so a stack's `catchUp()` reaches the plugin's listener.
+	 */
+	metadataCache: Pick<MetadataCache, 'getFileCache' | 'on'>;
 }
 
 /**
@@ -246,7 +251,9 @@ export async function loadedPlugin(
 		workspace,
 		vault,
 		fileManager: surface?.fileManager ?? {},
-		metadataCache: surface?.metadataCache ?? {},
+		// A cache that never parses anything with no surface: it takes listeners and fires none,
+		// which is what an empty vault's parse queue does.
+		metadataCache: surface?.metadataCache ?? new VaultEventBus(),
 		loadLocalStorage: (key: string): unknown => localStorageEntries.get(key) ?? null,
 		saveLocalStorage: (key: string, data: unknown): void => {
 			if (data === null) localStorageEntries.delete(key);

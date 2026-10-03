@@ -18,9 +18,17 @@ import { observeFrontmatter } from '../../obsidian/repositories/digest';
 import { fileStatToken, frontmatterOf } from '../../obsidian/repositories/noteIo';
 
 /**
- * The vault-change pipeline (SDD §46): Obsidian's create/modify/rename/delete events,
- * debounced per path, resolved ("is this file one of ours?"), validated against the
+ * The vault-change pipeline (SDD §46): Obsidian's create/modify/rename/delete events, plus
+ * the metadata cache's `changed` (owner ruling 76, which re-enters as a `modify`), queued
+ * into ONE debounce window, resolved ("is this file one of ours?"), validated against the
  * cached frontmatter, and applied to the Project Index incrementally.
+ *
+ * **One window, not one per path, and it is never re-armed** (`enqueue`): the first path
+ * queued starts the timer and every path queued after it is processed when THAT timer fires,
+ * so a note queued late in a running window gets only the remainder — possibly ~0 ms — for
+ * Obsidian to parse it. A note read against a null cache in that remainder (or after any
+ * slower parse) is dropped as "not ours"; what puts it back is its parse arriving as
+ * `changed`, never the debounce.
  *
  * The repositories update the index synchronously on their own writes; this pipeline is
  * the SOLE path for everything else — hand edits, sync, another device. A `modify` whose
@@ -66,6 +74,26 @@ export class VaultChangeAdapter {
 		this.enqueue(file.path);
 	}
 
+	/**
+	 * Also the metadata cache's `changed` (owner ruling 76), registered in `src/plugin/` onto
+	 * this same method: one action, every input. EVERY `changed`, not only a path whose last
+	 * read saw a null cache, for three reasons:
+	 *
+	 * - **The echo window already answers it.** A `changed` for this plugin's own write reads a
+	 *   cache that now shows what we wrote, `frontmatterOf` answers that, and `echo.matches`
+	 *   drops it — no index mutation, no announcement, and no write, so no further parse and no
+	 *   loop. Nothing about the own-write marks has to change.
+	 * - **It costs a Set insert in the common case.** A parse inside the window joins the path
+	 *   the `create`/`modify` already queued; only a parse landing AFTER the flush reprocesses,
+	 *   which is exactly the case this exists for.
+	 * - **A null cache is not the only late read.** A hand edit whose parse outlasts the window
+	 *   is read against the STALE cache entry; its `changed` corrects the index too, which a
+	 *   null-cache-only set would not, and that set would be state to clear on every delete,
+	 *   rename and hand-over besides.
+	 *
+	 * What it costs a FOREIGN note read too early: a second announcement, the first of which
+	 * carried the stale (or no) answer. Correct over silent.
+	 */
 	onModify(file: TFileType): void {
 		this.enqueue(file.path);
 	}
@@ -118,10 +146,11 @@ export class VaultChangeAdapter {
 	 * here, it is processed ~500 ms later by the adapter that replaces this one, against a cache
 	 * that has caught up. Nothing is processed here, so this adapter publishes nothing after it.
 	 *
-	 * **The bound, which this narrows and does not close:** the hand-over buys the note one
-	 * debounce (~500 ms) for Obsidian to parse it. A note whose parse takes LONGER than that is
-	 * still read against a null cache by the adopting adapter and dropped as "not ours" until
-	 * the next full rebuild, exactly as before — nothing here listens for the parse itself.
+	 * **What closes the rest is not this:** the hand-over buys the note one debounce window for
+	 * Obsidian to parse it. A note whose parse lands after that window is still read against a
+	 * null cache by the adopting adapter and dropped as "not ours" — and since owner ruling 76
+	 * its parse arriving as `changed` re-queues it here (`onModify`), so it joins then rather
+	 * than at the next full rebuild.
 	 */
 	handOver(): string[] {
 		if (this.timer !== null) {
@@ -193,7 +222,7 @@ export class VaultChangeAdapter {
 		// raises `create` for this plugin's own writes, and if that event is processed
 		// before Obsidian has parsed the new file, a direct cache read answers nothing —
 		// so a note we had just indexed would be read as "not ours" and REMOVED from the
-		// index below, with no future event to put it back.
+		// index below, until its parse came back as `changed` to put it back.
 		const frontmatter = frontmatterOf(this.deps, file);
 
 		const ref = entityRefOf(frontmatter);

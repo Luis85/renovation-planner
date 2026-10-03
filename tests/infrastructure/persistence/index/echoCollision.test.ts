@@ -17,14 +17,15 @@ import type { Logger } from '../../../../src/application/ports/Logger';
  * `frontmatterOf`'s echo fallback is bounded by the file's own `mtime:size`, and
  * `EchoWindow.observedFileStat` records what that cannot see: an external write landing
  * within the clock's granularity of ours and leaving the byte size unchanged. The read
- * consequence is pinned in `noteIo.echo.test.ts`. This is the other one, and it does NOT
- * self-correct the way the read does.
+ * consequence is pinned in `noteIo.echo.test.ts`. This is the other one, and it self-corrects
+ * one event LATER than the read does.
  *
  * `VaultChangeAdapter.processNote` reads through `frontmatterOf` and then asks
  * `echo.matches` of the result — so inside the window the fallback hands back exactly the
  * value that comparison is against, and the event is suppressed as this plugin's own echo.
- * A read recovers the moment Obsidian's parse queue catches up; the INDEX does not, because
- * that path's one event has already been spent and nothing re-issues it.
+ * A read recovers the moment Obsidian's parse queue catches up; the INDEX recovers when that
+ * parse arrives as `changed`, which the plugin re-queues as a `modify` (owner ruling 76) — the
+ * third case below. Before that ruling nothing re-issued the spent event.
  *
  * The fake vault the repository suites use cannot produce this: its mtime is a monotonic
  * counter, so every write moves the stat. The readings are built by hand here for that
@@ -88,9 +89,9 @@ describe('an external edit arriving inside the echo window', () => {
 	/**
 	 * **The residue, pinned as behaviour.** Same scene, except the external write collided
 	 * with ours on both halves of the stat. `frontmatterOf` answers our own frontmatter, and
-	 * `echo.matches` is then comparing that answer against itself, so the event is dropped —
-	 * and unlike the read, nothing re-issues it. A build that closes the residue fails here
-	 * rather than leaving the paragraphs in `noteIo.ts` and `EchoWindow.ts` quietly stale.
+	 * `echo.matches` is then comparing that answer against itself, so the event is dropped.
+	 * A build that closes the residue fails here rather than leaving the paragraphs in
+	 * `noteIo.ts` and `EchoWindow.ts` quietly stale.
 	 */
 	it('is suppressed as our own echo when the external write collided on the file stat', async () => {
 		const { adapter, announced, index } = wired(PRE_WRITE, fileWithStat(7, 120), '7:120');
@@ -100,6 +101,24 @@ describe('an external edit arriving inside the echo window', () => {
 
 		expect(announced).toEqual([]);
 		expect(index.getPath('p1' as never)).toBeUndefined();
+	});
+
+	/**
+	 * Owner ruling 76's reach into the residue: the parse of the colliding edit arrives as
+	 * `changed`, which the plugin hands to `onModify`. The cache now shows THEIR frontmatter,
+	 * which is not a superseded state of ours, so `frontmatterOf` answers it and the edit lands.
+	 */
+	it('is applied when its parse arrives, after the collision suppressed the first pass', async () => {
+		const shows: Record<string, unknown> = { ...PRE_WRITE };
+		const { adapter, announced, index } = wired(shows, fileWithStat(7, 120), '7:120');
+		adapter.onModify(fileWithStat(7, 120));
+
+		Object.assign(shows, { revision: 2, name: 'Theirs' });
+		adapter.onModify(fileWithStat(7, 120));
+		await Promise.resolve();
+
+		expect(announced).toEqual(['p1']);
+		expect(index.getPath('p1' as never)).toBe(PATH);
 	});
 });
 

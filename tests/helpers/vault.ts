@@ -174,6 +174,35 @@ export class VaultEventBus {
 }
 
 /**
+ * Obsidian's parse queue draining, as BOTH metadata-cache fakes model it: every pending write
+ * becomes visible to the cache, and THEN `changed` fires once per parsed file that still exists,
+ * with the file, its text and its new cache entry. `obsidian.d.ts` (1.13.0, `MetadataCache.on`):
+ * "Called when a file has been indexed, and its (updated) cache is now available" — so the
+ * cache is already current when a listener reads it. Own writes included: the parse queue reads
+ * whatever reached the disk and has no idea who wrote it. A file deleted before its parse fires
+ * nothing here (Obsidian's `deleted` is a different event, and nothing here listens for it),
+ * and neither does a file that is not a note: what the cache indexes is `CachedMetadata` —
+ * headings, links, frontmatter — so a `.rpgeo` sidecar is drained silently rather than handed
+ * to a `changed` listener Obsidian would never call for it.
+ *
+ * A fake that drained SILENTLY was thinner than the host in exactly the event the vault-change
+ * pipeline needs since owner ruling 76: a note dropped as "not ours" against a null cache is
+ * re-read when its parse arrives, and nothing could drive that arrival.
+ */
+export function drainParseQueue(
+	cache: VaultEventBus & { getFileCache(file: TFile): unknown },
+	vault: { readonly pendingParse: Map<string, string | null>; getAbstractFileByPath(path: string): unknown },
+	text: (path: string) => string | undefined,
+): void {
+	const parsed = [...vault.pendingParse.keys()];
+	vault.pendingParse.clear();
+	for (const path of parsed) {
+		const file = vault.getAbstractFileByPath(path);
+		if (file instanceof MockTFile && file.extension === 'md') cache.trigger('changed', file, text(path), cache.getFileCache(file));
+	}
+}
+
+/**
  * A vault that BEHAVES like files rather than like a call log: create refuses on an
  * existing path, read refuses on a missing one, delete refuses on a missing one, and
  * every operation is observable through `files`. Not kinder than the real thing — that
@@ -199,11 +228,6 @@ class FakeVault extends VaultEventBus {
 	 * is what keeps this a model of the write window rather than of the whole cache.
 	 */
 	readonly pendingParse = new Map<string, string | null>();
-
-	/** Obsidian's parse queue draining: every write becomes visible to the cache. */
-	catchUp(): void {
-		this.pendingParse.clear();
-	}
 
 	/** Records a write the parse queue has not reached, keeping the earliest text behind it. */
 	private pending(path: string, previous: string | null): void {
@@ -553,8 +577,10 @@ class FakeFileManager {
 	}
 }
 
-class FakeMetadataCache {
-	constructor(private readonly vault: FakeVault) {}
+class FakeMetadataCache extends VaultEventBus {
+	constructor(private readonly vault: FakeVault) {
+		super();
+	}
 
 	getFileCache(file: TFile): { frontmatter?: Record<string, unknown> } | null {
 		// NOT kinder than the real thing, and this fake has been corrected twice for that
@@ -581,9 +607,9 @@ class FakeMetadataCache {
 		return fileCacheAnswer(seen);
 	}
 
-	/** What Obsidian eventually does on its own, once its parse queue drains. */
+	/** What Obsidian eventually does on its own, once its parse queue drains — `changed` included. */
 	catchUp(): void {
-		this.vault.catchUp();
+		drainParseQueue(this, this.vault, (path) => this.vault.entries.get(path));
 	}
 }
 

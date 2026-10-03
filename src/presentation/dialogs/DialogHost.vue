@@ -372,21 +372,22 @@ watch(
  *   unprompted. **The list is not stale at all** in this arm.
  * - **Cache cold.** `getFileCache` answers `null`, `frontmatterOf` falls back to the new
  *   root's echo window — which has never heard of the path — and `processNote` takes the
- *   not-ours arm: nothing indexed, nothing published. The single `create` event is spent and
- *   nothing re-raises it when the parse queue later drains (this plugin registers no
- *   `metadataCache.on('changed')` listener). **Reopening the leaf does NOT fix this**, which
- *   is worse than this paragraph used to claim: `ListProjects` resolves through the Project
- *   Index, so a fresh leaf reads the same empty index. It clears only at the next FULL index
- *   rebuild — the next settings save, a library migration, or in practice a plugin reload.
- *   The user-visible consequence is that they are told nothing, the project exists under the
- *   old folder, and the list never shows it, so they may create it again and end up with two.
+ *   not-ours arm: nothing indexed, nothing published — for now. When the parse queue later
+ *   drains, Obsidian's `metadataCache` `changed` re-queues the path (owner ruling 76; it
+ *   re-enters as a `modify`), the NEW root's adapter reads it against a real cache entry,
+ *   and it takes the warm arm's upsert and announcement then. **The list is stale for the
+ *   gap between the processing and the parse, not until a rebuild.** Before ruling 76 nothing
+ *   re-raised the spent `create`, reopening the leaf did not help (`ListProjects` resolves
+ *   through the same index), and the row appeared only at the next FULL rebuild.
  *
  * **Which arm production takes was measured in S21** (real Obsidian, CI): warm, unless a
  * SECOND settings apply lands between the `create` event and the parse (2–19 ms) — its swap
  * used to FLUSH the pending path and take the cold arm. Owner ruling 41 changed that swap to
  * hand the path to the incoming root's adapter (`VaultChangeAdapter.handOver`/`adopt`), so the
- * cold arm now needs a parse slower than the 500 ms debounce. That residue is still reachable,
- * so both arms stay written down here.
+ * cold arm now needs a parse that lands after that adapter's debounce window closes — which
+ * is NOT "a parse slower than 500 ms": the window is armed once by the first path queued and
+ * never re-armed, so a path queued late in a running one gets only the remainder. That arm is
+ * still reachable, which is why both stay written down here; since ruling 76 it is transient.
  *
  * (This paragraph also said `VaultChangeAdapter` "indexes the note into the new root while
  * publishing nothing at all". That is false in BOTH arms — warm it publishes and indexes,

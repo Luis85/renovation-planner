@@ -51,13 +51,22 @@ const SAVED = { state: 'rp-save-state-saved', text: en['save-state.saved'] };
 const SAVE_ERROR = { state: 'rp-save-state-save-error', text: en['save-state.save-error'] };
 /** Long enough for a refused gesture's dispatch, refresh and notice to have landed, if any would. */
 const SETTLE_MS = 1500;
+/** The bowl's SHAPE id on the stage. `BOWL` is its part-row key (`detail:detail-2`), which `partCentre` never finds. */
+const BOWL_SHAPE = 'detail-2';
 
 /** Each editor pane's warning strip as text, in DOM order — `''` for a pane drawing none. */
 const strips = (browser: NativeBrowser): Promise<string[]> =>
 	browser.execute((editor: string) => [...document.querySelectorAll(editor)].map((pane) => pane.querySelector('.rp-warning-strip')?.textContent ?? ''), EDITOR);
 
-const canvases = (browser: NativeBrowser): Promise<number> =>
-	browser.execute((editor: string) => document.querySelectorAll(`${editor} .rp-plan-canvas canvas`).length, EDITOR);
+/**
+ * Each pane's `<canvas>` count, in DOM order. A Konva stage draws one canvas PER LAYER (seven, §17),
+ * so a pane reads 7 and two panes read 14: the first CI run counted raw canvases and read 14 and 7.
+ */
+const canvasCounts = (browser: NativeBrowser): Promise<number[]> =>
+	browser.execute((editor: string) => [...document.querySelectorAll(editor)].map((pane) => pane.querySelectorAll('.rp-plan-canvas canvas').length), EDITOR);
+
+/** How many panes have drawn their stage at all. */
+const canvases = async (browser: NativeBrowser): Promise<number> => (await canvasCounts(browser)).filter((count) => count > 0).length;
 
 /** §85's keyboard nudge of the one room selected: the pane's canvas focused by script, then one ArrowRight. */
 async function nudgeRoom(browser: NativeBrowser, pane: Pane): Promise<void> {
@@ -141,7 +150,8 @@ describe('Two panes on one plan under a planted write incident, the rows writeIn
 		await height().setValue('750');
 		await browser.keys('Enter');
 		await expect.poll(async () => (await asset())?.height).toBe(750);
-		await designer.holdDrag(BOWL, 40);
+		await logEvidence(directory, 'step-5-bowl-on-screen', await designer.partCentre(BOWL_SHAPE));
+		await designer.holdDrag(BOWL_SHAPE, 40);
 		await expect.poll(() => designer.readSidecar(assetId).revision).toBe(3);
 		const centre = await designer.inspectorField('centre-x').getValue();
 		const sidecar = readFileSync(designer.sidecarPath(assetId), 'utf8');
@@ -165,7 +175,7 @@ describe('Two panes on one plan under a planted write incident, the rows writeIn
 		await designer.nudge();
 		await height().setValue('900');
 		await browser.keys('Enter');
-		await designer.holdDrag(BOWL, 40);
+		await designer.holdDrag(BOWL_SHAPE, 40);
 		await browser.pause(SETTLE_MS);
 		await logEvidence(directory, 'step-5-surface', { undoDisabledOnOpen: undoBefore, header: await designer.header(), notices: await designer.notices() });
 		expect(readFileSync(designer.sidecarPath(assetId), 'utf8')).toBe(sidecar);
@@ -196,6 +206,7 @@ describe('Two panes on one plan under a planted write incident, the rows writeIn
 			await app.workspace.duplicateLeaf(leaf, 'split', 'vertical');
 		}, PLAN_EDITOR);
 		await expect.poll(() => canvases(browser)).toBe(2);
+		await logEvidence(directory, 'step-7-canvas-layers-split', await canvasCounts(browser));
 		const sidecar = await sidecarPath(browser);
 		const before = await readSidecar(browser, sidecar);
 
@@ -204,6 +215,7 @@ describe('Two panes on one plan under a planted write incident, the rows writeIn
 		await widen(browser);
 		await expect.poll(() => ui.leafCount(PLAN_EDITOR)).toBe(2);
 		await expect.poll(() => canvases(browser)).toBe(2);
+		await logEvidence(directory, 'step-7-canvas-layers-restored', await canvasCounts(browser));
 		const firstFrames = await strips(browser);
 		await logEvidence(directory, 'step-7-first-frames', firstFrames);
 		expect(firstFrames.map((text) => text.includes(UNRECOVERED))).toEqual([false, false]);
@@ -221,26 +233,29 @@ describe('Two panes on one plan under a planted write incident, the rows writeIn
 });
 
 describe('Notices and save state, the failure rows, over a real file system (Linux)', () => {
-	desktop('steps 16 and 17: a refused sidecar write reads Save error in the error colour, and the next write that lands clears it', async ({ native: { browser, page, ui } }) => {
+	desktop('steps 16 and 17: a refused sidecar write reads Save error in the error colour, and the next write that lands clears it', async ({ native: { browser, page, ui, directory } }) => {
 		await widen(browser);
 		await seedSampleProject(browser, ui);
 		await selectRoom(browser, KITCHEN);
 		await expect.poll(() => saveLabel(browser)).toEqual(SAVED);
 		const sidecar = await sidecarPath(browser);
 		const before = await readSidecar(browser, sidecar);
-		// The label's colour against a probe coloured `var(--text-error)` in the same place.
+		// The label's colour against a probe coloured `var(--text-error)` in the same place. The key is
+		// `errorColour`, never `error`: webdriver turns a returned object with an `error` member into a
+		// thrown WebDriverError carrying that value (the first CI run threw `rgb(233, 49, 71)`).
 		const colours = () =>
 			browser.execute((editor: string) => {
 				const label = document.querySelector(`${editor} .rp-save-state-label`);
 				const probe = document.createElement('span');
 				probe.style.color = 'var(--text-error)';
 				label?.parentElement?.append(probe);
-				const read = { label: label ? getComputedStyle(label).color : 'absent', error: getComputedStyle(probe).color, text: label?.textContent ?? '' };
+				const read = { label: label ? getComputedStyle(label).color : 'absent', errorColour: getComputedStyle(probe).color, text: label?.textContent ?? '' };
 				probe.remove();
 				return read;
 			}, EDITOR);
 		const atRest = await colours();
-		expect(atRest.label).not.toBe(atRest.error);
+		await logEvidence(directory, 'step-16-colours-at-rest', atRest);
+		expect(atRest.label).not.toBe(atRest.errorColour);
 
 		await withLocked(await geometryPaths(browser, page), async (unlock) => {
 			await nudgeRoom(browser, browser.$(EDITOR));
@@ -248,7 +263,8 @@ describe('Notices and save state, the failure rows, over a real file system (Lin
 			await browser.pause(SETTLE_MS);
 			expect(await saveLabel(browser)).toEqual(SAVE_ERROR);
 			const failed = await colours();
-			expect(failed.label).toBe(failed.error);
+			await logEvidence(directory, 'step-16-colours-failed', failed);
+			expect(failed.label).toBe(failed.errorColour);
 			expect(await readSidecar(browser, sidecar)).toBe(before);
 
 			// Step 17: writable again, and the next nudge lands and settles on the relative phrase.
@@ -312,6 +328,7 @@ describe('Notices and save state, the failure rows, over a real file system (Lin
 		await widen(browser);
 		await expect.poll(() => ui.leafCount(PLAN_EDITOR)).toBe(1);
 		await expect.poll(() => canvases(browser)).toBe(1);
+		await logEvidence(directory, 'step-17c-canvas-layers', await canvasCounts(browser));
 		const firstFrame = await strips(browser);
 		await logEvidence(directory, 'step-17c', { savedUnrecoveredWrite: saved, firstFrame });
 		expect(saved).toEqual([true]);

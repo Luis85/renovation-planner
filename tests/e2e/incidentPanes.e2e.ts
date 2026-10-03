@@ -63,6 +63,17 @@ async function widen(browser: NativeBrowser): Promise<void> {
 	});
 }
 
+/**
+ * The layout written NOW, through Obsidian's own debouncer (scheduled, then `run()` flushes it),
+ * so a restart restores what was just arranged rather than whatever the last debounced save caught.
+ */
+async function saveLayout(browser: NativeBrowser): Promise<void> {
+	await browser.executeObsidian(async ({ app }) => {
+		app.workspace.requestSaveLayout();
+		await app.workspace.requestSaveLayout.run();
+	});
+}
+
 /** Each editor pane's warning strip as text, in DOM order — `''` for a pane drawing none. */
 const strips = (browser: NativeBrowser): Promise<string[]> =>
 	browser.execute((editor: string) => [...document.querySelectorAll(editor)].map((pane) => pane.querySelector('.rp-warning-strip')?.textContent ?? ''), EDITOR);
@@ -228,6 +239,7 @@ describe('Two panes on one plan under a planted write incident, the rows writeIn
 		const sidecar = await sidecarPath(browser);
 		const before = await readSidecar(browser, sidecar);
 
+		await saveLayout(browser);
 		await browser.reloadObsidian();
 		await widen(browser);
 		await expect.poll(() => ui.leafCount(PLAN_EDITOR)).toBe(2);
@@ -323,10 +335,7 @@ describe('Notices and save state, the failure rows, over a real file system (Lin
 			await addRoom(browser, 'Pantry');
 			await expectUncompensated(browser, directory);
 		});
-		await browser.executeObsidian(async ({ app }) => {
-			app.workspace.requestSaveLayout();
-			await app.workspace.requestSaveLayout.run();
-		});
+		await saveLayout(browser);
 		const saved = await browser.executeObsidian(async ({ app }, type) => {
 			const found: unknown[] = [];
 			const walk = (node: unknown): void => {

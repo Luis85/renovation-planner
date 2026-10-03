@@ -434,12 +434,25 @@ and every completed E2E run on the branch since, to `3d85db7a0`, has passed.
 **The residual.** The hand-over gives a note one debounce (~500 ms) for Obsidian to parse it. A
 note whose parse takes longer is still read against a null cache and dropped until the next
 full rebuild, as before; nothing listens for the parse itself. A large vault or a slow disk is
-where that could happen, and none has been measured. *2026-10-03:* owner ruling 76
-(`75f07aaaf`) closes this residual — the plugin now listens for the parse (`metadataCache`'s
-`changed`) and re-queues the note through the same pipeline a `modify` takes. That also means
-the forced case's `listed` half passes on EITHER mechanism, hand-over or flush; its premise
-now records whether the retired adapter processed the path, which is what tells the two
-apart (`tests/e2e/settingsDuringCreate.e2e.ts`, unverified until CI runs it).
+where that could happen, and none has been measured. *2026-10-03, from the review of
+`5444b843e`:* the exposure is wider than "a parse that outlasts ~500 ms". The debounce is one
+batch window, not one per note: `VaultChangeAdapter.enqueue` arms a single timer on the first
+queued path and does not reset it for later ones, so a note queued late in an open window is
+processed after only the window's remainder, which can be about 0 ms. *2026-10-03:* owner
+ruling 76 (`75f07aaaf`, with `fc7bf414e`) makes the plugin listen for the parse
+(`metadataCache`'s `changed`) and re-queue the note through the same pipeline a `modify` takes.
+That this closes the residual, the late-in-window case included, is shown in the unit suite
+(`tests/plugin/lateParse.test.ts`, which queues a note with 10 ms of the window left and was
+watched red on the old code), not yet on a real host. That the forced case's `listed` half
+passes on EITHER mechanism, hand-over or flush, is shown in the unit suite too
+(`tests/plugin/settingsSwapHandOver.test.ts`, whose listing stays green with the hand-over
+reverted); that is why the e2e case's premise now records whether the retired adapter
+processed the path, which is what tells the two apart (`tests/e2e/settingsDuringCreate.e2e.ts`).
+That premise was watched red in a real Obsidian on Linux under xvfb, in the throwaway E2E
+`37158112955` with the hand-over removed. *2026-10-04:* E2E `37159158823` at `925e2f33d` was
+green on all five legs, the forced case and the mobile-emulation leg's seed case included,
+whose earlier failures were traced to this residual. That is one run, not a rate, and its log
+does not show whether a late parse happened in it.
 
 **Owner ruling 42 ("Investigate + fix"), answered 2026-09-28.** The `latest` E2E leg installs
 1.13.7 correctly: the newest public release, 1.13.8 (2026-08-21), is Android-only, and
@@ -1072,11 +1085,12 @@ of it; the tracker carries the earlier E2E and CI runs, not the runs of this ses
   Built at `61fb866c9`.
 
 **Where a ruling was applied beyond its literal text.** Each is the controller's, not the
-owner's, recorded with its cost if wrong so that the owner can reverse it.
+owner's, recorded with its cost if wrong so that the owner can reverse it. *2026-10-03:* owner
+ruling 75 (below) confirms the first of the three; the other two are still open.
 
-- **Ruling 74 reaches three more reads (ledger R-S21-276, 2026-10-03).** The implementer found the
-  same defect behind `guardCommand` in the trade catalogue's list, the project work read and the
-  quote read. The controller applied the owner's principle to those three: the same class, the same
+- **Ruling 74 reaches three more reads (ledger R-S21-276, 2026-10-03); confirmed by ruling 75.**
+  The implementer found the same defect behind `guardCommand` in the trade catalogue's list, the
+  project work read and the quote read. The controller applied the owner's principle to those three: the same class, the same
   remedy, writes stay refused (`059bd6b2a`; the quotes and work panes also catch up on a refused
   pause write at `3177312b5`). The renovation, structure, group and reference reads stay gated,
   because they are read only just before a refused write. *Cost if wrong:* if the owner wanted the
@@ -1112,3 +1126,21 @@ owner's, recorded with its cost if wrong so that the owner can reverse it.
   failures to the badge only, and the keys arrived later into that silent route), and that the
   standing warning's **Open source note** opened the plan's note while the half-written note is the
   room's. The question was asked again with that evidence and became ruling 72.
+
+**Decided 2026-10-03 (session 21, third continuation), rulings 75 and 76**, by the release owner
+in the same chat, after final whole-branch review 5 and the E2E flake round. Quoted words are the
+owner's message or the chosen option's label and description as the owner saw them. "Built at"
+names the commits that carry the change, not a verification of it.
+
+- **Ruling 75, ruling 74's extension to the trade list, project work and quote reads (`059bd6b2a`,
+  `3177312b5`) — kept** (2026-10-03). The owner's chat message, verbatim: "keep extension of rule
+  74". Asked in the controller's status message after final review 5 flagged the extension as wider
+  than ruling 74's words. It does not cover the other two extensions above (ruling 73's reversed
+  "immediately", the step-19 reversal), which stay open. No code change.
+- **Ruling 76, Q2's residual caught in CI (a note Obsidian has not parsed within the ~500 ms
+  debounce is dropped from the index until the next full rebuild) — "Fix now (Recommended)"**
+  (2026-10-03). "When the note's parse arrives later, process it again (Obsidian's metadataCache
+  'changed' event), so a dropped note joins the index. Change in src/ (vault-change pipeline). Test
+  watched failing on the old code first, plus the E2E poll as is. One implementer, review, fix
+  round." Built at `75f07aaaf`, with `fc7bf414e` (the tests) and `925e2f33d` (the documents); what
+  it is verified by is in section 4's residual.

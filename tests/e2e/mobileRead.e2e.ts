@@ -282,8 +282,18 @@ describe('Read projects on mobile, under desktop mobile emulation (NOT a device)
 
 		await browser.executeObsidianCommand('command-palette:open');
 		await browser.$('.prompt-input').setValue('Renovation');
+		// The palette draws the plugin's name in a `.suggestion-prefix` span and drops the ": " (as
+		// `expectGuide` reads it), so the full command name is put back before comparing.
 		const listed = () =>
-			browser.execute(() => [...document.querySelectorAll('.prompt .suggestion-item')].map((item) => (item.querySelector('.suggestion-title') ?? item).textContent.trim()));
+			browser.execute(() =>
+				[...document.querySelectorAll('.prompt .suggestion-item')].map((item) => {
+					const title = item.querySelector('.suggestion-title') ?? item;
+					const prefix = title.querySelector('.suggestion-prefix')?.textContent ?? '';
+					const text = (title.textContent ?? '').trim();
+					return prefix ? `${prefix}: ${text.slice(prefix.length)}` : text;
+				}),
+			);
+		await logEvidence(directory, 'mobile-palette-wanted', commands.map(({ name }) => name));
 		await expect.poll(listed).toContain(commands[5].name);
 		const shown = await listed();
 		await logEvidence(directory, 'mobile-palette', shown);

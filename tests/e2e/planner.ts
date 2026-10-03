@@ -15,6 +15,8 @@ export type Ui = ReturnType<typeof createPlannerPage>;
 export type Pane = ChainablePromiseElement | WebdriverIO.Element;
 
 export const EDITOR = '.workspace-leaf-content[data-type="renovation-plan-editor"]';
+/** The editor in the ACTIVE leaf: `browser.$(EDITOR)` is the first in the DOM, which is a hidden one once a second plan is open. */
+const ACTIVE_EDITOR = `.workspace-leaf.mod-active ${EDITOR}`;
 export const UNRECOVERED = 'A change was written but could not be completed or undone.';
 export const WRITES_PAUSED = 'Writing is paused.';
 
@@ -141,7 +143,8 @@ export async function openPlan(browser: NativeBrowser, ui: Ui, name: string): Pr
 	}
 	await expect.poll(() => row().isDisplayed()).toBe(true);
 	await row().click();
-	await expect.poll(() => browser.$(EDITOR).$('.rp-plan-canvas canvas').isExisting()).toBe(true);
+	// The ACTIVE editor: with another plan already open in a hidden tab, the first match is that one.
+	await expect.poll(() => browser.$(ACTIVE_EDITOR).$('.rp-plan-canvas canvas').isExisting()).toBe(true);
 }
 
 /** What the case's step 1 lists for a paused pane: the strip, and Undo dimmed. */

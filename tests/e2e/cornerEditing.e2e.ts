@@ -237,7 +237,21 @@ describe('Edit a zone corner by typing its position (BP-04), in the real Obsidia
 		await browser.keys(['Control', 'y']);
 		await expect.poll(() => outlineOf(browser, path, id)).toEqual(edited);
 		await expect.poll(() => saveLabel(browser)).toEqual(SAVED);
-		expect(await identity()).toEqual(before);
+		// The zone note is written BEFORE the sidecar (`ObsidianZoneRepository.saveQueued`), so the sidecar
+		// outline and the saved label above can both hold while Obsidian is still re-parsing that note:
+		// `metadataCache` can then answer no zone note (inferred from the logs, not observed), and a strict one-shot read found NO Terrace on the
+		// `latest` leg (two runs, both at this line). Poll the identity until the cache has caught up, and
+		// record how long it took and what the misses looked like.
+		const misses: number[] = [];
+		const started = Date.now();
+		await expect
+			.poll(async () => {
+				const named = Object.values(await ui.notesOfType('renovation-zone')).filter((zone) => zone.name === TERRACE);
+				if (named.length !== 1) misses.push(named.length);
+				return named.length === 1 ? Object.fromEntries(Object.entries(named[0]).filter(([key]) => fields.includes(key))) : { notes: named.length };
+			})
+			.toEqual(before);
+		await logEvidence(directory, 'identity-after-redo', { misses, waitedMs: Date.now() - started });
 	});
 
 	desktop('steps 11 and 12: Cancel and an unchanged submit write nothing and add no history, and the mark is cleared', async ({ native: { browser, ui } }) => {

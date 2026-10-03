@@ -5,7 +5,7 @@ import { describe, expect } from 'vitest';
 import { en, type StringKey } from '../../src/presentation/i18n/locales/en';
 import { pdfFixture, TWO_PAGE_PDF } from '../helpers/backgroundFixtures';
 import { test } from './fixture';
-import { writeEvidence } from './diagnostics';
+import { logEvidence } from './diagnostics';
 import { setWindowSize } from './helpers';
 import { readSidecar, saveLabel, sidecarPath, type StoredPoint } from './canvas';
 import { EDITOR, openPlan, reloadPlugin, seedProjectWithPlan, seedSampleProject, textOf, type Ui } from './planner';
@@ -191,7 +191,7 @@ describe('BP-06: the three starts on an empty floor, in the real Obsidian host',
 		await expect.poll(() => textOf(editor(browser).$('.rp-task-banner strong'))).toBe(en['editor.task.add-room.name']);
 		expect(await editor(browser).$('[data-rp-region="inspector"] .rp-new-room').isExisting()).toBe(true);
 		expect(await start(browser).isExisting()).toBe(false);
-		await writeEvidence(directory, 'focus-after-rooms', { canvas: await canvasFocused(browser) });
+		await logEvidence(directory, 'focus-after-rooms', { canvas: await canvasFocused(browser) });
 		// Empty States step 7's open question: a task left by its Cancel re-admits the panel.
 		await editor(browser).$('.rp-task-banner__cancel').click();
 		await expect.poll(() => start(browser).isDisplayed()).toBe(true);
@@ -247,7 +247,7 @@ describe('BP-06: a PNG and a PDF reference, through Obsidian’s own pdf.js', ()
 		// Which pdf.js did it: the host's, beside the suite's (`pdfRaster.ts`'s residual gap), recorded rather than compared.
 		const host = await browser.executeObsidian(async ({ obsidian }) => String(((await obsidian.loadPdfJs()) as { version?: unknown }).version));
 		const suite = (JSON.parse(await readFile('node_modules/pdfjs-dist/package.json', 'utf8')) as { version: string }).version;
-		await writeEvidence(directory, 'pdfjs', { host, suite });
+		await logEvidence(directory, 'pdfjs', { host, suite });
 		expect(host).toMatch(/^\d+\.\d+\.\d+$/u);
 	});
 
@@ -321,6 +321,19 @@ describe('BP-06: rescaling existing rooms, and the source renamed or moved', () 
 		expect(await vaultFiles(browser)).toEqual(before);
 		await shot(browser, directory, 'reference-rescale-ack');
 
+		// Recorded, not asserted: at 1280 x 1024 the click below is intercepted by the sticky footer and only
+		// WebdriverIO's scroll-and-retry lands it. A product layout question for the owner, not a test fix.
+		await logEvidence(
+			directory,
+			'consent-vs-footer',
+			await browser.execute(() => {
+				const [consent, footer] = ['.rp-dialog input[name="consent"]', '.rp-dialog .rp-dialog-footer'].map((selector) => {
+					const { top, bottom, left, right } = (document.querySelector(selector) as HTMLElement).getBoundingClientRect();
+					return { top, bottom, left, right };
+				});
+				return { consent, footer, viewport: window.innerHeight };
+			}),
+		);
 		await form(browser).$('input[name="consent"]').click();
 		await submit(browser);
 		await expect.poll(() => dialogOpen(browser)).toBe(false);

@@ -295,7 +295,8 @@ describe('Edit a zone corner by typing its position (BP-04), in the real Obsidia
 		await settleCamera(browser);
 		await contextClick(browser, IN_TERRACE);
 		// The menu did open, so the entry's absence is the menu's answer and not a menu missing.
-		await expect.poll(() => menu.$('[data-rp-context-action="fit"]').isExisting()).toBe(true);
+		// 'Fit selection' (not 'Fit floor') is what only a menu opened on a zone offers, so the Terrace was the target.
+		await expect.poll(() => textOf(menu.$('[data-rp-context-action="fit"]'))).toBe(en['editor.view.fit-selection']);
 		expect(await pane.$(MENU_ENTRY).isExisting()).toBe(false);
 		expect(await doors()).toBe(0);
 	});
@@ -329,7 +330,7 @@ const focusNow = (browser: NativeBrowser) =>
 	}, EDITOR);
 
 describe('Edit a zone corner, across pane widths and from the keyboard', () => {
-	desktop('steps 15 and 16: a dirty dialog keeps its text across a wide and a constrained pane, Cancel leaves focus on a live control, and at 460 px the dialog covers the mark', async ({ native: { browser, ui, directory } }) => {
+	desktop('steps 15 and 16: a dirty dialog keeps its text across a wide and a constrained pane, Cancel leaves focus on a live control, and the 460 px dialog and mark are recorded', async ({ native: { browser, ui, directory } }) => {
 		const { path, outline } = await seedWith(browser, ui, KITCHEN);
 		const sidecar = await readSidecar(browser, path);
 		await openByInspector(browser, KITCHEN);

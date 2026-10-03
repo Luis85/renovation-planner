@@ -1,7 +1,7 @@
 import { expect } from 'vitest';
 import type { ChainablePromiseElement } from 'webdriverio';
 import { en, type StringKey } from '../../src/presentation/i18n/locales/en';
-import { writeEvidence } from './diagnostics';
+import { logEvidence } from './diagnostics';
 import type { createPlannerPage } from './helpers';
 import { PLUGIN_ID, mobileEmulation, type NativeBrowser } from './session';
 
@@ -308,7 +308,7 @@ export async function expectGuide(browser: NativeBrowser, ui: Ui, directory: str
 	rendered.newAsset = await textOf(ui.projectView().$('.rp-view-aside__create-asset'));
 	rendered.library = await textOf(ui.projectView().$('.rp-view-aside__open-library'));
 	if (!mobileEmulation) Object.assign(rendered, await walkDesktopControls(browser, ui, rendered.openProject, say('sample.project.name')));
-	await writeEvidence(directory, 'guide-labels', rendered);
+	await logEvidence(directory, 'guide-labels', rendered);
 
 	await browser.executeObsidianCommand('command-palette:open');
 	const input = browser.$('.prompt-input');
@@ -336,7 +336,7 @@ export async function expectGuide(browser: NativeBrowser, ui: Ui, directory: str
 		// A hole this leg could not walk to accepts what the step says; every other must match.
 		expect({ key, quoted }).toEqual({ key, quoted: holes.map((hole, position) => rendered[hole] ?? quoted[position]) });
 	});
-	await writeEvidence(directory, 'guide', { steps, unchecked: [...unchecked] });
+	await logEvidence(directory, 'guide', { steps, unchecked: [...unchecked] });
 	// On a phone the controls that write are not drawn, so only the desktop legs must have read them all.
 	expect(mobileEmulation ? [] : [...unchecked]).toEqual([]);
 

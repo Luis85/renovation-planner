@@ -31,7 +31,7 @@ the reach is what slice B added and what steps 1–4 below are for.
 opened dialog, writes a typed corner to the repository from the Inspector door, cancels from it,
 greys both doors while writes pause, and asserts the perspective gating (greyed in Renovate,
 absent in Review). Those are jsdom results against fake hosts. What is left here is everything
-jsdom does not have: Obsidian's own context menu, a real keymap, a themed leaf, a rendered
+jsdom does not have: the canvas context menu in a real host, a real keymap, a themed leaf, a rendered
 canvas, a real sidebar width and a screen reader.
 
 ## Steps
@@ -42,7 +42,7 @@ they do not claim.
 
 | # | Reachable by | Do this | It passes when | It exists to catch |
 | --- | --- | --- | --- | --- |
-| 1 | `obsidian` | In Plan, select the Terrace and right-click it | The menu's edit group offers **Edit corners** beside the zone's rename/details entry | The menu door, in Obsidian's own `Menu` rather than the suite's recorded item list. The entry is pushed for every zone type, so a Terrace must offer it exactly as a Room does |
+| 1 | `obsidian` | In Plan, select the Terrace and right-click it | The menu's edit group offers **Edit corners** beside the zone's rename/details entry | The menu door, in the plugin's own canvas context menu (`CanvasMenuList.vue`; not Obsidian's `Menu` class) drawn in the real host rather than the suite's recorded item list. The entry is pushed for every zone type, so a Terrace must offer it exactly as a Room does |
 | 2 | `obsidian` | Choose **Edit corners** | The dialog opens, titled for that zone, over the plan | The reach itself. Until slice B this action existed and nothing opened it (limitation L-24) |
 | 3 | `obsidian` | Close the dialog, select a **Room**, and use the Inspector's **Edit corners** button instead | The same dialog opens, titled for the Room | The second door. Both doors call one function; a second door that built its own dialog would look identical here until the two disagreed |
 | 4 | `obsidian` | Repeat step 3 on the **Garden** | The Inspector offers the button there too | The Inspector door is mounted for the `room` and `area` record kinds; a zone that is neither in the Inspector's vocabulary would silently lose the button |

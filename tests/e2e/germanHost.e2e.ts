@@ -5,7 +5,7 @@ import { test } from './fixture';
 import { logEvidence } from './diagnostics';
 import { setWindowSize } from './helpers';
 import { recordSaveStates, saveLabel, saveTexts } from './canvas';
-import { EDITOR, expectGuide, openDetails, seedSampleProject, selectRoom, textOf, type GuideLocale, type Pane } from './planner';
+import { EDITOR, expectGuide, openDetails, removeBackgroundFiles, seedSampleProject, selectRoom, textOf, type GuideLocale, type Pane } from './planner';
 import { PLUGIN_ID, mobileEmulation, type NativeBrowser } from './session';
 
 /**
@@ -152,19 +152,6 @@ const noticeParts = (browser: NativeBrowser): Promise<{ severity: string; messag
 			dismiss: notice.querySelector('.rp-notice-dismiss')?.getAttribute('aria-label') ?? '',
 		})),
 	);
-
-/**
- * Step 2 asks for a vault with no PNG, JPEG or PDF, and the e2e vault ships two (the reference
- * fixtures). This removes them from the case's own COPY of the vault, never from `tests/e2e/vault/`.
- */
-async function removeBackgroundFiles(browser: NativeBrowser): Promise<void> {
-	const left = await browser.executeObsidian(async ({ app }) => {
-		const kinds = new Set(['png', 'jpg', 'jpeg', 'pdf']);
-		for (const file of app.vault.getFiles().filter((candidate) => kinds.has(candidate.extension.toLowerCase()))) await app.vault.delete(file);
-		return app.vault.getFiles().filter((candidate) => kinds.has(candidate.extension.toLowerCase())).map((file) => file.path);
-	});
-	expect(left).toEqual([]);
-}
 
 describe('Notices and save state step 19, in German', () => {
 	desktop('the severity words, the dismiss control\'s name and the save states read in German', async ({ native: { browser, ui, directory } }) => {

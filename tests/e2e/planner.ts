@@ -2,7 +2,7 @@ import { expect } from 'vitest';
 import type { ChainablePromiseElement } from 'webdriverio';
 import { en, type StringKey } from '../../src/presentation/i18n/locales/en';
 import { logEvidence } from './diagnostics';
-import type { createPlannerPage } from './helpers';
+import { setWindowSize, type createPlannerPage } from './helpers';
 import { PLUGIN_ID, mobileEmulation, type NativeBrowser } from './session';
 
 /**
@@ -44,6 +44,15 @@ export async function removeIncidents(browser: NativeBrowser): Promise<void> {
 	await browser.executeObsidian(({ app }, path) => app.vault.adapter.remove(path), await incidentsPath(browser));
 }
 
+/**
+ * Notices step 24's fault: a `data.json` that will not parse — `{`, the content the unit suite's own
+ * Obsidian walk used (`tests/plugin/settings/unrecovered.test.ts`). Obsidian's `loadData()` resolves
+ * EMPTY for it and the file is on disk, which `loadSettings` reads as unrecovered at the next load.
+ */
+export async function corruptSettings(browser: NativeBrowser): Promise<void> {
+	await browser.executeObsidian(({ app }, id) => app.vault.adapter.write(`${app.vault.configDir}/plugins/${id}/data.json`, '{'), PLUGIN_ID);
+}
+
 export async function reloadPlugin(page: ReturnType<NativeBrowser['getObsidianPage']>): Promise<void> {
 	await page.disablePlugin(PLUGIN_ID);
 	await page.enablePlugin(PLUGIN_ID);
@@ -64,6 +73,61 @@ export async function seedSampleProject(browser: NativeBrowser, ui: Ui): Promise
 	await ui.command('create-sample-project');
 	await expect.poll(() => browser.$(EDITOR).$('.rp-plan-canvas canvas').isExisting()).toBe(true);
 	await expect.poll(async () => Object.keys(await ui.notesOfType('renovation-zone')).length).toBe(5);
+}
+
+/**
+ * 1280 x 1024, the CI display's own size: main's window-manager rule leaves Obsidian at 1024 x 800,
+ * where a split pane falls under the editor's 400 px minimum and draws no canvas. Both sidebars
+ * collapsed too, so two panes side by side are ~640 px each.
+ */
+export async function widen(browser: NativeBrowser): Promise<void> {
+	await setWindowSize(browser, 1280, 1024);
+	await expect.poll(() => browser.execute(() => window.innerWidth)).toBeGreaterThanOrEqual(1270);
+	await browser.executeObsidian(({ app }) => {
+		app.workspace.leftSplit.collapse();
+		app.workspace.rightSplit.collapse();
+	});
+}
+
+/**
+ * The layout written NOW, through Obsidian's own debouncer (scheduled, then `run()` flushes it),
+ * so a restart restores what was just arranged rather than whatever the last debounced save caught.
+ */
+export async function saveLayout(browser: NativeBrowser): Promise<void> {
+	await browser.executeObsidian(async ({ app }) => {
+		app.workspace.requestSaveLayout();
+		await app.workspace.requestSaveLayout.run();
+	});
+}
+
+/** Add ▸ Room in `pane` (the first editor by default), typed rather than dragged: a name, 2 m by 2 m at the stage's centre, Create room. */
+export async function addRoom(browser: NativeBrowser, name: string, pane: Pane = browser.$(EDITOR)): Promise<void> {
+	// A JS click, as `writeIncident.e2e.ts` takes it: something may float over the Add button.
+	await browser.execute((button: HTMLElement) => button.click(), await pane.$('[data-rp-action="add"]'));
+	await pane.$('.rp-add-menu__item[data-rp-entry="room"]').click();
+	const form = pane.$('.rp-new-room');
+	await expect.poll(() => form.isDisplayed()).toBe(true);
+	await form.$('.rp-new-room__name').setValue(name);
+	for (const axis of ['width', 'depth']) {
+		await form.$(`input[name="${axis}"]`).setValue('2');
+		await browser.keys('Enter');
+	}
+	const create = form.$('.rp-new-room__create');
+	await expect.poll(() => create.getAttribute('aria-disabled')).toBe('false');
+	await create.click();
+}
+
+/**
+ * Notices steps 2 and 3 ask for a vault with no PNG, JPEG or PDF, and the e2e vault ships two (the
+ * reference fixtures). This removes them from the case's own COPY of the vault, never from `tests/e2e/vault/`.
+ */
+export async function removeBackgroundFiles(browser: NativeBrowser): Promise<void> {
+	const left = await browser.executeObsidian(async ({ app }) => {
+		const kinds = new Set(['png', 'jpg', 'jpeg', 'pdf']);
+		for (const file of app.vault.getFiles().filter((candidate) => kinds.has(candidate.extension.toLowerCase()))) await app.vault.delete(file);
+		return app.vault.getFiles().filter((candidate) => kinds.has(candidate.extension.toLowerCase())).map((file) => file.path);
+	});
+	expect(left).toEqual([]);
 }
 
 /** From the project list: into the one project, then the plan named so, until the editor draws. */

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { describe, expect } from 'vitest';
 import { en } from '../../src/presentation/i18n/locales/en';
 import { test } from './fixture';
-import { closePluginSettings, noticeMessages, openPluginSettings, setWindowSize, settingControl, settleSettings } from './helpers';
+import { closePluginSettings, noticeMessages, openPluginSettings, settingControl, settleSettings } from './helpers';
 import { readSidecar, saveLabel, sidecarPath } from './canvas';
 import { BOWL, createDesignerPage, type ObsidianPage } from './designer';
 import { logEvidence } from './diagnostics';
@@ -12,14 +12,17 @@ import {
 	PLANTED_INCIDENT,
 	UNRECOVERED,
 	WRITES_PAUSED,
+	addRoom,
 	expectPaused,
 	incidentsPath,
 	openPlan,
 	plantIncidents,
 	reloadPlugin,
+	saveLayout,
 	seedSampleProject,
 	selectRoom,
 	tryNewPlan,
+	widen,
 	type Pane,
 	type Ui,
 } from './planner';
@@ -48,31 +51,6 @@ const SAVED = { state: 'rp-save-state-saved', text: en['save-state.saved'] };
 const SAVE_ERROR = { state: 'rp-save-state-save-error', text: en['save-state.save-error'] };
 /** Long enough for a refused gesture's dispatch, refresh and notice to have landed, if any would. */
 const SETTLE_MS = 1500;
-
-/**
- * 1280 x 1024, the CI display's own size: main's window-manager rule leaves Obsidian at 1024 x 800,
- * where a split pane falls under the editor's 400 px minimum and draws no canvas. Both sidebars
- * collapsed too, so two panes side by side are ~640 px each.
- */
-async function widen(browser: NativeBrowser): Promise<void> {
-	await setWindowSize(browser, 1280, 1024);
-	await expect.poll(() => browser.execute(() => window.innerWidth)).toBeGreaterThanOrEqual(1270);
-	await browser.executeObsidian(({ app }) => {
-		app.workspace.leftSplit.collapse();
-		app.workspace.rightSplit.collapse();
-	});
-}
-
-/**
- * The layout written NOW, through Obsidian's own debouncer (scheduled, then `run()` flushes it),
- * so a restart restores what was just arranged rather than whatever the last debounced save caught.
- */
-async function saveLayout(browser: NativeBrowser): Promise<void> {
-	await browser.executeObsidian(async ({ app }) => {
-		app.workspace.requestSaveLayout();
-		await app.workspace.requestSaveLayout.run();
-	});
-}
 
 /** Each editor pane's warning strip as text, in DOM order — `''` for a pane drawing none. */
 const strips = (browser: NativeBrowser): Promise<string[]> =>
@@ -131,24 +109,6 @@ async function prepareUncompensated(browser: NativeBrowser, page: ObsidianPage, 
 	if (!existsSync(trash)) mkdirSync(trash);
 	await browser.executeObsidian(({ app }) => (app.vault as unknown as { setConfig(key: string, value: string): void }).setConfig('trashOption', 'local'));
 	return [...(await geometryPaths(browser, page)), trash];
-}
-
-/** Add ▸ Room, typed rather than dragged: a name, 2 m by 2 m at the stage's centre, Create room. */
-async function addRoom(browser: NativeBrowser, name: string): Promise<void> {
-	const pane = browser.$(EDITOR);
-	// A JS click, as `writeIncident.e2e.ts` takes it: something may float over the Add button.
-	await browser.execute((button: HTMLElement) => button.click(), await pane.$('[data-rp-action="add"]'));
-	await pane.$('.rp-add-menu__item[data-rp-entry="room"]').click();
-	const form = pane.$('.rp-new-room');
-	await expect.poll(() => form.isDisplayed()).toBe(true);
-	await form.$('.rp-new-room__name').setValue(name);
-	for (const axis of ['width', 'depth']) {
-		await form.$(`input[name="${axis}"]`).setValue('2');
-		await browser.keys('Enter');
-	}
-	const create = form.$('.rp-new-room__create');
-	await expect.poll(() => create.getAttribute('aria-disabled')).toBe('false');
-	await create.click();
 }
 
 /**

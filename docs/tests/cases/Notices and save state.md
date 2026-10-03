@@ -107,10 +107,12 @@ and `tests/e2e/saveStateAndFailures.e2e.ts`; 15a, 19 and 25 sit in two older fil
 files read their copy from the `en` locale module, so a reworded sentence moves the case and this
 table's quotation of it. **None of these is a person looking at a picture**: a `Notice`'s
 appearance is still steps 7, 12 and 12a, which stay `judgement`, and no screen reader is run. The
-desktop cases skip on the `mobile-emulation` leg. Whether each case goes red when its subject breaks was
-checked by source mutations during review; two have no mutation of their own that reddens them alone
-(17b, because the leaf flag and the vault record each hold the pause, and 17d, which reddens only under
-the seed mutation that also reddens `writeIncident.e2e.ts`).
+desktop cases skip on the `mobile-emulation` leg. Whether each case can go red when its subject breaks
+was reasoned in review from each assertion's order, not run; the red runs in real Obsidian were
+dispatched on 2026-10-03, and the execution tracker records their verdict. Two have no mutation of
+their own that is expected to redden them alone (17b, because the leaf flag and the vault record each
+hold the pause, and 17d, which is expected to redden only under the seed mutation that also reddens
+`writeIncident.e2e.ts`).
 
 | Step | Clause | Discharged by, and what it cannot see |
 | --- | --- | --- |
@@ -120,7 +122,7 @@ the seed mutation that also reddens `writeIncident.e2e.ts`).
 | 4 | the parts are spaced apart | the same case as step 2: label to sentence and sentence to `×` are measured. The mark's SHAPE is step 12a |
 | 5 | hover holds the timer; the leave restarts a FULL duration | *step 5: hovering holds the info notice, and it goes a FULL six seconds after the pointer leaves* |
 | 6 | the `×` is reachable by `Tab`, shows a ring, holds the notice, `Enter` dismisses | *step 6: Tab reaches the ×, its ring shows, focus holds the notice past its timer, and Enter dismisses it*: **NARROWED to ONE `Tab`** from the tabbable element just before the `×` (logged as `step-6-focus`), not "until" it is focused. Whether the ring is VISIBLE against a theme is step 7 |
-| 8 | three on screen, the fourth held, the `×` promotes it | *step 8: three distinct notices on screen, the fourth held, and the × on one promotes it*: staged with an unreadable `data.json`, an open Plan Editor leaf and the four commands of the step's row. No mutation reddens the "promoted by the `×`" half alone |
+| 8 | three on screen, the fourth held, the `×` promotes it | *step 8: three distinct notices on screen, the fourth held, and the × on one promotes it*: staged with an unreadable `data.json`, an open Plan Editor leaf and the four commands of the step's row. No mutation in the planned red runs is expected to redden the "promoted by the `×`" half alone |
 | 9 | a repeat is ONE notice `(×2)` | the step 2 case |
 | 11 | a body click frees the slot at once, and the re-raise opens fresh | *step 11: a click on a notice's body frees its slot at once, and the same message raised again opens fresh*: the re-raise is held with the cap full, then drawn as a new entry without `(×2)` |
 | 13, 14, 15 | Saved at rest; Saving then "Saved just now" through Add room, Undo and Redo | *steps 13, 14 and 15: Saved at rest, then Saving and "Saved just now" through Add room, Undo and Redo* |

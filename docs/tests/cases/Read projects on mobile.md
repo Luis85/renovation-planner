@@ -74,7 +74,7 @@ what they do not claim.
 ## Automated in Obsidian
 
 **Added 2026-10-03** (session 21, E2E batch 7): `tests/e2e/mobileRead.e2e.ts`, on the
-`mobile-emulation` leg only (the desktop legs skip it). **This is DESKTOP Obsidian emulating a phone,
+`mobile-emulation` leg only (the desktop legs skip it); step 9 is `tests/e2e/germanHost.e2e.ts`'s, on the same leg. **This is DESKTOP Obsidian emulating a phone,
 not a device**, and it stays that way in the file's title and docblock: it reads `Platform.isMobile`
 as Obsidian answers it under the emulation key, which is a boolean, and no touch screen, soft
 keyboard, phone-width layout or assistive technology is involved. This case's own Runs table still
@@ -94,7 +94,8 @@ restart, so a host that ignores the key fails there instead of grading a desktop
 | 7 | each leaf draws one sentence and no canvas, across a switch away and back | *refuses a Plan Editor and an Asset Designer leaf with one sentence, and closes both cleanly*. **NARROWED:** the leaves are opened with `setViewState` on the mobile boot, **not restored** from a saved layout; no restore of the Plan Editor on mobile is driven anywhere, and the designer's restore path is `assetHandoffMore.e2e.ts` step 26 |
 | 8 | closing both leaves faults nothing | the same case: both leaves detach, their content is gone and the renderer logged no error. Whether Obsidian would surface a throwing close at all is unknown, so the red run for this clause is inferred |
 | L-43 | the library is read-only on a phone (owner ruling 66) | *opens the asset library read-only: search and selection live, every write refused with the reason*: one notice, search narrows and widens, a selection opens the inspector, and the write controls are drawn and refused |
-| 9, 10, 11 | German copy, the host's Markdown editor, a return to desktop | **not driven** |
+| 9 | both sentences in German, neither off the pane | `germanHost.e2e.ts` *both read-only sentences read in German and neither runs off the pane* (mobile-emulation leg): each sentence is compared with the `de` locale module's text and measured inside its leaf, unclipped. The editor leaf is opened with `setViewState`, not restored, as in step 7 |
+| 10, 11 | the host's Markdown editor, a return to desktop | **not driven** |
 
 ## Acceptance criteria
 
@@ -126,7 +127,7 @@ restart, so a host that ignores the key fails there instead of grading a desktop
 
 | Date | Build | Outcome |
 | --- | --- | --- |
-| 2026-10-03 | PR head `10315e342`, E2E run `37112723692`, Obsidian 1.13.7 mobile emulation, Linux | **Not a device run.** The six cases of *Automated in Obsidian* passed. Steps 3 (the announcement), 9, 10 and 11 were not driven. `1b3af75ad` changed this file after that head and is not claimed green by this row. |
+| 2026-10-03 | PR head `10315e342`, E2E run `37112723692`, Obsidian 1.13.7 mobile emulation, Linux | **Not a device run.** The six cases of `mobileRead.e2e.ts` passed, and so did `germanHost.e2e.ts`'s step 9 case on the same leg (added 2026-10-03: this row first said step 9 was not driven; the job log lists that case passing). Steps 3 (the announcement), 10 and 11 were not driven. `1b3af75ad` changed this file after that head and is not claimed green by this row. |
 | — | — | **Not yet run on a device.** Every row above is an expectation derived from the requirement note and the shipped source. No mobile vault has opened this plugin, which is the measurement the note demands and the reason it is still open. |
 
 ## Outcome

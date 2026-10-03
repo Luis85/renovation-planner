@@ -2,6 +2,7 @@ import { describe, expect } from 'vitest';
 import { test } from './fixture';
 import { writeEvidence } from './diagnostics';
 import {
+	ACTIVE_EDITOR,
 	EDITOR,
 	PLANTED_INCIDENT,
 	QUANTITY,
@@ -189,7 +190,7 @@ describe('Q3 under an open write incident (f5a7f219e)', () => {
 		await plantIncidents(browser, JSON.stringify(PLANTED_INCIDENT));
 		await reloadPlugin(page);
 		await openPlan(browser, ui, 'Ground floor');
-		await expectPaused(browser.$(EDITOR));
+		await expectPaused(browser.$(ACTIVE_EDITOR));
 		await selectRoom(browser, 'Kitchen');
 		// The paused row offers no write: its field refuses keystrokes, so no edit can be pending.
 		expect(await browser.$(QUANTITY).getAttribute('readonly')).toBe('true');

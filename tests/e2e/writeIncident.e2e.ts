@@ -3,6 +3,7 @@ import type { ChainablePromiseElement } from 'webdriverio';
 import { test } from './fixture';
 import { closePluginSettings, openPluginSettings, settingControl } from './helpers';
 import {
+	ACTIVE_EDITOR,
 	EDITOR,
 	PLANTED_INCIDENT,
 	UNRECOVERED,
@@ -43,7 +44,7 @@ async function plantAndReload(browser: NativeBrowser, page: Page, ui: Ui, conten
 async function openPausedPlan(browser: NativeBrowser, page: Page, ui: Ui): Promise<void> {
 	await plantAndReload(browser, page, ui, JSON.stringify(PLANTED_INCIDENT));
 	await openPlan(browser, ui, 'Ground floor');
-	await expectPaused(browser.$(EDITOR));
+	await expectPaused(browser.$(ACTIVE_EDITOR));
 }
 
 /** Open the diagnostics report, and read the one incident code it names. */
@@ -116,8 +117,8 @@ describe('a planted write incident in the real host', () => {
 		expect(await tryNewPlan(browser, ui, 'Attic')).toBe('');
 		await expect.poll(() => planNames(ui)).toEqual(['Attic', 'Ground floor']);
 		await openPlan(browser, ui, 'Ground floor');
-		expect(await browser.$(EDITOR).$$('.rp-warning-strip__item').map((item) => item.getText())).toEqual([]);
-		expect(await browser.$(EDITOR).$('[data-rp-action="undo"]').getAttribute('disabled')).toBe('true');
+		expect(await browser.$(ACTIVE_EDITOR).$$('.rp-warning-strip__item').map((item) => item.getText())).toEqual([]);
+		expect(await browser.$(ACTIVE_EDITOR).$('[data-rp-action="undo"]').getAttribute('disabled')).toBe('true');
 	});
 
 	// The fault setup's alternative arm, "worth one run of its own": a file this build cannot

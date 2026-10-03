@@ -8,6 +8,7 @@ import { readSidecar, saveLabel, sidecarPath } from './canvas';
 import { BOWL, createDesignerPage, type ObsidianPage } from './designer';
 import { logEvidence } from './diagnostics';
 import {
+	ACTIVE_EDITOR,
 	EDITOR,
 	PLANTED_INCIDENT,
 	UNRECOVERED,
@@ -138,14 +139,29 @@ describe('Two panes on one plan under a planted write incident, the rows writeIn
 	// now only half true — since L-16 its Undo and Redo go disabled on the incident. With no write
 	// able to land, a designer opened under an incident has no history either way, so that half
 	// cannot be told apart here and is recorded, not asserted. What is pinned is the rest: the
-	// tools stay live (the recorded affordance gap, positively), and no write lands through any of
-	// the three gestures the row names — each one first watched WRITING before the incident.
+	// tools stay live (the recorded affordance gap, positively), and no write lands through the row's
+	// gestures — each one first watched WRITING before the incident. They are not one door per name:
+	// the nudge and the bowl drag go through `setAssetShape`, Height through `setAssetHeight`, and Edit
+	// dimensions on a shaped asset SCALES through `setAssetShape` again (`landDimensions`); only on a
+	// design with NO shape does it reach `setAssetFootprintFromDimensions`, so a shapeless asset covers
+	// that one. The footprint-vertex drag's own door, `setAssetFootprint`, is still not driven (a bowl
+	// drag stands in for it, as before).
 	desktop('step 5: the Asset designer looks live and refuses every write underneath', async ({ native: { browser, page, ui, directory } }) => {
 		const designer = createDesignerPage(browser, page, ui);
+		// Edit dimensions' second door: on an asset with NO shape it replaces the footprint with a typed
+		// rectangle (`setAssetFootprintFromDimensions`). One asset proves that door writes (its sidecar
+		// appears), and a second, left shapeless, is what the incident then refuses.
+		const boxId = await designer.createAsset('Paused box');
+		await designer.editDimensions(600, 400);
+		await expect.poll(() => existsSync(designer.sidecarPath(boxId))).toBe(true);
+		await designer.closeDesigner();
+		const emptyId = await designer.createAsset('Paused empty');
+		expect(existsSync(designer.sidecarPath(emptyId))).toBe(false);
+		await designer.closeDesigner();
 		const assetId = await designer.createToilet('Paused toilet');
 		const height = () => designer.inspectorField('height');
 		const asset = async () => Object.values(await ui.notesOfType('renovation-asset')).find((note) => note.id === assetId);
-		// The positive controls: the nudge, the height and the drag each write before the incident.
+		// The positive controls: the nudge, the height, the drag and the scaling Edit dimensions each write before the incident.
 		await designer.nudgeTo(assetId, 2);
 		await height().setValue('750');
 		await browser.keys('Enter');
@@ -153,6 +169,8 @@ describe('Two panes on one plan under a planted write incident, the rows writeIn
 		await logEvidence(directory, 'step-5-bowl-on-screen', await designer.partCentre(BOWL_SHAPE));
 		await designer.holdDrag(BOWL_SHAPE, 40);
 		await expect.poll(() => designer.readSidecar(assetId).revision).toBe(3);
+		await designer.editDimensions(1234, 777);
+		await expect.poll(() => designer.readSidecar(assetId).revision).toBe(4);
 		const centre = await designer.inspectorField('centre-x').getValue();
 		const sidecar = readFileSync(designer.sidecarPath(assetId), 'utf8');
 		const note = await asset();
@@ -176,10 +194,22 @@ describe('Two panes on one plan under a planted write incident, the rows writeIn
 		await height().setValue('900');
 		await browser.keys('Enter');
 		await designer.holdDrag(BOWL_SHAPE, 40);
+		await designer.editDimensions(1500, 900);
 		await browser.pause(SETTLE_MS);
-		await logEvidence(directory, 'step-5-surface', { undoDisabledOnOpen: undoBefore, header: await designer.header(), notices: await designer.notices() });
+		const header = await designer.header();
+		await logEvidence(directory, 'step-5-surface', { undoDisabledOnOpen: undoBefore, header, notices: await designer.notices() });
+		// The gestures reached a guarded door: byte-identical files alone would also follow a gesture that never fired.
+		expect(header).toBe(SAVE_ERROR.text);
 		expect(readFileSync(designer.sidecarPath(assetId), 'utf8')).toBe(sidecar);
 		expect(await asset()).toEqual(note);
+
+		// Edit dimensions on a shapeless asset: the other door. Its sidecar must still not exist.
+		await designer.closeDesigner();
+		await designer.openDesignerFor('Paused empty');
+		await designer.editDimensions(900, 700);
+		await expect.poll(() => designer.header()).toBe(SAVE_ERROR.text);
+		await browser.pause(SETTLE_MS);
+		expect(existsSync(designer.sidecarPath(emptyId))).toBe(false);
 
 		// Reopened, the design is the one written before the incident.
 		await designer.closeDesigner();
@@ -199,7 +229,7 @@ describe('Two panes on one plan under a planted write incident, the rows writeIn
 		await plantIncidents(browser, JSON.stringify(PLANTED_INCIDENT));
 		await reloadPlugin(page);
 		await openPlan(browser, ui, PLAN);
-		await expectPaused(browser.$(EDITOR));
+		await expectPaused(browser.$(ACTIVE_EDITOR));
 		await browser.executeObsidian(async ({ app }, type) => {
 			const [leaf] = app.workspace.getLeavesOfType(type);
 			if (!leaf) throw new Error('No Plan Editor leaf to split.');
@@ -222,10 +252,13 @@ describe('Two panes on one plan under a planted write incident, the rows writeIn
 
 		const panes = await browser.$$(EDITOR);
 		expect(panes).toHaveLength(2);
-		for (const pane of panes) {
+		// "Its own": after pane 1's refusal pane 2 is still live, and only pane 2's own refusal pauses it.
+		const paused = async () => (await strips(browser)).map((text) => text.includes(UNRECOVERED));
+		for (const [index, pane] of [...panes].entries()) {
 			await selectRoom(browser, KITCHEN, pane);
 			await nudgeRoom(browser, pane);
 			await expectPaused(pane);
+			expect(await paused()).toEqual(panes.map((_, other) => other <= index));
 		}
 		expect(await readSidecar(browser, sidecar)).toBe(before);
 		expect(await browser.executeObsidian(({ app }, file) => app.vault.adapter.read(file), await incidentsPath(browser))).toBe(JSON.stringify(PLANTED_INCIDENT));
@@ -298,6 +331,9 @@ describe('Notices and save state, the failure rows, over a real file system (Lin
 		await selectRoom(browser, KITCHEN);
 		await nudgeRoom(browser, browser.$(EDITOR));
 		await browser.pause(SETTLE_MS);
+		// Recorded, not asserted: the pane is already paused, so whether this nudge reaches a guarded door
+		// (Save error) or is stopped before one (Saved) is not a fact the case may pin either way.
+		await logEvidence(directory, 'step-17b-after-nudge', { label: await saveLabel(browser), strips: await strips(browser) });
 		expect(await readSidecar(browser, sidecar)).toBe(before);
 	});
 
@@ -343,6 +379,6 @@ describe('Notices and save state, the failure rows, over a real file system (Lin
 		}, PLAN_EDITOR);
 		await expect.poll(() => ui.leafCount(PLAN_EDITOR)).toBe(0);
 		await openPlan(browser, ui, PLAN);
-		await expectPaused(browser.$(EDITOR));
+		await expectPaused(browser.$(ACTIVE_EDITOR));
 	});
 });

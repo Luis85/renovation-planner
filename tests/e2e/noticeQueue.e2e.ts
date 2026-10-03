@@ -13,6 +13,12 @@ import { mobileEmulation, type NativeBrowser } from './session';
  * (three on screen, the fourth held and promoted by a `×`), 9 (a repeat folds into `(×2)` in place)
  * and 11 (Obsidian's own body-click dismissal frees the slot, and a re-raise opens a fresh notice).
  *
+ * **Two steps are NARROWED from the row, and the cases say so:** step 2 holds the warning for 20 s
+ * rather than "a minute later" (twice past any timer this queue has; a minute adds nothing a
+ * second 20 s would not), and step 6 presses Tab ONCE from the tabbable element just before the `×`
+ * rather than "until" the `×` is focused (the notice is timed, so a walk across the whole workspace
+ * would outlast it) — the element focused first goes to the log as `step-6-focus`.
+ *
  * **Timings are recorded in the PAGE**, by a `MutationObserver` stamping `performance.now()` when a
  * notice's element (`.rp-notice`, Obsidian's `messageEl`) appears and when it leaves the document,
  * and by `pointerenter`/`pointerleave` listeners on it — not by WebDriver round trips, which would add

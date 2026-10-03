@@ -303,6 +303,10 @@ describe('Read projects on mobile, under desktop mobile emulation (NOT a device)
 
 	// Steps 7 and 8: a Plan Editor and an Asset Designer leaf on a REAL plan and asset each draw the
 	// one sentence and nothing else, across a switch away and back, and close without a fault.
+	// NARROWED: the leaves are OPENED directly with `setViewState` on the mobile boot, not RESTORED from
+	// a saved desktop layout (`workspace-mobile.json`), which the row's "restored" wording would mean.
+	// What this pins is the refusal of a leaf that holds a real plan or asset id; no restore of the Plan
+	// Editor on mobile is driven anywhere (the designer's restore path is `assetHandoffMore` step 26).
 	mobile('refuses a Plan Editor and an Asset Designer leaf with one sentence, and closes both cleanly', async ({ native: { browser, page, ui, directory } }) => {
 		const { planId } = await seedOnDesktop(browser, page, ui, directory);
 		await ui.openProjectView();

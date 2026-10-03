@@ -39,7 +39,7 @@ const APPROVED = {
 	de: {
 		title: 'Einstiegshilfe',
 		steps: [
-			'Führen Sie „Renovierungsprojekt öffnen“ über die Befehlspalette oder das Symbol im Menüband aus. Wählen Sie „Projekt erstellen“ – oder „Neues Projekt“, sobald es ein Projekt gibt – und geben Sie einen Namen ein.',
+			'Führen Sie „Renovierungsprojekt öffnen“ über die Befehlspalette oder das Symbol in der Werkzeugleiste aus. Wählen Sie „Projekt erstellen“ – oder „Neues Projekt“, sobald es ein Projekt gibt – und geben Sie einen Namen ein.',
 			'Öffnen Sie das Projekt und wählen Sie „Ersten Plan anlegen“ oder unter der Planliste „Neuer Plan“. Wählen Sie einen Plan in der Liste aus, um ihn im Grundriss-Editor zu öffnen.',
 			'Wählen Sie auf einem leeren Grundriss „Räume hinzufügen“, später „Hinzufügen“ und dann „Raum“. Ziehen Sie auf dem Grundriss, um den Raum zu bemessen, oder geben Sie Breite und Tiefe ein, benennen Sie ihn und wählen Sie „Raum erstellen“.',
 			'Um über einer vorhandenen Zeichnung zu arbeiten, legen Sie zuerst die PNG-, JPEG- oder PDF-Datei in Ihren Vault. Wählen Sie „Grundriss hochladen“, geben Sie den Pfad der Datei im Vault ein und legen Sie dann den Maßstab fest, damit Flächen in echten Einheiten herauskommen.',

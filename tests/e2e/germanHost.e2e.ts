@@ -10,7 +10,7 @@ import { PLUGIN_ID, mobileEmulation, type NativeBrowser } from './session';
 
 /**
  * The manual steps that say "set Obsidian's language to German", driven in the real host switched
- * to German: the getting-started guide (BP-10) and its "Befehlspalette" / "Menüband" against
+ * to German: the getting-started guide (BP-10) and its "Befehlspalette" / "Werkzeugleiste" against
  * Obsidian's own German, `Notices and save state.md` step 19, `Edit a zone corner by typing its
  * position.md` step 17, `Empty States Walkthrough.md` step 12 with `Navigate into a project and
  * back.md` step 16, and `Read projects on mobile.md` step 9 on the mobile-emulation leg.
@@ -45,8 +45,10 @@ const german = (key: StringKey, params: Readonly<Record<string, string>> = {}): 
 };
 
 const GERMAN_GUIDE: GuideLocale = { say, quotes: /„([^“]*)“/gu, search: 'Einstiegshilfe' };
-/** The two host surfaces the guide's step 1 names, in the words the owner accepted (ruling 49). Obsidian has to use them too. */
-const HOST_WORDS = ['Befehlspalette', 'Menüband'] as const;
+/** The two host surfaces the guide's step 1 names. Obsidian has to use them too: "Werkzeugleiste" is its own word for the ribbon (ruling 71, replacing ruling 49's "Menüband"). */
+const HOST_WORDS = ['Befehlspalette', 'Werkzeugleiste'] as const;
+/** The i18next keys that name the ribbon in Obsidian's own German (CI run 37060108804's evidence line). */
+const RIBBON_KEYS = ['interface.menu.ribbon', 'commands.toggle-ribbon', 'setting.appearance.option-show-ribbon'] as const;
 
 /** The core palette command's display name: a string Obsidian owns and translates, never this plugin. */
 const paletteCommandName = (browser: NativeBrowser): Promise<string | null> =>
@@ -82,46 +84,34 @@ async function switchToGerman(browser: NativeBrowser, directory: string): Promis
 }
 
 /**
- * Where each host word appears in Obsidian's own German, and what Obsidian's German calls the ribbon.
- * Three sources: every core command's name (what the palette lists, this plugin's own left out so a hit
- * is Obsidian's word and never this plugin's echo), i18next's loaded table when `window.i18next` is
- * exposed, and the Appearance settings tab's own rows, which carry the ribbon's show/hide setting.
- * Besides the word hits it returns `candidates` (every string with "band" or "Menü" in it) and
- * `ribbon` (every string naming a toolbar, ribbon or bar), so a missing word shows what was said instead.
+ * What Obsidian's own German says, read from the host and never from this plugin's locale: every core
+ * command's name (what the palette lists, this plugin's own left out so a hit is Obsidian's word and never
+ * this plugin's echo) and i18next's loaded German table (`window.i18next`, reachable in 1.13.7; the
+ * evidence line carries the count). The ribbon is named by the three i18next keys of RIBBON_KEYS, found by
+ * the end of their path so the case does not depend on how the table nests them. The Appearance settings
+ * tab is NOT read: its rows drew none on the first CI run, and the table above already holds its strings.
  */
 const hostWords = (browser: NativeBrowser) =>
 	browser.executeObsidian(
-		async ({ app }, words, plugin) => {
-			const host = app as unknown as {
-				commands: { listCommands(): { id: string; name: string }[] };
-				setting: { open(): void; close(): void; openTabById(id: string): unknown };
-			};
-			const strings: string[][] = host.commands.listCommands().filter((command) => !command.id.startsWith(`${plugin}:`)).map((command) => [`command ${command.id}`, command.name]);
-			const commands = strings.length;
+		({ app }, keys, plugin) => {
+			const host = app as unknown as { commands: { listCommands(): { id: string; name: string }[] } };
+			const commands = host.commands.listCommands().filter((command) => !command.id.startsWith(`${plugin}:`)).map((command) => command.name);
+			const table: [string, string][] = [];
 			const walk = (node: unknown, path: string): void => {
-				if (typeof node === 'string') strings.push([`i18next ${path}`, node]);
+				if (typeof node === 'string') table.push([path, node]);
 				else if (node !== null && typeof node === 'object') for (const [key, child] of Object.entries(node)) walk(child, `${path}.${key}`);
 			};
 			const i18n = (window as unknown as { i18next?: { language?: string; store?: { data?: Record<string, unknown> } } }).i18next;
 			walk(i18n?.store?.data?.[i18n.language ?? ''] ?? null, i18n?.language ?? '');
-			const i18next = strings.length - commands;
-			host.setting.open();
-			host.setting.openTabById('appearance');
-			await new Promise((resolve) => { setTimeout(resolve, 500); });
-			for (const row of document.querySelectorAll('.vertical-tab-content .setting-item-name, .vertical-tab-content .setting-item-description')) strings.push(['appearance row', row.textContent?.trim() ?? '']);
-			host.setting.close();
-			const show = (matching: RegExp, limit: number) => strings.filter(([, text]) => matching.test(text)).slice(0, limit).map(([where, text]) => `${where}: ${text}`);
 			return {
-				commands,
-				i18next,
-				appearance: strings.length - commands - i18next,
+				commands: commands.length,
+				i18next: table.length,
 				i18nLanguage: i18n?.language ?? null,
-				hits: Object.fromEntries(words.map((word) => [word, show(new RegExp(word, 'u'), 8)])),
-				candidates: show(/band|Menü/iu, 40),
-				ribbon: show(/ribbon|leiste|toolbar/iu, 40),
+				palette: commands.filter((name) => name.includes('Befehlspalette')).slice(0, 8),
+				ribbon: Object.fromEntries(keys.map((key) => [key, table.filter(([path]) => path.endsWith(`.${key}`)).map(([, text]) => text)])),
 			};
 		},
-		[...HOST_WORDS],
+		[...RIBBON_KEYS],
 		PLUGIN_ID,
 	);
 
@@ -132,14 +122,18 @@ describe('the getting-started guide in a German Obsidian (BP-10, ruling 49)', ()
 		await expectGuide(browser, ui, directory, GERMAN_GUIDE);
 	});
 
-	desktop('"Befehlspalette" and "Menüband" are Obsidian\'s own German words, and the guide\'s step 1 uses both', async ({ native: { browser, ui, directory } }) => {
+	desktop('"Befehlspalette" and "Werkzeugleiste" are Obsidian\'s own German words, and the guide\'s step 1 uses both', async ({ native: { browser, ui, directory } }) => {
 		await switchToGerman(browser, directory);
 		const found = await hostWords(browser);
 		await logEvidence(directory, 'host-words', found);
-		// The instrument reached something: an empty list would find no word and say nothing about Obsidian.
+		// The instrument reached something: an empty table would find no word and say nothing about Obsidian.
 		expect(found.commands).toBeGreaterThan(0);
-		expect(found.appearance, 'the Appearance tab drew no rows, so the ribbon setting was not read').toBeGreaterThan(0);
-		for (const word of HOST_WORDS) expect(found.hits[word], `Obsidian's German says "${word}" nowhere this case can read`).not.toEqual([]);
+		expect(found.i18next, 'window.i18next exposes no German table, so the ribbon word was not read').toBeGreaterThan(0);
+		expect(found.palette, 'Obsidian\'s German names no command with "Befehlspalette"').not.toEqual([]);
+		for (const key of RIBBON_KEYS) {
+			expect(found.ribbon[key], `Obsidian's German has no ${key}`).not.toEqual([]);
+			for (const text of found.ribbon[key]) expect(text, `Obsidian's German calls the ribbon something else in ${key}`).toContain('Werkzeugleiste');
+		}
 
 		await ui.command('open-help');
 		const modal = browser.$('.modal-container .modal');

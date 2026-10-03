@@ -88,6 +88,8 @@ it('I13 announces only changed warning rows while retaining their safe read acti
 		retry: () => undefined,
 		openSourceNote: () => undefined,
 		openDiagnosticsReport: () => undefined,
+		unrecoveredCause: null,
+		openRoomNote: () => undefined,
 	});
 	const strip = mount(PersistentWarningStrip, { props: { warnings } });
 	wrappers.push(strip);

@@ -351,7 +351,7 @@ export function markUncompensated<TError extends AppError>(
  * never stamped carries no `uncompensatedWrite` field, so `Array.isArray` on `undefined`
  * answers `false` for it, same as before this task widened the field's type.
  */
-export function leftWritesBehind(error: AppError): boolean {
+export function leftWritesBehind<TError extends AppError>(error: TError): error is TError & UncompensatedWrite {
 	return Array.isArray((error as Partial<UncompensatedWrite>).uncompensatedWrite);
 }
 

@@ -74,7 +74,7 @@ const dialogs = useDialogStore(), editor = useEditorStore();
 useViewPreferences(context.viewPreferences);
 const { status, error, stale, unreadableZones, plan, refreshing, retriesFailed } = storeToRefs(projectStore);
 const { emptyStateKey } = storeToRefs(projectStore);
-const { unrecoveredWrite } = storeToRefs(useSaveStateStore());
+const { unrecoveredWrite, unrecoveredCause } = storeToRefs(useSaveStateStore());
 const pausedReason = computed(() => tr(unrecoveredWrite.value ? 'editor.unrecovered' : 'editor.paused.reason'));
 /**
  * Whether either sentence `pausedReason` can say is TRUE right now — which is a narrower
@@ -202,6 +202,9 @@ const warnings = computed(() =>
 		// the runtime forwards `openPlanNote` because the spatial-editing bundle needs it too,
 		// and this callback has exactly one reader.
 		openDiagnosticsReport: () => context.openDiagnosticsReport(),
+		// Owner ruling 72: the room a half-written room write left behind, and its note.
+		unrecoveredCause: unrecoveredCause.value,
+		openRoomNote: (zoneId) => void context.openRoomNote(zoneId),
 	}),
 );
 

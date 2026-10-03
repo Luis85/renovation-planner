@@ -89,7 +89,7 @@ export function withSaveStateTracking(
 				//
 				// Both marks BEFORE `resolveErr`, so a consumer watching `state` finds the flag
 				// already set — they are one fact about this refusal, not two.
-				if (leftWritesBehind(result.error)) saveState.markUnrecovered();
+				if (leftWritesBehind(result.error)) saveState.markUnrecovered({ code: result.error.code, entities: result.error.uncompensatedWrite });
 				if (result.error.code === WRITES_PAUSED_CODE) saveState.markVaultPaused();
 				// A refusal that never reached the repository wrote NOTHING, so it is neither a
 				// failure to report nor evidence that anything was saved. Resolving it as `ok` would

@@ -1,5 +1,6 @@
 import type { StringKey } from '../../i18n/locales/en';
 import type { BackgroundStatus } from '../layers/background/BackgroundRenderModel';
+import type { UnrecoveredCause } from '../save-state/save-state-store';
 
 /**
  * Task 20's keyed collection over what used to be four independent `<p class="rp-editor-notice">`s
@@ -30,9 +31,10 @@ export type WarningSeverity = 'warning' | 'error';
  * One row's action. `retry` is the refresh, by construction (§2.3) — it re-reads through
  * `runtime.refreshProjection` and takes no command parameter, so it cannot replay a write.
  * `open-source-note` asks the context to open the plan's own note, the one surface every
- * warning here can always hand off to. `open-diagnostics` asks the context to open the
- * diagnostics report, which is a PLUGIN-side modal reached through an injected callback —
- * `presentation/` may not import `plugin/`.
+ * warning here can always hand off to — except on the `unrecovered` row when a ROOM was left
+ * half-written (owner ruling 72), where it opens that room's note instead. `open-diagnostics`
+ * asks the context to open the diagnostics report, which is a PLUGIN-side modal reached
+ * through an injected callback — `presentation/` may not import `plugin/`.
  *
  * `busy` is read off the SAME flag the row's message swap already reads
  * (`ProjectStore.refreshing`) rather than a per-action flag of its own: a retry in flight and
@@ -90,6 +92,30 @@ export interface EditorWarningInput {
 	 * which is the exact defect this member exists to close.
 	 */
 	readonly openDiagnosticsReport: () => void;
+	/** What this leaf's own half-written write left behind, or `null` when only the flag is known. */
+	readonly unrecoveredCause: UnrecoveredCause | null;
+	/** Opens a ROOM's note by its zone id — the `unrecovered` row's door when a room was left behind. */
+	readonly openRoomNote: (zoneId: string) => void;
+}
+
+/**
+ * Owner ruling 72: the two refusals that leave a ROOM's note behind, each with its own existing
+ * sentence naming the room's note. Every other stamped code keeps `editor.unrecovered` — its own
+ * key, where it has one, may not describe a write left standing, and "the floor's note" is right
+ * for the plan-side residue most of them leave.
+ */
+const ROOM_CODES = ['zone.sidecar-insert-uncompensated', 'zone.sidecar-update-uncompensated'] as const satisfies readonly StringKey[];
+const isRoomCode = (code: string): code is (typeof ROOM_CODES)[number] => (ROOM_CODES as readonly string[]).includes(code);
+
+/** The row's sentence and door: the room's own when the cause names one, else the generic pair. */
+function unrecoveredRow(input: EditorWarningInput, openSourceNote: WarningAction): EditorWarning {
+	const cause = input.unrecoveredCause;
+	const room = cause?.entities.find((entity) => entity.entityKind === 'zone');
+	const action: WarningAction = { ...openSourceNote, busy: false };
+	if (cause === null || room === undefined || !isRoomCode(cause.code)) {
+		return { id: 'unrecovered', severity: 'error', messageKey: 'editor.unrecovered', actions: [action] };
+	}
+	return { id: 'unrecovered', severity: 'error', messageKey: cause.code, actions: [{ ...action, run: () => input.openRoomNote(room.entityId) }] };
 }
 
 /**
@@ -112,14 +138,7 @@ export function editorWarnings(input: EditorWarningInput): readonly EditorWarnin
 		run: input.openSourceNote,
 		busy: input.refreshing,
 	};
-	if (input.unrecoveredWrite) {
-		warnings.push({
-			id: 'unrecovered',
-			severity: 'error',
-			messageKey: 'editor.unrecovered',
-			actions: [{ ...openSourceNote, busy: false }],
-		});
-	}
+	if (input.unrecoveredWrite) warnings.push(unrecoveredRow(input, openSourceNote));
 	if (input.stale) {
 		warnings.push({
 			id: 'stale',

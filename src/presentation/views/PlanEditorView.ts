@@ -4,7 +4,7 @@ import { watch, type App as VueApp } from 'vue';
 import { createPinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import PlanEditorRoot from '../editor/PlanEditorRoot.vue';
-import { useSaveStateStore } from '../editor/save-state/save-state-store';
+import { useSaveStateStore, type UnrecoveredCause } from '../editor/save-state/save-state-store';
 import {
 	PLAN_EDITOR_CONTEXT,
 	type PlanEditorContext,
@@ -419,6 +419,12 @@ export class PlanEditorView extends ItemView {
 	 * `setState` names its own sibling gap: it would stay wrong quietly.
 	 */
 	private unrecoveredWrite = false;
+	/**
+	 * WHAT the incident left behind, carried across a rebind beside the flag (owner ruling 72) —
+	 * in memory only, never in `getState`, so a restored tab knows only the flag and its warning
+	 * falls back to the generic sentence and the plan's note.
+	 */
+	private unrecoveredCause: UnrecoveredCause | null = null;
 
 	/** Stops the mounted store's watcher — see `mount`. `null` while nothing is mounted. */
 	private stopIncidentWatch: (() => void) | null = null;
@@ -505,6 +511,9 @@ export class PlanEditorView extends ItemView {
 				if (outcome === 'missing') notifyWarning(tr('editor.source-note-missing'));
 				// 'failed' has already been reported once, inside the opener.
 			},
+			openRoomNote: async (zoneId) => {
+				if ((await this.deps.openNote(zoneId)) === 'missing') notifyWarning(tr('project.source-note-missing'));
+			},
 			// Passed straight through, unlike the door above: there is no leaf id to bind and
 			// nothing to await — the plugin method behind it owns its own fault door.
 			openDiagnosticsReport: this.deps.openDiagnosticsReport,
@@ -530,12 +539,17 @@ export class PlanEditorView extends ItemView {
 		// other case there awaits between the raise and the save, which is exactly why it
 		// needed writing.
 		const saveState = useSaveStateStore(pinia);
-		if (this.unrecoveredWrite) saveState.markUnrecovered();
+		if (this.unrecoveredWrite) saveState.markUnrecovered(this.unrecoveredCause);
 		// **`leafUnrecoveredWrite` and NOT the `unrecoveredWrite` gate.** The gate is also true
 		// while the vault holds an open incident (ADR-0034), and this field is this LEAF's own
 		// record — see its docblock for both halves of why mixing them was a defect rather than a
 		// simplification.
-		this.stopIncidentWatch = watch(() => saveState.leafUnrecoveredWrite, () => { this.unrecoveredWrite = true; }, { flush: 'sync' });
+		// The cause is watched beside the flag: a second refusal on an already-marked leaf changes
+		// only the cause, and the rebind would otherwise seed the first one.
+		this.stopIncidentWatch = watch([() => saveState.leafUnrecoveredWrite, () => saveState.unrecoveredCause], ([, cause]) => {
+			this.unrecoveredWrite = true;
+			this.unrecoveredCause = cause;
+		}, { flush: 'sync' });
 		// On the APP instance and not globally: each ItemView's Vue app is isolated
 		// (ADR-004), and a global `app.use` at plugin scope would leak vue-konva's component
 		// registration into every future view whether it draws a canvas or not.

@@ -220,9 +220,10 @@ describe('the save-state store', () => {
 				'resolveErr',
 				'resolveNeutral',
 				'savedAt',
+				'unrecoveredCause',
 			]),
 		);
-		// The exact key set Pinia hands back for this store today — its own eleven members plus
+		// The exact key set Pinia hands back for this store today — its own twelve members plus
 		// the setup-store machinery ($dispose, $patch, …) Pinia attaches to every store. An
 		// exact match, not a negative check for a name (like the never-existed `markUnsaved`)
 		// that no implementation would plausibly add: a genuinely new action changes this set
@@ -247,6 +248,7 @@ describe('the save-state store', () => {
 			'resolveOk',
 			'savedAt',
 			'state',
+			'unrecoveredCause',
 			'unrecoveredWrite',
 			'vaultWritesPaused',
 		]);

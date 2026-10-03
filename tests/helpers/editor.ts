@@ -150,6 +150,8 @@ export interface EditorHarness {
 	readonly focusedLeaf: () => number;
 	/** How many times the tree asked to open this leaf's plan note (`PlanEditorContext.openPlanNote`). */
 	readonly openedNote: () => number;
+	/** The zone ids the tree asked to open a room note for (`PlanEditorContext.openRoomNote`), in order. */
+	readonly openedRoomNotes: () => readonly string[];
 	/** How many times the tree asked for the diagnostics report (`PlanEditorContext.openDiagnosticsReport`). */
 	readonly openedDiagnostics: () => number;
 	/**
@@ -249,6 +251,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	let closedLeaf = 0;
 	let focusedLeaf = 0;
 	let openedNote = 0;
+	const openedRoomNotes: string[] = [];
 	let openedDiagnostics = 0;
 	const planListeners = new Set<() => void>();
 	/** Keyed by the project id each subscription bound, because the real source FILTERS on it. */
@@ -325,6 +328,11 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		// the button to nothing pass.
 		openPlanNote: () => {
 			openedNote += 1;
+			return Promise.resolve();
+		},
+		// Recorded rather than stubbed, for `openPlanNote`'s reason: owner ruling 72's room door.
+		openRoomNote: (zoneId) => {
+			openedRoomNotes.push(zoneId);
 			return Promise.resolve();
 		},
 		// Counted rather than stubbed, for the reason the three doors above are: the
@@ -410,6 +418,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		closedLeaf: () => closedLeaf,
 		focusedLeaf: () => focusedLeaf,
 		openedNote: () => openedNote,
+		openedRoomNotes: () => openedRoomNotes,
 		openedDiagnostics: () => openedDiagnostics,
 		rootEl,
 		unmount: () => {

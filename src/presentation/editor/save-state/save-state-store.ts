@@ -1,7 +1,20 @@
 import { defineStore } from 'pinia';
-import { computed, ref } from 'vue';
+import { computed, ref, shallowRef } from 'vue';
+import type { AffectedEntity } from '../../../application/commands/DispatchOutcome';
 import { activeWriteIncidentRegistry } from '../../../application/incidents/WriteIncidentRegistry';
 import type { SaveState } from './save-state';
+
+/**
+ * WHAT this leaf left behind, as far as the refusal said: its code and the entities its stamp
+ * names. Owner ruling 72 reads it to name a ROOM's note in the standing warning
+ * (`editorWarnings`). Session state, never persisted: `PlanEditorView` carries it across a
+ * settings rebind in memory, and a RESTORED tab knows only the persisted flag and falls back to
+ * the generic sentence — the ruling's own fallback.
+ */
+export interface UnrecoveredCause {
+	readonly code: string;
+	readonly entities: readonly AffectedEntity[];
+}
 
 /**
  * "Is this Plan's data safely written?", one instance per open Plan Editor.
@@ -179,6 +192,8 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	 * dispatch path and walks the leaf's whole lifecycle with it.
 	 */
 	const leafOwn = ref(false);
+	/** The latest refusal behind `leafOwn`, or `null` when only the flag is known — see `UnrecoveredCause`. */
+	const cause = shallowRef<UnrecoveredCause | null>(null);
 	const vaultPaused = ref(activeWriteIncidentRegistry()?.anyOpen() ?? false);
 
 	/**
@@ -234,6 +249,7 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 		 * `PlanEditorView.mount` installs to carry the incident into Obsidian's view state.
 		 */
 		leafUnrecoveredWrite: computed(() => leafOwn.value),
+		unrecoveredCause: computed(() => cause.value),
 
 		/**
 		 * **Does the vault hold an open write incident?** Wider than this leaf and durable across
@@ -265,7 +281,8 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 		 * with the incident that leaf was already carrying. The second is why this stays an action
 		 * rather than becoming `withSaveStateTracking`'s private business.
 		 */
-		markUnrecovered(): void {
+		markUnrecovered(left?: UnrecoveredCause | null): void {
+			if (left) cause.value = left;
 			leafOwn.value = true;
 		},
 

@@ -20,6 +20,8 @@ const clear: EditorWarningInput = {
 	retry: noop,
 	openSourceNote: noop,
 	openDiagnosticsReport: noop,
+	unrecoveredCause: null,
+	openRoomNote: noop,
 };
 
 describe('editorWarnings', () => {
@@ -50,6 +52,47 @@ describe('editorWarnings', () => {
 		expect(row.severity).toBe('error');
 		expect(row.messageKey).toBe('editor.unrecovered');
 		expect(row.actions?.map((a) => a.id)).toStrictEqual(['open-source-note']);
+	});
+
+	/**
+	 * Owner ruling 72: a ROOM left half-written names the room's note in the row's own sentence
+	 * (the code's existing key) and its one button opens THAT note, never the floor's. The plan
+	 * entity the same stamp names is skipped: the room is what was left behind.
+	 */
+	it.each(['zone.sidecar-insert-uncompensated', 'zone.sidecar-update-uncompensated'] as const)('names and opens the room for %s', (code) => {
+		const openRoom = vi.fn<(zoneId: string) => void>();
+		const openSource = vi.fn<() => void>();
+		const [row] = editorWarnings({
+			...clear,
+			unrecoveredWrite: true,
+			unrecoveredCause: { code, entities: [{ entityKind: 'plan', entityId: 'plan-1' }, { entityKind: 'zone', entityId: 'zone-9' }] },
+			openRoomNote: openRoom,
+			openSourceNote: openSource,
+		});
+		expect(row.messageKey).toBe(code);
+		expect(row.actions?.map((a) => [a.id, a.labelKey, a.busy])).toStrictEqual([['open-source-note', 'editor.warning.open-source-note', false]]);
+		row.actions?.[0].run();
+		expect(openRoom).toHaveBeenCalledWith('zone-9');
+		expect(openSource).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * The fallback, in its three shapes: only the flag (a restored tab), a stamp whose code is not
+	 * one of the two room codes (its own sentence may not describe a half-written write, and
+	 * `editor.unrecovered` is right for it), and a room code with no zone entity to open.
+	 */
+	it.each([
+		['only the flag', null],
+		['another stamped code', { code: 'zone.sidecar-remove-uncompensated', entities: [{ entityKind: 'zone' as const, entityId: 'zone-9' }] }],
+		['a room code naming no zone', { code: 'zone.sidecar-insert-uncompensated', entities: [] }],
+	])('falls back to the generic sentence and the plan note for %s', (_label, cause) => {
+		const openRoom = vi.fn<(zoneId: string) => void>();
+		const openSource = vi.fn<() => void>();
+		const [row] = editorWarnings({ ...clear, unrecoveredWrite: true, unrecoveredCause: cause, openRoomNote: openRoom, openSourceNote: openSource });
+		expect(row.messageKey).toBe('editor.unrecovered');
+		row.actions?.[0].run();
+		expect(openSource).toHaveBeenCalledOnce();
+		expect(openRoom).not.toHaveBeenCalled();
 	});
 
 	it('carries the count as a string param on the unreadable-zones warning', () => {

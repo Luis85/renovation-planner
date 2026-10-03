@@ -121,15 +121,18 @@ async function prepareUncompensated(browser: NativeBrowser, page: ObsidianPage, 
 	return [...(await geometryPaths(browser, page)), trash];
 }
 
+/** The room sentence the strip carries for a half-written room insert (owner ruling 72). */
+const ROOM_LEFT = en['zone.sidecar-insert-uncompensated'];
+
 /**
- * 17a's verdict: Save error, the standing warning, and the durable record. The warning is the
- * strip's `editor.unrecovered`: the refusal itself is routed to the save state
- * (`reportDispatchFailure`, `autosave-write`), so `zone.sidecar-insert-uncompensated`'s own
- * sentence is drawn nowhere — the notices are recorded rather than asserted.
+ * 17a's verdict: Save error, the standing warning, and the durable record. The refusal itself is
+ * routed to the save state (`reportDispatchFailure`, `autosave-write`) and toasts nothing — the
+ * notices are recorded rather than asserted — and since owner ruling 72 the strip's row says the
+ * code's own sentence, naming the ROOM's note, rather than the generic `editor.unrecovered`.
  */
 async function expectUncompensated(browser: NativeBrowser, directory: string): Promise<void> {
 	await expect.poll(() => saveLabel(browser)).toEqual(SAVE_ERROR);
-	await expect.poll(async () => (await strips(browser))[0]).toContain(UNRECOVERED);
+	await expect.poll(async () => (await strips(browser))[0]).toContain(ROOM_LEFT);
 	await expect.poll(() => recorded(browser)).toEqual([['zone.sidecar-insert-uncompensated', ['zone', 'plan']]]);
 	await logEvidence(directory, 'step-17a-notices', await noticeMessages(browser));
 }
@@ -316,6 +319,12 @@ describe('Notices and save state, the failure rows, over a real file system (Lin
 			await expectUncompensated(browser, directory);
 		});
 		await logEvidence(directory, 'step-17a-zone-notes', Object.values(await ui.notesOfType('renovation-zone')).map((zone) => zone.name));
+		// The row's Open source note opens the ROOM's note — the half-written `Pantry` — not the floor's.
+		await browser.$(EDITOR).$('[data-rp-warning="unrecovered"] [data-rp-action="open-source-note"]').click();
+		const openNotes = (): Promise<string[]> => browser.executeObsidian(({ app }) => app.workspace.getLeavesOfType('markdown').map((leaf) => (leaf.view as { file?: { basename: string } }).file?.basename ?? ''));
+		await expect.poll(openNotes).toContain('Pantry');
+		expect(await openNotes()).not.toContain(PLAN);
+		await ui.activate(PLAN_EDITOR);
 		// Both permissions back, so a refusal now is the vault's gate and not the file system.
 		expect(await tryNewPlan(browser, ui, 'Attic')).toContain(WRITES_PAUSED);
 
@@ -325,7 +334,8 @@ describe('Notices and save state, the failure rows, over a real file system (Lin
 		await closePluginSettings(browser, windows);
 		await settleSettings(browser);
 		await ui.activate(PLAN_EDITOR);
-		await expectPaused(browser.$(EDITOR));
+		// A rebind is not a restore: the row keeps the room's sentence (the leaf carries it in memory).
+		await expectPaused(browser.$(EDITOR), ROOM_LEFT);
 		const sidecar = await sidecarPath(browser);
 		const before = await readSidecar(browser, sidecar);
 		await selectRoom(browser, KITCHEN);

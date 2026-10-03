@@ -147,9 +147,9 @@ export async function openPlan(browser: NativeBrowser, ui: Ui, name: string): Pr
 	await expect.poll(() => browser.$(ACTIVE_EDITOR).$('.rp-plan-canvas canvas').isExisting()).toBe(true);
 }
 
-/** What the case's step 1 lists for a paused pane: the strip, and Undo dimmed. */
-export async function expectPaused(pane: Pane): Promise<void> {
-	await expect.poll(() => pane.$('.rp-warning-strip').getText()).toContain(UNRECOVERED);
+/** What the case's step 1 lists for a paused pane: the strip, and Undo dimmed. `sentence` is the row's, a room's own after owner ruling 72. */
+export async function expectPaused(pane: Pane, sentence: string = UNRECOVERED): Promise<void> {
+	await expect.poll(() => pane.$('.rp-warning-strip').getText()).toContain(sentence);
 	expect(await pane.$('[data-rp-action="undo"]').getAttribute('disabled')).toBe('true');
 }
 

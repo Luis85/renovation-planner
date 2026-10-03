@@ -438,7 +438,7 @@ where that could happen, and none has been measured. *2026-10-03, from the revie
 `5444b843e`:* the exposure is wider than "a parse that outlasts ~500 ms". The debounce is one
 batch window, not one per note: `VaultChangeAdapter.enqueue` arms a single timer on the first
 queued path and does not reset it for later ones, so a note queued late in an open window is
-processed after only the window's remainder, which can be about 0 ms. *2026-10-03:* owner
+processed after only the window's remainder, which can be about 0 ms. *2026-10-03 and 2026-10-04:* owner
 ruling 76 (`75f07aaaf`, with `fc7bf414e`) makes the plugin listen for the parse
 (`metadataCache`'s `changed`) and re-queue the note through the same pipeline a `modify` takes.
 That this closes the residual, the late-in-window case included, is shown in the unit suite
@@ -451,8 +451,9 @@ processed the path, which is what tells the two apart (`tests/e2e/settingsDuring
 That premise was watched red in a real Obsidian on Linux under xvfb, in the throwaway E2E
 `37158112955` with the hand-over removed. *2026-10-04:* E2E `37159158823` at `925e2f33d` was
 green on all five legs, the forced case and the mobile-emulation leg's seed case included,
-whose earlier failures were traced to this residual. That is one run, not a rate, and its log
-does not show whether a late parse happened in it.
+whose earlier failures are consistent with this residual (the logs carry only the asset count,
+so no run proves it). That is one run, not a rate, and its log does not show whether a late
+parse happened in it.
 
 **Owner ruling 42 ("Investigate + fix"), answered 2026-09-28.** The `latest` E2E leg installs
 1.13.7 correctly: the newest public release, 1.13.8 (2026-08-21), is Android-only, and

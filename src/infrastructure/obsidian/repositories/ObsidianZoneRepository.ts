@@ -44,6 +44,7 @@ import { freshNotePath, projectFolderOf, zonesFolderFor } from './paths';
 import { KeyedQueues } from './KeyedQueues';
 import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
+import type { CacheObservation } from '../../persistence/index/EchoWindow';
 import type { PlanGeometryStore } from './PlanGeometryStore';
 import { markUncompensated } from '../../../application/commands/DispatchOutcome';
 
@@ -314,6 +315,7 @@ export class ObsidianZoneRepository implements ZoneRepository {
 				wasUpdate: existing !== null,
 				notePath,
 				snapshotText: snapshotText ?? '',
+				written: { frontmatter: dto, observed: { reading: supersedes, stat: writtenStat } },
 				cause: mutated.error,
 			});
 		}
@@ -362,9 +364,11 @@ export class ObsidianZoneRepository implements ZoneRepository {
 		readonly wasUpdate: boolean;
 		readonly notePath: string;
 		readonly snapshotText: string;
+		/** What step 3 wrote to the note and step 6 would have marked as ours (owner ruling 73). */
+		readonly written: { readonly frontmatter: Record<string, unknown>; readonly observed: CacheObservation };
 		readonly cause: RepositoryError;
 	}): Promise<Result<Loaded<Zone>, RepositoryError>> {
-		const { zoneId, planId, projectId, wasUpdate, notePath, snapshotText, cause } = write;
+		const { zoneId, planId, projectId, wasUpdate, notePath, snapshotText, written, cause } = write;
 		const compensated = wasUpdate
 			? await restoreNoteText(this.deps.vault, 'zone', notePath, snapshotText)
 			: await this.deleteCreatedNote(notePath);
@@ -374,11 +378,18 @@ export class ObsidianZoneRepository implements ZoneRepository {
 				cause: compensated.error,
 			});
 			// Owner ruling 73: an INSERT left standing is indexed NOW, with the entry step 6 would
-			// have written, so the warning's "Open source note" resolves the room. Left to the
-			// debounced vault pipeline it lost that race in real Obsidian (and a parse slower than
-			// the debounce drops the note until the next rebuild). The echo stays unmarked: these
-			// bytes are not a write this repository completed. An UPDATE's note is indexed already.
-			if (!wasUpdate) this.deps.index.upsert({ id: zoneId, type: 'renovation-zone', path: notePath, projectId, planId });
+			// have written, so the warning's "Open source note" resolves the room — left to the
+			// debounced vault pipeline it lost that race in real Obsidian. And it is marked as OUR
+			// write, exactly as step 6 marks one: the note's bytes ARE what step 3 wrote (it is the
+			// SIDECAR that did not land), and unmarked, a `create` event processed before Obsidian
+			// parsed the note read it as "not ours" and REMOVED this entry again
+			// (`zoneUncompensatedPipeline.test.ts`). The mark hides only those same bytes: a later
+			// edit that changes the frontmatter digests differently and is processed as usual.
+			// An UPDATE's note is indexed already.
+			if (!wasUpdate) {
+				this.deps.index.upsert({ id: zoneId, type: 'renovation-zone', path: notePath, projectId, planId });
+				this.deps.echo.markFrontmatter(notePath, written.frontmatter, written.observed);
+			}
 			// The note is on disk in a state the sidecar does not match, and nothing here
 			// could put it back either. A DIFFERENT code, because `affectsSaveState` and the
 			// strip read the stamp, and a message that tells the truth: the return below says

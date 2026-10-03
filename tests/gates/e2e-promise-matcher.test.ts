@@ -37,11 +37,14 @@ import { REPO, repoRelative } from '../helpers/repo';
  *   comparing; a Promise there is a bug this does not look for);
  * - a thenable that is not a Promise is flagged on purpose: it would hang or mismatch all the same.
  *
- * It builds a TypeScript program (~4 s) and boots no ESLint, so it sits in the parallel `build`
- * project and carries a case budget rather than a serial worker.
+ * It builds two TypeScript programs (the tree's ~3.5 s, the fixtures' shared one ~1.1 s; measured
+ * 2026-10-03 on a quiet four-core box) and boots no ESLint, so it sits in the parallel `build`
+ * project and carries a case budget rather than a serial worker. The budget is an instrument, not
+ * a ceiling nobody reaches: ~8x the slowest case as measured, so it still turns red on a tenfold
+ * slowdown while leaving room for a contended CI leg.
  */
 const ARGUMENT_MATCHERS = new Set(['toEqual', 'toStrictEqual', 'toContain', 'toContainEqual', 'toBe', 'toMatchObject']);
-const BUDGET_MS = 90_000;
+const BUDGET_MS = 30_000;
 
 interface Scan {
 	readonly files: number;
@@ -60,9 +63,12 @@ function compilerOptions(): ts.CompilerOptions {
 	return options;
 }
 
-/** Each finding is `file:line argument matcher`, with `file` repository-relative. */
-function scan(roots: readonly string[]): Scan {
-	const program = ts.createProgram([...roots], compilerOptions());
+/**
+ * Each finding is `file:line argument matcher`, with `file` repository-relative. `program` may
+ * hold more files than `roots` — the four fixtures share one, since building a program is most of
+ * a case's cost (lib loading) and the fixtures are modules, so none sees another's declarations.
+ */
+function scan(roots: readonly string[], program = ts.createProgram([...roots], compilerOptions())): Scan {
 	const checker = program.getTypeChecker();
 	const isPromiseLike = (type: ts.Type): boolean =>
 		type.isUnion() ? type.types.some(isPromiseLike) : checker.getPropertyOfType(type, 'then') !== undefined;
@@ -91,7 +97,13 @@ function scan(roots: readonly string[]): Scan {
 }
 
 const FIXTURES = join(REPO, 'tests/gates/fixtures/promiseMatcher');
-const fixture = (name: string): Scan => scan([join(FIXTURES, `${name}.fixture.ts`)]);
+const FIXTURE_NAMES = ['redArgument', 'unionArgument', 'green', 'poll'] as const;
+const fixturePath = (name: string): string => join(FIXTURES, `${name}.fixture.ts`);
+let fixtureProgram: ts.Program | undefined;
+const fixture = (name: (typeof FIXTURE_NAMES)[number]): Scan => {
+	fixtureProgram ??= ts.createProgram(FIXTURE_NAMES.map((each) => fixturePath(each)), compilerOptions());
+	return scan([fixturePath(name)], fixtureProgram);
+};
 const located = (name: string): string => `tests/gates/fixtures/promiseMatcher/${name}.fixture.ts`;
 /** The finding kinds and matchers only, so a case does not pin the fixture's line numbers. */
 const shapes = (found: Scan): string[] => found.findings.map((finding) => finding.replace(/^\S+:\d+ /, ''));

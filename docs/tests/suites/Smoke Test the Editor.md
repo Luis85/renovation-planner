@@ -845,14 +845,17 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
 - [[Two panes on one plan under an open write incident]] — the only instrument anywhere for
   whether a SECOND pane is paused with the first while the vault holds an open write incident
   (ADR-0034). The mechanism under it is tested three ways and the GESTURE is not testable at
-  all: `duplicateLeaf` appears nowhere in `src/` or `tests/`, `FakeWorkspace` has no split and
-  no layout restore, and no automated case anywhere drives two Plan Editor leaves on the same
-  plan (BP-02 limitation L-03) — so this case exists instead of a fake that pretended to. Its
+  all in jsdom: `duplicateLeaf` appears nowhere in `src/`, `FakeWorkspace` has no split and no
+  layout restore, and no jsdom test drives two Plan Editor leaves on the same plan (BP-02
+  limitation L-03) — so this case exists instead of a fake that pretended to. Only the
+  real-Obsidian drivers in `tests/e2e/` call it (`writeIncident.e2e.ts` and `incidentPanes.e2e.ts`
+  for this case's steps). Its
   incident is PLANTED by hand, because ADR-0034 refuses to offer a control that raises or clears
   one; its step 1a is a recorded COPY gap looked at rather than described (`editor.unrecovered`
   still names "the floor's note" for an incident that may have been left anywhere in the vault),
-  and its step 5 is a recorded AFFORDANCE gap in the Asset Designer, whose tool framework is
-  gated while its buttons still look enabled.
+  and its step 5 is a recorded AFFORDANCE gap in the Asset Designer, whose tools and inspector stay
+  enabled over an incident while the guarded doors underneath refuse the write (its Undo and Redo,
+  dimmed since L-16, are the exception).
 - [[Two designers on one asset]] — the asset designer's expected-version conflict, matrix row T12.
   **Its step 1 asks a question nothing in this repository can answer**: no control this plugin owns
   opens a second designer leaf on one asset, because every door funnels into `revealAssetDesigner`,

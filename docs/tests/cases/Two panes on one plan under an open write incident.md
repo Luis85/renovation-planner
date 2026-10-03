@@ -19,7 +19,9 @@ created. Each Obsidian leaf mounts its own Vue app and its own Pinia (ADR-0004),
 pane asks for itself" is the whole mechanism — no leaf knows another exists.
 
 **Read "every Vue surface" narrowly**: the Plan Editor and the project view's work section are
-gated by it; the Asset Designer is NOT gated at all, and step 5 exists to keep that visible.
+gated by it; the Asset Designer's TOOLS and inspector are NOT gated, and step 5 exists to keep that
+visible. Its Undo and Redo are the one exception: since L-16 they go disabled on the incident
+(`designer/runtime.ts`, `designerDispatcher`).
 
 Preconditions: `npm run test-build`, this folder open as a vault, the plugin enabled, and a
 project with at least one floor holding rooms. **Create sample renovation project** seeds one.
@@ -32,9 +34,10 @@ saveStateStore.test.ts` drives the seed, `tests/presentation/editor/runtime.test
 from it, and `tests/presentation/editor/saveState/uncompensatedIncident.test.ts` drives the
 already-open pane catching up on a refused write. **The GESTURE is not, and cannot be here.**
 
-- **Nothing in this repository can duplicate a leaf.** `duplicateLeaf` appears nowhere in `src/`
-  or `tests/`, `FakeWorkspace` has no split and no layout restore, and no test anywhere drives
-  two Plan Editor leaves on the same plan (BP-02 limitation L-03). A fake that pretended to
+- **Nothing in the jsdom suite can duplicate a leaf.** `duplicateLeaf` appears nowhere in `src/`,
+  `FakeWorkspace` has no split and no layout restore, and no jsdom test drives two Plan Editor
+  leaves on the same plan (BP-02 limitation L-03); only the real-Obsidian drivers in `tests/e2e/`
+  call it (`grep -rl duplicateLeaf src tests`). A fake that pretended to
   would be kinder than Obsidian, which is this repository's most expensive recurring defect —
   so this case exists instead of one.
 - **Whether Obsidian's own split really duplicates a leaf with its view state intact** is a
@@ -84,12 +87,26 @@ the five values and what they do not claim.
 | 2 | `obsidian` | With that leaf focused, split it — right-click the tab → **Split right**, or drag the tab to the edge of the pane | Two Plan Editor leaves are open on the SAME floor, both drawing the plan | Obsidian not duplicating the view state at all, which would open an empty or failed pane rather than a second editor on this plan. That is the claim `planChangeSource.ts` makes in prose and nothing in this repository checks |
 | 3 | `obsidian` | In the NEW pane, read the warning strip, open **Add**, select a room and read the Room Inspector | The second pane is paused identically to the first: same strip, same dimmed entries, same dimmed **Delete** and **Assign**. **This is L-01's acceptance line** | The whole of L-01. Each leaf owns its own Pinia and its own `writesBlocked`; before BP-02 slice 4 the second pane offered a fully enabled UI over a half-written vault, and every write it dispatched was refused by the guarded door underneath with nothing on screen saying why |
 | 4 | `obsidian` | In the second pane, try to make a write anyway: press **Add** → **Room** if the menu still opens, or select a room and press **Delete** | Nothing is written, and the refusal says so rather than failing silently. Record exactly what appeared — a notice, a message under a field, or nothing at all | A paused control that is dimmed but still dispatches. The pause is an affordance; the guarded door is the guarantee, and a silent refusal here would mean the two disagree about which one the user hears |
-| 5 | `obsidian` | Open the **Asset designer** on any asset (from the asset library, or **Design an asset**) | The designer opens. **NOTHING about it is expected to look paused — no dimmed button, no warning strip, and a footprint drag still previews normally. That is a recorded gap, not a failure of this case.** What must hold is that no write LANDS: press **Edit dimensions**, commit a height, and drag a footprint vertex to a release, then reopen the asset and confirm the design is unchanged. Record what the surface said, if anything | The Asset Designer is not gated at all — not a tool, not a button, not the inspector, not the preset form. BP-02 slice 4 gave its `EditorContext.writesBlocked` an honest value where it hard-coded `false`, and nothing reads it: `grep -rn "writesBlocked()" src/presentation/editor/` prints 23 call sites in six modules, and the designer registers none of those tools. The guarded doors underneath still refuse, so this is an affordance gap. This row exists so that gap closing — or widening — is noticed, instead of being met cold by a later reader as a new defect |
+| 5 | `obsidian` | Open the **Asset designer** on any asset (from the asset library, or **Design an asset**) | The designer opens. **Every tool and the inspector stay live, no warning strip is drawn, and a footprint drag still previews normally. That is a recorded gap, not a failure of this case.** Undo and Redo are the exception and ARE dimmed (L-16); under a planted incident the history is empty anyway, so what you see does not tell you which reason dims them. What must hold is that no write LANDS: press **Edit dimensions**, commit a height, and drag a footprint vertex to a release, then reopen the asset and confirm the design is unchanged. Record what the surface said, if anything | The Asset Designer's forward writes are not gated — not a tool, not a button, not the inspector, not the preset form. BP-02 slice 4 gave its `EditorContext.writesBlocked` an honest value where it hard-coded `false`, and nothing reads it: `grep -rn "writesBlocked()" src/presentation/editor/` prints 21 call sites in seven modules (re-run 2026-10-03; `grep -rl` lists them), and the designer registers none of those tools. The grep is scoped to `editor/` on purpose: `designer/runtime.ts` spells the call inside a comment. The guarded doors underneath still refuse, so this is an affordance gap. This row exists so that gap closing — or widening — is noticed, instead of being met cold by a later reader as a new defect |
 | 6 | `obsidian` | Open **Settings → Renovation Planner** and change any setting — units will do — then return to both editor panes | Both panes are still paused. The strip, the dimmed controls and the save-state label are all still there | The rebind losing the gate. A settings save unmounts and remounts every leaf's Vue app with a fresh Pinia; the seed is what makes the fresh store come back paused, and this is the one gesture that rebuilds it without a reload |
 | 7 | `obsidian` | Quit Obsidian entirely and reopen the vault, leaving both panes in the layout. Look at the restored panes FIRST, before touching anything, then try a write in each | **Expected: a restored pane is NOT paused on its first frame — no strip, controls live — and its first write is refused, after which it is paused and stays so.** A pane you open by hand afterwards IS paused from its first frame. The incidents file is still on disk and unchanged. Record which of the two you saw in each pane | The startup ordering, which is a real limitation rather than a nicety: the registry's file read is started from `startPersistence` at `onLayoutReady`, and `RenovationPlannerPlugin.ts`'s own comment records that Obsidian restores its leaves BEFORE `onLayoutReady`, so a restored leaf asks a registry that has not read anything yet. Nothing in this repository can observe Obsidian's real ordering, which is why this row is written to what the code supports and why a PAUSED restored pane is as interesting a result as a live one — report either. Also whether Obsidian restores two same-plan leaves at all |
 | 8 | `obsidian` | Run **Show diagnostics report** from the command palette (or the settings pane's diagnostics row) | The report names the open write incident and the full path of `write-incidents.json`, and tells you to check the affected files against a backup, then remove that file and reload the plugin. It offers no control that clears anything | The retirement gesture being undiscoverable. ADR-0034 refuses a plugin-decided all-clear, so naming the file IS the remedy; a report that named the incident without the path would leave a blocked user with no way out |
 | 9 | `obsidian` | Delete `write-incidents.json` and, WITHOUT reloading, return to a pane and try a write | Still paused, still refused. **This is expected and is the reason step 8's copy names the reload** — the registry reads the file once at load and nothing re-reads it | Copy that stopped at "remove the file". An earlier draft of the user-facing sentence did exactly that and sent a blocked user round a loop |
 | 10 | `obsidian` | Reload the plugin (or restart Obsidian) with the file gone, and try the same write | Every pane is live again: no strip, no dimmed controls, and the write lands. The vault gains exactly what you wrote and nothing else | A pause that outlives its record — the flag is set-never-unset WITHIN a session, and a reload is the only thing that may clear it. A pane still paused here would mean something cached the gate outside the registry |
+
+## Automated in Obsidian
+
+**Added 2026-10-03** (session 21, E2E batch 5): `tests/e2e/incidentPanes.e2e.ts`, real Obsidian through
+`npm run test:e2e`, desktop legs only (the file skips on `mobile-emulation`). Steps 1 to 4, 6 and 8 to 10
+are driven by `tests/e2e/writeIncident.e2e.ts` instead (the Runs table and *Outcome* below).
+
+| Step | Clause | Discharged by, and what it cannot see |
+| --- | --- | --- |
+| 5 | every tool stays enabled and no incident sentence is drawn | *step 5: the Asset designer looks live and refuses every write underneath*: every tool button enabled, neither incident sentence in the leaf |
+| 5 | no write lands: Edit dimensions, a height, a footprint drag | the same case. Each gesture is first watched WRITING before the incident (a nudge, Height 750, a held bowl drag, Edit dimensions); after the incident the same four leave the sidecar bytes and the note's fields unchanged, and the designer's header reads Save error, which is what proves each reached a guarded door. **Edit dimensions is pressed on two assets**: on a shaped one it scales through `setAssetShape`, on a shapeless one it reaches `setAssetFootprintFromDimensions`, whose sidecar must still not exist. The reopened design is the one written before. **Not driven:** the footprint-vertex drag's own door, `setAssetFootprint` (a bowl drag stands in for it), and whether a footprint drag still PREVIEWS |
+| 5 | Undo and Redo dimmed (L-16) | **cannot be told apart here**: the case records `undoDisabledOnOpen` in its evidence log and asserts nothing, because a designer opened under an incident has no history either way |
+| 7 | two restored panes draw unpaused | *step 7: two restored panes draw unpaused, and each is paused by its own first refused write*: two same-plan leaves from `duplicateLeaf`, the layout flushed with `requestSaveLayout`, Obsidian restarted; both restored first frames carry no incident strip |
+| 7 | each pane's first write is refused, and pauses that pane | the same case: after pane 1's refusal pane 2 is still live (`[true, false]`), and only its own refusal pauses it. The sidecar and `write-incidents.json` are byte-identical afterwards. **Not driven:** a pane opened by hand AFTER the restart |
 
 ## What this case does NOT cover
 
@@ -99,9 +116,9 @@ the five values and what they do not claim.
   it you would need two panes and a real half-failed write, which the fault setup above already
   says is not reproducible by hand. Step 7's restored-pane row is the same limitation reached from
   startup rather than from a peer, and it IS walkable.
-- **Whether any Asset Designer control is paused.** None is — see step 5. This case observes that
-  its writes are refused; it observes nothing about its affordances, because there is nothing
-  there to observe.
+- **Whether any Asset Designer control is paused.** None is, except Undo and Redo (L-16) — see
+  step 5. This case observes that its writes are refused; of its affordances it can see only that
+  the tools stay enabled, and it cannot tell which reason dims Undo and Redo.
 - **Two Obsidian WINDOWS on one vault.** Those are two processes with two registries and two
   `KeyedQueues` lanes over one file; ADR-0034 states both consequences and fixes neither.
 - **Whether any of this is announced by a screen reader.** The paused reason is a
@@ -113,6 +130,7 @@ the five values and what they do not claim.
 | Date | Build | Outcome |
 | --- | --- | --- |
 | 2026-09-25 | this branch, merged with `main` at `61fbf1588` | **Driven in a real Obsidian 1.13.7 on Windows by `tests/e2e/writeIncident.e2e.ts`** (`npm run test:e2e`), four cases, all green — steps 1, 2, 3, 4, 6, 7, 8, 9 and 10, with BOTH fault setups (the recognised record and `{}`). See *Outcome*. Steps 1a and 5 were not walked: 1a is a judgement, and 5 is the Asset Designer, which the driver does not open. |
+| 2026-10-03 | PR head `10315e342`, E2E run `37112723692` | **Driven by `tests/e2e/incidentPanes.e2e.ts`**, steps 5 and 7 (see *Automated in Obsidian*), passing on both desktop legs (1.13.7 and `latest`). Step 5 first pressed a nudge where the row says Edit dimensions; `1b3af75ad` added both Edit dimensions doors and the per-pane assertion, and it and three later commits to the file (`8ec5a82d3`, `da6aed4b2`, `61fb866c9`) are not claimed green by this row. Step 1a remains a judgement. |
 | — | — | Before that: **not run in a vault.** Every row above was an expectation derived from ADR-0034, the store and registry source, the English copy and the composition root. |
 
 ## Outcome

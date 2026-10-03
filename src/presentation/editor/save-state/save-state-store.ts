@@ -67,7 +67,8 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	 * **`vaultPaused` — does the vault hold an open write incident (ADR-0034), so `guardCommand`
 	 * refuses every guarded write in it?** Seeded from `activeWriteIncidentRegistry()?.anyOpen()`
 	 * while the store is being created, and set afterwards by `markVaultPaused()`, which
-	 * `withSaveStateTracking` calls on the gate's own `WRITES_PAUSED_CODE`. It may be true
+	 * `withSaveStateTracking` (and `markPausedOnRefusal`, for the doors that are not a command)
+	 * calls on the gate's own `WRITES_PAUSED_CODE`. It may be true
 	 * because of a write on another plan, in another project, or in an earlier session.
 	 *
 	 * **Ruling R1 (2026-09-05) is now STRUCTURAL rather than a rule to remember**: each ref is
@@ -151,7 +152,7 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 	 * stated rather than hidden: an incident raised in ANOTHER leaf while this one is already
 	 * mounted does not re-render this one's controls. That leaf catches up at its next write
 	 * instead — `guardCommand` refuses it with `WRITES_PAUSED_CODE` and `withSaveStateTracking`
-	 * calls `markVaultPaused` on exactly that code. Making the gate reactive needs a notification
+	 * (or `markPausedOnRefusal`) calls `markVaultPaused` on exactly that code. Making the gate reactive needs a notification
 	 * the registry does not have and is its own increment.
 	 *
 	 * **The seed also runs EARLIER than the registry's own file read, for a leaf Obsidian
@@ -294,7 +295,7 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 		 * seed above reaches a store only at SETUP and the registry notifies nobody.
 		 *
 		 * TWO calls, both in `with-save-state-tracking.ts`, measured in the edit that added the second:
-		 * `grep -rn ".markVaultPaused()" src/ | wc -l` prints **3**, the third being this line quoting
+		 * `grep -rn "\.markVaultPaused()" src/ | wc -l` prints **3**, the third being this line quoting
 		 * its own command. `withSaveStateTracking` covers the dispatched commands and
 		 * `markPausedOnRefusal` the write doors that are not one (the quote save, the catalogue "Add" forms).
 		 */

@@ -37,7 +37,7 @@ already-open pane catching up on a refused write. **The GESTURE is not, and cann
 - **Nothing in the jsdom suite can duplicate a leaf.** `duplicateLeaf` appears nowhere in `src/`,
   `FakeWorkspace` has no split and no layout restore, and no jsdom test drives two Plan Editor
   leaves on the same plan (BP-02 limitation L-03); only the real-Obsidian drivers in `tests/e2e/`
-  call it (`grep -rl duplicateLeaf src tests`). A fake that pretended to
+  call it (`grep -rn "duplicateLeaf(" src tests` prints only the E2E drivers' calls). A fake that pretended to
   would be kinder than Obsidian, which is this repository's most expensive recurring defect —
   so this case exists instead of one.
 - **Whether Obsidian's own split really duplicates a leaf with its view state intact** is a
@@ -98,7 +98,7 @@ the five values and what they do not claim.
 
 **Added 2026-10-03** (session 21, E2E batch 5): `tests/e2e/incidentPanes.e2e.ts`, real Obsidian through
 `npm run test:e2e`, desktop legs only (the file skips on `mobile-emulation`). Steps 1 to 4, 6 and 8 to 10
-are driven by `tests/e2e/writeIncident.e2e.ts` instead (the Runs table and *Outcome* below).
+are driven by `tests/e2e/writeIncident.e2e.ts` instead (the Runs table and *Outcome* below). (Added 2026-10-03: that file's own 2026-09-25 Runs row also lists step 7, which it drove at the time; step 7 is now `incidentPanes.e2e.ts`'s case, and the row is kept as the record of that run.)
 
 | Step | Clause | Discharged by, and what it cannot see |
 | --- | --- | --- |

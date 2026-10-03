@@ -970,7 +970,7 @@ the owner saw them, copied from the session's record of the questions; a line ma
 the recorder's one-line account where the record kept no option text. Each ruling's date is the
 day it was given. This block is where the ruling numbers that the manual cases and code comments
 cite resolve, in a committed file. "Built at" names the commit that carries the change, not a verification
-of it; the E2E and CI runs are in the tracker.
+of it; the tracker carries the earlier E2E and CI runs, not the runs of this session's last rounds.
 
 - **Ruling 57, calibration outside the room check — "Refuse absurd scales only (Recommended)"**
   (2026-09-30). "Keep calibration outside the room check; refuse only the extreme-scale case under
@@ -1077,7 +1077,8 @@ owner's, recorded with its cost if wrong so that the owner can reverse it.
   the repository's own write, so the button opens the room's note in either order, but the
   pipeline then no longer announces that note. The "1 room could not be read" row therefore waits
   for the next re-read of the floor instead of appearing in the live tab at once, which is the
-  opposite of what the question stated. This was not re-asked; it is for the owner to be told.
+  opposite of what the question stated. This was not re-asked; the owner was told afterwards, by a
+  controller message on 2026-10-03 (ledger R-S21-282).
   The manual case's step 17a records it.
 - **The step-19 reversal follows rulings 17 and 18 (ledger R-S21-216, 2026-10-01).** After the
   merge of `origin/main`, main's E2E case for the asset-recovery walk's step 19 expected a
@@ -1090,8 +1091,9 @@ owner's, recorded with its cost if wrong so that the owner can reverse it.
 
 - **No artifact downloads (ledger R-S21-241, 2026-10-02).** The owner rejected the controller's
   question asking to download E2E artifacts for the rest of the session and said "continue". The
-  standing instruction since is to diagnose from run logs only, and E2E cases print their
-  evidence as `[evidence]` lines to stdout so that `gh run view --log` carries it.
+  controller read that as an instruction to diagnose from run logs only (its inference, not a
+  statement of the owner's), and has worked that way since; E2E cases print their evidence as
+  `[evidence]` lines to stdout so that `gh run view --log` carries it.
 - **"i dont know" on the 17a routing question was investigated, not defaulted (ledger R-S21-264 and
   R-S21-265, 2026-10-03).** The owner answered "i dont know" to whether the specific 17a sentence
   should reach the user. The controller did not pick an answer for them: a read-only investigation

@@ -69,6 +69,18 @@ const regionsReading = (status: string, alert: string) => [
 ];
 const pluginNotices = (browser: NativeBrowser): Promise<number> => browser.execute(() => document.querySelectorAll('.rp-notice').length);
 
+/**
+ * The index pipeline drained: `VaultChangeAdapter` holds no path and has no flush armed. `null` when
+ * no adapter is composed, so a renamed member reaches nothing and the poll on it fails.
+ */
+const pipelineIdle = (browser: NativeBrowser): Promise<boolean | null> =>
+	browser.executeObsidian(({ app }, id) => {
+		type Adapter = { pending: Set<string>; timer: number | null };
+		const plugin = (app as unknown as { plugins: { plugins: Record<string, { root?: { persistence: { changeAdapter: Adapter } | null } } | undefined> } }).plugins.plugins[id];
+		const adapter = plugin?.root?.persistence?.changeAdapter;
+		return adapter ? adapter.pending.size === 0 && adapter.timer === null : null;
+	}, PLUGIN_ID);
+
 describe('Notices and save state, the live regions and the save indicator (steps 3a, 13–15, 18 and 20)', () => {
 	desktop('steps 3a and 20: two empty regions at rest, a warning written into the alert one, and a toggle that takes both and the notice away', async ({ native: { browser, page, ui, directory } }) => {
 		// 3a: present with the plugin loaded and nothing raised, both empty.
@@ -292,6 +304,11 @@ describe('Notices and save state, the failure surfaces (steps 22, 23 and 24)', (
 			await app.fileManager.renameFile(folder, `${from} renamed`);
 		}, root);
 		await expect.poll(async () => Object.keys(await ui.notesOfType('renovation-project'))).toEqual([projectNote.replace(root, `${root} renamed`)]);
+		// The rename's own index work done before anything below: its debounced flush (500 ms) used
+		// to land inside the fault window, where it threw on the project note and raised `thrown`
+		// without the click, or just after the restore, where its announcement re-read the list and
+		// took the Try again button away before the last click (`latest`, 3 of 33 runs).
+		await expect.poll(() => pipelineIdle(browser)).toBe(true);
 		await reopen();
 		await expect.poll(() => view.$('.rp-project-row').isDisplayed()).toBe(true);
 		expect(await failurePanel(browser, PROJECT_VIEW)).toEqual([]);
@@ -328,6 +345,8 @@ describe('Notices and save state, the failure surfaces (steps 22, 23 and 24)', (
 		} finally {
 			await browser.execute(() => (window as unknown as { __rpReadFault?: { restore(): void } }).__rpReadFault?.restore());
 		}
+		// The panel outlives the restore, so the list below can only be the click's re-read.
+		expect(await failurePanel(browser, PROJECT_VIEW)).toEqual(failed);
 		await view.$('.rp-view-failure__action').click();
 		await expect.poll(() => view.$('.rp-project-row').isDisplayed()).toBe(true);
 		expect(await failurePanel(browser, PROJECT_VIEW)).toEqual([]);

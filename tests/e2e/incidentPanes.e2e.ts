@@ -186,6 +186,8 @@ describe('Two panes on one plan under a planted write incident, the rows writeIn
 		await designer.reloadPlugin();
 		await designer.openDesignerFor('Paused toilet');
 		await designer.selectPart(BOWL);
+		// Whether the disk moved across the reload, for the one `latest` run that read '494' here (unexplained).
+		await logEvidence(directory, 'step-5-reopened', { centre, revision: designer.readSidecar(assetId).revision, sameBytes: readFileSync(designer.sidecarPath(assetId), 'utf8') === sidecar });
 		await expect.poll(() => designer.inspectorField('centre-x').getValue()).toBe(centre);
 
 		// Nothing looks paused: every tool button enabled, and no incident sentence anywhere in the leaf.

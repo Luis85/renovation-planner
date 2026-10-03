@@ -963,3 +963,139 @@ saw them.
   (2026-09-29). "Short form in context is fine; only the name/compounds are unified." The plain
   noun stays where it stands in the German copy, and the widened test at `2412a4657` is left as
   it is.
+
+**Decided 2026-09-30 to 2026-10-03 (session 21, third continuation), rulings 57 to 74**, by the
+release owner in the same chat. Quoted words are the chosen option's label and its description as
+the owner saw them, copied from the session's record of the questions; a line marked *Summary* is
+the recorder's one-line account where the record kept no option text. Each ruling's date is the
+day it was given. This block is where the ruling numbers that the manual cases and code comments
+cite resolve, in a committed file. "Built at" names the commit that carries the change, not a verification
+of it; the E2E and CI runs are in the tracker.
+
+- **Ruling 57, calibration outside the room check — "Refuse absurd scales only (Recommended)"**
+  (2026-09-30). "Keep calibration outside the room check; refuse only the extreme-scale case under
+  the existing 'degenerate scale' message. About 6 lines plus a test." Built at `51c881142`.
+- **Ruling 58, L-29's remainder — "Record all, change nothing (Recommended)"** (2026-09-30). The
+  remainder is stored crossing rooms, the asset designer's shape edits and a paste of a copied
+  crossing room. "Refusing on load would hide rooms; a domain rule would also block moving or
+  recolouring an old crossing room. Record the three gaps for beta." No code change.
+- **Ruling 59, L-22 — "Preview asks the write's checks (Recommended)"** (2026-09-30). "The preview
+  flags a crossing curve before Apply and stops falsely refusing curved rooms with collinear
+  corners. Test first." Built at `4062357d7`.
+- **Ruling 60, Vue shipped in development mode — "Fix it, with a gate (Recommended)"**
+  (2026-09-30). "Add define 'process.env.NODE_ENV' = 'production' to the build, and a test that
+  fails if the built bundle still references it. E2E then runs the production-mode bundle." Built
+  at `45b74524c`.
+- **Ruling 61, a room delete with requirements never reached Reassign or Detach — "Fix:
+  requirements go to Reassign/Detach (Recommended)"** (2026-09-30). "The room check stops counting
+  requirements; it keeps blocking on renovation records (work, costs, evidence). Walls and elements
+  unchanged. Red test first, plus the rig fixed so planning is wired." Built at `768fdb747`.
+- **Ruling 62, a room carrying a contextual planning material: Reassign and Delete anyway always
+  fail — "Hide the two choices (Recommended)"** (2026-10-01). "For a room carrying a contextual
+  planning material, offer only Remove references, plus one line saying why. The line is new copy:
+  English and a German draft for your approval (ruling L-15)." Built at `100c15bdb`, with rulings
+  64 and 69.
+- **Ruling 63, ruling 62's line — "A: says why (Recommended)"** (2026-10-01). EN: "Some of these
+  requirements are measured from this room, so they cannot be reassigned to another room or kept
+  without it. Removing the references is the only option." DE (approved as drafted): "Einige dieser
+  Anforderungen beruhen auf den Maßen dieses Raums. Sie lassen sich weder einem anderen Raum neu
+  zuweisen noch ohne diesen Raum behalten; möglich ist nur das Entfernen der Referenzen."
+  **Superseded by ruling 69.**
+- **Ruling 64, a list mixing ordinary and contextual requirements — "Hide for whole room
+  (Recommended)"** (2026-10-01). "Any contextual requirement hides both choices; the ordinary ones
+  then also can only be removed. Simple, and no choice that will fail is offered."
+- **Ruling 65, whether the line says Remove references deletes — "No, keep one line
+  (Recommended)"** (2026-10-01). "The button's own name stays the description; the line explains
+  only why it is the only choice."
+- **Ruling 66, the Asset library on a phone (main's AD13 desktop-only against L-43 read-only) —
+  "Read-only on mobile (L-43)"** (2026-10-01). "Keep your earlier ruling: phone users can browse and
+  search the library. Main's mobile refusal and hidden command are undone; main's tests for them
+  change." Related commits: `842f0081b` (the Grid's New asset card drawn read-only), `a05a4c4fc`
+  (the mobile mount and command gate pinned) and `0e3a7a9fe` (the prose).
+- **Ruling 67, two ADR-0034 files — "Renumber main's to next free (Recommended)"** (2026-10-01).
+  "Main's clearance ADR gets the next free number, and its 22 citations are updated in a separate
+  commit after the merge. Fewer edits; the write-incident ADR keeps its widely cited number." Main's
+  became ADR-0035 at `c9ae5fcee`.
+- **Ruling 68, `npm ci` in this worktree — "Yes, run npm ci"** (2026-10-01). "Local tests then run
+  the merged versions; the e2e packages install too, so vue-tsc can type-check tests/e2e locally
+  (E2E itself still runs in CI)." The question also stated that it downloads the locked packages
+  from the npm registry into this worktree's node_modules, several hundred MB, replacing the
+  current install.
+- **Ruling 69, ruling 63's line covers Areas too — "Room or area, restructured DE
+  (Recommended)"; it supersedes ruling 63's text** (2026-10-01). EN: "Some of these requirements
+  are measured from this room or area, so they cannot be reassigned elsewhere or kept without it.
+  Removing the references is the only option." DE (approved): "Einige dieser Anforderungen beruhen
+  auf den Maßen dieses Raums oder dieser Fläche. Sie lassen sich weder anderswo neu zuweisen noch
+  ohne diese Grundlage behalten; möglich ist nur das Entfernen der Referenzen." Built at
+  `100c15bdb`.
+- **Ruling 70, post-merge E2E debugging — "Download CI artifacts"** (2026-10-01). *Summary:* of
+  "Download CI artifacts" / "Run E2E locally" / "Neither, CI only", a multi-select, only the first
+  was chosen. The question described the artifacts as "a few MB"; the download was 535 MB (five
+  artifacts with per-case screenshots and page HTML), so the controller's estimate was wrong.
+  **Narrowed by the owner's later direction below ("no artifact downloads").**
+- **Ruling 71, the German guide's word for the ribbon — "Use \"Werkzeugleiste\" (Recommended)"**
+  (2026-10-03). "Step 1 DE becomes \"…über die Befehlspalette oder das Symbol in der Werkzeugleiste
+  aus.\" — Obsidian's own word, so a German user finds it. The E2E case then checks it against the
+  host." The evidence behind the question: the `[evidence] host-words` line of E2E run
+  `37060108804` shows Obsidian 1.13.7 and `latest` German i18next (`i18nLanguage: de`, 2558 keys)
+  using "Werkzeugleiste" (`interface.menu.ribbon`, `commands.toggle-ribbon`,
+  `setting.appearance.option-show-ribbon`) and no "Menüband", and "Befehlspalette" confirmed
+  (`plugins.command-palette.name`). This supersedes ruling 49's acceptance of "Menüband" in step 1.
+  Built at `12019c23a` (the copy) and `529c004ec` (the host check).
+- **Ruling 72, the never-shown 17a sentence and the standing warning's wrong note — "Fix the doc +
+  point to the room (Recommended)"** (2026-10-03). "Rewrite step 17a to what Obsidian shows, AND
+  make the standing warning show the specific sentence naming the room's note (about 3 files; it
+  falls back to the generic sentence when a tab is restored). No new notice, no double report." The
+  owner had first answered "i dont know"; see the direction below. Built at `8ec5a82d3`.
+- **Ruling 73, ruling 72's button finds nothing in the host (the room's note joins the index late)
+  — both chosen: "Index the room at once (Recommended)" and "Same sentence for screen readers"**
+  (2026-10-03). "Fix the race so the button opens the room's note immediately after the failure."
+  / "Paused controls' hidden description uses the same room/generic sentence as the warning (about
+  3 lines, no new copy)." The question stated the side effect: the live tab then immediately shows
+  the "1 room could not be read" row, as a restarted tab already does. Built at `da6aed4b2`, then
+  corrected at `592e1dcea` (see the second extension below).
+- **Ruling 74, the planning panel's read refused during a write pause (a false "could not be
+  re-read" row) — "Let reads through (Recommended)"** (2026-10-03). "The planning panel's read uses
+  a read-side guard: it still reads (and shows current figures) during a pause; all writes stay
+  refused. The false \"could not be re-read\" row and \"refresh needed\" disappear. Red test first."
+  Built at `61fb866c9`.
+
+**Where a ruling was applied beyond its literal text.** Each is the controller's, not the
+owner's, recorded with its cost if wrong so that the owner can reverse it.
+
+- **Ruling 74 reaches three more reads (ledger R-S21-276, 2026-10-03).** The implementer found the
+  same defect behind `guardCommand` in the trade catalogue's list, the project work read and the
+  quote read. The controller applied the owner's principle to those three: the same class, the same
+  remedy, writes stay refused (`059bd6b2a`; the quotes and work panes also catch up on a refused
+  pause write at `3177312b5`). The renovation, structure, group and reference reads stay gated,
+  because they are read only just before a refused write. *Cost if wrong:* if the owner wanted the
+  ruling confined to the planning panel, three reads become readable during a pause — display only,
+  with no write path.
+- **Ruling 73's "immediately" was reversed by the fix round (ledger R-S21-279, 2026-10-03).** The
+  review of the first build found that the room entry survived only when Obsidian parsed the note
+  before the vault pipeline's debounce; the fix (`592e1dcea`) marks the half-inserted room's note as
+  the repository's own write, so the button opens the room's note in either order, but the
+  pipeline then no longer announces that note. The "1 room could not be read" row therefore waits
+  for the next re-read of the floor instead of appearing in the live tab at once, which is the
+  opposite of what the question stated. This was not re-asked; it is for the owner to be told.
+  The manual case's step 17a records it.
+- **The step-19 reversal follows rulings 17 and 18 (ledger R-S21-216, 2026-10-01).** After the
+  merge of `origin/main`, main's E2E case for the asset-recovery walk's step 19 expected a
+  half-undo; this branch's `ede046a05` (rulings 17 and 18) puts the note back when the sidecar
+  restore is refused, so the case was reversed to "restores neither" (`88c742057`) and the manual
+  case followed (`64c8a660d`). Not re-asked. *Cost if wrong:* if the owner preferred main's
+  half-undo, `88c742057` reverts alone and the put-back needs a decision.
+
+**Two directions that are not rulings.** Neither chose between options the controller had costed.
+
+- **No artifact downloads (ledger R-S21-241, 2026-10-02).** The owner rejected the controller's
+  question asking to download E2E artifacts for the rest of the session and said "continue". The
+  standing instruction since is to diagnose from run logs only, and E2E cases print their
+  evidence as `[evidence]` lines to stdout so that `gh run view --log` carries it.
+- **"i dont know" on the 17a routing question was investigated, not defaulted (ledger R-S21-264 and
+  R-S21-265, 2026-10-03).** The owner answered "i dont know" to whether the specific 17a sentence
+  should reach the user. The controller did not pick an answer for them: a read-only investigation
+  found neither a routing defect nor dead copy (slice 17 deliberately routed Plan Editor write
+  failures to the badge only, and the keys arrived later into that silent route), and that the
+  standing warning's **Open source note** opened the plan's note while the half-written note is the
+  room's. The question was asked again with that evidence and became ruling 72.

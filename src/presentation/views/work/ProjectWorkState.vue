@@ -13,6 +13,8 @@ import ProjectWorkRow from './ProjectWorkRow.vue';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { SAVE_STATE_KEYS } from '../../editor/save-state/save-state';
+import { markPausedOnRefusal } from '../../editor/save-state/with-save-state-tracking';
+import type { NamedCatalogueCreate } from '../../../application/commands/catalogue/NamedCatalogueServices';
 const props = defineProps<{ projectId: string }>();
 const context = useRenovationProjectContext(), dialogs = useDialogStore();
 const read = useProjectWorkRead(context.work, props.projectId), actions = useProjectWorkActions(context, read);
@@ -34,10 +36,11 @@ async function retry(): Promise<void> {
  try { await read.refresh(); } finally { await restoreFocus(); }
 }
 async function createTrade(): Promise<void> {
- if (actions.blocked.value || dialogs.current || !context.work) return;
+ const work = context.work, create = work ? markPausedOnRefusal(actions.save, (input: NamedCatalogueCreate) => work.trades.create(input)) : undefined;
+ if (actions.blocked.value || dialogs.current || !create) return;
  const busy = ref(false);
  await dialogs.openDialog({ kind: 'form', title: tr('trade.add'), component: markRaw(NamedCatalogueForm), busy,
-  props: { kind: 'trade', busy, create: context.work.trades.create } });
+  props: { kind: 'trade', busy, create } });
  if (alive) await read.refresh();
 }
 </script>

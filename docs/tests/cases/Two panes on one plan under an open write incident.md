@@ -145,5 +145,11 @@ the five values and what they do not claim.
   is drawn with the incident seed mutated out as well, so it comes from something the editor
   dispatches on open being refused by the gate and read as a failed read-back. Recorded here for
   triage, not diagnosed.
+  **AMENDED 2026-10-03 (owner ruling 74, `61fb866c9`):** diagnosed and removed. The planning read
+  was wrapped by the incident gate like a write, so every pause refused it and the editor read the
+  refusal as a failed read-back; reads now answer during a pause and only writes are refused
+  (`tests/presentation/views/planEditorPausedRead.test.ts`). A paused pane no longer draws the
+  `stale` strip or "Saved · refresh needed" for this cause; the paragraph above is the history of
+  how it was found.
 
 The four cases are the instrument now; this table is where a walk by hand still gets recorded.

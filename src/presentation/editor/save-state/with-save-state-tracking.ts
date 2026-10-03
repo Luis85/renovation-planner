@@ -1,7 +1,8 @@
 import { leftWritesBehind, type DispatchResult } from '../../../application/commands/DispatchOutcome';
 import { WRITES_PAUSED_CODE } from '../../../application/errors/guardAgainstThrowing';
 import { activeWriteIncidentRegistry } from '../../../application/incidents/WriteIncidentRegistry';
-import { isErr } from '../../../core/result/Result';
+import type { AppError } from '../../../core/errors/AppError';
+import { isErr, type Result } from '../../../core/result/Result';
 import type { RefreshedHistory } from '../tools/with-state-refresh';
 import type { useSaveStateStore } from './save-state-store';
 import { affectsSaveState } from './affects-save-state';
@@ -123,5 +124,22 @@ export function withSaveStateTracking(
 		run: (command) => track(() => history.run(command)),
 		undo: () => track(() => history.undo()),
 		redo: () => track(() => history.redo()),
+	};
+}
+
+/**
+ * The same catch-up (`markVaultPaused` on the gate's `WRITES_PAUSED_CODE`) for a write door that
+ * is not a dispatched command: the quote save and the two catalogue "Add" forms (owner ruling 74
+ * left them reading, so their first refused write is where a pane mounted before the incident
+ * learns of it). Transparent: it returns exactly what `run` resolved.
+ */
+export function markPausedOnRefusal<A extends unknown[], R extends Result<unknown, AppError>>(
+	saveState: Pick<SaveStateTracker, 'markVaultPaused'>,
+	run: (...args: A) => Promise<R>,
+): (...args: A) => Promise<R> {
+	return async (...args) => {
+		const result = await run(...args);
+		if (isErr(result) && result.error.code === WRITES_PAUSED_CODE) saveState.markVaultPaused();
+		return result;
 	};
 }

@@ -384,7 +384,10 @@ export class ObsidianZoneRepository implements ZoneRepository {
 			// SIDECAR that did not land), and unmarked, a `create` event processed before Obsidian
 			// parsed the note read it as "not ours" and REMOVED this entry again
 			// (`zoneUncompensatedPipeline.test.ts`). The mark hides only those same bytes: a later
-			// edit that changes the frontmatter digests differently and is processed as usual.
+			// edit that changes the frontmatter while keeping the note ours (a hand-moved `plan`) digests
+			// differently and reaches the index (`zoneUncompensatedPipeline.test.ts`, watched red against an
+			// echo window that matched every edit); an edit that makes the note not ours takes the
+			// pipeline's earlier arm, which the mark never touches.
 			// An UPDATE's note is indexed already.
 			if (!wasUpdate) {
 				this.deps.index.upsert({ id: zoneId, type: 'renovation-zone', path: notePath, projectId, planId });

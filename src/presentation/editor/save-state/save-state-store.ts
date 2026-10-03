@@ -293,9 +293,10 @@ export const useSaveStateStore = defineStore('rp-save-state', () => {
 		 * The catch-up door for a leaf that was already mounted when a peer raised one, since the
 		 * seed above reaches a store only at SETUP and the registry notifies nobody.
 		 *
-		 * ONE caller, measured in the edit that added it —
-		 * `grep -rn "\.markVaultPaused()" src/ | wc -l` prints **2**, the second being this line
-		 * quoting its own command. The one CALL is `withSaveStateTracking`.
+		 * TWO calls, both in `with-save-state-tracking.ts`, measured in the edit that added the second:
+		 * `grep -rn ".markVaultPaused()" src/ | wc -l` prints **3**, the third being this line quoting
+		 * its own command. `withSaveStateTracking` covers the dispatched commands and
+		 * `markPausedOnRefusal` the write doors that are not one (the quote save, the catalogue "Add" forms).
 		 */
 		markVaultPaused(): void {
 			vaultPaused.value = true;

@@ -30,6 +30,7 @@ import { provideTradeCatalogue } from '../../../src/presentation/catalogue/trade
 import { projectWorkServices } from '../../../src/plugin/projectWorkServices';
 import { quoteServices } from '../../../src/plugin/quoteServices';
 import TradeResponsibility from '../../../src/presentation/catalogue/TradeResponsibility.vue';
+import QuoteForm from '../../../src/presentation/views/quotes/QuoteForm.vue';
 import { tr } from '../../../src/presentation/i18n/strings';
 import { trError } from '../../../src/presentation/i18n/toUserMessage';
 
@@ -115,6 +116,62 @@ describe('the downstream sections during a write pause (owner ruling 74)', () =>
 			expect(refused).toMatchObject(Object.fromEntries(Object.keys(writes).map(door => [door, paused])));
 			expect([...rig.stack.vault.entries]).toEqual(bytes);
 		} finally { rig.dispose(); }
+	});
+
+	/**
+	 * **The L-14 catch-up for the doors `withSaveStateTracking` does not wrap.** A pane mounted
+	 * BEFORE the incident greys at its next REFUSED WRITE; the quote save and both catalogue
+	 * "Add" forms reach the repository through no tracked dispatcher, so a refusal there used to
+	 * leave the controls live and the pause unannounced. The pause is raised after the mount,
+	 * which is the only order in which the catch-up has anything to do.
+	 */
+	describe('a pause raised after the pane mounted, met by a first refused write', () => {
+		const supplierFormRefused = async (section: 'schedule' | 'quotes', addLabel: string, rig: Rig) => {
+			const view = await downstreamView(rig, section);
+			expect(disabled(view.wrapper)).not.toContain(addLabel);
+			await installOpenWriteIncident();
+			await view.button(addLabel).trigger('click'); await flushPromises();
+			const form = view.wrapper.get('.rp-dialog-form');
+			await form.get('input[name="name"]').setValue('Refused'); await form.trigger('submit'); await flushPromises();
+			return view;
+		};
+
+		it('the quotes section greys and says writing is paused after a refused supplier add', async () => {
+			const rig = await downstreamStack(), bytes = [...rig.stack.vault.entries];
+			const view = await supplierFormRefused('quotes', tr('supplier.add'), rig);
+			try {
+				expect(disabled(view.wrapper)).toEqual(expect.arrayContaining([tr('supplier.add'), tr('quote.add')]));
+				expect(view.wrapper.text()).toContain(trError(writesPausedRefusal()));
+				expect([...rig.stack.vault.entries]).toEqual(bytes);
+			} finally { view.dispose(); }
+		});
+
+		it('the quotes section greys and says writing is paused after a refused quote save', async () => {
+			const rig = await downstreamStack(), bytes = [...rig.stack.vault.entries], view = await downstreamView(rig, 'quotes');
+			try {
+				expect(disabled(view.wrapper)).not.toContain(tr('quote.add'));
+				await view.button(tr('quote.add')).trigger('click'); await flushPromises();
+				const save = view.wrapper.getComponent(QuoteForm).props('save');
+				await installOpenWriteIncident();
+				const quote: Quote = { id: 'quote-late' as QuoteId, projectId: rig.plan.projectId, supplierId: 'supplier-late' as never, title: 'Late', issuedOn: '2026-09-07', status: 'draft',
+					items: [{ id: 'line-late', description: 'Prepare floor', amount: of('594.005', 'EUR'), assetIds: [], work: [] }] };
+				expect(await save({ quote, expected: 'absent' })).toMatchObject({ ok: false, error: { code: WRITES_PAUSED_CODE } });
+				await flushPromises();
+				expect(disabled(view.wrapper)).toEqual(expect.arrayContaining([tr('supplier.add'), tr('quote.add')]));
+				expect(view.wrapper.text()).toContain(trError(writesPausedRefusal()));
+				expect([...rig.stack.vault.entries]).toEqual(bytes);
+			} finally { view.dispose(); }
+		});
+
+		it('the work section greys after a refused trade add', async () => {
+			const rig = await downstreamStack(), bytes = [...rig.stack.vault.entries];
+			const view = await supplierFormRefused('schedule', tr('trade.add'), rig);
+			try {
+				expect(disabled(view.wrapper)).toContain(tr('trade.add'));
+				expect(view.wrapper.text()).toContain(tr('schedule.unrecovered'));
+				expect([...rig.stack.vault.entries]).toEqual(bytes);
+			} finally { view.dispose(); }
+		});
 	});
 });
 

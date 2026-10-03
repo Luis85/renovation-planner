@@ -15,14 +15,14 @@ import { TFile } from 'obsidian';
 import { createRepositoryStack, type RepositoryStack } from '../../../helpers/vault';
 import { expectOk } from '../../../helpers/domain';
 import { makePlan, makeProject, makeZone } from '../../../helpers/entities';
-import { createPlanId } from '../../../../src/domain/plan/PlanId';
+import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
 import { projectFolderOf, sidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { VaultChangeAdapter } from '../../../../src/infrastructure/persistence/index/VaultChangeAdapter';
 import { createEventBus } from '../../../../src/core/events/EventBus';
 
 /** A room insert left standing (`zone.sidecar-insert-uncompensated`), and the pipeline that will hear of it. */
-async function halfInsertedRoom(): Promise<{ stack: RepositoryStack; adapter: VaultChangeAdapter; zoneId: string; notePath: string }> {
+async function halfInsertedRoom(): Promise<{ stack: RepositoryStack; adapter: VaultChangeAdapter; zoneId: string; planId: PlanId; notePath: string }> {
 	const stack = createRepositoryStack();
 	const projectId = createProjectId();
 	expectOk(await stack.projects.save(makeProject({ id: projectId }), 'absent'));
@@ -46,7 +46,7 @@ async function halfInsertedRoom(): Promise<{ stack: RepositoryStack; adapter: Va
 		logger: stack.logger,
 		debounceMs: 0,
 	});
-	return { stack, adapter, zoneId: zone.id, notePath };
+	return { stack, adapter, zoneId: zone.id, planId, notePath };
 }
 
 function createEventFor(stack: RepositoryStack, adapter: VaultChangeAdapter, notePath: string): void {
@@ -76,11 +76,27 @@ describe('a half-inserted room and the vault-change pipeline (owner ruling 73)',
 		expect(entriesAt(stack, notePath)).toBe(1);
 	});
 
-	it('still hears a later EXTERNAL edit of that note: a hand edit that drops the type removes the entry', async () => {
+	it('still hears a later EXTERNAL edit that keeps the note ours: a hand-moved plan reaches the index', async () => {
+		const { stack, adapter, zoneId, planId, notePath } = await halfInsertedRoom();
+		stack.metadataCache.catchUp();
+		createEventFor(stack, adapter, notePath);
+		// The mark must not hide this: an echo window that matched every edit would leave the room indexed on the old plan.
+		const elsewhere = createPlanId();
+		const before = stack.vault.entries.get(notePath);
+		if (typeof before !== 'string' || !before.includes(planId)) throw new Error(`the note does not name its plan ${planId}`);
+		// Straight into `entries`: the outside world, which the cache parses (see `VaultEntries`).
+		stack.vault.entries.set(notePath, before.replace(planId, elsewhere));
+		const file = stack.vault.getAbstractFileByPath(notePath);
+		if (!(file instanceof TFile)) throw new Error(`no note at ${notePath}`);
+		adapter.onModify(file);
+		expect(stack.index.getSpatialObjectIdsByPlan(elsewhere)).toEqual([zoneId]);
+		expect(stack.index.getSpatialObjectIdsByPlan(planId)).toEqual([]);
+	});
+
+	it('removes the entry when a hand edit makes the note no longer ours (the not-ours arm, which runs before the echo check)', async () => {
 		const { stack, adapter, zoneId, notePath } = await halfInsertedRoom();
 		stack.metadataCache.catchUp();
 		createEventFor(stack, adapter, notePath);
-		// Straight into `entries`: the outside world, which the cache parses (see `VaultEntries`).
 		stack.vault.entries.set(notePath, '---\ntitle: not a room any more\n---\n');
 		const file = stack.vault.getAbstractFileByPath(notePath);
 		if (!(file instanceof TFile)) throw new Error(`no note at ${notePath}`);

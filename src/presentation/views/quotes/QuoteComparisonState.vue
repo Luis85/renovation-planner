@@ -6,9 +6,11 @@ import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { Quote } from '../../../domain/quote/Quote';
 import type { Loaded } from '../../../application/ports/versioning';
 import type { QuoteInput } from '../../../application/commands/quote/QuoteServices';
+import type { NamedCatalogueCreate } from '../../../application/commands/catalogue/NamedCatalogueServices';
 import { persistenceError } from '../../../application/errors';
 import { writesPausedRefusal } from '../../../application/errors/guardAgainstThrowing';
 import { useSaveStateStore } from '../../editor/save-state/save-state-store';
+import { markPausedOnRefusal } from '../../editor/save-state/with-save-state-tracking';
 import { useRenovationProjectContext } from '../RenovationProjectContext';
 import { useLiveRead } from '../../composables/live-read';
 import { captureDownstreamDialogFocus } from '../downstreamDialogFocus';
@@ -25,6 +27,7 @@ const read = useLiveRead(services ? { read: () => services.read(props.projectId 
 const writing = ref(false), saved = ref<string | null>(null);
 // The read answers during a write pause (owner ruling 74), so the pause blocks these controls itself.
 const saveState = useSaveStateStore(), vaultPaused = computed(() => saveState.vaultWritesPaused);
+const saveQuote = services ? markPausedOnRefusal(saveState, (input: QuoteInput) => services.save(input)) : undefined, createSupplier = services ? markPausedOnRefusal(saveState, (input: NamedCatalogueCreate) => services.suppliers.create(input)) : undefined;
 const blocked = computed(() => !!context.readOnly || vaultPaused.value || read.paused.value || writing.value);
 const savedLabel = computed(() => read.error.value ? 'save-state.saved-refresh-needed' : 'save-state.saved');
 const partial = computed(() => {
@@ -45,9 +48,9 @@ async function retry(): Promise<void> {
  try { await read.refresh(); } finally { await restoreFocus(); }
 }
 async function save(input: QuoteInput) {
- if (!alive || blocked.value || !services) return err(persistenceError('quote.paused', 'Quote editing is paused.'));
+ if (!alive || blocked.value || !saveQuote) return err(persistenceError('quote.paused', 'Quote editing is paused.'));
  writing.value = true;
- try { const result = await services.save(input); if (alive && result.ok) { saved.value = result.value.entity.id; await read.refresh(); } return result; }
+ try { const result = await saveQuote(input); if (alive && result.ok) { saved.value = result.value.entity.id; await read.refresh(); } return result; }
  finally { writing.value = false; }
 }
 async function edit(original?: Loaded<Quote>): Promise<void> {
@@ -68,10 +71,10 @@ async function revise(offer: Loaded<Quote>): Promise<void> {
  await restoreFocus();
 }
 async function supplier(): Promise<void> {
- if (blocked.value || dialogs.current || !services) return;
+ if (blocked.value || dialogs.current || !createSupplier) return;
  const busy = ref(false);
  await dialogs.openDialog({ kind: 'form', title: tr('supplier.add'), component: markRaw(NamedCatalogueForm), busy,
-  props: { kind: 'supplier', busy, create: services.suppliers.create } });
+  props: { kind: 'supplier', busy, create: createSupplier } });
  if (alive) await read.refresh();
 }
 </script>

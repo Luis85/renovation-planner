@@ -4860,7 +4860,9 @@ function — a split kept alive by a defect rather than by a distinction.
     value that comparison is against, and a colliding external edit is suppressed as our own
     echo. The read half self-corrects the moment the parse queue catches up; the INDEX half
     does not, because that path's one event has already been spent
-    (`echoCollision.test.ts`). Both instruments had to be hand-built, because the fake
+    (`echoCollision.test.ts`). (*2026-10-03, owner ruling 76:* it does now — the parse arrives
+    as `metadataCache`'s `changed`, which the plugin re-queues as a `modify`;
+    `tests/plugin/lateParse.test.ts` proves the re-queue.) Both instruments had to be hand-built, because the fake
     vault's mtime is a monotonic COUNTER and every write there moves the stat — a fake
     kinder than a real clock, in the one property the guard rests on, and its own docblock
     says so.

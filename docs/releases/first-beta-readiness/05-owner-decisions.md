@@ -63,7 +63,10 @@ kept as history.
   Windows over the test vault (section 4), so by ruling 3 it ships as is. A run in the owner's
   own vault has not happened. *2026-09-28:* CI then observed the cold arm once, on the `latest`
   leg; its cause was found and fixed by owner ruling 41, and the fix is verified in CI (section
-  4). A note whose parse outlasts the ~500 ms debounce is still not covered.
+  4). *2026-10-03:* a note whose parse outlasts the ~500 ms debounce was not covered until
+  owner ruling 76 (`75f07aaaf`): its parse arriving as Obsidian's `changed` now re-queues it, so
+  it joins the index without a reload. Verified in the unit suite (`tests/plugin/lateParse.test.ts`),
+  not yet on a real host.
 - **Q3 is decided by ruling 16, "Keep the record alive"**, which supersedes ruling 4's costing
   of view teardown after the owner's measurement refuted that option's premise; it is built
   (section 5).
@@ -357,7 +360,10 @@ unprompted, first seen 177 to 498 ms into the window over four recorded runs (12
 evidence file is `l19-arms.json` in the case's `e2e-results/cases/` folder. Two checks stand
 behind that answer. A plugin reload afterwards lists all three through the same selector. And
 forcing the cold arm, by making the index pipeline ignore creates, turns the case red, so the
-case can see a miss. **What it does not cover:** the vault was the small e2e test vault on one
+case can see a miss. (*2026-10-03, owner ruling 76:* that control no longer sees one — with
+creates ignored, the note's parse still arrives as `changed` and lists it. Inferred from the
+code path, not run; a control for this case now has to drop the `changed` registration too.)
+**What it does not cover:** the vault was the small e2e test vault on one
 machine, so a large vault or a slow disk, where Obsidian's parse could outlast the plugin's
 500 ms debounce, is not measured. The project also still lands in the old folder, as the warm
 arm says.
@@ -428,7 +434,12 @@ and every completed E2E run on the branch since, to `3d85db7a0`, has passed.
 **The residual.** The hand-over gives a note one debounce (~500 ms) for Obsidian to parse it. A
 note whose parse takes longer is still read against a null cache and dropped until the next
 full rebuild, as before; nothing listens for the parse itself. A large vault or a slow disk is
-where that could happen, and none has been measured.
+where that could happen, and none has been measured. *2026-10-03:* owner ruling 76
+(`75f07aaaf`) closes this residual — the plugin now listens for the parse (`metadataCache`'s
+`changed`) and re-queues the note through the same pipeline a `modify` takes. That also means
+the forced case's `listed` half passes on EITHER mechanism, hand-over or flush; its premise
+now records whether the retired adapter processed the path, which is what tells the two
+apart (`tests/e2e/settingsDuringCreate.e2e.ts`, unverified until CI runs it).
 
 **Owner ruling 42 ("Investigate + fix"), answered 2026-09-28.** The `latest` E2E leg installs
 1.13.7 correctly: the newest public release, 1.13.8 (2026-08-21), is Android-only, and

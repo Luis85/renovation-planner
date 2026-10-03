@@ -85,7 +85,14 @@ export class VaultChangeAdapter {
 	 *   loop. Nothing about the own-write marks has to change.
 	 * - **It costs a Set insert in the common case.** A parse inside the window joins the path
 	 *   the `create`/`modify` already queued; only a parse landing AFTER the flush reprocesses,
-	 *   which is exactly the case this exists for.
+	 *   which is exactly the case this exists for. **Not at startup, inferred rather than seen
+	 *   on a host:** an index Obsidian builds or rebuilds after layout-ready would fire `changed`
+	 *   per file, foreign notes included, and every one is processed in one synchronous flush
+	 *   with `findByPath` a linear scan per path — O(notes × entries). The review's run
+	 *   (2026-10-03, real adapter, index and echo window, fake timers, one flush) measured
+	 *   500 notes of ours among 10 000 foreign at 51 ms, and 2 000 among 50 000 at 565 ms on the
+	 *   main thread; 0 announcements for notes already indexed. A path-keyed lookup is the
+	 *   upgrade if a large vault is ever reported.
 	 * - **A null cache is not the only late read.** A hand edit whose parse outlasts the window
 	 *   is read against the STALE cache entry; its `changed` corrects the index too, which a
 	 *   null-cache-only set would not, and that set would be state to clear on every delete,

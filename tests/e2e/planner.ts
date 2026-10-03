@@ -144,16 +144,15 @@ const ASSET_NOTE = [
 export const QUANTITY = '[data-field="quantity"]';
 export const requirements = async (ui: Ui) => Object.values(await ui.notesOfType('renovation-requirement'));
 
-/** The Details panel, opened first when the pane is narrow enough to fold it behind its rail. */
-export async function openDetails(browser: NativeBrowser): Promise<void> {
-	const rail = browser.$(EDITOR).$('[data-rp-rail="details"]');
+/** The Details panel of `pane` (the first editor by default), opened first when the pane is narrow enough to fold it behind its rail. */
+export async function openDetails(browser: NativeBrowser, pane: Pane = browser.$(EDITOR)): Promise<void> {
+	const rail = pane.$('[data-rp-rail="details"]');
 	if (await rail.isDisplayed()) await rail.click();
 }
 
-/** Through the Floor inspector's room list, opening the Details panel first when the pane is narrow. */
-export async function selectRoom(browser: NativeBrowser, name: string): Promise<void> {
-	const pane = browser.$(EDITOR);
-	await openDetails(browser);
+/** Through the Floor inspector's room list of `pane` (the first editor by default), opening the Details panel first when the pane is narrow. */
+export async function selectRoom(browser: NativeBrowser, name: string, pane: Pane = browser.$(EDITOR)): Promise<void> {
+	await openDetails(browser, pane);
 	// The room list is drawn twice from the same records (useSpatialRecords.ts): once in the
 	// Layers panel's Rooms section (PropertyLayerPanel.vue) and once in the Floor inspector's
 	// own list (FloorInspector.vue via FloorSpatialLists.vue). At the full-width layout

@@ -1,6 +1,6 @@
 import { describe, expect } from 'vitest';
 import { test } from './fixture';
-import { closePluginSettings, openPluginSettings, settingControl } from './helpers';
+import { closePluginSettings, openPluginSettings, settingControl, settleSettings } from './helpers';
 import { expectNoViolations } from './accessibility';
 import { mobileEmulation } from './session';
 
@@ -90,6 +90,9 @@ describe('Renovation Planner in the real Obsidian host', () => {
 		await browser.keys('Tab');
 		await settingControl(browser, 'Default currency', 'select').selectByAttribute('value', 'CHF');
 		await closePluginSettings(browser, windows);
+		// Every keystroke of 'Jobs' queued a save and a root swap; wait for the last of them, or a
+		// trailing swap remounts the view (and its dialog) while the steps below hold its elements.
+		await settleSettings(browser);
 		await ui.openProjectView();
 		await ui.projectView().$('.rp-empty-state__action').click();
 		await ui.submitForm('Cellar');

@@ -9,6 +9,7 @@ import {
 	ROTATION_HANDLE_OFFSET_PX,
 	ROTATION_HANDLE_REACH_PX,
 	VERTEX_GRAB_RADIUS_PX,
+	VERTEX_HANDLE_HIGHLIGHT_RADIUS_PX,
 	VERTEX_HANDLE_RADIUS_PX,
 } from '../../../src/presentation/editor/handleMetrics';
 
@@ -32,15 +33,31 @@ describe('rotate handle metrics', () => {
  * 8 px across and the grab region 16.
  */
 describe('vertex handle metrics', () => {
-	it('makes the grab region at least as large as the drawn handle', () => {
+	it('keeps every drawn vertex radius inside the region that grabs it', () => {
 		// A pointing target is easier to hit than to see; the inequality is the deliberate
 		// part. Equality would be acceptable, a grab region SMALLER than the visible dot
 		// never is — that is a handle the user can see and cannot pick up.
-		expect(VERTEX_GRAB_RADIUS_PX).toBeGreaterThanOrEqual(VERTEX_HANDLE_RADIUS_PX);
+		//
+		// A LIST rather than one comparison, for the reason the polygon family below is one:
+		// the chosen-corner highlight is a third DRAWN radius, one pixel under the grab
+		// region, and it landed with nothing holding that order. `interactionLayer.test.ts`
+		// cannot hold it — it compares the rendered radius to the same constant the renderer
+		// read, so it stays green at any value.
+		for (const drawn of [VERTEX_HANDLE_RADIUS_PX, VERTEX_HANDLE_HIGHLIGHT_RADIUS_PX]) {
+			expect(VERTEX_GRAB_RADIUS_PX).toBeGreaterThanOrEqual(drawn);
+		}
 	});
 
-	it('keeps both to positive, finite screen pixels', () => {
-		for (const value of [VERTEX_HANDLE_RADIUS_PX, VERTEX_GRAB_RADIUS_PX]) {
+	it('draws the chosen corner larger than an unchosen one, rather than smaller', () => {
+		// BP-04 action 3's whole content — "highlight only the chosen corner" — is a
+		// DIRECTION, and this is the only assertion that states it. Set the highlight below
+		// the base and the chosen corner is drawn smaller than its siblings: the highlight
+		// inverted, a picture no equality to a constant can tell from the right one.
+		expect(VERTEX_HANDLE_HIGHLIGHT_RADIUS_PX).toBeGreaterThan(VERTEX_HANDLE_RADIUS_PX);
+	});
+
+	it('keeps all three to positive, finite screen pixels', () => {
+		for (const value of [VERTEX_HANDLE_RADIUS_PX, VERTEX_HANDLE_HIGHLIGHT_RADIUS_PX, VERTEX_GRAB_RADIUS_PX]) {
 			expect(Number.isFinite(value)).toBe(true);
 			expect(value).toBeGreaterThan(0);
 		}

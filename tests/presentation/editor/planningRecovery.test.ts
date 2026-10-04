@@ -41,7 +41,7 @@ describe('connected planning read-back recovery', () => {
   const form = rig.wrapper.get(`[data-rp-form="${kind}"]`), field = form.get<HTMLInputElement | HTMLTextAreaElement>(kind === 'planning' ? '[name="waste"]' : '[name="description"]');
   await field.setValue(kind === 'planning' ? '17,5' : 'Preserved oak boards'); field.element.focus();
   const draft = field.element.value, bytes = [...rig.stack.vault.entries];
-  const execute = vi.fn<() => Promise<DispatchResult>>(() => Promise.resolve(err(markUncompensated(injectedPersistenceError()))));
+  const execute = vi.fn<() => Promise<DispatchResult>>(() => Promise.resolve(err(markUncompensated(injectedPersistenceError(), []))));
   const command = { execute, undo: () => Promise.resolve(err(injectedPersistenceError())) };
   if (kind === 'planning') vi.spyOn(expectDefined(rig.deps.commands.planning, 'planning'), 'material').mockReturnValueOnce(command);
   else vi.spyOn(expectDefined(rig.deps.commands.renovation, 'renovation'), 'command').mockReturnValueOnce(command);

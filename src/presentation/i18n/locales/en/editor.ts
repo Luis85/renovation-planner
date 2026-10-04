@@ -144,6 +144,7 @@ export const editorEn = {
 	"editor.reference.loading": "Reading source…",
 	"editor.reference.missing": "Source file is missing. Correct the path or choose a replacement, then load again.",
 	"editor.reference.unreadable": "Cannot read this image or PDF page. Check the page number, retry, or choose another file.",
+	"editor.reference.page-out-of-range": "This PDF has no page {page}. Its last page is {count}.",
 	"editor.reference.source-changed": "The source changed. Return to preparation and load it again.",
 	"editor.reference.crop-x": "Crop left (px)",
 	"editor.reference.crop-y": "Crop top (px)",
@@ -182,6 +183,7 @@ export const editorEn = {
 	'editor.resize.anchor': 'The top-left corner stays fixed. Width extends to the right; depth extends downwards. Values are in metres. The dashed outline is a preview; the room changes only when you apply it. Independent walls stay unchanged.',
 	'editor.resize.preview': 'Preview: {width} m × {depth} m — {area}',
 	'editor.resize.invalid': 'Enter valid dimensions that can describe this room.',
+	'editor.outline.invalid': 'These positions do not form a valid shape. Correct any marked field, and check for lines that cross or overlap or for two neighbouring points in the same place.',
 	'editor.resize.paused': 'Saving or refreshing this floor. Changes cannot be applied now.',
 	'editor.resize.apply': 'Apply dimensions',
 	'editor.resize.unsupported': 'Width and depth editing supports only rectangles aligned with the floor axes. Rotated and other outlines can be edited using their existing corner handles.',
@@ -221,8 +223,16 @@ export const editorEn = {
 	'editor.add.door.description': 'An opening between two rooms',
 	'editor.add.window.label': 'Window',
 	'editor.add.window.description': 'An opening for light and air',
+	// BP-04 slice B's one new string, owner-supplied on 2026-09-20. The label of the door that
+	// opens the numeric outline editor, at BOTH doors (the zone context menu and the Inspector),
+	// exactly as `editor.area.details` labels `createAreaDetailsAction`'s two. Named `outline`
+	// rather than `edit-corners` because `editor.area.edit-corner` — SINGULAR and parameterised
+	// by `{n}` — is one of six `corner`-stemmed keys three lines below, and a seventh differing
+	// from one of them by a single `s` is a mix-up no gate can see; `outline` also names the
+	// module that produces it (`zoneOutlineAction.ts`, `runtime.zoneOutline`).
+	'editor.area.outline': 'Edit corners',
 	'editor.area.coordinates': 'Enter corner coordinates',
-	'editor.area.coordinates-hint': 'Positions in metres from the plan origin (0, 0), with X increasing to the right and y downwards. Zero and negative values are allowed. Use a decimal point or comma; input rounds to whole millimetres.',
+	'editor.area.coordinates-hint': 'Positions in metres from the plan origin (0, 0), with X increasing to the right and Y downwards. Zero and negative values are allowed. Use a decimal point or comma; input rounds to whole millimetres.',
 	'editor.area.corner': 'Corner {n}',
 	'editor.area.x': 'X position (m)',
 	'editor.area.y': 'Y position (m)',

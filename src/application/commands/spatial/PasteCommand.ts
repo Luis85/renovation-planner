@@ -2,7 +2,8 @@ import type { AppError } from '../../../core/errors/AppError';
 import type { Point } from '../../../core/geometry/Point';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { PlanId } from '../../../domain/plan/PlanId';
-import { placedRooms, placedStructure, type ClipboardIdPrefix, type PlacedStructure, type SpatialClipboard } from '../../../domain/spatial/clipboard';
+import { placedRooms, placedStructure, type ClipboardIdPrefix, type ClipboardRoom, type PlacedStructure, type SpatialClipboard } from '../../../domain/spatial/clipboard';
+import { enclosingOutline } from '../../../domain/zone/Zone';
 import { EMPTY_STRUCTURE, type Structure } from '../../../domain/spatial/Structure';
 import { validateStructure } from '../../../domain/spatial/structureGeometry';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
@@ -61,10 +62,11 @@ export class PasteCommand {
 	undo(): Promise<DispatchResult> { return walkSteps(this.steps.toReversed(), false); }
 
 	private async first(): Promise<DispatchResult> {
-		const refused = await this.refusal();
+		const { planId, clipboard, target } = this.input, rooms = placedRooms(clipboard, target);
+		const refused = await this.refusal(rooms);
 		if (refused) return err(refused);
-		const { planId, clipboard, target } = this.input, done: ComposedStep[] = [], roomIds: ZoneId[] = [];
-		for (const room of placedRooms(clipboard, target)) {
+		const done: ComposedStep[] = [], roomIds: ZoneId[] = [];
+		for (const room of rooms) {
 			const step = this.deps.createRoom({ planId, name: room.name, zoneType: room.zoneType as ZoneType, geometry: { points: room.points, bulges: room.bulges } });
 			const result = await step.execute();
 			if (!result.ok) return restoreSteps(done, false, result.error);
@@ -90,7 +92,12 @@ export class PasteCommand {
 	}
 
 	/**
-	 * The structure refusal step 2's `RenovationCommand` would return — `validateStructure` over the
+	 * First, owner ruling 39: every Room the paste places is asked the Zone entity's own write rule,
+	 * `enclosingOutline`, over the exact outline step 1 would hand `Zone.create` — so a Room of no
+	 * area, such as a sliver copied out of a vault written before the rule, refuses the whole paste
+	 * under the same code before anything is written, rather than after the Rooms ahead of it were.
+	 *
+	 * Then the structure refusal step 2's `RenovationCommand` would return — `validateStructure` over the
 	 * merged structure and the floor's room ids — asked BEFORE step 1 writes a single Zone note, so a
 	 * refused paste writes nothing. The rooms do not exist yet, so each stands in under its clipboard
 	 * key, prefixed: on the floor it was copied from, the bare key IS an existing zone id, and a
@@ -99,7 +106,11 @@ export class PasteCommand {
 	 * mints its own throwaway ids too, rather than burning real ones through `deps.mintId` for a
 	 * placement nothing ever writes.
 	 */
-	private async refusal(): Promise<AppError | null> {
+	private async refusal(rooms: readonly ClipboardRoom[]): Promise<AppError | null> {
+		for (const room of rooms) {
+			const outline = enclosingOutline({ points: room.points, bulges: room.bulges });
+			if (!outline.ok) return outline.error;
+		}
 		const { planId, clipboard, target } = this.input;
 		if (!clipboard.structure.walls.length && !clipboard.structure.elements.length) return null;
 		const baseline = await this.deps.renovation.read(planId);

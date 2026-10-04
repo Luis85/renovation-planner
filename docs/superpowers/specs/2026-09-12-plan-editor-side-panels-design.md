@@ -247,3 +247,28 @@ names per panel, strip button names, "Choose an asset", "No assets in the librar
   resize and collapse.
 - Increment-history entry for this pass.
 - CLAUDE.md is not edited: no view type, command, setting or gate changes.
+
+## Amendment 1 — §3's "Edit outline coordinates" row was removed the same day, and came back under another name (2026-09-21)
+
+**Appended, not an edit: the original text above stands as written (R-S7-12).**
+
+§3's Inspector Actions list names a stacked action row **"Edit outline coordinates"**. That row
+existed when this document was committed (`35db38400`, 2026-09-12 00:20) as
+`src/presentation/editor/resize/OutlineEditAction.vue`, wearing `data-rp-action="edit-outline"`
+and calling `runtime.outlineEdit.editOutline`. **PR #149 (`d77dff4bd`,
+`claude/remove-edit-shape-feature`) merged at 2026-09-12 13:51 and deleted it** — the component,
+`outlineEditAction.ts`, the canvas-menu entry, both locales' strings and two test files. About
+thirteen hours separate the two commits, so §3 has specified a row that does not exist for almost
+all of this document's life.
+
+BP-04 slices A, A2 and B (`01-improvement-plan.md`) **rebuilt** the route rather than restoring it.
+As of `0ad89aea3` the Inspector row is `ZoneOutlineAction.vue`, labelled **"Edit corners"**
+(`editor.area.outline`), calling `runtime.zoneOutline.editZoneOutline`, mounted for the `room`
+**and** `area` record kinds, with a second door in the canvas menu. Its `data-rp-action` is still
+`edit-outline`, so §3's opening invariant — that the `data-rp-action` hooks focus restoration
+reads are unchanged — is the one part of this paragraph that survived intact.
+
+**Do not read §3's row name as current.** The authority for that interaction is now
+[`2026-09-21-bp04-numeric-corner-editing-spec.md`](2026-09-21-bp04-numeric-corner-editing-spec.md),
+which reconciles it from the code and carries the full comparison in its §7. Nothing else in §3 is
+amended.

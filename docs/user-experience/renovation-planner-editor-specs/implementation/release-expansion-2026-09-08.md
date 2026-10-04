@@ -1,5 +1,7 @@
 # User-directed editor continuation — 2026-09-08
 
+> **Historical record — status added 2026-10-02.** This records the build and date it names. It is not acceptance of a beta release candidate; that status lives only in [first beta readiness](../../../releases/first-beta-readiness/README.md).
+
 This extends the release task and its active completion goal. It does not replace the
 original M00–M17 verification, nine final journeys, 18 reference comparisons, unchanged
 repository gate, or applicable isolated Obsidian acceptance. Main stays clean; concern

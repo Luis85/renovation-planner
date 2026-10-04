@@ -61,7 +61,7 @@ export interface AssetDesignDto {
 	readonly dimensionsUnscaled: boolean;
 	/**
 	 * TWO versions, named, because an asset is two resources with two independent revision
-	 * counters — `SetAssetHeight` conditions on the note's and the five geometry commands on
+	 * counters — `SetAssetHeight` conditions on the note's and the six geometry commands on
 	 * the sidecar's. One field called `version` would be a value half of its readers use
 	 * against the wrong port: presented to the note it refuses as stale, presented to the
 	 * sidecar it conditions a write on a number that never described it. That is the same

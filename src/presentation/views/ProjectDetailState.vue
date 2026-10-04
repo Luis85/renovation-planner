@@ -458,6 +458,7 @@ if (section === 'prices') {
 		@quotes="context.navigate(projectId, 'quotes')"
 		@refresh="reloadPrices"
 		@retry-plans="hydrate"
+		@open-diagnostics="context.openDiagnosticsReport()"
 		@scrolled="onScrolled"
 		@edit-state="onEditState"
 		@back="back"

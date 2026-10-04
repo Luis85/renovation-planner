@@ -76,6 +76,15 @@ export interface ReferencingGroup {
 	 */
 	readonly projectPath?: string;
 	readonly requirementIds: readonly RequirementId[];
+	/**
+	 * Present, and `true`, when at least one of these requirements is measured from geometry — it
+	 * carries a quantity `source`, the predicate `Requirement.repointedTo` refuses a move to another
+	 * room on. A FACT for either target kind, not a decision: a zone delete cannot reassign such a
+	 * requirement or strand it (owner ruling 62), while an asset delete keeps its room and can, so
+	 * which door acts on it is the door's call. Absent rather than `false`, so a group nothing is
+	 * measured from reads exactly as it did before.
+	 */
+	readonly sourced?: true;
 }
 
 /**
@@ -124,8 +133,9 @@ export class ListRequirementsReferencing {
 			: await this.requirements.listByAsset(target.assetId);
 		if (isErr(listed)) return listed;
 
-		const byProject = new Map<ProjectId, RequirementId[]>();
+		const byProject = new Map<ProjectId, RequirementId[]>(), sourced = new Set<ProjectId>();
 		for (const loaded of listed.value) {
+			if (loaded.entity.source !== undefined) sourced.add(loaded.entity.projectId);
 			const held = byProject.get(loaded.entity.projectId);
 			if (held) held.push(loaded.entity.id);
 			else byProject.set(loaded.entity.projectId, [loaded.entity.id]);
@@ -137,7 +147,7 @@ export class ListRequirementsReferencing {
 			if (isErr(loaded)) return loaded;
 			// A project note that is GONE still owes a group: dropping it would hide the very
 			// requirements the user is about to strand. The id is the only name left to give.
-			named.push({ projectId, projectName: loaded.value?.entity.name ?? String(projectId), requirementIds });
+			named.push({ projectId, projectName: loaded.value?.entity.name ?? String(projectId), requirementIds, ...(sourced.has(projectId) ? { sourced: true as const } : {}) });
 		}
 		return ok(this.withPathsWhereAmbiguous(named));
 	}

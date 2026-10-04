@@ -85,15 +85,19 @@ into an automated check will find the same thing again next release.
 
 ## The triage column
 
-Every step below carries a **`Reachable by`** verdict — a column in the **27** cases whose
+Every step below carries a **`Reachable by`** verdict — a column in the **30** cases whose
 steps are a table, and an inline token after the step number in [[Canvas Navigation]], whose
 procedure is a list. (That number said *fifteen*, then *twenty*, through repeated case additions,
 because it is prose beside a grep nobody re-ran for it. **Its stated derivation was wrong as well
 as its value**: it claimed to be `ls docs/tests/cases/*.md` minus the one list-form case, which
 counts every case file — including the **22** that carry no verdict column at all, whose steps
-this paragraph's *"every step below"* therefore does not describe. `ls` minus one says 49 today;
-the population is 27. Re-derived 2026-09-21 with the loop below, which asks each file whether it
-carries a table-form verdict rather than assuming it does.)
+this paragraph's *"every step below"* therefore does not describe. `ls` minus one said 49 then
+and the population was 27. Re-derived 2026-09-21 with the loop below, which asks each file whether
+it carries a table-form verdict rather than assuming it does, and re-run on 2026-10-01 at the merge
+of `main` into the beta branch: 51 and **29**, the two trees' new cases together — where the `ls` half was
+wrong on its own tree, which `git ls-tree` over the merge commit `ccf03be55` counts as **52**. Re-run
+again on 2026-10-01 in the edit that added [[Walk the room lists from the keyboard]]: **53** and
+**30**.)
 
 ```bash
 for f in docs/tests/cases/*.md; do
@@ -107,12 +111,39 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 207 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 75 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 243 |
-| `e2e` | **Added 2026-09-26 (AD18-R28).** Needs Obsidian itself, exactly as `obsidian` does, but every clause of the step is discharged by a NAMED test — vitest or real-Obsidian `npm run test:e2e` — and at least one of those clauses needs the real host, rather than any clause being carried by a person. Not every clause is watched red under a mutation: a clause built or closed in this round was; an earlier clause already carried by a pre-existing test was audited by reading its body, sampled rather than exhaustively mutated (29 clauses mutated, 7 of the 29 did not go red, all seven since corrected). A step with any clause still open, or resting on judgement, keeps its `obsidian`/`judgement` tier instead: the retag is per STEP, not per clause, and a step's own *Automated* table says which test covers which clause | not yet counted here — [[Design an Asset]] is the first case retagged into it (AD18-R28 Task 9); a census figure would need every case's `obsidian` rows triaged first |
-| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 15 |
-| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other five rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 17 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 232 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 91 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 199 |
+| `e2e` | **Added 2026-09-26 (AD18-R28).** Needs Obsidian itself, exactly as `obsidian` does, but every clause of the step is discharged by a NAMED test — vitest or real-Obsidian `npm run test:e2e` — and at least one of those clauses needs the real host, rather than any clause being carried by a person. Not every clause is watched red under a mutation: a clause built or closed in this round was; an earlier clause already carried by a pre-existing test was audited by reading its body, sampled rather than exhaustively mutated (29 clauses mutated, 7 of the 29 did not go red, all seven since corrected). A step with any clause still open, or resting on judgement, keeps its `obsidian`/`judgement` tier instead: the retag is per STEP, not per clause, and a step's own *Automated* table says which test covers which clause | 214 table rows on 2026-10-01, counted with the first grep below narrowed to `e2e` — a figure and not a triage: every case's `obsidian` rows have still not been triaged for this tier |
+| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 19 |
+| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other five rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 22 |
+
+**563 steps tiered by the two greps below, plus 214 rows tagged `e2e` — re-measured on 2026-10-01 at
+`722b9313f` and again in the edit that added [[Walk the room lists from the keyboard]].** At
+`722b9313f`, before that case, the two greps printed 534 table rows plus the 18 list steps in
+[[Canvas Navigation]] — the merge's 552 below, unchanged, tier for tier: the edits between the
+merge and that commit moved no verdict. With the case they print **545 + 18**: `suite` 232,
+`browser` 91, `obsidian` 199, `desktop` 19, `judgement` 22, and `e2e` still 214 by the first grep
+narrowed to that token. **It is additive per row and not merely in total** — 229+3, 84+7, 199+0,
+18+1, 22+0 — which is the new case's own eleven steps and nothing else.
+
+**The previous measurement's own account follows, kept as history.**
+
+**552 steps tiered by the two greps below, plus 214 rows tagged `e2e` — re-measured on 2026-10-01 at
+the merge of `main` (`f271e1ffb`) into the beta branch, and taken from neither side.** The two greps
+print 534 table rows plus the same 18 list steps in [[Canvas Navigation]]: `suite` 229, `browser` 84,
+`obsidian` 199, `desktop` 18, `judgement` 22. The `e2e` figure is the first grep narrowed to that
+token; no list step carries it, and the greps below do not name it, which is why it is stated apart.
+
+**Neither side's figures could be taken, and neither was right of its OWN tree either.** The beta
+branch's table read 437 while its tree printed 439 — [[Notices and save state]] steps 15a and 25
+were added after its 2026-09-24 census without re-running it, both `obsidian`. `main`'s table read
+557 while its tree printed 516 for the five tokens plus 214 `e2e` rows: AD18-R28's retags moved
+rows out of `obsidian` into a tier the greps do not name, and that tier's row said it was not yet
+counted. Each side measured separately with the same greps: beta `suite` 139, `browser` 61,
+`obsidian` 207, `desktop` 17, `judgement` 15; `main` 223, 83, 175, 15, 20 and `e2e` 214.
+
+**The previous measurement's own account follows — `main`'s, kept as history.**
 
 **557 steps — 539 table rows plus the same 18 list steps in [[Canvas Navigation]] — re-run in the
 edit that added wave 15's two recovery cases.** `suite` 190 → 207, `browser` unchanged at 75,
@@ -161,6 +192,60 @@ deliberately state a GAP instead — the "No plan places this asset" arm, the de
 scope, and the mixed-coordinate-space refusal, which is asserted at the domain and driven through
 no panel.
 
+**The beta branch's own accounts from the same span follow, kept as history.**
+
+**437 steps, unchanged, re-tiered rather than re-counted in the edit that closed BP-06's walkthrough
+review round: [[Empty States Walkthrough]] step 4 moves from `browser` to `suite`**, at `90e0e4ade`,
+since the seeded plan's five zones now suppress the `noBackground` overlay outright and the claim
+the step pins (`emptyStateOverlay.test.ts`'s "does not mistake rooms without a reference for an
+empty floor") is expressible in the jsdom suite. No row was added or removed, so the total holds at
+437; only that one row's own tier moved, taking `browser` 62 → 61 and `suite` 138 → 139 with it.
+The other three tiers are unchanged, and both greps below, run on 2026-09-24, printed 419 + 18
+against the tree it was taken from — `suite` 139, `browser` 61, `obsidian` 205, `desktop` 17,
+`judgement` 15.
+
+**The previous measurement's own account follows, kept as history.**
+
+**437 steps — 419 table rows plus 18 list steps in [[Canvas Navigation]], measured on 2026-09-20
+by running both greps below in the edit that added
+[[Edit a zone corner by typing its position]].** Per tier: `suite` 138, `browser` 62, `obsidian` 205, `desktop` 17, `judgement` 15 —
+each tier counted with the same two greps narrowed to that token, and the five summing to 437.
+The new case contributes nineteen rows, spread across all five tiers (`suite` 5, `browser` 2,
+`obsidian` 9, `desktop` 2, `judgement` 1), so every tier moves by exactly what that case added
+and the table above matches the greps row for row — additive per tier and not merely in total,
+which is what says the edit re-tiered nothing outside its own case. The previous table read the
+figures in the paragraph below and the two agreed, so no disagreement was carried forward.
+
+**The previous measurement's own account follows, kept as history.**
+
+**418 steps — 400 table rows plus 18 list steps in [[Canvas Navigation]], measured on 2026-09-17
+by running both greps below in the edit that added [[Two panes on one plan under an open write
+incident]].** Per tier: `suite` 133, `browser` 60, `obsidian` 196, `desktop` 15, `judgement` 14 —
+each tier counted with the same two greps narrowed to that token, and the five summing to 418,
+which is the only thing that makes the per-tier figures evidence rather than five separate
+claims. The new case contributes eleven rows, all of them in two tiers (`obsidian` 10,
+`judgement` 1), so `obsidian` 186 → 196 and `judgement` 13 → 14 and the other three are
+unchanged — additive per row and not merely in total, which is what says the edit re-tiered
+nothing outside its own case. **The tier table above read `obsidian` 185 and `judgement` 13 while
+the paragraph below read 186**, a one-row disagreement between the table and the prose that
+predates this edit and whose provenance is not recoverable from the greps; both now carry the
+freshly measured figures instead.
+
+**The previous measurement's own account follows, kept as history.**
+
+**407 steps — 389 table rows plus 18 list steps in [[Canvas Navigation]], measured on 2026-09-16
+by running both greps below rather than trusted from the 397 recorded beneath this paragraph.**
+That figure had gone nine rows stale with no re-tiering edit to blame — the same drift this
+file's own triage-column note above already names as a hazard of prose beside a grep nobody
+re-ran. Per tier: `suite` 133, `browser` 60, `obsidian` 186, `desktop` 15, `judgement` 13. No
+attempt is made here to trace which edits added those rows or which tiers they landed in;
+that provenance is not recoverable from the two greps alone, only the count is.
+
+**This number went stale once between being written and being committed**, which is the shortest
+demonstration of the hazard above that this file has: it was measured at 406 and re-measured at
+407 after merging `main`, where [[Design an Asset]] had gained one `obsidian` row. Read it as a
+dated snapshot and nothing more — run the greps before citing either number again.
+
 **The previous measurement's own account follows, kept as history.**
 
 **397 steps, unchanged, re-tiered rather than re-counted in the edit that closed the final
@@ -168,8 +253,8 @@ selection-polish review's M5: [[Design an Asset]] row 24a moves from `browser` t
 since closing a tab and reopening it from the Renovation project view or the library needs a real
 Obsidian workspace rather than a headless browser. No row was added or removed, so the total holds
 at 397; only that one row's own tier moved, taking `browser` 60 → 59 and `obsidian` 179 → 180 with
-it. The other three tiers are unchanged, and both greps below print 379 + 18 against the current
-tree.
+it. The other three tiers are unchanged, and both greps below printed 379 + 18 against the tree it
+was taken from.
 
 **The previous measurement's own account follows, kept as history.**
 
@@ -626,13 +711,9 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   seventeenth, `browser`, step — hovering a selected room's vertex handle and its body for the
   Select tool's two new cursor classes — so the ratio needing a host or a desktop is unchanged
   at nine while the denominator moves.
-- [[Empty States Walkthrough]] — design slice 14's two central-view empty states. Its step 4
-  is the sharpest example in this suite of a claim only a vault can settle: the Plan Editor's
-  empty states are OVERLAYS over a canvas that stays mounted, and the two things that
-  protects are both unreachable from the suite — `create-sample-project` seeds a
-  backgroundless plan with five zones, and the browser harness refuses a background outright.
-  A replacement would draw an empty state where the scene belongs with every test still
-  green.
+- [[Empty States Walkthrough]] — design slice 14's two central-view empty states: the Plan
+  Editor's empty states are OVERLAYS over a canvas that stays mounted, never a replacement for
+  it.
 - [[Notices and save state]] — design slice 13's notice queue and save-state indicator. The
   only rendered surface in this repository with NO capture to read by eye: the vendored
   `tests/harness/obsidian.css` carries no `.notice` rule at all, so neither `npm run harness`
@@ -761,6 +842,20 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   the other of which blanks it — and its steps 4a and 4b are two RECORDED holes looked at rather
   than described: a plugin command that never enters the leaf's gated dispatcher and is therefore
   not paused, and the status bar clipping its paused hint at a sidebar's width.
+- [[Two panes on one plan under an open write incident]] — the only instrument anywhere for
+  whether a SECOND pane is paused with the first while the vault holds an open write incident
+  (ADR-0034). The mechanism under it is tested three ways and the GESTURE is not testable at
+  all in jsdom: `duplicateLeaf` appears nowhere in `src/`, `FakeWorkspace` has no split and no
+  layout restore, and no jsdom test drives two Plan Editor leaves on the same plan (BP-02
+  limitation L-03) — so this case exists instead of a fake that pretended to. Only the
+  real-Obsidian drivers in `tests/e2e/` call it (`writeIncident.e2e.ts` and `incidentPanes.e2e.ts`
+  for this case's steps). Its
+  incident is PLANTED by hand, because ADR-0034 refuses to offer a control that raises or clears
+  one; its step 1a is a recorded COPY gap looked at rather than described (`editor.unrecovered`
+  still names "the floor's note" for an incident that may have been left anywhere in the vault),
+  and its step 5 is a recorded AFFORDANCE gap in the Asset Designer, whose tools and inspector stay
+  enabled over an incident while the guarded doors underneath refuse the write (its Undo and Redo,
+  dimmed since L-16, are the exception).
 - [[Two designers on one asset]] — the asset designer's expected-version conflict, matrix row T12.
   **Its step 1 asks a question nothing in this repository can answer**: no control this plugin owns
   opens a second designer leaf on one asset, because every door funnels into `revealAssetDesigner`,
@@ -852,3 +947,11 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   gate. Eighteen of its twenty-eight steps need Obsidian, which is the highest proportion in this
   suite and is the point: this case is almost entirely about navigation between real workspace
   leaves, and `FakeLeaf` records asks rather than behaving.
+- [[Walk the room lists from the keyboard]] — L-46's one Tab stop per room list: Tab into the
+  Floor inspector's Rooms list once, the arrows between rooms, Shift+Tab back to the row you left,
+  and ArrowRight to a row's lock, which Enter and Space toggle — its state carried by its
+  accessible name alone (AD18-R23). `nextActionWalk.e2e.ts`'s "the Rooms list keyboard (L-46)"
+  drives parts of steps 1 to 6 and 8 in real Obsidian, and the case's *Automated* table says which
+  parts. What no automated run here sees is whether the focus ring is visible and what a screen
+  reader makes of a list with no composite role, which are its steps 10 and 11. Its *Limits*
+  section carries the trade-offs L-46 disclosed rather than steps that would fail on them.

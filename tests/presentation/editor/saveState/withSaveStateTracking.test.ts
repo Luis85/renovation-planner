@@ -12,6 +12,8 @@ import {
 	WRITE_BOUNDARY_CODES,
 } from '../../../../src/application/ports/versioning';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
+import { installWriteIncidentRegistry } from '../../../../src/application/incidents/WriteIncidentRegistry';
+import { installQuietWriteIncidents } from '../../../helpers/writeIncidents';
 
 /**
  * Real-shaped, and NOT cast through `unknown`. An earlier draft built these with lowercase
@@ -28,6 +30,7 @@ const tracker = () => ({
 	resolveErr: vi.fn<() => void>(),
 	resolveNeutral: vi.fn<() => void>(),
 	markUnrecovered: vi.fn<() => void>(),
+	markVaultPaused: vi.fn<() => void>(),
 });
 
 /**
@@ -55,6 +58,9 @@ const recordingTracker = () => {
 		},
 		markUnrecovered: (): void => {
 			calls.push('markUnrecovered');
+		},
+		markVaultPaused: (): void => {
+			calls.push('markVaultPaused');
 		},
 	};
 };
@@ -192,14 +198,27 @@ describe('affectsSaveState', () => {
 	 * this is a stamp rather than a carve-out by code — carving the code out would have put a
 	 * sticky badge on an override of a Requirement somebody else deleted, which wrote nothing.
 	 */
-	it.each(['Reference', 'Domain', 'Validation', 'Calculation'] as const)(
+	it.each(['Reference', 'Domain', 'Validation', 'Calculation', 'Geometry'] as const)(
 		'counts a stamped %s refusal, which left writes standing despite its pre-write category',
 		(category) => {
-			expect(affectsSaveState(markUncompensated(errorOf(category)))).toBe(true);
+			expect(affectsSaveState(markUncompensated(errorOf(category), []))).toBe(true);
 		},
 	);
 
-	it.each(['Persistence', 'Geometry', 'Migration', 'Import'] as const)(
+	/**
+	 * **Owner ruling 37: a `Geometry` refusal is raised before anything is written.** Every raise
+	 * site is a pure function; every repository port answers `RepositoryError`, which has no
+	 * `Geometry` arm. The two a drag reaches — L-23's no-area outline and its overflow twin — are
+	 * transcribed from `Zone.ts`'s `enclosingOutline` and `operations.ts`'s `area` (imported into
+	 * `Zone.ts` as `polygonArea`). The one
+	 * shape that can follow a write, a composed paste or delete whose later step refuses, is the
+	 * stamped case above: `restoreSteps` marks it when putting the earlier steps back fails.
+	 */
+	it.each(['polygon-zero-area', 'polygon-area-overflow'])('ignores the pre-write Geometry refusal %s', (code) => {
+		expect(affectsSaveState({ category: 'Geometry', code, message: 'an outline the write rule refused' })).toBe(false);
+	});
+
+	it.each(['Persistence', 'Migration', 'Import'] as const)(
 		'counts a %s failure, because the safe answer is "we might not have written your data"',
 		(category) => {
 			expect(affectsSaveState(errorOf(category))).toBe(true);
@@ -270,7 +289,7 @@ describe('withSaveStateTracking', () => {
 	 */
 	it('stamps an unrecovered write on the store when the refusal left writes behind', async () => {
 		const recorded = recordingTracker();
-		const history = historyResolving(err(markUncompensated(errorOf('Persistence'))));
+		const history = historyResolving(err(markUncompensated(errorOf('Persistence'), [])));
 		await withSaveStateTracking(history, recorded).run(command);
 		expect(recorded.calls).toEqual(['beginSaving', 'markUnrecovered', 'resolveErr']);
 	});
@@ -393,6 +412,7 @@ describe('withSaveStateTracking', () => {
 			resolveErr: vi.fn<() => void>(),
 			resolveNeutral: vi.fn<() => void>(),
 			markUnrecovered: vi.fn<() => void>(),
+			markVaultPaused: vi.fn<() => void>(),
 		};
 		const history = {
 			run: vi.fn<() => Promise<DispatchResult>>(() => {
@@ -405,5 +425,25 @@ describe('withSaveStateTracking', () => {
 
 		await withSaveStateTracking(history, save).run(command);
 		expect(order).toEqual(['begin', 'run', 'ok']);
+	});
+
+	/**
+	 * The hold is taken only once nothing before the `try` can throw: a `beginSaving` that threw
+	 * between the two used to leak a hold nothing released, so `SessionStores.dispose()` waited
+	 * for a save that was never going to end.
+	 */
+	it('takes no hold a throwing beginSaving could leak', async () => {
+		const registry = installQuietWriteIncidents();
+		try {
+			const save = { ...tracker(), beginSaving: (): void => { throw new Error('begin'); } };
+			await expect(withSaveStateTracking(historyResolving(ok('wrote')), save).run(command)).rejects.toThrow('begin');
+			const idle = vi.fn<() => void>();
+
+			registry.whenIdle(idle);
+
+			expect(idle).toHaveBeenCalledOnce();
+		} finally {
+			installWriteIncidentRegistry(null);
+		}
 	});
 });

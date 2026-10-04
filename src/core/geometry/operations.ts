@@ -217,8 +217,11 @@ export function length(shape: LineSegment | Polyline): number {
 /**
  * Unsigned magnitude (shoelace formula). Winding order is deliberately invisible here.
  *
- * ZERO is a legitimate answer — a collinear vertex set is a legal polygon (SDD §26 files
- * degeneracy under "Future") and its area really is nothing. `Infinity` is not: every
+ * ZERO is a legitimate answer — a collinear vertex set is a legal POLYGON and its area really is
+ * nothing. It is not a legal Zone outline to WRITE: the Zone entity refuses one on create and on
+ * every outline change (L-23, owner ruling 34) — as it does an area negligible beside the
+ * outline's bounding box (ruling 36, `isNegligibleArea`) — and a zone stored with one still
+ * loads and is measured here as 0. `Infinity` is not: every
  * coordinate can be finite while their PRODUCTS overflow, and this function's output is a
  * Requirement's quantity and therefore its cost, through `Zone.area()`. A measurement that
  * cannot be represented is refused rather than reported, which is the rule `dimensionsOf`
@@ -285,11 +288,55 @@ export function area(polygon: CurvedPolygon): Result<number, GeometryError> {
  * false of the one below it, in a comment written beside the code that translates. A `> 0` test
  * lets `NaN` through by making it incomparable rather than by making it large, which is the
  * quieter of the two ways to pass.
+ *
+ * **An exact-zero test, and the ASSET footprints are what still ask it** (`AssetDetail`,
+ * `AssetShape`). A zone outline is held to `isNegligibleArea` below instead (owner ruling 36),
+ * which also refuses the float residue a slanted snap leaves; this one was left as it is so no
+ * asset changes behaviour.
  */
 export function enclosesArea(polygon: CurvedPolygon): boolean {
 	if (!validateBulges(polygon).ok) return false;
 	const sum = signedAreaSum(polygon.points) + 2 * curveMoments(polygon).area;
 	return Number.isFinite(sum) && Math.abs(sum) / 2 > 0;
+}
+
+/**
+ * Owner ruling 36, verbatim: "Treat an outline whose area is negligible relative to its size
+ * (e.g. below a millionth of its bounding box) as zero. Closes the slanted-edge case. Small change
+ * + tests; a genuinely thin but real room (e.g. 1 cm × 10 m) still passes."
+ */
+const NEGLIGIBLE_AREA_RATIO = 1e-6;
+
+/**
+ * Is `measured` — this outline's own `area`, which the caller already holds and has already had
+ * refused if it overflowed — negligible beside the outline's axis-aligned bounding box? That is
+ * ruling 36's question, and a `true` here is to be read as zero area.
+ *
+ * **What it refuses**: exact zero, as before, and the residue a snap onto a slanted edge leaves —
+ * a corner projected onto a line no float grid holds, measured at about 1e-10 mm² beside a
+ * 2842 × 1442 box, a ratio near 3e-17. **What it does not**: a thin but real outline — 1 mm by
+ * 10 m turned 45°, the thinnest the tests pin, is about 2e-4 of its box, two hundred times the
+ * threshold. It is a ratio and not an absolute floor, so a small outline of ordinary proportions
+ * passes however small it is, until its area underflows a double.
+ *
+ * **The box is the CORNERS', not the arcs'**, and that is the permissive reading on purpose. An arc
+ * can only widen a box, so measuring against the corners gives every curved outline a ratio at
+ * least as large as the arc box would: this never refuses a curved outline the literal bounding
+ * box would accept, and a straight outline has no arcs for the two to differ over. A curved outline
+ * with collinear corners has a flat corner box and a real area, which divides to `Infinity` and
+ * passes.
+ *
+ * The ratio is divided out rather than taken against a multiplied box, so a box whose AREA
+ * overflows does not read a real area as negligible (the vast triangle the Zone tests pin); and
+ * each extent is taken in halves, `max / 2 - min / 2`, for the reason `boundsMidpoint` gives, so a
+ * box whose WIDTH overflows does not either — its spanning triangle, about 1 inside a box 2e308
+ * wide, where `max - min` is `Infinity` and the ratio 0. Halving both extents makes the ratio four
+ * times too large, which the final `/ 4` puts back. A flat box around no area is `0 / 0`, `NaN` — which the negated
+ * comparison refuses rather than lets through.
+ */
+export function isNegligibleArea(polygon: CurvedPolygon, measured: number): boolean {
+	const { minX, maxX, minY, maxY } = extentOf(polygon.points);
+	return !(measured / (maxX / 2 - minX / 2) / (maxY / 2 - minY / 2) / 4 >= NEGLIGIBLE_AREA_RATIO);
 }
 
 export function perimeter(polygon: CurvedPolygon): Result<number, GeometryError> {

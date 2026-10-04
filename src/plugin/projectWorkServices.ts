@@ -2,7 +2,7 @@ import type { Vault, Workspace } from 'obsidian';
 import type { CompositionRoot } from './composition-root';
 import type { ProjectId } from '../domain/project/ProjectId';
 import { readProjectWork, type ProjectWorkServices } from '../application/queries/schedule/ProjectWork';
-import { guardCommand } from '../application/errors/guardAgainstThrowing';
+import { guardQuery } from '../application/errors/guardAgainstThrowing';
 import { disposeAll, subscribeAll, changedEntry } from '../application/events/subscriptions';
 import { planningEditorServices } from './planningEditorServices';
 import { VAULT_EXCEPTION_MAPPER } from './guardedServices';
@@ -12,7 +12,8 @@ export function projectWorkServices(root: CompositionRoot, vault: Vault, workspa
  if (!persistence) return undefined;
  const services = planningEditorServices(root, vault, workspace);
  if (!services.renovation || !services.tradeCatalogue) return undefined;
- const read = guardCommand({ execute: (id: ProjectId) => readProjectWork(persistence, id) }, 'project.work-read-failed', root.logger, VAULT_EXCEPTION_MAPPER);
+ // A READ, so no ADR-0034 write gate (owner ruling 74): a pause drew "Saved · refresh needed" and no rows.
+ const read = guardQuery({ execute: (id: ProjectId) => readProjectWork(persistence, id) }, 'project.work-read-failed', root.logger, VAULT_EXCEPTION_MAPPER);
  return { read: id => read.execute(id), renovation: services.renovation, trades: services.tradeCatalogue,
   onChanged(listener) {
    return disposeAll([

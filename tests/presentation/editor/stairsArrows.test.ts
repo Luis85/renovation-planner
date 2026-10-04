@@ -56,6 +56,7 @@ it('creates, renders, edits and rotates a stair with one geometry/metadata histo
 	expect(control.anchor).toEqual({ x: -450, y: -1500 });
 	expect(boundsOfZones([candidate])).toEqual({ min: { x: -450, y: -3000 }, max: { x: 450, y: 0 } });
 	expect(resolveSelectionTarget({ candidates, selectedIds: [], worldPoint: { x: 400, y: -1500 }, handleToleranceWorld: 8 })).toEqual({ kind: 'body', id: saved.id });
+	const savedName = rig.project.plan?.spatialElements?.[0].name;
 	const editing = rig.runtime.elementActions.edit(saved.id); await settle();
 	await rig.wrapper.get('[data-rp-form="stair-edit"] input[name="name"]').setValue('Back stairs');
 	await rig.wrapper.get('[data-rp-form="stair-edit"] input[name="stair-width"]').setValue('1,2');
@@ -66,8 +67,12 @@ it('creates, renders, edits and rotates a stair with one geometry/metadata histo
 	await rig.wrapper.get('[data-rp-form="stair-edit"]').trigger('submit'); await editing; await settle();
 	expect(rig.project.structure.elements?.[0]).toMatchObject({ points: preview?.points, stair: { width: 1200, treads: 8, direction: 'down' } });
 	expect(rig.project.plan?.spatialElements?.[0].name).toBe('Back stairs'); expect(rig.stage.find('.stair-tread')).toHaveLength(7);
+	const edited = expectDefined(rig.project.structure.elements?.[0], 'the edit as saved');
 	await rig.runtime.undo(); await settle(); expect(rig.project.structure.elements?.[0]).toEqual(saved);
+	expect(rig.project.plan?.spatialElements?.[0].name).toBe(savedName);
+	// Redo through the same door as the Undo above, `runtime.redo()`: the edit comes back whole, geometry and name.
 	await rig.runtime.redo(); await settle();
+	expect(rig.project.structure.elements?.[0]).toEqual(edited); expect(rig.project.plan?.spatialElements?.[0].name).toBe('Back stairs');
 	const before = expectDefined(rig.project.structure.elements?.[0], 'edited stair'), pivot = expectDefined(rotationPivot(before), 'centreline pivot');
 	await rig.runtime.rotationActions.rotate(saved.id, 90); await settle();
 	expect(rig.project.structure.elements?.[0]).toEqual({ ...before, points: rotationPoints(before, 90, pivot) });

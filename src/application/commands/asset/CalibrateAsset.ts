@@ -142,7 +142,7 @@ export class CalibrateAssetCommand implements Command<CalibrateAssetInput, Dispa
 
 	/**
 	 * The reversible adapter's door: the same write, plus the version it produced. The pair the
-	 * five shape commands already spell, and the reason it is a pair rather than a widening is
+	 * six shape commands already spell, and the reason it is a pair rather than a widening is
 	 * in `VersionedDispatch`.
 	 */
 	async executeWithVersion(input: CalibrateAssetInput): Promise<VersionedDispatchResult> {

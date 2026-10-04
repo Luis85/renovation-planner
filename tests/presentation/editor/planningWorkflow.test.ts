@@ -239,7 +239,8 @@ describe('connected planning editor', () => {
  it('shows a failed Review refresh and refuses a Room deletion when material links cannot be read', async () => {
  const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning'); await rig.runtime.renovation.perspective('review'); await settle();
  vi.spyOn(services, 'read').mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.read', message: 'offline' })); rig.changePlan(); await settle(); expect(rig.wrapper.text()).toContain('could not');
- rig.changePlan(); await settle(); await rig.runtime.renovation.perspective('plan'); await settle(); rig.selection.select([rig.room.id]); vi.spyOn(services, 'read').mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.read', message: 'offline' })); await rig.runtime.deleteZone(rig.room.id, rig.room.name); expect(rig.dialogs.current).toBeNull(); expect(rig.project.zones.has(rig.room.id)).toBe(true);
+ // Since ruling 61 a Room's material links are read by the reference flow's own query, not by the guard.
+ rig.changePlan(); await settle(); await rig.runtime.renovation.perspective('plan'); await settle(); rig.selection.select([rig.room.id]); vi.spyOn(rig.deps.queries, 'listRequirementsReferencing').mockResolvedValueOnce(err({ category: 'Persistence', code: 'test.read', message: 'offline' })); await rig.runtime.deleteZone(rig.room.id, rig.room.name); expect(rig.dialogs.current).toBeNull(); expect(rig.project.zones.has(rig.room.id)).toBe(true);
  });
 
  it('refuses a captured form submission after leaf disposal', async () => {
@@ -247,10 +248,11 @@ describe('connected planning editor', () => {
  const form = rig.wrapper.getComponent(PlanningForm), dispatch = form.props('dispatch'), input = materialInput(form.props('draft'));
  rig.unmount(); expect((await dispatch(input)).ok).toBe(false); expect(expectOk(await rig.stack.requirements.listByZone(rig.room.id))).toHaveLength(0);
  });
- it.each(['room', 'wall'] as const)('ignores delayed %s referential previews after disposal', async kind => {
+ // A Room's delete no longer reads planning (ruling 61); its delayed guard read is `renovationRoutes.test.ts`'s.
+ it('ignores a delayed wall referential preview after disposal', async () => {
  const rig = await setup(), services = expectDefined(rig.deps.commands.planning, 'planning'), baseline = await services.read(rig.plan.id), pending = defer<typeof baseline>();
  vi.spyOn(services, 'read').mockReturnValueOnce(pending.promise);
- const deletion = kind === 'room' ? rig.runtime.deleteZone(rig.room.id, rig.room.name) : rig.runtime.structureActions.remove('wall-a'); await settle(); rig.unmount(); pending.resolve(baseline); await deletion; expect(rig.dialogs.current).toBeNull();
+ const deletion = rig.runtime.structureActions.remove('wall-a'); await settle(); rig.unmount(); pending.resolve(baseline); await deletion; expect(rig.dialogs.current).toBeNull();
  });
 
  it('withholds the Review all-clear while planning is loading, failed or carries a finding, in the panel and in the note', async () => {

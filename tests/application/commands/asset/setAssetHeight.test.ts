@@ -9,7 +9,7 @@
  * `writeOwnedFrontmatter`'s merge. The same argument `setAssetFootprint.test.ts` makes for
  * driving the real sidecar, one boundary over.
  *
- * The five geometry commands share `updateAssetShape`; this one shares nothing with them —
+ * The six geometry commands share `updateAssetShape`; this one shares nothing with them —
  * it writes the note through `AssetRepository.save` and `Asset.withChanges`. So every
  * guarantee that path holds for them (validate, report a no-write, condition the write,
  * announce once) is asked here again from scratch rather than inherited.

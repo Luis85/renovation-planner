@@ -9,6 +9,13 @@ import { err } from '../../src/core/result/Result';
 import { RecalculateRequirementCommand } from '../../src/application/commands/requirement/RecalculateRequirement';
 import { AssignAssetCommand } from '../../src/application/commands/requirement/AssignAsset';
 import { DeleteZoneCommand } from '../../src/application/commands/zone/DeleteZone';
+import { EditZoneDetailsCommand } from '../../src/application/commands/zone/EditZoneDetails';
+import type { EditZoneDetailsInput } from '../../src/application/commands/zone/EditZoneDetails';
+import { RenameZoneCommand } from '../../src/application/commands/zone/RenameZone';
+import type { RenameZoneInput } from '../../src/application/commands/zone/RenameZone';
+import { ReversibleRenameZoneCommand } from '../../src/application/commands/zone/reversible-rename-zone-command';
+import type { WriteLedger } from '../../src/application/editor/WriteLedger';
+import type { UndoableCommand } from '../../src/presentation/editor/tools/undoable-command';
 import type { ZoneRepository } from '../../src/application/ports/ZoneRepository';
 import type { RequirementRepository } from '../../src/application/ports/RequirementRepository';
 import type { DeleteZoneUndoDeps } from '../../src/application/commands/zone/reversible-delete-zone-command';
@@ -259,5 +266,37 @@ export async function assignedRequirementFixture(): Promise<
 		zoneId: zoneEntity.entity.id,
 		assetId: assetEntity.entity.id,
 		requirementId: assigned.value.requirement.id,
+	};
+}
+
+/**
+ * The Inspector's two per-edit zone factories, RAW — the same pair `planEditorDeps` composes
+ * guarded, built here out of whichever repository and bus the rig is driving.
+ *
+ * Raw rather than guarded on purpose, and consistent with every other command these rigs
+ * compose: `createZone`, `moveObject` and `deleteZone` are bare application classes here too,
+ * and what a mounted editor's suite exists to drive is presentation's OWN handling of a refusal
+ * or a throw. `editorFaults.test.ts` is the case that depends on a raw throw reaching
+ * presentation — but through the DELETE flow and a tool gesture, not through either of these
+ * two: `grep -n "editZoneDetails\|renameZone\|'name'\|'details'"
+ * tests/presentation/editor/editorFaults.test.ts` prints nothing (2026-09-17). So the argument
+ * is about these rigs as a whole and was never a measured fact about this pair; it is written
+ * that way here because an earlier version of this sentence cited that file as though it had
+ * been.
+ *
+ * **The cost, stated rather than left to be found: these rigs compose these two edits
+ * DIFFERENTLY from production.** Since BP-02 slice 4 the plugin composes them guarded, so
+ * `roomNaming.e2e.test.ts` drives a rename through a composition the plugin no longer ships and
+ * no mounted suite can see the guard. The COMPOSED, guarded pair is the subject of
+ * `tests/plugin/guardWiring.test.ts` and `tests/plugin/writeIncidentWiring.test.ts` instead —
+ * the latter driving it through the real `createInspector`, which is the switch that decides.
+ */
+export function zoneEditCommands(zones: ZoneRepository, events: EventBus): {
+	editZoneDetails: (ledger: WriteLedger, input: EditZoneDetailsInput) => UndoableCommand;
+	renameZone: (ledger: WriteLedger, input: RenameZoneInput & { readonly inverse: string }) => UndoableCommand;
+} {
+	return {
+		editZoneDetails: (ledger, input) => new EditZoneDetailsCommand(zones, events, ledger, input),
+		renameZone: (ledger, input) => new ReversibleRenameZoneCommand(new RenameZoneCommand(zones, events), ledger, input),
 	};
 }

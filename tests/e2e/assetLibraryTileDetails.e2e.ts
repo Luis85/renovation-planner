@@ -9,8 +9,8 @@ import { mobileEmulation } from './session';
 
 /**
  * AD18-R39 in a real Obsidian: a Grid tile and the inspector's Shape preview draw the asset's
- * details inside its footprint, and the 20px list row does not. The library refuses to mount on
- * mobile, so the case is desktop only.
+ * details inside its footprint, and the 20px list row does not. The library is read-only on mobile since owner ruling 66 (L-43), and this was
+ * written against the desktop one, so the case is desktop only.
  */
 const desktop = mobileEmulation ? test.skip : test;
 

@@ -81,9 +81,6 @@ async function submit(): Promise<void> {
 				</select>
 			</label>
 		</FieldError>
-		<FormSubmitRow
-			:submitting="disabled"
-			:label="tr('editor.rename.apply')"
-		/>
+		<FormSubmitRow :submitting="disabled" />
 	</form>
 </template>

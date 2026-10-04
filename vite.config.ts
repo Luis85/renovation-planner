@@ -49,6 +49,20 @@ const OBSIDIAN_PROVIDED = [
 
 export default defineConfig(({ mode }) => ({
 	plugins: [vue(), assembledStyles()],
+	/**
+	 * Library mode does not replace `process.env`, so without this every one of Vue's
+	 * `process.env.NODE_ENV !== 'production'` branches ships — 278 reads in the release,
+	 * measured, one at module top level. Vue's dev checks then run for every user whose host
+	 * does not set NODE_ENV, and that top-level read throws on a host with no `process`.
+	 *
+	 * The value follows `mode`: `'production'` unless `--mode development`, which keeps Vue's
+	 * warnings for `test-build` exactly as it keeps the inline sourcemap below. The suite and
+	 * the harness have their own configs and stay in development mode.
+	 * `tests/gates/release-bundle.test.ts` asserts the release reads no `process.env`.
+	 */
+	define: {
+		'process.env.NODE_ENV': JSON.stringify(mode === 'development' ? 'development' : 'production'),
+	},
 	build: {
 		/**
 		 * `dist/`, not the repository root.

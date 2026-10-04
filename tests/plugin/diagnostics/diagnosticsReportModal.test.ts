@@ -14,6 +14,13 @@ import {
 	renderDiagnosticsReport,
 } from '../../../src/plugin/diagnostics/DiagnosticsReportModal';
 import type { DiagnosticsSnapshot } from '../../../src/application/queries/GetDiagnosticsSnapshot';
+import { NO_WRITE_INCIDENTS } from '../../../src/application/incidents/WriteIncidentRegistry';
+import {
+	UNREADABLE_WRITE_INCIDENT_ID,
+	WRITE_INCIDENT_SCHEMA_VERSION,
+	unreadableWriteIncident,
+	type WriteIncident,
+} from '../../../src/application/incidents/WriteIncident';
 import { t } from '../../../src/presentation/i18n/strings';
 
 installObsidianDom();
@@ -26,6 +33,24 @@ const SNAPSHOT: DiagnosticsSnapshot = {
 	validationIssues: [
 		{ entityType: 'zone', entityId: 'zone-01JAAA', issue: 'zone.frontmatter-invalid' },
 	],
+	writeIncidents: NO_WRITE_INCIDENTS,
+};
+
+const INCIDENTS_PATH = '.obsidian/plugins/renovation-planner/write-incidents.json';
+
+/** One open incident, shaped the way `WriteIncidentRegistry.record` mints one. */
+const withIncident = (...open: WriteIncident[]): DiagnosticsSnapshot => ({
+	...SNAPSHOT,
+	writeIncidents: { path: INCIDENTS_PATH, open },
+});
+
+const RAISED: WriteIncident = {
+	schemaVersion: WRITE_INCIDENT_SCHEMA_VERSION,
+	incidentId: 'incident-01JAAA',
+	raisedAt: '2026-09-16T10:00:00.000Z',
+	code: 'zone.write-uncompensated',
+	category: 'Persistence',
+	affected: [{ entityKind: 'zone', entityId: 'zone-01JBBB' }],
 };
 
 const SINK = 'Renovation/Kitchen/Zones/Sink.md';
@@ -92,6 +117,78 @@ describe('the diagnostics report', () => {
 		expect(copied).toContain('zone-01JAAA');
 		expect(copied).not.toContain(SINK);
 		expect(copied).not.toContain('.md');
+	});
+});
+
+/**
+ * ADR-0034's section. It is the reason the durable record is discoverable at all: nothing in
+ * the plugin retires an incident, so the report naming `write-incidents.json` is the whole of
+ * how the user finds the one gesture that does.
+ */
+describe('the open write incidents section', () => {
+	it('names the incident by code, timestamp and affected entity, and names the file to remove', () => {
+		const into = render(withIncident(RAISED), () => undefined);
+		const text = into.textContent ?? '';
+
+		expect(text).toContain('zone.write-uncompensated');
+		expect(text).toContain('2026-09-16T10:00:00.000Z');
+		expect(text).toContain('zone-01JBBB');
+		expect(text).toContain(INCIDENTS_PATH);
+		expect(into.querySelectorAll('.rp-diagnostics__incident')).toHaveLength(1);
+	});
+
+	it('says so when none is open, and keeps the file path out of an all-clear report', () => {
+		const into = render(SNAPSHOT, () => undefined);
+
+		expect(into.querySelector('.rp-diagnostics__incidents-empty')?.textContent).toBe(
+			t('en', 'diagnostics.incidents.none'),
+		);
+		expect(into.querySelector('.rp-diagnostics__incidents')).toBeNull();
+		expect(into.textContent).not.toContain('write-incidents.json');
+	});
+
+	/**
+	 * The `unreadableWriteIncident` pair the addendum flags: a record written by a version
+	 * whose shape this build does not know. Its `raisedAt` is deliberately `''` — there is no
+	 * string shape a real ISO instant can never take, so the store refuses to mint a
+	 * placeholder that might read as one — and its `affected` is empty. Both absences get a
+	 * SENTENCE rather than a blank column, because an incident this build cannot read is the
+	 * one a user most needs named and the one with the least to say.
+	 */
+	it('draws the record it cannot read as an open incident with its absences named', () => {
+		const into = render(withIncident(unreadableWriteIncident(null)), () => undefined);
+		const row = into.querySelector('.rp-diagnostics__incident');
+
+		expect(row?.textContent).toContain(t('en', 'diagnostics.incidents.unreadable'));
+		expect(row?.textContent).toContain(t('en', 'diagnostics.incidents.unnamed'));
+		// The absent timestamp draws NOTHING rather than an empty span the user would read as
+		// a rendering fault; `UNREADABLE_WRITE_INCIDENT_ID` is not shown because an id nothing
+		// can be looked up by is not a fact the user can act on.
+		expect(row?.querySelector('.rp-diagnostics__at')).toBeNull();
+		expect(row?.textContent).not.toContain(UNREADABLE_WRITE_INCIDENT_ID);
+		// And the file is still named: this is exactly the incident whose only remedy is removal.
+		expect(into.textContent).toContain(INCIDENTS_PATH);
+	});
+
+	/**
+	 * The copied payload carries the incidents too. The file path is the ONE path it may hold
+	 * — plugin-local, no user content — and "which file do I remove" is unanswerable from a
+	 * list of ids, which is the case a pasted report exists for.
+	 */
+	it('carries the incidents into the copied payload, and still no note path', () => {
+		const copied = diagnosticsReportText(withIncident(RAISED));
+
+		expect(copied).toContain(INCIDENTS_PATH);
+		expect(copied).toContain('incident zone.write-uncompensated 2026-09-16T10:00:00.000Z zone:zone-01JBBB');
+		expect(copied).not.toContain(SINK);
+		expect(diagnosticsReportText(SNAPSHOT)).toContain('incidents none');
+		expect(diagnosticsReportText(SNAPSHOT)).not.toContain('write-incidents.json');
+	});
+
+	it('says unknown and unnamed in the payload for the record it cannot read', () => {
+		const copied = diagnosticsReportText(withIncident(unreadableWriteIncident(null)));
+
+		expect(copied).toContain('incident write-incident.unreadable unknown unnamed');
 	});
 });
 

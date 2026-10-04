@@ -100,10 +100,15 @@ export interface DeleteWithReferencesDeps<Id extends string> {
 	 */
 	listReferents(): Promise<Result<readonly ReferencingGroup[], AppError>>;
 	listReassignmentTargets(): Promise<Result<readonly ReassignmentTargetDto[], AppError>>;
-	/** `dialogStore.openDialog({ kind: 'delete-reference', … })`, with the rows already built. */
+	/**
+	 * `dialogStore.openDialog({ kind: 'delete-reference', … })`, with the rows already built.
+	 * `sourced` is whether any listed referent is measured from geometry (`ReferencingGroup.sourced`);
+	 * only the Plan editor's zone door acts on it (owner ruling 62), the Asset library's ignores it.
+	 */
 	askResolution(
 		entityLabel: string,
 		references: readonly ReferenceRow[],
+		sourced: boolean,
 	): Promise<DeleteReferenceDialogResult>;
 	askReassignTarget(
 		title: string,
@@ -187,7 +192,7 @@ async function askAndDispatch<Id extends string>(
 	groups: readonly ReferencingGroup[],
 ): Promise<DeleteOutcome> {
 	const referents = referentsOf(groups);
-	const chosen = await deps.askResolution(entityLabel, rowsFor(groups));
+	const chosen = await deps.askResolution(entityLabel, rowsFor(groups), groups.some((group) => group.sourced === true));
 	if (chosen.action === 'cancel') return { kind: 'cancelled' };
 
 	if (chosen.action === 'reassign') {

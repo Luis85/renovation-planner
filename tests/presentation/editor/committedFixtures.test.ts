@@ -33,7 +33,7 @@ import {
 	PLACEHOLDER_WORLD_SCALE,
 	type BackgroundVault,
 } from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
-import { renderPdfPage } from '../../../src/presentation/editor/layers/background/pdfRaster';
+import { PdfPageOutOfRange, renderPdfPage } from '../../../src/presentation/editor/layers/background/pdfRaster';
 import { backingCanvas, clearResources, installCanvas, registerResource } from '../../helpers/canvas';
 import { installObsidianDom } from '../../helpers/dom';
 
@@ -107,10 +107,14 @@ describe('the PDF fixture a real tool produced', () => {
 	});
 
 	it('refuses a page the document does not have', async () => {
-		// pdf.js's own words, asserted rather than "it rejected": `getPage` refusing and the
-		// LOADING TASK failing are different failures, and only one of them means the page
-		// was out of range.
-		await expect(renderPdfPage(fixtureBuffer(PDF_PATH), 99)).rejects.toThrow('Invalid page request.');
+		// Past the last page: refused before pdf.js is asked, with both numbers (BP-06). The
+		// committed fixture has one page.
+		const past = renderPdfPage(fixtureBuffer(PDF_PATH), 99);
+		await expect(past).rejects.toBeInstanceOf(PdfPageOutOfRange);
+		await expect(past).rejects.toMatchObject({ page: 99, count: 1 });
+		// Below the first: pdf.js's own words, asserted rather than "it rejected": `getPage`
+		// refusing and the LOADING TASK failing are different failures.
+		await expect(renderPdfPage(fixtureBuffer(PDF_PATH), 0)).rejects.toThrow('Invalid page request.');
 	});
 });
 

@@ -9,7 +9,7 @@ import { mobileEmulation } from './session';
  * and the one filter it drives, the filtered empty states and where the caret goes from them, the
  * `Create your own` card, and the tile's placeholder icon. The narrow pane's rows are
  * `assetLibraryNarrow.e2e.ts`; the view state across a close and a restart is
- * `assetLibraryState.e2e.ts`. The library refuses to mount on mobile, so every case is desktop.
+ * `assetLibraryState.e2e.ts`. The library is read-only on mobile since owner ruling 66 (L-43), and this was written against the desktop one, so every case is desktop.
  */
 const desktop = mobileEmulation ? test.skip : test;
 

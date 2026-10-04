@@ -83,6 +83,7 @@ const noSubscription = () => () => undefined;
 
 function reopenDeps(): PlanEditorDeps {
 	return {
+		openDiagnosticsReport: () => undefined,
 		queries: {
 			getPlan: () => Promise.resolve(ok(null)),
 			getProject: () => Promise.resolve(ok(null)),

@@ -27,7 +27,7 @@ export interface AssetShape {
 	readonly clearance: CurvedPolygon | null;
 	/**
 	 * **A MEASURED clearance this object was resized around, kept at the size its author drew
-	 * and flagged instead of scaled** (AD14-R1, ADR-0034). Set in `scaleDesign` and nowhere else;
+	 * and flagged instead of scaled** (AD14-R1, ADR-0035). Set in `scaleDesign` and nowhere else;
 	 * cleared by any write whose SUBJECT is the clearance itself, because a gesture aimed at the
 	 * boundary IS the review.
 	 *

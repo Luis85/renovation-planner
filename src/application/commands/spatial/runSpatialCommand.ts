@@ -11,7 +11,12 @@ export async function runSpatialCommand(
 	operation: () => Promise<DispatchResult>,
 	faults: { recovery: () => AppError; unexpected: (cause: unknown) => AppError },
 ): Promise<DispatchResult> {
-	if (state.retired) return err(markUncompensated(faults.recovery()));
+	// Empty, genuinely: `SpatialCommandState` carries no id at all, and this function is shared
+	// by every command that wraps it (`StructureCommand`, `GroupGeometryCommand`, …), so there
+	// is no per-kind field here to reach for either. The command that first set `state.retired`
+	// stamped its OWN entity at its own call site; this is only the "already retired, refuse
+	// again" arm on a later call.
+	if (state.retired) return err(markUncompensated(faults.recovery(), []));
 	if (state.busy || state.applied === forward) return ok('no-write');
 	state.busy = true;
 	try { return await operation(); }

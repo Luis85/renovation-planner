@@ -99,7 +99,10 @@ describe('reference configuration through real Markdown and sidecar repositories
 		const r = await setup(), save = r.stack.plans.save.bind(r.stack.plans);
 		vi.spyOn(r.stack.plans, 'save').mockImplementationOnce(save).mockRejectedValueOnce(new Error('restore disk'));
 		vi.spyOn(r.geometry, 'write').mockResolvedValueOnce(err(injectedPersistenceError()));
-		expect(await r.command.execute()).toMatchObject({ ok: false, error: { code: 'reference.compensation-failed', uncompensatedWrite: true } });
+		expect(await r.command.execute()).toMatchObject({
+			ok: false,
+			error: { code: 'reference.compensation-failed', uncompensatedWrite: [{ entityKind: 'plan', entityId: r.plan.id }] },
+		});
 	});
 	it('reports failed compensation, preserves peer metadata and never forces a restore', async () => {
 		const r = await setup();

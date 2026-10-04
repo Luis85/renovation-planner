@@ -5,7 +5,8 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import { PLAN_EDITOR_CONTEXT, type PlanEditorContext, type DeviceStorage } from '../../src/presentation/editor/PlanEditorContext';
 import { createEditorClipboard, type EditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 import PlanEditorRoot from '../../src/presentation/editor/PlanEditorRoot.vue';
-import { EDITOR_RUNTIME, type EditorRuntime } from '../../src/presentation/editor/runtime';
+import type { EditorRuntime } from '../../src/presentation/editor/runtime';
+import { runtimeInProxy } from './editorRuntime';
 import { useEditorStore } from '../../src/presentation/stores/EditorStore';
 import { DEFAULT_VIEWPORT } from '../../src/presentation/editor/viewport/Viewport';
 import {
@@ -149,6 +150,10 @@ export interface EditorHarness {
 	readonly focusedLeaf: () => number;
 	/** How many times the tree asked to open this leaf's plan note (`PlanEditorContext.openPlanNote`). */
 	readonly openedNote: () => number;
+	/** The zone ids the tree asked to open a room note for (`PlanEditorContext.openRoomNote`), in order. */
+	readonly openedRoomNotes: () => readonly string[];
+	/** How many times the tree asked for the diagnostics report (`PlanEditorContext.openDiagnosticsReport`). */
+	readonly openedDiagnostics: () => number;
 	/**
 	 * `ResponsiveEditorShell`'s own root — the element that carries `data-layout`, the one the
 	 * shell's `ResizeObserver` watches, and therefore the one a case resizes to drive a layout
@@ -246,6 +251,8 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	let closedLeaf = 0;
 	let focusedLeaf = 0;
 	let openedNote = 0;
+	const openedRoomNotes: string[] = [];
+	let openedDiagnostics = 0;
 	const planListeners = new Set<() => void>();
 	/** Keyed by the project id each subscription bound, because the real source FILTERS on it. */
 	const projectPlansListeners = new Map<() => void, string>();
@@ -322,6 +329,17 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		openPlanNote: () => {
 			openedNote += 1;
 			return Promise.resolve();
+		},
+		// Recorded rather than stubbed, for `openPlanNote`'s reason: owner ruling 72's room door.
+		openRoomNote: (zoneId) => {
+			openedRoomNotes.push(zoneId);
+			return Promise.resolve();
+		},
+		// Counted rather than stubbed, for the reason the three doors above are: the
+		// `unreadable-zones` warning row's only action calls this, and a no-op here would let a
+		// build that wired the button to nothing pass.
+		openDiagnosticsReport: () => {
+			openedDiagnostics += 1;
 		},
 	};
 
@@ -400,6 +418,8 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		closedLeaf: () => closedLeaf,
 		focusedLeaf: () => focusedLeaf,
 		openedNote: () => openedNote,
+		openedRoomNotes: () => openedRoomNotes,
+		openedDiagnostics: () => openedDiagnostics,
 		rootEl,
 		unmount: () => {
 			wrapper.unmount();
@@ -452,13 +472,19 @@ export async function mountPlanEditorCanvas(options: EditorHarnessOptions = {}):
  * no need for a probe component injected into its fixed template.
  */
 export function runtimeOf(harness: EditorHarness): EditorRuntime {
-	const instance = (harness.wrapper.vm as unknown as { $: { provides: Record<symbol, unknown> } }).$;
-	const runtime = instance.provides[EDITOR_RUNTIME as unknown as symbol];
-	if (runtime === undefined) {
-		throw new Error('expected the mounted tree to have provided an EditorRuntime');
-	}
-	return runtime as EditorRuntime;
+	return runtimeInProxy(harness.wrapper.vm);
 }
+
+/**
+ * The same runtime, from a Plan Editor the PLUGIN mounted rather than one this file did, and
+ * the provides lookup both doors share so neither can drift onto a different key.
+ *
+ * Both live in `./editorRuntime` now and are re-exported here, for the reason `settle` above is
+ * and `fakeQueries` is: `tests/harness/planEditor.ts` needs `runtimeOfPluginView` for the
+ * `?outline` knob and may not import Konva, Pinia or `@vue/test-utils`, all of which this file
+ * pulls in. That module's own header carries the rest.
+ */
+export { runtimeOfPluginView } from './editorRuntime';
 
 /** Every Konva layer in the stage, by the `name` its component set. */
 export function layerNames(stage: Konva.Stage): string[] {

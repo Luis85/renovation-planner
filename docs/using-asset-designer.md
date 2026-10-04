@@ -1,11 +1,13 @@
 # Design an object for the asset library
 
-> **Beta, and not yet validated in a live Obsidian session — 2026-09-18.** Nothing in the asset
-> designer has been photographed, no manual case under `docs/tests/` has been walked in a vault,
-> and no walkthrough has confirmed that any of it looks or behaves on screen the way this guide
-> describes. What follows is written from the code: it says what the plugin is built to do, not
-> what anyone has observed it doing. Treat every sentence here as a claim to check, and keep a
-> backup of the vault before designing anything you would be sorry to lose.
+> **Beta: implemented is not verified.** What follows is written from the code: it says what the
+> plugin is built to do. When this banner was first written, on 2026-09-18, none of it had been
+> walked in a vault. Since then the repository owner has walked some of it in a live vault (from
+> 2026-09-19) and the E2E driver has run some of it in a real Obsidian (from 2026-09-25); each such
+> run is recorded in its case under [`tests/cases/`](tests/cases/), on the build that run names,
+> and none was on a release candidate. A sentence here with no run behind it is a claim to check.
+> Keep a backup of the vault before designing anything you would be sorry to lose; how is in
+> [Back up and restore](using-planning-recovery.md#back-up-and-restore).
 
 > The designer is **desktop only**, and that is a deliberate gate rather than a gap. The
 > **Open asset designer** command does not appear on a mobile device, and a designer tab restored

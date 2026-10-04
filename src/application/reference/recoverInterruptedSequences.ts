@@ -176,6 +176,18 @@ async function recoverOne(deps: RecoveryDeps, marker: SequenceMarker): Promise<v
  * and its progress append corrupts nothing either way; and because the marker clears only
  * after every entry is restored or surfaced, a crash DURING recovery simply leaves the
  * marker for the next load.
+ *
+ * **A marker this build cannot READ is neither replayed nor cleared** (BP-02 slice 3). The
+ * store hands those back in the listing's `unreadable` half rather than in `markers`, and
+ * this walk ignores that half entirely. Not replayed, because restoring from a shape nothing
+ * parsed is exactly the wrong content over a Requirement the short migration story refuses.
+ * Not CLEARED, for the reason ADR-0034 gives about its own sibling record (decision D-08 in
+ * `docs/releases/first-beta-readiness/03-execution-tracker.md`): retiring a record this build
+ * could not read is the plugin declaring an all-clear over evidence it never saw, and a build
+ * that CAN read it is the thing that should finish the rollback. So it survives every load until such a build
+ * recovers it or the user removes the file. The store logs it once per load; nothing is
+ * logged here, because "recovery declined to act on it" is what the same entry appearing at
+ * the next load already says.
  */
 export async function recoverInterruptedSequences(deps: RecoveryDeps): Promise<void> {
 	try {
@@ -184,7 +196,9 @@ export async function recoverInterruptedSequences(deps: RecoveryDeps): Promise<v
 			deps.logger.error('sequence.recovery.list-failed', { cause: listed.error });
 			return;
 		}
-		for (const marker of listed.value) {
+		// The RECOGNISED half only. `listed.value.unreadable` is deliberately not walked — see
+		// this function's docblock.
+		for (const marker of listed.value.markers) {
 			await recoverOne(deps, marker);
 		}
 	} catch (cause) {

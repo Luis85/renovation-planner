@@ -8,7 +8,7 @@ import { mobileEmulation, type NativeBrowser } from './session';
 
 /**
  * `docs/tests/cases/Browse the asset library.md` step 3's "distinguishable at 20px", as the host
- * paints the rows' marks. The library refuses to mount on mobile, so the case is desktop only.
+ * paints the rows' marks. The library is read-only on mobile since owner ruling 66 (L-43), and this was written against the desktop one, so the case is desktop only.
  */
 const desktop = mobileEmulation ? test.skip : test;
 

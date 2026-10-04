@@ -11,7 +11,7 @@ import { mobileEmulation, PLUGIN_ID, type NativeBrowser } from './session';
  * The second pass over `docs/tests/cases/Take an asset from the library into a plan.md`: the
  * rows `assetHandoff.e2e.ts` left. The library's scope before and after a plan note breaks
  * (steps 1 and 5), the placements a duplicate must not touch (step 10's other clause), the
- * pre-scan window (step 6), the canvas menu's door (step 22), and a restored leaf on mobile
+ * pre-scan window (step 6), the canvas menu's door (step 22), and restored leaves on mobile
  * (step 26). Every placement here is made through the real hand-off, and the plans' own
  * sidecars on disk are the instrument for "nothing downstream moved".
  */
@@ -248,13 +248,18 @@ describe('Take an asset from the library into a plan, the rows the first pass le
 		await settlesOnOneDesigner(browser, designer, assetId);
 	});
 
-	// Step 26: leaves restored from this device's own layout, where no command runs at all.
-	mobile('refuses both restored leaves on mobile rather than mounting either', async ({ native: { browser } }) => {
+	// Step 26: leaves restored from this device's own layout, where no command runs at all. The
+	// designer refuses and mounts nothing; the library mounts READ-ONLY (L-43, owner ruling 66).
+	mobile('refuses a restored designer on mobile and restores the library read-only', async ({ native: { browser } }) => {
 		const refusals = () =>
-			browser.execute((types: string[]) => types.map((type) => {
-				const content = document.querySelector(`.workspace-leaf-content[data-type="${type}"]`);
-				return content ? [content.querySelector('.rp-view-message')?.textContent ?? '', content.querySelectorAll('canvas, .rp-al-shelf').length] : null;
-			}), [DESIGNER, LIBRARY]);
+			browser.execute((designerType: string, libraryType: string) => {
+				const designerLeaf = document.querySelector(`.workspace-leaf-content[data-type="${designerType}"]`);
+				const libraryLeaf = document.querySelector(`.workspace-leaf-content[data-type="${libraryType}"]`);
+				return [
+					designerLeaf ? [designerLeaf.querySelector('.rp-view-message')?.textContent ?? '', designerLeaf.querySelectorAll('canvas').length] : null,
+					libraryLeaf ? [libraryLeaf.querySelector('[data-rp-notice="mobile-read-only"]') !== null, libraryLeaf.querySelector('.renovation-asset-library') !== null] : null,
+				];
+			}, DESIGNER, LIBRARY);
 		await browser.executeObsidian(async ({ app }, designerType, libraryType) => {
 			await app.workspace.getLeaf('tab').setViewState({ type: designerType, state: { assetId: 'asset-restored' } });
 			await app.workspace.getLeaf('tab').setViewState({ type: libraryType, state: { assetId: '', expanded: [] } });
@@ -271,6 +276,6 @@ describe('Take an asset from the library into a plan, the rows the first pass le
 				if (leaf) await app.workspace.revealLeaf(leaf);
 			}, type);
 		}
-		await expect.poll(refusals).toEqual([[DESKTOP_ONLY, 0], [DESKTOP_ONLY, 0]]);
+		await expect.poll(refusals).toEqual([[DESKTOP_ONLY, 0], [true, true]]);
 	});
 });

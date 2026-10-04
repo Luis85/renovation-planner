@@ -255,7 +255,7 @@ describe('scaleDesign', () => {
 	 * literally — `[{ x: -1500, y: -150 }, { x: 1300, y: -150 }, { x: 1300, y: 350 }, { x: -1500, y: 350 }]`,
 	 * which is `editableShape`'s 1400 x 1000 boundary put through the same 2 x 0.5 the footprint
 	 * takes. That was correct behaviour for its whole life and stopped being correct at ruling
-	 * AD14-R1 / ADR-0034: a MEASURED clearance is an authored planning boundary, so it is preserved
+	 * AD14-R1 / ADR-0035: a MEASURED clearance is an authored planning boundary, so it is preserved
 	 * at the size somebody drew and flagged for review rather than silently redrawn at a size
 	 * nobody chose. The literal is kept as the fixture's UNSCALED coordinates below, which is the
 	 * same list the shape went in with — the point of the case is still that every OTHER part
@@ -326,7 +326,7 @@ describe('scaleDesignToDimensions', () => {
 		// **AMENDED at AD14, not replaced.** This line asserted `[2800, 500]` — the fixture's
 		// 1400 x 1000 clearance put through the same 2 x 0.5 the footprint took — for its whole
 		// life, and that was the shipped behaviour this card supersedes deliberately (AD14-R1,
-		// ADR-0034). A measured clearance is now PRESERVED at the size its author drew, so the
+		// ADR-0035). A measured clearance is now PRESERVED at the size its author drew, so the
 		// numbers below are the fixture's own, and the review flag is what makes the mismatch
 		// survive a reopen rather than being an ephemeral warning.
 		const clearance = expectOk(boundingBoxOf(expectDefined(scaled.clearance, 'the clearance')));

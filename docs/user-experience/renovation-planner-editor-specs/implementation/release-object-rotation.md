@@ -1,5 +1,7 @@
 # Free spatial item rotation — implementation and verification
 
+> **Historical record — status added 2026-10-02.** This records the build and date it names. It is not acceptance of a beta release candidate; that status lives only in [first beta readiness](../../../releases/first-beta-readiness/README.md).
+
 ## Current contract
 
 The user's 2026-09-08 scope amendment supersedes the initial Object-only increment. One selected Room, Area, Object, Path, Fence or Measurement can rotate independently. Wall rotation is a dependent work package: it carries hosted openings and connected junctions through a reviewed wall impact form; selecting an Opening routes to its host wall without replacing the selected ID. Group transforms, catalogue facing and reference-plan schemas are outside this change. The user's original Object → Opening → Wall → Room body priority remains authoritative; PR #93 is independently owned and is not modified here.

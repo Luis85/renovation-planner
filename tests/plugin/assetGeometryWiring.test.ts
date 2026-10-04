@@ -2,9 +2,9 @@
  * @vitest-environment jsdom
  *
  * The asset designer's write and read side as the COMPOSITION applies it (design slice A9):
- * the five geometry commands, the height command and the design read, composed over the
+ * the six geometry commands, the height command and the design read, composed over the
  * root's own asset repository, the root's own asset geometry sidecar and the root's own
- * event bus — and each of the seven guarded under its own boundary event.
+ * event bus — and each of the eight guarded under its own boundary event.
  *
  * The same shape as `catalogueRequirementCascadeWiring.test.ts`, `sequenceNoticeWiring.test.ts` and
  * `libraryOverlapWiring.test.ts`, and it exists for their reason: a composition that passes
@@ -152,7 +152,7 @@ describe('the asset designer the composition root hands out', () => {
 
 	/**
 	 * Every door of the bundle, under its OWN event name. The asset repository is what all
-	 * seven read first, so detonating it faults each of them below the boundary — and a door
+	 * eight read first, so detonating it faults each of them below the boundary — and a door
 	 * composed raw REJECTS rather than resolving, which is what makes this a check on the
 	 * composition rather than on `guardCommand`.
 	 */

@@ -1,6 +1,47 @@
 import { expect } from 'vitest';
 import { PLUGIN_ID, type NativeBrowser } from './session';
 
+/**
+ * Every toast in the notice container matching `scope`, as its message alone — read from the DOM, not
+ * with WebDriver's `getText`. Obsidian builds a notice at `translateX(350px)` and slides it in
+ * over ~100 ms inside `.notice-container`, which clips (`overflow: hidden`), so `getText` —
+ * visible text only — answers `''` for a notice read inside that slide: the empty-catalogue
+ * case failed on exactly that, `[ '' ]`, three times on CI, and Notices step 25 the same way.
+ * `isDisplayed` says `true` there, so waiting on it does not help either.
+ */
+export const noticeMessages = (browser: NativeBrowser, scope = '.notice-container .notice'): Promise<string[]> =>
+	browser.execute(
+		(selector: string) =>
+			[...document.querySelectorAll(selector)].map(
+				(notice) => (notice.querySelector('.rp-notice-message') ?? notice.querySelector('.notice-message') ?? notice).textContent ?? '',
+			),
+		scope,
+	);
+
+/** The renderer's own `require`, as far as the two window helpers below reach through it. */
+type ElectronRequire = { require(id: '@electron/remote'): { getCurrentWindow(): { getSize(): number[]; setSize(width: number, height: number): void } } };
+
+/**
+ * The Obsidian window's outer size, through Electron: Obsidian's chromedriver refuses WebDriver's
+ * own `window/rect` (`Browser.getWindowForTarget` wasn't found). The suite's one spelling of a
+ * window resize: five copies had it, in two shapes (`@electron/remote` and `electron.remote`).
+ */
+export const windowSize = async (browser: NativeBrowser): Promise<{ width: number; height: number }> => {
+	const [width = 0, height = 0] = await browser.execute(() =>
+		(window as unknown as ElectronRequire).require('@electron/remote').getCurrentWindow().getSize(),
+	);
+	return { width, height };
+};
+
+/** Size the window (see `windowSize`). It answers once Electron has taken the size, not once the page has laid out to it. */
+export const setWindowSize = async (browser: NativeBrowser, width: number, height: number): Promise<void> => {
+	await browser.execute(
+		(w: number, h: number) => (window as unknown as ElectronRequire).require('@electron/remote').getCurrentWindow().setSize(w, h),
+		Math.round(width),
+		Math.round(height),
+	);
+};
+
 export type PlannerPage = ReturnType<typeof createPlannerPage>;
 
 /** The plugin's surfaces as a user reaches them: commands, the ribbon, the view's own controls. */
@@ -102,6 +143,39 @@ export async function closePluginSettings(browser: NativeBrowser, windows: Setti
 	if (windows.settingsWindow === windows.mainWindow) await browser.keys('Escape');
 	else await browser.closeWindow();
 	await browser.switchToWindow(windows.mainWindow);
+}
+
+/** The plugin instance's settings-write chain, which `RenovationPlannerPlugin` keeps private. */
+interface SettingsChain {
+	settingsWrites: Promise<void>;
+}
+
+/**
+ * Wait until every queued settings write has saved AND swapped the root (owner ruling 41).
+ *
+ * The folder text control saves on every keystroke, and each save runs `applySettings` — a new
+ * root, a rescan and a remount of every open view. Closing the settings window does not wait for
+ * that queue, so a later step can meet a view WebDriver already holds being remounted (a stale
+ * element) or a swap landing in the middle of a create. Re-reads the tail after each await,
+ * because a write queued while the previous tail settled is a new tail; the S21 investigation's
+ * drained arm (40 of 40 clean) is this loop.
+ */
+export async function settleSettings(browser: NativeBrowser): Promise<void> {
+	await browser.executeObsidian(async ({ app }, id) => {
+		const plugin = (app as unknown as { plugins: { plugins: Record<string, SettingsChain | undefined> } }).plugins.plugins[id];
+		if (plugin === undefined) throw new Error(`plugin ${id} is not loaded`);
+		for (let turn = 0; turn < 50; turn += 1) {
+			const tail = plugin.settingsWrites;
+			// A renamed or removed field would read `undefined` twice and "settle" at once.
+			if (!(tail instanceof Promise)) throw new Error(`plugin ${id} has no settings-write chain to await`);
+			await tail;
+			await new Promise((resolve) => {
+				setTimeout(resolve, 0);
+			});
+			if (plugin.settingsWrites === tail) return;
+		}
+		throw new Error('the settings-write queue never settled');
+	}, PLUGIN_ID);
 }
 
 /** The control of the settings row whose name is exactly `name`. */

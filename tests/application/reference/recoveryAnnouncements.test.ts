@@ -327,7 +327,7 @@ describe('the cost pre-read is best-effort and never gates the restore', () => {
 		expect(rig.logger.lines).toContainEqual(
 			expect.objectContaining({ event: 'sequence.recovery.cost-baseline-unreadable' }),
 		);
-		expect(expectOk(await rig.deps.markers.list())).toEqual([]);
+		expect(expectOk(await rig.deps.markers.list()).markers).toEqual([]);
 	});
 
 	it('restores past a REJECTED pre-read and still recovers the marker behind it', async () => {
@@ -345,6 +345,6 @@ describe('the cost pre-read is best-effort and never gates the restore', () => {
 		expect(rig.logger.lines).toContainEqual(
 			expect.objectContaining({ event: 'sequence.recovery.cost-baseline-unreadable' }),
 		);
-		expect(expectOk(await rig.deps.markers.list())).toEqual([]);
+		expect(expectOk(await rig.deps.markers.list()).markers).toEqual([]);
 	});
 });

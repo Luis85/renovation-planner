@@ -284,7 +284,11 @@ describe('DuplicateAssetCommand', () => {
 
 		expect(leftWritesBehind(refusal)).toBe(true);
 		// The metadata-only copy really is on disk, which is what the stamp exists to say.
-		expect(await rig.catalogue()).toHaveLength(2);
+		const catalogue = await rig.catalogue();
+		expect(catalogue).toHaveLength(2);
+		// …and the stamp names that copy, under the kind the note-plus-sidecar pair is stamped with.
+		const copyId = catalogue.find((id) => id !== rig.assetId);
+		expect(refusal).toMatchObject({ uncompensatedWrite: [{ entityKind: 'asset', entityId: copyId }] });
 	});
 
 	it('refuses the cleanup rather than trashing a note a peer edited in between', async () => {

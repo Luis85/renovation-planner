@@ -11,6 +11,7 @@ import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/di
 import type { VaultExceptionMapper } from '../application/errors/exceptionMapper';
 import { createVaultExceptionMapper } from '../application/errors/exceptionMapper';
 import { guardCommand, guardQuery } from '../application/errors/guardAgainstThrowing';
+import { NO_WRITE_INCIDENTS, activeWriteIncidentRegistry } from '../application/incidents/WriteIncidentRegistry';
 import { GetDiagnosticsSnapshotQuery, type DiagnosticsSnapshot } from '../application/queries/GetDiagnosticsSnapshot';
 import { GetProject, type GetProjectInput } from '../application/queries/GetProject';
 import {
@@ -212,8 +213,8 @@ export interface GuardedCatalogueRequirementServices {
  * The asset designer's write and read side, guarded — the same seam two increments later
  * (design slice A9).
  *
- * ONE BUNDLE rather than nine top-level members — eight commands and one query — because
- * these nine are the whole surface of one thing: a designer view is handed `assetDesign` and
+ * ONE BUNDLE rather than ten top-level members — nine commands and one query — because
+ * these ten are the whole surface of one thing: a designer view is handed `assetDesign` and
  * reaches every door of the design from it, the way the Plan Editor is handed
  * `requirementQueries`. The alternative spreads
  * the group's membership across `PersistenceServices` and leaves the next command that
@@ -232,7 +233,7 @@ export interface GuardedAssetDesignServices {
 		readonly setFacing: GuardedDesignCommand<SetAssetFacingInput>;
 		readonly setHeight: GuardedDesignCommand<SetAssetHeightInput>;
 		readonly calibrate: GuardedDesignCommand<CalibrateAssetInput>;
-		/** Task B7's, the eighth door of this bundle. */
+		/** Task B7's, the ninth door of this bundle. */
 		readonly setBackground: GuardedDesignCommand<SetAssetBackgroundInput>;
 		readonly get: Query<AssetId, Result<AssetDesignDto, AssetDesignError>>;
 	};
@@ -244,7 +245,7 @@ export interface GuardedAssetDesignServices {
  * `executeWithVersion` is what `ReversibleAssetDesignCommands` dispatches — it must, because
  * rediscovering the version with a second read is a window a peer can land in — and a guard
  * on the door nobody dispatches through is a guard nobody has. Declared as one type rather
- * than spelled at eight members so a ninth design command cannot arrive carrying one door.
+ * than spelled at nine members so a tenth design command cannot arrive carrying one door.
  */
 export interface GuardedDesignCommand<TInput>
 	extends Command<TInput, DispatchResult>,
@@ -319,6 +320,12 @@ export function guardedEditorServices(
 		latestSchemaVersions: () => diagnosticsSources.migrations.latestVersions,
 		lastAppliedMigration: () => diagnosticsSources.migrations.lastApplied,
 		ledger: diagnosticsSources.ledger,
+		// The module accessor is reached HERE rather than inside the query, which is the whole
+		// of why the query stays isolable in a test. `src/plugin/` is the layer that composes
+		// session state, and asking per call rather than capturing the registry once is what
+		// keeps a root composed before `SessionStores` (or after a settings save replaced it)
+		// answering about the live one.
+		writeIncidents: () => activeWriteIncidentRegistry()?.report() ?? NO_WRITE_INCIDENTS,
 	});
 
 	const setPlanBackground = guardCommand(
@@ -358,7 +365,7 @@ export function guardedEditorServices(
  * from a log line, and the two are reached by different callers.
  *
  * `TPlain` is a type parameter rather than `Requirement`: the two override commands were the
- * only callers when this was written, and the six asset design commands answer a
+ * only callers when this was written, and the nine asset design commands answer a
  * `DispatchOutcome` at their plain door. Widening it is what let them use this function
  * instead of a second one shaped the same way.
  */
@@ -486,13 +493,13 @@ function designDoors(name: string): { readonly execute: string; readonly execute
  * without the prediction being re-read.
  *
  * One `AssetShapeDeps` rather than three parameters, because that is already the shape the
- * five shape commands take, and the other three — the height, Task B6's calibration and
+ * six shape commands take, and the other three — the height, Task B6's calibration and
  * Task B7's background — are built from its members: re-spelling it here would be a second
  * statement of what a design command needs.
  *
  * `files` sits BESIDE that bundle rather than inside it, for the reason
- * `SetAssetBackgroundCommand`'s own constructor states: it is the only one of the eight that
- * has a raw file to ask about, and the seven that write geometry or a height would then
+ * `SetAssetBackgroundCommand`'s own constructor states: it is the only one of the nine that
+ * has a raw file to ask about, and the eight that write geometry or a height would then
  * declare a dependency they never reach.
  */
 export function guardAssetDesign(

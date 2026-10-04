@@ -23,6 +23,8 @@ import {
 	POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX,
 	POLYGON_CLOSE_TARGET_RADIUS_PX,
 	POLYGON_VERTEX_RADIUS_PX,
+	VERTEX_HANDLE_HIGHLIGHT_RADIUS_PX,
+	VERTEX_HANDLE_RADIUS_PX,
 } from '../../../src/presentation/editor/handleMetrics';
 import {
 	RULER_TICK_SPACING_PX,
@@ -436,6 +438,75 @@ describe('the interaction layer hover outline', () => {
 		useSelectionStore().select(['zone-terrace' as never]);
 		await settle();
 		expect(linesNamed(harness, 'hover-fill')).toHaveLength(0);
+
+		harness.unmount();
+	});
+});
+
+/**
+ * BP-04 action 3, "highlight only the chosen corner": the numeric outline editor puts an index
+ * on `RenderState` and this layer draws that one handle larger than its siblings. Driven through
+ * the render state directly rather than through the dialog — `zoneOutline.e2e.test.ts` owns the
+ * form-to-field half, and what this describes is the LAYER, independent of whatever wrote it.
+ *
+ * SIZE is the channel asserted, for the reason this file's header gives: no theme variables are
+ * defined under jsdom, so the accent fill the highlight also carries is indistinguishable from
+ * the background one here. Whether it READS as chosen is `npm run harness-shot` and an eye.
+ */
+describe('the interaction layer chosen-corner highlight', () => {
+	/** Every vertex handle of the single selected zone, in outline order. */
+	function vertexRadii(harness: EditorHarness): number[] {
+		return (interactionLayer(harness.stage).find('Circle') as Konva.Circle[])
+			.filter((circle) => circle.name() !== 'snap-target' && circle.name() !== 'selection-badge')
+			.map((circle) => circle.radius());
+	}
+
+	it('draws the chosen corner larger and leaves every other handle alone', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		useSelectionStore().select(['zone-kitchen' as never]);
+		await settle();
+
+		// Nothing chosen: every handle is the same size, which is what makes the change below
+		// mean something rather than being one value among several.
+		const resting = vertexRadii(harness);
+		expect(resting.length).toBeGreaterThan(2);
+		expect(new Set(resting)).toEqual(new Set([VERTEX_HANDLE_RADIUS_PX]));
+
+		runtime.renderState.highlightedVertex = 2;
+		await settle();
+		const marked = vertexRadii(harness);
+		// The ORDERING first, against what this same layer drew a moment ago, because the
+		// equality below compares the rendered radius to the constant the renderer itself
+		// read and so cannot see the direction. `handleMetrics.test.ts` holds that direction
+		// at the constants; this holds it at the pixels actually drawn.
+		expect(marked[2]).toBeGreaterThan(resting[2]);
+		expect(marked[2]).toBe(VERTEX_HANDLE_HIGHLIGHT_RADIUS_PX);
+		expect(marked.filter((radius) => radius === VERTEX_HANDLE_HIGHLIGHT_RADIUS_PX)).toHaveLength(1);
+		expect(marked.length).toBe(resting.length);
+
+		// And back down when the editor closes, so a cancelled dialog leaves no mark behind.
+		runtime.renderState.highlightedVertex = null;
+		await settle();
+		expect(vertexRadii(harness)).toEqual(resting);
+
+		harness.unmount();
+	});
+
+	/**
+	 * Index 0 is the case a `truthy` test of the field would get wrong, and it is the corner a
+	 * user is most likely to start at.
+	 */
+	it('marks the FIRST corner when that is the chosen one', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
+		useSelectionStore().select(['zone-kitchen' as never]);
+		runtime.renderState.highlightedVertex = 0;
+		await settle();
+
+		const radii = vertexRadii(harness);
+		expect(radii[0]).toBe(VERTEX_HANDLE_HIGHLIGHT_RADIUS_PX);
+		expect(radii.slice(1)).toEqual(radii.slice(1).map(() => VERTEX_HANDLE_RADIUS_PX));
 
 		harness.unmount();
 	});

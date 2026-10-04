@@ -8,7 +8,7 @@ import { mobileEmulation, type NativeBrowser } from './session';
  * Design "Asset library overview" §5.4, amended 2026-09-29: a DRAWN row keeps its mark while the
  * mark is re-read, and the answer replaces it in one step. The flash this pins against was caught
  * by the Browse 3 pixel guard on Linux CI (E2E runs 36345605529 and 36476196536) — a row put back
- * to §3.4's *not yet read* by a late re-read. The library refuses to mount on mobile, so the case
+ * to §3.4's *not yet read* by a late re-read. The library is read-only on mobile since owner ruling 66 (L-43), and this was written against the desktop one, so the case
  * is desktop only.
  */
 const desktop = mobileEmulation ? test.skip : test;

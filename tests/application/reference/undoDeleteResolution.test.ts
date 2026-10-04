@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { leftWritesBehind } from '../../../src/application/commands/DispatchOutcome';
 import { isErr, ok, type Result } from '../../../src/core/result/Result';
 import {
 	undoDeleteResolution,
@@ -193,7 +194,7 @@ describe('undoDeleteResolution', () => {
 		// save 3 is `second`'s compensation.
 		repo.arm([2]);
 
-		expectErr(
+		const rolledBack = expectErr(
 			await undoDeleteResolution(
 				wiring.ops,
 				{
@@ -207,6 +208,9 @@ describe('undoDeleteResolution', () => {
 			),
 		);
 
+		// Every compensation WORKED, so the vault is back where the resolution left it and
+		// nothing is stamped — the arm that keeps the stamp off every rollback.
+		expect(leftWritesBehind(rolledBack)).toBe(false);
 		// `second` is back at the revision the resolution left, not at its pre-state one.
 		const live = expectOk(await repo.getById(second.entity.id));
 		expect(live?.version.revision).toBeGreaterThan(afterSecond.version.revision);
@@ -240,6 +244,7 @@ describe('undoDeleteResolution', () => {
 		);
 
 		expect(error.code).toBe('test.injected-failure');
+		expect(leftWritesBehind(error)).toBe(true);
 		expect(lines.map((line) => line.event)).toContain('sequence.undo-compensation.failed');
 	});
 
@@ -262,6 +267,7 @@ describe('undoDeleteResolution', () => {
 		// The FIRST fault, not the second: the caller is told what went wrong, and the
 		// compensation's own failure is a diagnostic nobody can act on in the return type.
 		expect(error.code).toBe('test.injected-failure');
+		expect(leftWritesBehind(error)).toBe(true);
 		expect(lines.map((line) => line.event)).toContain('sequence.undo-compensation.failed');
 	});
 

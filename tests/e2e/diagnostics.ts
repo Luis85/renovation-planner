@@ -19,6 +19,15 @@ export async function writeEvidence(directory: string, name: string, value: unkn
 	await writeFile(path.join(directory, `${name}.json`), `${json}\n`);
 }
 
+/**
+ * `writeEvidence`, and the same value on stdout behind `[evidence] `, so `gh run view --log` carries
+ * it: the artifact files are kept, but a reviewer who cannot download them reads the log.
+ */
+export async function logEvidence(directory: string, name: string, value: unknown): Promise<void> {
+	await writeEvidence(directory, name, value);
+	console.log(`[evidence] ${name} ${JSON.stringify(value)}`);
+}
+
 /** Capture every case, failures included, before the application is disposed. */
 export async function captureBrowser(browser: NativeBrowser, directory: string): Promise<void> {
 	const errors: unknown[] = [];

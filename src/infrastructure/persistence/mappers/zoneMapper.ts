@@ -68,7 +68,7 @@ export function zoneFromPersistence(
 
 	const dto = frontmatter.value;
 	const entry = geometry.value;
-	return Zone.create({
+	return Zone.fromStored({
 		id: dto.id as Zone['id'],
 		planId: dto.plan as Zone['planId'],
 		projectId: dto.project as Zone['projectId'],

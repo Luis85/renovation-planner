@@ -277,7 +277,9 @@
 /*
  * In the sidebar an UNLOCKED room's lock shows only on hover or keyboard focus, so a list of rooms
  * is not a column of open padlocks. A locked room's always shows. `opacity` rather than
- * `visibility`, so the button stays in the tab order and `:focus-within` can reveal it.
+ * `visibility`, because ArrowRight (L-46) reaches the lock with a plain `.focus()` call — a
+ * `visibility: hidden` button refuses that call outright, while an `opacity: 0` one still accepts
+ * it, and `:focus-within` then reveals it.
  */
 .renovation-plan-editor .rp-editor-layers .rp-room-list__item > .rp-editor-inspector-lock[data-rp-locked='false'] {
 	opacity: 0;

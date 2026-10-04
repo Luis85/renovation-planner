@@ -44,6 +44,7 @@ import { freshNotePath, projectFolderOf, zonesFolderFor } from './paths';
 import { KeyedQueues } from './KeyedQueues';
 import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
+import type { CacheObservation } from '../../persistence/index/EchoWindow';
 import type { PlanGeometryStore } from './PlanGeometryStore';
 import { markUncompensated } from '../../../application/commands/DispatchOutcome';
 
@@ -307,7 +308,16 @@ export class ObsidianZoneRepository implements ZoneRepository {
 
 		// Step 5.
 		if (!mutated.ok) {
-			return this.compensateFailedSidecarWrite(zone.id, existing !== null, notePath, snapshotText ?? '', mutated.error);
+			return this.compensateFailedSidecarWrite({
+				zoneId: zone.id,
+				planId: zone.planId,
+				projectId: zone.projectId,
+				wasUpdate: existing !== null,
+				notePath,
+				snapshotText: snapshotText ?? '',
+				written: { frontmatter: dto, observed: { reading: supersedes, stat: writtenStat } },
+				cause: mutated.error,
+			});
 		}
 
 		// Step 6.
@@ -347,13 +357,18 @@ export class ObsidianZoneRepository implements ZoneRepository {
 	 * order, with nothing else touching that key in between), which is what lets a test fail
 	 * the restore alone.
 	 */
-	private async compensateFailedSidecarWrite(
-		zoneId: ZoneId,
-		wasUpdate: boolean,
-		notePath: string,
-		snapshotText: string,
-		cause: RepositoryError,
-	): Promise<Result<Loaded<Zone>, RepositoryError>> {
+	private async compensateFailedSidecarWrite(write: {
+		readonly zoneId: ZoneId;
+		readonly planId: PlanId;
+		readonly projectId: ProjectId;
+		readonly wasUpdate: boolean;
+		readonly notePath: string;
+		readonly snapshotText: string;
+		/** What step 3 wrote to the note and step 6 would have marked as ours (owner ruling 73). */
+		readonly written: { readonly frontmatter: Record<string, unknown>; readonly observed: CacheObservation };
+		readonly cause: RepositoryError;
+	}): Promise<Result<Loaded<Zone>, RepositoryError>> {
+		const { zoneId, planId, projectId, wasUpdate, notePath, snapshotText, written, cause } = write;
 		const compensated = wasUpdate
 			? await restoreNoteText(this.deps.vault, 'zone', notePath, snapshotText)
 			: await this.deleteCreatedNote(notePath);
@@ -362,6 +377,22 @@ export class ObsidianZoneRepository implements ZoneRepository {
 				id: zoneId,
 				cause: compensated.error,
 			});
+			// Owner ruling 73: an INSERT left standing is indexed NOW, with the entry step 6 would
+			// have written, so the warning's "Open source note" resolves the room — left to the
+			// debounced vault pipeline it lost that race in real Obsidian. And it is marked as OUR
+			// write, exactly as step 6 marks one: the note's bytes ARE what step 3 wrote (it is the
+			// SIDECAR that did not land), and unmarked, a `create` event processed before Obsidian
+			// parsed the note read it as "not ours" and REMOVED this entry again
+			// (`zoneUncompensatedPipeline.test.ts`). The mark hides only those same bytes: a later
+			// edit that changes the frontmatter while keeping the note ours (a hand-moved `plan`) digests
+			// differently and reaches the index (`zoneUncompensatedPipeline.test.ts`, watched red against an
+			// echo window that matched every edit); an edit that makes the note not ours takes the
+			// pipeline's earlier arm, which the mark never touches.
+			// An UPDATE's note is indexed already.
+			if (!wasUpdate) {
+				this.deps.index.upsert({ id: zoneId, type: 'renovation-zone', path: notePath, projectId, planId });
+				this.deps.echo.markFrontmatter(notePath, written.frontmatter, written.observed);
+			}
 			// The note is on disk in a state the sidecar does not match, and nothing here
 			// could put it back either. A DIFFERENT code, because `affectsSaveState` and the
 			// strip read the stamp, and a message that tells the truth: the return below says
@@ -375,6 +406,10 @@ export class ObsidianZoneRepository implements ZoneRepository {
 							: `The geometry entry for zone ${zoneId} could not be written, and the note could NOT be removed again; inspect it by hand.`,
 						cause,
 					),
+					[
+						{ entityKind: 'zone', entityId: zoneId },
+						{ entityKind: 'plan', entityId: planId },
+					],
 				),
 			);
 		}
@@ -432,11 +467,32 @@ export class ObsidianZoneRepository implements ZoneRepository {
 				}));
 
 			// Compensate so a failed delete leaves NOTHING deleted — a caller's failed
-			// Result must never mean "gone, and no undo entry for it".
+			// Result must never mean "gone, and no undo entry for it". When the restore
+			// ITSELF refuses that is exactly what the vault is in, and the arm below says so
+			// under its own code rather than repeating the compensated one's message.
 			if (!mutated.ok) {
 				const restored = await restoreNoteText(this.deps.vault, 'zone', file.path, snapshotText);
 				if (!restored.ok) {
 					this.deps.logger.error('zone.delete-compensation-failed', { id, cause: restored.error });
+					// The note is TRASHED and its geometry entry is still in the sidecar, and
+					// nothing here could put the note back — the delete twin of
+					// `compensateFailedSidecarWrite`'s uncompensated arm, with the same reason
+					// for a different CODE: the message below says "the note was restored" and
+					// that would be false here, and `affectsSaveState` and the save-state strip
+					// read the STAMP rather than inferring a standing write from a code.
+					return err(
+						markUncompensated(
+							persistenceError(
+								'zone.sidecar-remove-uncompensated',
+								`The geometry entry for zone ${id} could not be removed, and the note could NOT be restored; inspect the plan by hand.`,
+								mutated.error,
+							),
+							[
+								{ entityKind: 'zone', entityId: id },
+								{ entityKind: 'plan', entityId: cachedPlan },
+							],
+						),
+					);
 				}
 				return err(
 					persistenceError('zone.sidecar-remove-failed', `The geometry entry for zone ${id} could not be removed; the note was restored.`, mutated.error),

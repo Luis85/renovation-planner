@@ -8,6 +8,17 @@ To see it as a tree, open this repository as an Obsidian vault (`npm run test-bu
 installs *this* plugin into it) and open `Product Backlog.base`. That view belongs to the
 [Product Backlog](https://github.com/Luis85/backlog-view) plugin, which has to be installed in the vault too.
 
+## User guides and the first beta
+
+The pages a person trying the plugin reads are not backlog notes, and sit at this folder's
+root: [Plan a renovation from the floor](using-plan-editor.md),
+[Design an object for the asset library](using-asset-designer.md), [Item colors](using-item-colors.md),
+[Working with saved data](using-planning-recovery.md) — which holds the compatibility table and
+[Back up and restore](using-planning-recovery.md#back-up-and-restore) — and
+[Known limitations](known-limitations.md). They describe implemented behaviour, not verified
+behaviour. The first beta's status — gates, owner decisions, candidate record, go/no-go — lives
+in [first beta readiness](releases/first-beta-readiness/README.md) and nowhere else.
+
 ## Proposed editor usability increment
 
 The [2026-09-13 usability consolidation package](user-experience/editor-usability-increment/README.md)
@@ -26,14 +37,14 @@ participant/native acceptance complete. The original received editor designs rem
 | `bugs/` | Defects, with what was learned from them | `Bug` |
 | `deliverables/` | An artifact a Feature owes — the thing itself, not a promise of it. Derived, and edited as the design is refined | `Deliverable` |
 | `iterations/` | The time boxes work is scheduled into. A marker: it states a date rather than work, and holds nothing | `Iteration` |
-| `tests/cases/` | One live-vault check each, walked before a release | `Test case` |
-| `adrs/` | **How** it is built — architecture decision records | *(none — not backlog items)* |
-| `prds/` | Requirements documents as received, which the epics here are derived from | *(none — not backlog items)* |
-| `sdds/` | Design documents as received, the architecture those epics are built against | *(none — not backlog items)* |
+| `tests/cases/` | One live-vault check each, meant to be walked before a release; most carry a `## Runs` table saying whether it has been | `Test case` |
+| `development/adrs/` | **How** it is built — architecture decision records | *(none — not backlog items)* |
+| `product/prds/` | Requirements documents as received, which the epics here are derived from | *(none — not backlog items)* |
+| `development/sdds/` | Design documents as received, the architecture those epics are built against | *(none — not backlog items)* |
 | `user-experience/` | Design specifications and delivery packages as received — screens, interaction rules, decision registers, and the packages' own proposed item lists. `archive/` holds the ones a later package superseded | *(none — not backlog items)* |
 | `actors/` | Who and what the plugin deals with — one note per human or system actor. Derived | *(none — not backlog items)* |
 | `entities/` | The business objects the plugin works with — one note per object. Derived | *(none — not backlog items)* |
-| `business-rules/` | The rules the product must obey — one note per rule, only where no single entity owns it. Derived | *(none — not backlog items)* |
+| `product/business-rules/` | The rules the product must obey — one note per rule, only where no single entity owns it. Derived | *(none — not backlog items)* |
 | `components/` | The UI parts every screen is assembled from — one note per component, each `partOf` a [[Design System]]. Derived. Since 2026-09-05 each names the design-package component that supersedes the archived concept drawing it was written from | *(none — not backlog items)* |
 | `reviews/` | Findings ledgers from code and document reviews, and the record of what was done about each | *(none — not backlog items)* |
 | `setup/` | How this repository's own tooling was built and is released | *(none — not backlog items)* |
@@ -44,7 +55,7 @@ of that kind has somewhere obvious to go rather than a decision to make.
 
 ## What is a work item and what is evidence
 
-The backlog says what the product does and why someone wants it. Ten folders in the table
+The backlog says what the product does and why someone wants it. Eleven folders in the table
 are deliberately outside it, for three different reasons.
 
 **`prds/` and `sdds/` are what a backlog is derived FROM, not things in it.** Each arrives
@@ -269,7 +280,7 @@ something someone is about to fix.
 | `Task` | A piece of engineering work, and the evidence that justified it | Evidence · Why it matters · Approach · Acceptance criteria · Risks · Outcome |
 | `Deliverable` | An artifact its parent owes, and the note **is** that artifact | The artifact · what it may not restate · what is open · **References** |
 | `Issue` | A question, a decision taken, or a limitation accepted | Varies by which |
-| `Test case` | What to check in a live vault, and whether it passed | Why this exists · Preconditions · How to check · Acceptance criteria · Outcome |
+| `Test case` | What to check in a live vault, and whether it passed | No fixed shape: most carry Steps · Runs, many add Deliberately NOT checked · Outcome, and a few older ones use other headings |
 | `Bug` | What happened, what fixed it, and what it taught | What happened · Fix · Lesson |
 | `Iteration` | Which time box work is scheduled into, and what that box is for | Prose · **Goal**, plus `goal`, `start` and `due` in frontmatter |
 | ADR | What was chosen, what it cost, what would change it | Context · Decision · Consequences · Alternatives · Revisit when — **in that order** |
@@ -318,8 +329,9 @@ What "says something" means, per kind:
   historical rather than arguable.
 - **`Test case`** — the checks CI cannot run: appearance under a community theme, whether
   the ribbon opens the pane, anything needing a real Obsidian. `RELEASING.md`'s pre-tag
-  sweep is these notes; each carries a `cadence:` of `release` (walk it every time) or
-  `conditional` (its own trigger, stated in its own prose).
+  sweep is these notes. The schema gives each a `cadence:` of `release` (walk it every time)
+  or `conditional` (its own trigger, stated in its own prose); no case under `tests/cases/`
+  carries one yet.
 - **`Bug`** — the lesson is the point. The fix is in git; what the defect taught is not.
 - **`Iteration`** — a marker: it states a date range rather than work, hangs from nothing and
   holds nothing. What puts an item *in* it is the item's own `iteration:` link, never a list

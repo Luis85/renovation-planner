@@ -1,5 +1,6 @@
 import { Modal, type App } from 'obsidian';
 import type { DiagnosticsSnapshot } from '../../application/queries/GetDiagnosticsSnapshot';
+import { UNREADABLE_WRITE_INCIDENT_CODE } from '../../application/incidents/WriteIncident';
 import type { Logger } from '../../application/ports/Logger';
 import type { StringKey } from '../../presentation/i18n/locales/en';
 import { tr } from '../../presentation/i18n/strings';
@@ -47,7 +48,58 @@ export function diagnosticsReportText(snapshot: DiagnosticsSnapshot): string {
 	for (const issue of snapshot.validationIssues) {
 		lines.push(`issue ${issue.entityType} ${issue.entityId} ${issue.issue}`);
 	}
+	// The incidents file's path is the ONE path this payload carries, and it is here rather
+	// than only in the modal for the same reason the schema versions are: a user pasting this
+	// into a support thread is the case the export exists for, and "which file do I remove"
+	// is unanswerable from a list of ids. It is plugin-local and holds no user content, which
+	// is what distinguishes it from the note paths `resolvePath` deliberately never reaches.
+	const incidents = snapshot.writeIncidents;
+	lines.push(`incidents ${incidents.open.length === 0 ? 'none' : incidents.path}`);
+	for (const incident of incidents.open) {
+		const affected = incident.affected.map((entity) => `${entity.entityKind}:${entity.entityId}`).join(' ');
+		lines.push(`incident ${incident.code} ${incident.raisedAt || 'unknown'} ${affected || 'unnamed'}`);
+	}
 	return lines.join('\n');
+}
+
+/**
+ * The incidents section of the rendered report — ADR-0034's discoverable retirement gesture.
+ *
+ * Extracted rather than inlined because `renderDiagnosticsReport` is under the 100-line
+ * `max-lines-per-function` budget and this is a self-contained region with its own empty
+ * state; the seam is the one `fact` above already draws inside that function.
+ */
+function renderIncidents(report: HTMLElement, incidents: DiagnosticsSnapshot['writeIncidents']): void {
+	report.createEl('h3', { cls: 'rp-diagnostics__section', text: tr('diagnostics.incidents') });
+	if (incidents.open.length === 0) {
+		// Its OWN class rather than the issues list's `__empty`. Two empty states under one
+		// selector makes `expect(querySelector('.rp-diagnostics__empty')).not.toBeNull()` — an
+		// assertion that already exists for the issues list — pass on a build that dropped it.
+		report.createEl('p', { cls: 'rp-diagnostics__incidents-empty', text: tr('diagnostics.incidents.none') });
+		return;
+	}
+	const list = report.createEl('ul', { cls: 'rp-diagnostics__incidents' });
+	for (const incident of incidents.open) {
+		const row = list.createEl('li', { cls: 'rp-diagnostics__incident' });
+		row.createSpan({ cls: 'rp-diagnostics__code', text: incident.code });
+		// `raisedAt` is deliberately `''` on an unreadable record — there is no string shape a
+		// real ISO instant can never take, so `unreadableWriteIncident` refuses to mint a
+		// placeholder that might read as one. An omitted span is this renderer's half of that.
+		if (incident.raisedAt !== '') row.createSpan({ cls: 'rp-diagnostics__at', text: incident.raisedAt });
+		if (incident.code === UNREADABLE_WRITE_INCIDENT_CODE) {
+			row.createSpan({ cls: 'rp-diagnostics__note', text: tr('diagnostics.incidents.unreadable') });
+		}
+		if (incident.affected.length === 0) {
+			row.createSpan({ cls: 'rp-diagnostics__note', text: tr('diagnostics.incidents.unnamed') });
+		}
+		for (const entity of incident.affected) {
+			row.createSpan({ cls: 'rp-diagnostics__id', text: `${entity.entityKind} ${entity.entityId}` });
+		}
+	}
+	report.createEl('p', {
+		cls: 'rp-diagnostics__note',
+		text: tr('diagnostics.incidents.remove', { path: incidents.path }),
+	});
 }
 
 /**
@@ -110,6 +162,8 @@ export function renderDiagnosticsReport(into: HTMLElement, deps: DiagnosticsRepo
 			if (path !== undefined) row.createSpan({ cls: 'rp-diagnostics__path', text: path });
 		}
 	}
+
+	renderIncidents(report, deps.snapshot.writeIncidents);
 
 	const copy = report.createEl('button', {
 		cls: 'rp-diagnostics__copy',

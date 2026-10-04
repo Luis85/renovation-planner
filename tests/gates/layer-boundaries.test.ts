@@ -232,6 +232,14 @@ const networkShapes = (): readonly Planted[] => [
 	// module names, then the members, now the subpaths.
 	...NETWORK_MODULES.map((name) => ({ specifier: `${name}/sub`, shape: 'package-subpath' as const })),
 ];
+/**
+ * `CREATE_APP_BAN`: `createApp` reaches a view through `createViewApp`, which sets the id prefix
+ * and calls `trackVueApp` (`src/presentation/views/createViewApp.ts`'s docblock is the oracle).
+ * Planted in every block that does not already ban `vue` outright, since each of those
+ * overrides the others for its files.
+ */
+const CREATE_APP: Planted = { specifier: 'vue', shape: 'member', names: ['createApp'] };
+
 const PROTOTYPES = (depth: string): readonly Planted[] => [
 	{ specifier: `${depth}prototypes`, shape: 'barrel' },
 	{ specifier: `${depth}prototypes/ZoneSummary.vue`, shape: 'one-level' },
@@ -305,7 +313,7 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 		key: '**/src/presentation/**/*.ts',
 		path: 'src/presentation/editor/deleteZoneFlow.ts',
 		extensions: EXTENSIONS,
-		forbidden: [...layerShapes('infrastructure', toSrc('src/presentation/editor/deleteZoneFlow.ts')), ...layerShapes('plugin', toSrc('src/presentation/editor/deleteZoneFlow.ts')), ...PROTOTYPES(toSrc('src/presentation/editor/deleteZoneFlow.ts'))],
+		forbidden: [...layerShapes('infrastructure', toSrc('src/presentation/editor/deleteZoneFlow.ts')), ...layerShapes('plugin', toSrc('src/presentation/editor/deleteZoneFlow.ts')), ...PROTOTYPES(toSrc('src/presentation/editor/deleteZoneFlow.ts')), CREATE_APP],
 		allowed: 'vue',
 	},
 	{
@@ -313,7 +321,7 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 		path: 'src/plugin/RenovationPlannerPlugin.ts',
 		extensions: EXTENSIONS,
 		// The composition root may reach every layer. Only the prototypes door stays shut.
-		forbidden: PROTOTYPES(toSrc('src/plugin/RenovationPlannerPlugin.ts')),
+		forbidden: [...PROTOTYPES(toSrc('src/plugin/RenovationPlannerPlugin.ts')), CREATE_APP],
 		allowed: `${toSrc('src/plugin/RenovationPlannerPlugin.ts')}infrastructure/logging/diagnosticsLedger`,
 	},
 	{
@@ -321,7 +329,7 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 		path: 'src/main.ts',
 		extensions: EXTENSIONS,
 		// The ROOT block, spelled from outside `forbidden()`'s machinery.
-		forbidden: PROTOTYPES(toSrc('src/main.ts')),
+		forbidden: [...PROTOTYPES(toSrc('src/main.ts')), CREATE_APP],
 		allowed: `${toSrc('src/main.ts')}plugin/RenovationPlannerPlugin`,
 	},
 	{
@@ -344,6 +352,7 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 			...layerShapes('plugin', toSrc('src/presentation/dialogs/dialog-store.ts')),
 			...layerShapes('core/events', toSrc('src/presentation/dialogs/dialog-store.ts')),
 			...PROTOTYPES(toSrc('src/presentation/dialogs/dialog-store.ts')),
+			CREATE_APP,
 		],
 		// `core` itself, deliberately — the SHARPEST negative available here, because it
 		// proves the ban is keyed on `core/events` rather than on the whole of `core`. `vue`
@@ -406,8 +415,18 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 		// recorded gap in the extension loop below.
 		path: 'src/nowhere/Fixture.vue',
 		extensions: ['vue', 'js', 'jsx', 'mjs', 'cjs'],
-		forbidden: PROTOTYPES(toSrc('src/nowhere/Fixture.vue')),
+		forbidden: [...PROTOTYPES(toSrc('src/nowhere/Fixture.vue')), CREATE_APP],
 		allowed: `${toSrc('src/nowhere/Fixture.vue')}core`,
+	},
+	{
+		key: '**/src/presentation/views/createViewApp.ts',
+		path: 'src/presentation/views/createViewApp.ts',
+		// The block names this one file, so `.ts` is the only extension it covers.
+		extensions: ['ts'],
+		// The presentation ban, whole, minus `CREATE_APP`: this block overrides that one for
+		// its file, so a group it dropped would go quiet here and nowhere else.
+		forbidden: [...layerShapes('infrastructure', toSrc('src/presentation/views/createViewApp.ts')), ...layerShapes('plugin', toSrc('src/presentation/views/createViewApp.ts')), ...PROTOTYPES(toSrc('src/presentation/views/createViewApp.ts'))],
+		allowed: 'vue',
 	},
 ];
 
@@ -463,6 +482,7 @@ describe('the blocks declaring no-restricted-imports', () => {
 			banning('**/src/plugin/**/*'),
 			banning('**/src/presentation/**/*'),
 			banning('**/src/presentation/dialogs/**/*'),
+			{ files: ['**/src/presentation/views/createViewApp.ts'], ignores: [], severity: 'error' },
 		]);
 	});
 
@@ -750,4 +770,21 @@ describe.each(BAN_BLOCKS.filter((block) => block.networkGlobals !== true))('$key
 			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
 		});
 	});
+});
+
+/**
+ * The positive half of `CREATE_APP_BAN`, which the matrix's `allowed` cannot carry: a member
+ * import, at the one path the ban is lifted for. Without it a block that banned `createApp`
+ * there too would pass every case above, and the four views would have no door left.
+ */
+it('lets createViewApp.ts, and no other presentation file, import createApp', async () => {
+	const source = "import { createApp } from 'vue';\nexport const make = createApp;\n";
+	const at = async (path: string) => (await lintDetailed(source, path)).map((d) => d.ruleId);
+
+	const door = await at('src/presentation/views/createViewApp.ts');
+
+	expect(door).not.toContain('no-restricted-imports');
+	expect(door).not.toContain('PARSE_ERROR');
+	expect(door).not.toContain('NOT_LINTED');
+	expect(await at('src/presentation/views/vueGlobals.ts')).toContain('no-restricted-imports');
 });

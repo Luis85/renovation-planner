@@ -149,6 +149,11 @@ describe('seeding the sample project', () => {
 		const projectId = stack.index.getIdsByType('renovation-project')[0] as ProjectId;
 		const project = expectOk(await stack.projects.getById(projectId));
 		expect(project?.entity.name).toBe(t('en', 'sample.project.name'));
+		// BP-10: the sample is labelled fictional in its NAME, which is also its folder's name —
+		// the parentheses survive `fileNameFor`. Pinned as text, since a key read follows any change.
+		expect(project?.entity.name).toBe('Sample renovation (fictional)');
+		expect(t('de', 'sample.project.name')).toBe('Beispiel-Renovierung (fiktiv)');
+		expect([...stack.vault.entries.keys()].some(path => path.includes('Sample renovation (fictional)/'))).toBe(true);
 
 		const plan = expectOk(await stack.plans.getById(planId));
 		expect(plan?.entity.name).toBe(t('en', 'sample.plan.name'));

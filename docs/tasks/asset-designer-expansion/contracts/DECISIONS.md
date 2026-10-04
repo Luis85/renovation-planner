@@ -272,7 +272,7 @@ reasoning points at — *a refusal now would block a common gesture to guard a r
 **It owes C03's supersession treatment, because this one genuinely changes shipped behaviour.** C03
 names the unconditional clearance scale as *"an existing behavior to supersede deliberately, with a
 spec/ADR update and regression fixtures — not an unrecorded implementation mistake to clean up"*.
-So: **ADR-0034** carries the decision in the repository's own durable record rather than only in
+So: **ADR-0035** carries the decision in the repository's own durable record rather than only in
 this package, and the fixtures that pin today's behaviour are AMENDED deliberately and never
 deleted — `tests/domain/asset/shapeEdits.test.ts:219` (the clearance's scaled points asserted
 literally) and its bounding-box case around `:245`, plus the `scaleDesignToDimensions` line in

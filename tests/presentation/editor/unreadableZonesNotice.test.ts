@@ -36,8 +36,18 @@ const planNamingABackground = (): PlanDto => ({
 	background: { path: 'Plans/gone.png', kind: 'image' },
 });
 
+/**
+ * The severity word and the message, and NOT the row's action buttons — `.__content` is the
+ * span `PersistentWarningStrip.vue` wraps exactly those two in, and `.__actions` is its
+ * sibling. This read the whole `.__item` until `unreadable-zones` gained its **Show diagnostics
+ * report** button, at which point every assertion here compared a message against
+ * `"…which notes refused.Show diagnostics report"` — the label concatenated onto the sentence
+ * with no separator, because `textContent` has no idea a button is not prose. The subject of
+ * every case in this file is the MESSAGE; which actions a row carries is
+ * `shell/warnings.test.ts`'s and `shell.test.ts`'s.
+ */
 const notices = (mounted: EditorHarness): readonly string[] =>
-	mounted.wrapper.findAll('.rp-warning-strip__item').map((notice) => notice.text());
+	mounted.wrapper.findAll('.rp-warning-strip__item .rp-warning-strip__content').map((notice) => notice.text());
 
 describe('the canvas reports zones it could not read', () => {
 	it('draws a counted notice when some zone notes refused', async () => {

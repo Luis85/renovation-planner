@@ -16,7 +16,7 @@ import type { ZoneStatus } from '../../src/domain/zone/ZoneStatus';
 import { toZoneDto, type PlanDto, type ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import { ok } from '../../src/core/result/Result';
 import { expectOk } from '../helpers/domain';
-import { dispatchingEventBus, makeDeleteZoneCommand } from '../helpers/slice10';
+import { dispatchingEventBus, makeDeleteZoneCommand, zoneEditCommands } from '../helpers/slice10';
 import { settleUntil } from '../helpers/settle';
 
 /** Explicitly ephemeral browser workspace: real creation/resize commands/history, no files or vault. */
@@ -57,6 +57,10 @@ export function areaNumericWorkspace(base: PlanEditorDeps, planDto: PlanDto, zon
 			createZone: new CreateZoneCommand(zones, plans, events),
 			deleteZone: makeDeleteZoneCommand(zones, events, requirements),
 			zoneInspector: new GetZoneInspector(zones),
+			// Rebound with `zones` below, not inherited: the base bundle's pair is composed over a
+			// REFUSING port, and leaving it would make an Inspector rename here refuse a write this
+			// workspace can perform — a fake harsher than the real thing.
+			...zoneEditCommands(zones, events),
 			zones, events,
 			requirementEdits: { ...base.commands.requirementEdits, requirements },
 		},

@@ -93,16 +93,15 @@ describe('Design an Asset, the parity round part menu, in the real Obsidian host
 		await closeMenu(browser, parity);
 
 		// Step 92: the footprint, the anchor dot and the facing arrow open nothing of the designer's.
-		const [footprint] = await parity.marks('asset-footprint-outline');
-		const [anchor] = await parity.marks('asset-anchor-mark');
-		const [facing] = await parity.marks('asset-facing-head');
-		if (!footprint || !anchor || !facing) throw new Error('A non-graphic part is not drawn.');
-		for (const point of [
-			{ x: footprint.x + 3, y: footprint.y + footprint.height * 0.6 },
-			{ x: anchor.x + anchor.width / 2, y: anchor.y + anchor.height / 2 },
-			{ x: facing.x + facing.width / 2, y: facing.y + facing.height / 2 },
-		]) {
-			await parity.rightClick(point);
+		// Each mark is read just before its own right-click: the first one focuses the footprint, the
+		// toolbar re-wraps without the mode switch and the canvas moves — 5 px on Obsidian 1.13.7, 39 px
+		// on 1.14.4, which put a point read before the move onto the bowl beneath the facing arrow.
+		for (const [name, fy] of [['asset-footprint-outline', 0.6], ['asset-anchor-mark', 0.5], ['asset-facing-head', 0.5]] as const) {
+			const [mark] = await parity.marks(name);
+			if (!mark) throw new Error(`${name} is not drawn.`);
+			// The footprint's left edge, the other two marks' centres.
+			const x = name === 'asset-footprint-outline' ? mark.x + 3 : mark.x + mark.width / 2;
+			await parity.rightClick({ x, y: mark.y + mark.height * fy });
 			await browser.pause(400);
 			expect(await parity.menu().isExisting()).toBe(false);
 			await browser.keys('Escape');

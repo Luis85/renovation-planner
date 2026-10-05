@@ -77,6 +77,16 @@ describe('loading a plan background', () => {
 		});
 	});
 
+	it('asks for an image CORS-clean, so the canvas it is drawn into stays readable', async () => {
+		const bytes = pngFixture(8, 8);
+		registerResource('app://fake/Plans/ground.png', bytes);
+
+		const model = await loadBackground({ path: 'Plans/ground.png', kind: 'image' }, fakeVault({ 'Plans/ground.png': bytes }));
+
+		if (model.kind !== 'raster') throw new Error(`Expected a raster, got ${model.kind}.`);
+		expect((model.image as HTMLImageElement).crossOrigin).toBe('anonymous');
+	});
+
 	it('rasterizes a PDF page and scales it from the page size the PDF itself declares', async () => {
 		const bytes = pdfFixture();
 

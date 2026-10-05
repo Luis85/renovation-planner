@@ -88,17 +88,22 @@ export function createCanvasPage(browser: NativeBrowser, designer: DesignerPage)
 		return found;
 	};
 
-	/** The on-screen boxes of every Konva shape carrying `name` on the active designer's stage. */
+	/**
+	 * The on-screen GEOMETRY boxes of every Konva shape carrying `name` on the active designer's
+	 * stage — `skipStroke`, so an edge is the edge drawn and not the stroke's outer side. Konva 10.3
+	 * scaled a `strokeScaleEnabled: false` stroke by the camera in `getClientRect` and later versions
+	 * do not, which moved every stroked box by a zoom-dependent amount; geometry is the same in both.
+	 */
 	const shapeBoxes = (name: string): Promise<Box[]> =>
 		browser.execute(
 			(sel, wanted) => {
-				const konva = (window as unknown as { Konva: { stages: { find(s: string): { getClientRect(): { x: number; y: number; width: number; height: number } }[]; container(): HTMLElement }[] } }).Konva;
+				const konva = (window as unknown as { Konva: { stages: { find(s: string): { getClientRect(config: { skipStroke: boolean }): { x: number; y: number; width: number; height: number } }[]; container(): HTMLElement }[] } }).Konva;
 				const host = document.querySelector(sel);
 				const stage = konva.stages.find((candidate) => host?.contains(candidate.container()));
 				if (!stage) return [];
 				const c = stage.container().getBoundingClientRect();
 				return stage.find(`.${wanted}`).map((shape) => {
-					const r = shape.getClientRect();
+					const r = shape.getClientRect({ skipStroke: true });
 					return { left: c.left + r.x, top: c.top + r.y, width: r.width, height: r.height };
 				});
 			},

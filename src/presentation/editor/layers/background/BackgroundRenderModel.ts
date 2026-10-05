@@ -134,9 +134,15 @@ export function backgroundStatus(model: BackgroundRenderModel): BackgroundStatus
  * `getResourcePath`, not `readBinary`: Obsidian hands out an `app://` URL the browser can
  * decode natively, which keeps the bytes out of JavaScript entirely — the difference
  * between a large plan scan costing a URL and costing a copy of itself in the heap.
+ *
+ * `crossOrigin` because that URL is NOT the page's origin (`app://<hash>/…` against
+ * `app://obsidian.md`), and from Obsidian 1.14 a no-cors image from it taints every canvas it is
+ * drawn into, so nothing can read that canvas's pixels again — measured, 1.13.7 did not. Obsidian
+ * answers `Access-Control-Allow-Origin: *` on both, so a CORS request costs nothing.
  */
 async function loadImage(file: TFile, vault: BackgroundVault): Promise<BackgroundRenderModel> {
 	const image = new Image();
+	image.crossOrigin = 'anonymous';
 	image.src = vault.getResourcePath(file);
 	await image.decode();
 	return {

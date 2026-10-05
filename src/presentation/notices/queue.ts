@@ -1,10 +1,21 @@
 import { AUTO_DISMISS_MS, MAX_VISIBLE_NOTICES, type NoticeSeverity } from './severity';
 
+/**
+ * A control a notice carries beside its dismiss button — tracker row L-37's "Open report".
+ * `label` is already translated, like `message`. `run` is a property rather than a method so
+ * a host can hand it on without `@typescript-eslint/unbound-method` objecting.
+ */
+export interface NoticeAction {
+	readonly label: string;
+	readonly run: () => void;
+}
+
 /** What a host needs in order to draw one notice. */
 export interface NoticeView {
 	readonly severity: NoticeSeverity;
 	readonly message: string;
 	readonly count: number;
+	readonly action?: NoticeAction;
 }
 
 /**
@@ -36,13 +47,14 @@ export interface NoticeHost {
 }
 
 export interface NoticeQueue {
-	push(severity: NoticeSeverity, message: string): void;
+	push(severity: NoticeSeverity, message: string, action?: NoticeAction): void;
 	dispose(): void;
 }
 
 interface Entry {
 	severity: NoticeSeverity;
 	message: string;
+	action: NoticeAction | undefined;
 	count: number;
 	handle: NoticeHandle | null;
 	timer: ReturnType<typeof setTimeout> | null;
@@ -50,13 +62,23 @@ interface Entry {
 	paused: boolean;
 }
 
-const sameNotice = (entry: Entry, severity: NoticeSeverity, message: string): boolean =>
-	entry.severity === severity && entry.message === message;
+/**
+ * The ACTION is part of a notice's identity, compared as the same object: a fold keeps the
+ * first entry's action, so folding two different ones would press the wrong control. The same
+ * words with none, or with another, open a notice of their own.
+ */
+const sameNotice = (
+	entry: Entry,
+	severity: NoticeSeverity,
+	message: string,
+	action: NoticeAction | undefined,
+): boolean => entry.severity === severity && entry.message === message && entry.action === action;
 
 const viewOf = (entry: Entry): NoticeView => ({
 	severity: entry.severity,
 	message: entry.message,
 	count: entry.count,
+	action: entry.action,
 });
 
 // NOT an eager `const scheduleTimeout = setTimeout;` alias — that captures whatever
@@ -269,11 +291,11 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 	};
 
 	return {
-		push(severity, message) {
+		push(severity, message, action) {
 			if (disposed) return;
 			ops.sweep();
 
-			const existing = entries.find((entry) => sameNotice(entry, severity, message));
+			const existing = entries.find((entry) => sameNotice(entry, severity, message, action));
 			if (existing !== undefined) {
 				existing.count += 1;
 				existing.handle?.update(viewOf(existing));
@@ -281,7 +303,7 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 				// paused entry gets a countdown. See its header.
 				ops.arm(existing);
 			} else {
-				entries.push({ severity, message, count: 1, handle: null, timer: null, paused: false });
+				entries.push({ severity, message, action, count: 1, handle: null, timer: null, paused: false });
 			}
 
 			// **After BOTH paths, not just the new-entry one.** The design's guarantee is that an

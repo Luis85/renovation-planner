@@ -27,6 +27,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { GetDiagnosticsSnapshotQuery } from '../../../src/application/queries/GetDiagnosticsSnapshot';
+import { NO_WRITE_INCIDENTS } from '../../../src/application/incidents/WriteIncidentRegistry';
 import { assetSidecarPathFor } from '../../../src/infrastructure/obsidian/repositories/paths';
 import { createRepositoryStack } from '../../helpers/vault';
 import { expectOk } from '../../helpers/domain';
@@ -70,6 +71,7 @@ describe('recover.md step 30 — no diagnostic names the orphaned sidecar', () =
 			latestSchemaVersions: () => stack.migrations.latestVersions,
 			lastAppliedMigration: () => stack.migrations.lastApplied,
 			ledger: stack.ledger,
+			writeIncidents: () => NO_WRITE_INCIDENTS,
 		}).execute();
 
 		expect(snapshot.validationIssues).toEqual([]);

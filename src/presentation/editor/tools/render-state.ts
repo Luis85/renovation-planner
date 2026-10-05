@@ -110,10 +110,50 @@ export class RenderState {
 	 * `InteractionLayer.vue`'s preview config and in the `points`/`bulges` config
 	 * `RoomDimensionLabels.vue` builds for a room being resized — so neither can see this field and
 	 * no plan-editor picture moves. Every WRITER of `previewPolygon` outside the
-	 * designer — `select-tool`, `rotationActions`, `roomDimensionAction`, `roomResizeAction` —
-	 * leaves this field at its default.
+	 * designer — `select-tool`, `rotationActions`, `roomDimensionAction`, `roomResizeAction`,
+	 * `zoneOutlineAction` — leaves this field at its default.
 	 */
 	previewClosed = true;
+	/**
+	 * WHICH corner of the single selected zone a numeric editor has the user on, by index into
+	 * that zone's own `points` — BP-04 action 3, "highlight only the chosen corner". The
+	 * `InteractionLayer` draws that one vertex handle larger than its siblings; nothing else
+	 * reads it, and no tool writes it.
+	 *
+	 * **A SECOND field rather than a richer `previewPolygon`**, for the reason `hoveredTargetKind`
+	 * is one beside `hoveredObjectId` (R8, 2026-09-04): every other reader of the preview asks
+	 * only "which points", and `previewPolygon` has a SECOND writer — `SelectTool` puts the
+	 * translated ghost of a dragged zone in it, exactly as `PolygonSketch`'s docblock above
+	 * records for the field next door — so widening it would have changed a third tool's picture
+	 * for one consumer's benefit.
+	 *
+	 * The index is into the SAVED outline, which is what `InteractionLayer.editableVertices`
+	 * draws, so the mark stays on the corner as loaded while the dashed preview shows where the
+	 * typed value would put it.
+	 *
+	 * **Riding `previewPolygon` instead was available, and is refused for a FLICKER rather than
+	 * for an impossibility.** This clause used to say the preview's points are expanded through
+	 * `polygonPolyline` before they are drawn and so do not correspond to corner indices. That
+	 * is false of the FIELD in the plan editor: every writer THERE stores unexpanded CORNER
+	 * points (`zoneOutlineAction.ts`, `roomResizeAction.ts`, `roomDimensionAction.ts` and
+	 * `rotationActions.ts` assign `polygon?.points` or an equivalent; `SelectTool` assigns its
+	 * translated corner array), and the expansion happens at DRAW time inside
+	 * `InteractionLayer`'s `previewFlat`. The writers that do store an expanded polyline are
+	 * the designer's `DrawDetailTool` and `DrawLineTool`, which share this class and never reach
+	 * this field.
+	 *
+	 * What is true is that the field goes NULL part-way through typing one value:
+	 * `outlineProposal` answers `polygon: null` for any box that is not yet a complete number
+	 * (`"1."`, `"-"`, an emptied field — `parseCoordinateMetres` refuses all three), and
+	 * `OutlinePointsForm`'s `watchEffect(() => props.preview(proposal.value.polygon))` pushes
+	 * that null straight here. A preview-riding mark would therefore jump back to the saved
+	 * corner and out again on the way through every edit, where a mark anchored to the saved
+	 * outline just says where the corner IS while the dashed ghost says where it would go.
+	 *
+	 * Transient like every other field here — a corner number is a UI identifier BP-04 forbids
+	 * persisting, and this is the only place one is ever held.
+	 */
+	highlightedVertex: number | null = null;
 	marquee: BoundingBox | null = null;
 	snapGuides: LineSegment[] = [];
 	/**
@@ -144,6 +184,7 @@ export class RenderState {
 		this.hoveredTargetKind = null;
 		this.previewPolygon = null;
 		this.previewClosed = true;
+		this.highlightedVertex = null;
 		this.marquee = null;
 		this.snapGuides = [];
 		this.measurement = null;

@@ -255,25 +255,97 @@ describe('the German locale', () => {
 	 * `Überprüfen Sie` today, whose du-forms are exactly `Öffne` and `Überprüfe`. The trailing
 	 * guard is what keeps the Sie-forms out: `Öffnen` fails `(?!\p{L})` at its own `n`.
 	 *
-	 * **What stays a LIST is stated rather than quietly widened, and the list has now been widened
-	 * once, by evidence.** It held ten verbs and that was too few: the asset designer's expansion
-	 * added SEVEN du-form strings across three tables and this case caught exactly ONE of them
-	 * (`Zeichne`). The other six used `Entsperre`, `Hebe`, `nimm`, `Kalibriere`, `Zieh`, `setze`,
-	 * `Drehe`, `verschiebe` and the possessive `deine` — none enumerated, so all invisible. Worse
-	 * than invisible: a later author read those neighbours, concluded the repository had no house
-	 * register, and deliberately matched the du-form to be consistent with them. **A rule with a
-	 * partial instrument does not merely miss a violation, it teaches the next author the violation
-	 * is allowed.**
+	 * **TWO ARMS, because a register slips in two ways and the first version of this check had
+	 * only one.** ELEVEN du-form strings sat behind this case while it was green — the count is
+	 * the widened pattern’s own output and not a sweep’s, which reported nine; the two it missed
+	 * were `editor.curves.conflict` and `quote.from-room`. One of the eleven is
+	 * `schedule.unrecovered`, the closest sibling of the unrecovered-write strings the increment
+	 * that wrote this check was editing. The ten-verb list could not see any of them: five of the
+	 * verbs (`Lade`, `Prüfe`, `Erstelle`, `Erfasse`, `Passe`) were simply absent, and a string
+	 * that carries no imperative at all (`Dein Entwurf …`, `… bevor du weiterbearbeitest`) was
+	 * outside the shape it looks for. So there is a PRONOUN arm now — `du`/`dich`/`dir` and the
+	 * `dein` possessives — which is the arm that does not depend on enumerating anything, and the
+	 * verb list beside it.
 	 *
-	 * So the list carries the du-forms of the verbs this locale actually uses, including the ones
-	 * that arrived with that expansion, plus the du-form possessives `dein`/`deine`/`deinen`/`deiner`
-	 * and the pronouns `dir`/`dich`, which no Sie-form sentence can contain. It is still a LIST and
-	 * still incomplete — a du-form of a verb nobody has written yet is not refused — and the honest
-	 * statement is that it is better rather than closed. Every addition below reported nothing on the
-	 * tree at the time it was added, which is how a floor is raised here.
+	 * **Case-insensitive, which the single-arm version was not, because a du-form imperative is
+	 * not always sentence-initial.** `quote.conflict` read `… schließe ihn und prüfe …` and
+	 * `editor.curves.conflict` read `Brich ab und öffne …`; a capital-only list is blind to every
+	 * one of those by construction.
+	 *
+	 * **The verb list was also widened once by evidence from `main`'s side.** The asset designer's
+	 * expansion added SEVEN du-form strings across three tables and the ten-verb version caught
+	 * exactly ONE of them (`Zeichne`); the others used `Entsperre`, `Hebe`, `nimm`, `Kalibriere`,
+	 * `Zieh`, `setze`, `Drehe`, `verschiebe` and `deine`. Worse than invisible: a later author read
+	 * those neighbours, concluded the repository had no house register, and matched the du-form to
+	 * be consistent with them. **A rule with a partial instrument does not merely miss a violation,
+	 * it teaches the next author the violation is allowed.** The five verbs this list lacked joined
+	 * it when the two branches met; `nimm`, `setze`, `verschiebe` and `deine` were already reached
+	 * by the `/i` flag and the possessive arm.
+	 *
+	 * **The `\p{L}` lookarounds carry the whole of the false-friend defence, and they are the
+	 * reason `/i` is affordable.** German embeds all of these letter runs in ordinary words —
+	 * `Deinstallation` contains `dein`, `Durchmesser` contains `du`, `Direkt` contains `dir`,
+	 * `Ladefläche` contains `Lade`, and every Sie-form of a listed verb contains its own du-form
+	 * as a prefix (`Prüfen`, `Erstellen`, `Öffnen`). The trailing guard is what refuses each of
+	 * them. `catches a du-form and spares its false friends` below drives exactly that, in both
+	 * directions, because an instrument that reaches nothing looks the same as a clean tree.
+	 *
+	 * **What it cannot see, stated as blind spots rather than admitted as openness.** A German
+	 * imperative is not decidable by a regular expression and nothing here is a grammar engine:
+	 *
+	 * - **The verb arm is still a LIST.** It holds the du-forms this locale has actually produced
+	 *   plus the obvious siblings of those; a du-form of a verb nobody has written yet
+	 *   (`Kopiere`, `Justiere`, …) passes. The pronoun arm is what makes that gap
+	 *   narrower than it was — most informal copy reaches for `du`, `dir` or `dein` somewhere —
+	 *   but a single pronoun-free imperative of an unlisted verb is invisible.
+	 * - **A du-form that is spelled identically to something legitimate is not separable here.**
+	 *   `Passe` is an imperative and also a noun; the pattern reports the first and would report
+	 *   the second. It is a gate that fails LOUD, and the remedy for a real collision is to write
+	 *   the exception down, not to drop the verb.
+	 * - **Only `de` is read.** A register is a per-locale fact and no other locale declares one.
+	 * - **Value text only.** A KEY is never user-facing, and a placeholder's substituted value is
+	 *   not in this table at all.
 	 */
 	const INFORMAL_IMPERATIVE =
-		/(?<!\p{L})(Gib|Wähle|Setze|setze|Lege|Zeichne|Tippe|Klicke|Ziehe|Zieh|Öffne|Überprüfe|Entsperre|Hebe|nimm|Nimm|Kalibriere|Drehe|drehe|Verschiebe|verschiebe|Lösche|Erstelle|Verwirf|dein|deine|deinen|deiner|deinem|dir|dich)(?!\p{L})/u;
+		/(?<!\p{L})(?:du|dich|dir|dein(?:en|em|er|es|e)?|Gib|Wähle|Setze|Lege|Zeichne|Tippe|Klicke|Ziehe|Öffne|Überprüfe|Prüfe|Lade|Erstelle|Erfasse|Passe|Brich|Schließe|Speichere|Lösche|Füge|Entferne|Ändere|Wechsle|Verschiebe|Benenne|Vergrößere|Verkleinere|Verwirf|Wiederhole|Beginne|Beende|Kehre|Gehe|Nimm|Lies|Verwende|Benutze|Beachte|Achte|Starte|Versuche|Ordne|Behalte|Melde|Vergiss|Verbinde|Markiere|Aktiviere|Deaktiviere|Bestätige|Korrigiere|Bearbeite|Trage|Wende|Entscheide|Entsperre|Hebe|Zieh|Kalibriere|Drehe)(?!\p{L})/iu;
+
+	/**
+	 * The instrument before the measurement: a pattern that matched nothing would make this whole
+	 * locale read as clean. Both directions are driven, because widening a register check is
+	 * exactly the edit that buys false positives — every `spares` row is a real German word (or a
+	 * real Sie-form from this locale) whose letters contain a listed token and which the `\p{L}`
+	 * guards must refuse.
+	 */
+	it('catches a du-form and spares its false friends', () => {
+		const catches = [
+			'Lade den Vault neu.',                                  // verb the ten-verb list lacked
+			'Prüfe die Quelldatei.',                                // ditto, and the sibling of the write family
+			'Erstelle Arbeiten, um zu beginnen.',
+			'Erfasse ein Angebot.',
+			'Passe die Biegung vor dem Übernehmen an.',
+			'Brich ab und öffne Kurven erneut.',                    // LOWERCASE, mid-sentence
+			'Speichere, schließe ihn und prüfe die Beträge.',       // ditto
+			'Dein Entwurf ist noch offen.',                         // pronoun arm, no imperative at all
+			'Lies es, bevor du weiterbearbeitest.',                 // ditto
+			'Das gehört dir.',
+			'Wir informieren dich.',
+			'Öffne den Bericht.',                                   // the umlaut case the boundary exists for
+		];
+		const spares = [
+			'Öffnen Sie den Bericht.',                              // every Sie-form is its du-form plus a letter
+			'Überprüfen Sie die Angaben.',
+			'Prüfen Sie die Quelldatei.',
+			'Erstellen Sie eine Arbeit.',
+			'Laden Sie den Vault neu.',
+			'Die Deinstallation entfernt alle Daten.',              // embeds `dein`
+			'Der Durchmesser der Öffnung.',                         // embeds `du`
+			'Eine direkte Verbindung zur Direktion.',               // embeds `dir`
+			'Die Ladefläche ist belegt.',                           // embeds `Lade`
+			'Wählen Sie eine Zeichenfläche und ziehen Sie sie.',
+		];
+		expect(catches.filter((s) => !INFORMAL_IMPERATIVE.test(s)), 'must be reported').toEqual([]);
+		expect(spares.filter((s) => INFORMAL_IMPERATIVE.test(s)), 'must NOT be reported').toEqual([]);
+	});
 
 	it('addresses the user formally throughout: no du-form imperative anywhere in de.ts', () => {
 		const offenders = Object.entries(de)
@@ -378,6 +450,42 @@ describe('the reworded zone labels use the split ADR-0016 actually draws', () =>
 			expect(message).toMatch(connective);
 			expect(title).not.toMatch(table === en ? /rooms? and areas?/i : /R(aum|äume) und Fläche/);
 		}
+	});
+});
+
+/**
+ * L-36 (owner ruling 46): both wall forms name a start coordinate "Start X" / "Start Y", in the
+ * same register as each other and as German — one was "Starting horizontal coordinate (m)"
+ * beside "Start Y (m)", the other "Horizontal start" where German read "Start X".
+ */
+describe('the start-coordinate labels are one symmetric pair in both locales', () => {
+	it('reads Start X and Start Y on the wall form and the planned-geometry form', () => {
+		const keys = ['editor.structure.x', 'editor.structure.y', 'renovation.measurement.x', 'renovation.measurement.y'] as const;
+		expect(keys.map(key => en[key])).toEqual(['Start X (m)', 'Start Y (m)', 'Start X', 'Start Y']);
+		expect(keys.map(key => de[key])).toEqual(keys.map(key => en[key]));
+	});
+
+	// Owner ruling 51: the end pair follows, "End X" / "End Y" beside German "Ende X" / "Ende Y".
+	it('reads End X and End Y on the planned-geometry form', () => {
+		const keys = ['renovation.measurement.endX', 'renovation.measurement.endY'] as const;
+		expect(keys.map(key => en[key])).toEqual(['End X', 'End Y']);
+		expect(keys.map(key => de[key])).toEqual(['Ende X', 'Ende Y']);
+	});
+});
+
+/**
+ * Owner rulings 50 and 52: the German asset library has one name, „Objekt-Bibliothek“. What this
+ * checks is every COMPOUND NAME for it — a word joined to „Bibliothek“ with or without a hyphen
+ * („Objektbibliothek“, „Asset-Bibliothek“) — in every German value, and that the door reads it.
+ * A bare „Bibliothek“ (`Zurück zur Bibliothek`) and a compound that STARTS with it
+ * (`Bibliotheksordner`, `Bibliotheksobjekt`) are outside it: those are short references and other
+ * nouns, not a second name for the library.
+ */
+describe('the asset library has one German name', () => {
+	it('spells it Objekt-Bibliothek everywhere, the door included', () => {
+		const spellings = Object.values(de).flatMap(value => value.match(/\p{L}+-?[Bb]ibliothek/gu) ?? []);
+		expect(new Set(spellings)).toEqual(new Set(['Objekt-Bibliothek']));
+		expect(de['view.asset-library.door']).toBe('Objekt-Bibliothek');
 	});
 });
 

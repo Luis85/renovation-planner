@@ -35,13 +35,13 @@ function pasteSummaryRows(summary: ClipboardSummary): readonly string[] {
 		.map(([kind, count]) => tr(SUMMARY_KEYS[kind], { count: String(count) }));
 }
 
-/** The notice is confirmation and recovery guidance; the ordinary selected-result Details stay the inspection route. */
+/** The notice is confirmation and recovery guidance; the ordinary selected-result Details stay the inspection route. The tally is last so no count runs into the sentence after it. */
 function pastedNotice(clipboard: SpatialClipboard, floor: string): string {
 	return [
 		tr('editor.clipboard.pasted', { floor }),
-		pasteSummaryRows(clipboardSummary(clipboard)).join(' · '),
 		tr('editor.clipboard.excluded'),
 		tr('editor.clipboard.undo'),
+		pasteSummaryRows(clipboardSummary(clipboard)).join(' · '),
 	].join(' ');
 }
 

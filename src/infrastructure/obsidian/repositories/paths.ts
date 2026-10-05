@@ -316,8 +316,9 @@ export function fileNameFor(name: string): string {
  * ago is known to the index before any `MetadataCache` has parsed it: write-then-write-again
  * cannot reach the arm. What that does not cover is a note the index NEVER held — the full
  * scan reads through `frontmatterOf`, whose echo is empty at `onLayoutReady`, so a note
- * Obsidian has no cache entry for yet answers `{}` and is dropped from the index entirely —
- * followed by a save at `'absent'` early in the same session.
+ * Obsidian has no cache entry for yet answers `{}` and is dropped from the index until its
+ * parse arrives as `changed` (owner ruling 76) — followed by a save at `'absent'` inside
+ * that gap.
  * `recoverInterruptedSequences` is that shape: `void`ed from `startPersistence()` and
  * restoring a deleted entity at `'absent'`.
  */

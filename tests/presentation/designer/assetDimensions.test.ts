@@ -361,7 +361,7 @@ describe('the designer’s dimensions dialog', () => {
 		expect(scaled?.footprint.bulges).toEqual([0, 0, 1, 0]);
 		// **AMENDED at AD14, not replaced.** This pinned `[[-780, -700], [780, -700], [780, 1900],
 		// [-780, 1900]]` — the toilet preset's own 780 x 1300 clearance put through the same 2 x 2
-		// the footprint takes — and that was the shipped behaviour ruling AD14-R1 / ADR-0034
+		// the footprint takes — and that was the shipped behaviour ruling AD14-R1 / ADR-0035
 		// supersedes deliberately. The preset's clearance is MEASURED, so it is now preserved at the
 		// size its author drew and flagged for review; the numbers below are `toiletShape()`'s own,
 		// unmoved. The two fixtures the card named are in `tests/domain/asset/shapeEdits.test.ts`;

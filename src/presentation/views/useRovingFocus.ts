@@ -1,7 +1,8 @@
 import { ref, type Ref } from 'vue';
 
 /**
- * One tab stop for a list of any length, with the arrows moving inside it (design spec §7).
+ * One tab stop for a list of any length, with the arrows moving inside it (design spec §7; the
+ * Plan Editor's Rooms-and-areas list reuses it for the owner's L-46 ruling, "One Tab stop").
  *
  * **Roving exists to bound an UNBOUNDED set, and that is the whole of when to reach for it.** A
  * vault of thirty projects must not cost thirty tabs to walk past; every other control on this
@@ -26,16 +27,17 @@ export interface RovingFocus {
 	activeIndex: Ref<number>;
 	onKeydown: (event: KeyboardEvent) => boolean;
 	syncFromFocus: (event: FocusEvent) => void;
+	syncTo: (element: HTMLElement | null) => void;
 	reconcile: (ids: readonly string[]) => void;
 	focusFirst: () => void;
 }
 
-/** The id a row's roving key is drawn from — `data-project-id`, which every row carries. */
-function keyOf(element: HTMLElement | undefined): string | null {
-	return element?.dataset.projectId ?? null;
-}
-
-export function useRovingFocus(container: Ref<HTMLElement | null>, selector: string): RovingFocus {
+/**
+ * `key` names the `dataset` entry a row's roving key is drawn from, which every member carries:
+ * `projectId` for a project row, `rpId` for a Plan Editor room row (L-46).
+ */
+export function useRovingFocus(container: Ref<HTMLElement | null>, selector: string, key = 'projectId'): RovingFocus {
+	const keyOf = (element: HTMLElement | undefined): string | null => element?.dataset[key] ?? null;
 	const activeIndex = ref(0);
 	/**
 	 * WHICH ROW the index means, so a filtered list can put the tab stop back on it. A plain
@@ -59,6 +61,20 @@ export function useRovingFocus(container: Ref<HTMLElement | null>, selector: str
 		all[next]?.focus();
 	}
 
+	/**
+	 * `syncFromFocus`'s own move, reachable for a target that ISN'T what focus landed on —
+	 * `RoomSummaryList.vue`'s lock click (L-46 review finding 1): the lock sits outside
+	 * `members()`, so a focusin landing there left `activeIndex`/`activeKey` on the stale row and
+	 * a following ArrowDown moved from that stale row instead of the lock's own.
+	 */
+	function syncTo(element: HTMLElement | null): void {
+		const all = members();
+		const index = element === null ? -1 : all.indexOf(element);
+		if (index === -1) return;
+		activeIndex.value = index;
+		activeKey = keyOf(all[index]);
+	}
+
 	return {
 		activeIndex,
 
@@ -76,12 +92,10 @@ export function useRovingFocus(container: Ref<HTMLElement | null>, selector: str
 		 * write of the value `focusAt` just set.
 		 */
 		syncFromFocus(event: FocusEvent): void {
-			const all = members();
-			const index = all.indexOf(event.target as HTMLElement);
-			if (index === -1) return;
-			activeIndex.value = index;
-			activeKey = keyOf(all[index]);
+			syncTo(event.target as HTMLElement);
 		},
+
+		syncTo,
 
 		onKeydown(event: KeyboardEvent): boolean {
 			// A modified arrow belongs to the host — Obsidian binds several — so only the bare

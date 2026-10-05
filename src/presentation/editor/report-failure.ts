@@ -58,7 +58,7 @@ const AUTOSAVE_SINKS: SurfaceSinks = {
  *
  * **"Dispatched" does not mean "the indicator has it", which is what decides the rest.**
  * `withSaveStateTracking` asks `affectsSaveState`, and for a PRE-WRITE category —
- * `Calculation`, `Domain`, `Validation`, `Reference` — it resolves NEUTRAL: no badge, because
+ * `Calculation`, `Domain`, `Validation`, `Reference`, `Geometry` — it resolves NEUTRAL: no badge, because
  * nothing was written. A door that assumed every dispatched refusal was carried by the
  * indicator routed those to a save-state sink that is deliberately a no-op, and they reached
  * nobody at all. Calibration is the reachable case: `calibration.degenerate-scale` and

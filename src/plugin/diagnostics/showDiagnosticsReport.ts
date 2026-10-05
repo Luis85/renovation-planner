@@ -5,9 +5,10 @@ import type { PluginCommandHost } from '../commandHost';
 import { DiagnosticsReportModal } from './DiagnosticsReportModal';
 
 /**
- * The ONE function both doors call — a palette command and a settings action row — per this
- * repository's one-action-every-input rule. A second entry point with its own composition looks
- * correct alone and drifts the moment either is edited.
+ * Composes the diagnostics report. Every input that opens one reaches this through
+ * `RenovationPlannerPlugin.openDiagnosticsReport` — CLAUDE.md's *one action, every input*,
+ * stated as the RULE and never as a list of the doors that take it. A second entry point with
+ * its own composition looks correct alone and drifts the moment either is edited.
  *
  * `resolvePath` closes over the project index rather than being computed here, so the modal
  * never learns what an index is and the join stays a rendering concern.

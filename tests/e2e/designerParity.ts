@@ -1,6 +1,7 @@
 import { expect } from 'vitest';
 import { ACTIVE_DESIGNER, type DesignerPage } from './designer';
 import { createCanvasPage } from './designerCanvas';
+import { setWindowSize, windowSize } from './helpers';
 import type { NativeBrowser } from './session';
 
 interface Rect { x: number; y: number; width: number; height: number }
@@ -73,11 +74,8 @@ export function createParityPage(browser: NativeBrowser, designer: DesignerPage)
 		for (let attempt = 0; attempt < 4; attempt += 1) {
 			const current = await leafWidth();
 			if (Math.abs(current - width) < 6) break;
-			await browser.execute((delta) => {
-				const remote = (window as unknown as { require(id: string): { getCurrentWindow(): { getSize(): number[]; setSize(w: number, h: number): void } } }).require('@electron/remote');
-				const [w = 0, h = 0] = remote.getCurrentWindow().getSize();
-				remote.getCurrentWindow().setSize(Math.round(w + delta), h);
-			}, width - current);
+			const size = await windowSize(browser);
+			await setWindowSize(browser, size.width + width - current, size.height);
 			await browser.pause(400);
 		}
 		return leafWidth();

@@ -1,5 +1,7 @@
 # Rotation handle and keyboard controls
 
+> **Historical record — status added 2026-10-02.** This records the build and date it names. It is not acceptance of a beta release candidate; that status lives only in [first beta readiness](../../../releases/first-beta-readiness/README.md).
+
 This UI concern follows the user's 2026-09-08 expansion to individually rotate every spatial
 item. The generalized rotation engine owns target eligibility, fixed baseline/pivot, shared
 paint/hit coordinates, preview, snapping and guarded commands. Wall/Openings use the separately

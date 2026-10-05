@@ -8,7 +8,7 @@ import { planningServices, readPlanning, type PlanningDeps } from '../applicatio
 import { renovationLinkCheckAgainst } from '../application/commands/renovation/renovationLinkCheck';
 import { renovationServices } from '../application/commands/renovation/RenovationCommand';
 import { constructionAwareRenovation } from '../application/commands/renovation/ConstructionMaterialCommand';
-import { guardCommand } from '../application/errors/guardAgainstThrowing';
+import { guardCommand, guardQuery } from '../application/errors/guardAgainstThrowing';
 import { ObsidianEvidenceFiles } from '../infrastructure/obsidian/repositories/ObsidianEvidenceFiles';
 import type { PlanEditorCommandServices } from '../presentation/editor/planEditorCommands';
 import { VAULT_EXCEPTION_MAPPER } from './guardedServices';
@@ -21,7 +21,9 @@ export function planningEditorServices(root: CompositionRoot, vault: Vault, work
 	if (!persistence) return {};
 	const deps: PlanningDeps = { ...persistence, events: root.eventBus };
 	const services = planningServices(deps);
-	const read = guardCommand({ execute: (id: PlanId) => services.read(id) }, 'planning.read.failed', root.logger, VAULT_EXCEPTION_MAPPER);
+	// A READ, so the boundary without ADR-0034's write gate (owner ruling 74): it reaches no write door,
+	// and a refused read drew a false "could not be re-read" row in every Plan Editor during a pause.
+	const read = guardQuery({ execute: (id: PlanId) => services.read(id) }, 'planning.read.failed', root.logger, VAULT_EXCEPTION_MAPPER);
 	return {
 		tradeCatalogue: guardedNamedCatalogue({ kind: 'trade', repository: persistence.trades, create: createTrade }, root.eventBus, root.logger),
 		planning: { read: id => read.execute(id), material(baseline, input, ledger) {

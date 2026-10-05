@@ -45,6 +45,15 @@ import type { NamedReferents } from '../../application/errors';
 	['revision-conflict', 'error.suffix.revision-conflict'],
 	['external-modification', 'error.suffix.external-modification'],
 	['migration-failed', 'error.suffix.migration-failed'],
+	// The whole uncompensated family in ONE row, and by the word rather than by
+	// `delete-uncompensated`, which is the only `${kind}`-templated one of them: the four
+	// fixed codes beside it (`zone.sidecar-remove-`, `plan.delete-`, `plan.write-`,
+	// `project.write-`) say the same thing to a user — a change landed and could not be put
+	// back — and differ only in which file to inspect, which no sentence here can name anyway.
+	// `zone.sidecar-insert-uncompensated` and `zone.sidecar-update-uncompensated` keep their
+	// OWN entries and are unaffected: `hasLocaleKey(error.code)` is asked before this table is
+	// walked, so a direct code beats a suffix.
+	['uncompensated', 'error.suffix.uncompensated'],
 ];
 
 /** A refusal that names what blocks it fills its copy's `{names}`; any other error leaves its template as it is. */

@@ -1,5 +1,6 @@
 import type { StringKey } from '../../i18n/locales/en';
 import type { BackgroundStatus } from '../layers/background/BackgroundRenderModel';
+import type { UnrecoveredCause } from '../save-state/save-state-store';
 
 /**
  * Task 20's keyed collection over what used to be four independent `<p class="rp-editor-notice">`s
@@ -30,14 +31,17 @@ export type WarningSeverity = 'warning' | 'error';
  * One row's action. `retry` is the refresh, by construction (§2.3) — it re-reads through
  * `runtime.refreshProjection` and takes no command parameter, so it cannot replay a write.
  * `open-source-note` asks the context to open the plan's own note, the one surface every
- * warning here can always hand off to.
+ * warning here can always hand off to — except on the `unrecovered` row when a ROOM was left
+ * half-written (owner ruling 72), where it opens that room's note instead. `open-diagnostics`
+ * asks the context to open the diagnostics report, which is a PLUGIN-side modal reached
+ * through an injected callback — `presentation/` may not import `plugin/`.
  *
  * `busy` is read off the SAME flag the row's message swap already reads
  * (`ProjectStore.refreshing`) rather than a per-action flag of its own: a retry in flight and
  * an open-source-note click racing it are the same "a read is happening" fact, not two.
  */
 export interface WarningAction {
-	readonly id: 'retry' | 'open-source-note';
+	readonly id: 'retry' | 'open-source-note' | 'open-diagnostics';
 	readonly labelKey: StringKey;
 	readonly run: () => void;
 	readonly busy: boolean;
@@ -48,7 +52,19 @@ export interface EditorWarning {
 	readonly severity: WarningSeverity;
 	readonly messageKey: StringKey;
 	readonly params?: Readonly<Record<string, string>>;
-	/** Absent for a warning with nothing to do about it yet (`unreadable-zones`, `background-*`). */
+	/**
+	 * Absent for the two `background-*` rows only, and the reason is STRUCTURAL rather than
+	 * "nothing to do about it yet": `DiagnosticEntityKind`
+	 * (`src/application/ports/diagnostics.ts`) has no background member and every
+	 * `DiagnosticsLedger.record` call site names a note or a sidecar, so a diagnostics button
+	 * on a background row would open a report incapable of ever mentioning the background.
+	 * `en-assetLibrary.ts` already writes that rule down for `UnreadableStrip`'s withheld
+	 * **Open note** — an action that cannot work is worse than no action.
+	 *
+	 * What a check re-runs is only the ABSENCE (`warnings.test.ts`, "leaves the two
+	 * background rows action-less"); the reason above is an argument to re-read at the ledger,
+	 * not something this repository can assert against a type with no runtime members.
+	 */
 	readonly actions?: readonly WarningAction[];
 }
 
@@ -57,7 +73,7 @@ export interface EditorWarning {
  * post-command read-back that failed while valid data is still on screen, zone notes that
  * refused to load, the plan's background) plus the trust path's own — an unrecovered write
  * (§2.8), whether a re-read is in flight and how many have failed in a row (§2.4) — and the
- * two callbacks every action here dispatches through.
+ * callbacks every action here dispatches through.
  */
 export interface EditorWarningInput {
 	readonly unrecoveredWrite: boolean;
@@ -68,6 +84,45 @@ export interface EditorWarningInput {
 	readonly backgroundStatus: BackgroundStatus;
 	readonly retry: () => void;
 	readonly openSourceNote: () => void;
+	/**
+	 * The diagnostics report, injected all the way from the composition root: the modal lives
+	 * in `plugin/` and `presentation/` may not import it, so the callback is the seam.
+	 * REQUIRED, for `PlanEditorDeps.clipboard`'s reason — an optional one would let a
+	 * composition draw the `unreadable-zones` row with the instruction and without the button,
+	 * which is the exact defect this member exists to close.
+	 */
+	readonly openDiagnosticsReport: () => void;
+	/** What this leaf's own half-written write left behind, or `null` when only the flag is known. */
+	readonly unrecoveredCause: UnrecoveredCause | null;
+	/** Opens a ROOM's note by its zone id — the `unrecovered` row's door when a room was left behind. */
+	readonly openRoomNote: (zoneId: string) => void;
+}
+
+/**
+ * Owner ruling 72: the two refusals that leave a ROOM's note behind, each with its own existing
+ * sentence naming the room's note. Every other stamped code keeps `editor.unrecovered` — its own
+ * key, where it has one, may not describe a write left standing, and "the floor's note" is right
+ * for the plan-side residue most of them leave.
+ */
+const ROOM_CODES = ['zone.sidecar-insert-uncompensated', 'zone.sidecar-update-uncompensated'] as const satisfies readonly StringKey[];
+const isRoomCode = (code: string): code is (typeof ROOM_CODES)[number] => (ROOM_CODES as readonly string[]).includes(code);
+
+/**
+ * The room a cause left behind, with the sentence naming its note — or `null` for the generic
+ * pair. Shared by the row below and `PlanEditorRoot.vue`'s `pausedReason` (owner ruling 73), so
+ * a screen reader on a paused control hears the instruction the strip shows.
+ */
+export function roomLeftBehind(cause: UnrecoveredCause | null): { readonly messageKey: StringKey; readonly zoneId: string } | null {
+	const room = cause?.entities.find((entity) => entity.entityKind === 'zone');
+	return cause !== null && room !== undefined && isRoomCode(cause.code) ? { messageKey: cause.code, zoneId: room.entityId } : null;
+}
+
+/** The row's sentence and door: the room's own when the cause names one, else the generic pair. */
+function unrecoveredRow(input: EditorWarningInput, openSourceNote: WarningAction): EditorWarning {
+	const room = roomLeftBehind(input.unrecoveredCause);
+	const action: WarningAction = { ...openSourceNote, busy: false };
+	if (room === null) return { id: 'unrecovered', severity: 'error', messageKey: 'editor.unrecovered', actions: [action] };
+	return { id: 'unrecovered', severity: 'error', messageKey: room.messageKey, actions: [{ ...action, run: () => input.openRoomNote(room.zoneId) }] };
 }
 
 /**
@@ -90,14 +145,7 @@ export function editorWarnings(input: EditorWarningInput): readonly EditorWarnin
 		run: input.openSourceNote,
 		busy: input.refreshing,
 	};
-	if (input.unrecoveredWrite) {
-		warnings.push({
-			id: 'unrecovered',
-			severity: 'error',
-			messageKey: 'editor.unrecovered',
-			actions: [{ ...openSourceNote, busy: false }],
-		});
-	}
+	if (input.unrecoveredWrite) warnings.push(unrecoveredRow(input, openSourceNote));
 	if (input.stale) {
 		warnings.push({
 			id: 'stale',
@@ -115,6 +163,23 @@ export function editorWarnings(input: EditorWarningInput): readonly EditorWarnin
 			severity: 'error',
 			messageKey: 'editor.some-zones-unreadable',
 			params: { count: String(input.unreadableZones) },
+			// The door the message already names ("Open the diagnostics report to see which notes
+			// refused") — the sentence shipped without one, which is the defect this row closes.
+			// `command.show-diagnostics-report` rather than a new key: it is the palette command's
+			// own verb phrase, already sentence case in both locales, and the two sibling actions
+			// on this strip are verb phrases too.
+			//
+			// `busy: false`, like the `unrecovered` row's action and for the same reason: `busy`
+			// is `ProjectStore.refreshing`, and a plan re-read in flight changes nothing about a
+			// ledger this button reads at open time. It is not "in flight" the way a retry is.
+			actions: [
+				{
+					id: 'open-diagnostics',
+					labelKey: 'command.show-diagnostics-report',
+					run: input.openDiagnosticsReport,
+					busy: false,
+				},
+			],
 		});
 	}
 	if (input.backgroundStatus === 'missing') {

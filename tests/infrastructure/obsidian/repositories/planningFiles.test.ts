@@ -43,9 +43,9 @@ describe('ordinary vault evidence and owned generated projections', () => {
  const rig = await filesRig(); expectOk(await rig.planning.material(expectOk(await rig.read()), rig.input, rig.ledger).execute());
  const baseline = expectOk(await rig.read()); expectOk(await rig.renovation.command(baseline, { renovation: { ...rig.value, depth: rig.depth }, intended: undefined }, rig.ledger).execute());
  rig.stack.vault.entries.set('New/invoice.pdf', 'user PDF');
- expectOk(await relocateEvidence({ ...rig.deps, index: rig.stack.index }, 'Evidence', 'New'));
+ expectOk(await relocateEvidence({ ...rig.deps, index: rig.stack.index, ledger: rig.stack.ledger }, 'Evidence', 'New'));
  let read = expectOk(await rig.read()); expect(read.plan.entity.renovation?.depth?.evidence[0].path).toBe('New/invoice.pdf'); expect(read.plan.entity.renovation?.depth?.costs).toEqual(rig.depth.costs);
- expectOk(await relocateEvidence({ ...rig.deps, index: rig.stack.index }, 'New/invoice.pdf', 'New/paid.pdf'));
+ expectOk(await relocateEvidence({ ...rig.deps, index: rig.stack.index, ledger: rig.stack.ledger }, 'New/invoice.pdf', 'New/paid.pdf'));
  read = expectOk(await rig.read()); const depth = expectDefined(read.plan.entity.renovation?.depth, 'depth'); expect(depth.evidence[0].path).toBe('New/paid.pdf');
  const unlink = rig.renovation.command(read, { renovation: { ...rig.value, depth: { ...depth, evidence: [] } }, intended: undefined }, rig.ledger); expectOk(await unlink.execute()); expect(rig.stack.vault.entries.get('New/invoice.pdf')).toBe('user PDF'); expectOk(await unlink.undo());
  });
@@ -81,7 +81,7 @@ it('refuses rename updates that cannot be saved, while preserving unrelated evid
  const rig = await filesRig(); expectOk(await rig.planning.material(expectOk(await rig.read()), rig.input, rig.ledger).execute());
  const read = expectOk(await rig.read()), evidence = [rig.evidence, { ...rig.evidence, id: 'other-evidence', path: 'Elsewhere/notes.md' }];
  expectOk(await rig.stack.plans.save(expectOk(withPlanRenovation(read.plan.entity, { ...rig.value, depth: { ...rig.depth, evidence } })), read.plan.version));
- const failure = { category: 'Persistence' as const, code: 'test.disk', message: 'offline' }, deps = { ...rig.deps, index: rig.stack.index };
+ const failure = { category: 'Persistence' as const, code: 'test.disk', message: 'offline' }, deps = { ...rig.deps, index: rig.stack.index, ledger: rig.stack.ledger };
  vi.spyOn(rig.deps.plans, 'getById').mockResolvedValueOnce(err(failure)); expect(await relocateEvidence(deps, 'Evidence', 'New')).toEqual(err(failure));
  vi.spyOn(rig.deps.plans, 'save').mockResolvedValueOnce(err(failure)); expect(await relocateEvidence(deps, 'Evidence', 'New')).toEqual(err(failure)); expect(expectOk(await rig.read()).plan.entity.renovation?.depth?.evidence[0].path).toBe(rig.evidence.path);
  expectOk(await relocateEvidence(deps, 'Evidence', 'New')); expect(expectOk(await rig.read()).plan.entity.renovation?.depth?.evidence[1].path).toBe('Elsewhere/notes.md');
@@ -102,8 +102,8 @@ it('checks source notes from bytes when metadata is stale or malformed', async (
 it('leaves nonmatching evidence untouched and refuses a rename that would empty its canonical path', async () => {
  const rig = await filesRig(); expectOk(await rig.planning.material(expectOk(await rig.read()), rig.input, rig.ledger).execute());
  const baseline = expectOk(await rig.read()); expectOk(await rig.renovation.command(baseline, { renovation: { ...rig.value, depth: rig.depth }, intended: undefined }, rig.ledger).execute());
- const before = [...rig.stack.vault.entries]; expectOk(await relocateEvidence({ ...rig.deps, index: rig.stack.index }, 'Elsewhere', 'Archive')); expect([...rig.stack.vault.entries]).toEqual(before);
- expect((await relocateEvidence({ ...rig.deps, index: rig.stack.index }, rig.evidence.path, '')).ok).toBe(false); expect([...rig.stack.vault.entries]).toEqual(before);
+ const before = [...rig.stack.vault.entries]; expectOk(await relocateEvidence({ ...rig.deps, index: rig.stack.index, ledger: rig.stack.ledger }, 'Elsewhere', 'Archive')); expect([...rig.stack.vault.entries]).toEqual(before);
+ expect((await relocateEvidence({ ...rig.deps, index: rig.stack.index, ledger: rig.stack.ledger }, rig.evidence.path, '')).ok).toBe(false); expect([...rig.stack.vault.entries]).toEqual(before);
 });
 
 it('refuses deletion of a material Room while ignoring sources belonging to another Plan', async () => {

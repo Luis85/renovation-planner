@@ -12,6 +12,7 @@ describe('RenderState', () => {
 
 		expect(state.hoveredObjectId).toBeNull();
 		expect(state.previewPolygon).toBeNull();
+		expect(state.highlightedVertex).toBeNull();
 		expect(state.marquee).toBeNull();
 		expect(state.snapGuides).toEqual([]);
 		expect(state.measurement).toBeNull();
@@ -21,6 +22,10 @@ describe('RenderState', () => {
 	it('reset() clears every field back to its default', () => {
 		const state = new RenderState();
 		state.hoveredObjectId = 'zone-1';
+		// Index 0 rather than a truthier number, because `highlightedVertex` is the one field
+		// here whose cleared value and whose first legal value are both falsy: a `reset()` that
+		// wrote `?? null` over a `0` would still read as cleared.
+		state.highlightedVertex = 0;
 		state.previewPolygon = [{ x: 0, y: 0 }, { x: 10, y: 0 }];
 		state.marquee = { min: { x: 0, y: 0 }, max: { x: 10, y: 10 } };
 		state.snapGuides = [{ start: { x: 0, y: 0 }, end: { x: 10, y: 0 } }];
@@ -39,6 +44,7 @@ describe('RenderState', () => {
 
 		expect(state.hoveredObjectId).toBeNull();
 		expect(state.previewPolygon).toBeNull();
+		expect(state.highlightedVertex).toBeNull();
 		expect(state.marquee).toBeNull();
 		expect(state.snapGuides).toEqual([]);
 		expect(state.measurement).toBeNull();

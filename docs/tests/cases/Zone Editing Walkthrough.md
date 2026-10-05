@@ -306,7 +306,8 @@ so nothing that fixed the list ever brought a reader here.
   than the correction: it said "until slice 15's creation dialogs", was fixed to credit slice
   14's "empty-state actions", and slice 14 then shipped **no create action at all** — two of
   its three empty states render no button and the third activates a tool
-  ([[Empty States Walkthrough]] steps 2, 5 and 10). Read "slice 16" as a name, not a caller.
+  ([[Empty States Walkthrough]] steps 2 and 10 — step 5, the other buttonless state, is now
+  Withdrawn). Read "slice 16" as a name, not a caller.
   The same sentence lives in `src/plugin/composition-root.ts`, which was corrected for the
   same reason.
 

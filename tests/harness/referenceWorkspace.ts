@@ -19,7 +19,7 @@ import { ObsidianPlanGeometrySidecar } from '../../src/infrastructure/obsidian/r
 import { referencePlanServices } from '../../src/application/commands/plan/ConfigurePlanReference';
 import { structureServices } from '../../src/application/commands/spatial/StructureCommand';
 import { ObsidianReviewNotes } from '../../src/infrastructure/obsidian/repositories/ObsidianReviewNotes';
-import { makeDeleteZoneCommand } from '../helpers/slice10';
+import { makeDeleteZoneCommand, zoneEditCommands } from '../helpers/slice10';
 import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
 import { MoveSpatialObjectCommand } from '../../src/application/commands/zone/MoveSpatialObject';
 import { GetZoneInspector } from '../../src/application/queries/GetZoneInspector';
@@ -28,6 +28,10 @@ import { SetAssetFootprintCommand, SetAssetFootprintFromDimensionsCommand } from
 import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
 import { toPlanDto, toZoneDto, type PlanDto } from '../../src/presentation/read-models/PlanDto';
 import type { PlanId } from '../../src/domain/plan/PlanId';
+import type { ZoneId } from '../../src/domain/zone/ZoneId';
+import { ListRequirementsReferencing } from '../../src/application/queries/ListRequirementsReferencing';
+import { ListReassignmentTargets } from '../../src/application/queries/ListReassignmentTargets';
+import { projectLocationOf } from '../../src/infrastructure/obsidian/repositories/paths';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
 import type { PlanEditorDeps } from '../../src/presentation/views/PlanEditorView';
 import { ok } from '../../src/core/result/Result';
@@ -105,6 +109,13 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 			getPlan: async () => { await ready; const result = await stack.plans.getById(plan.id); return result.ok ? ok(result.value ? toPlanDto(result.value.entity) : null) : result; },
 			findZonesByPlan: async () => { await ready; const snapshot = await geometry.read(plan.id); if (!snapshot.ok) return snapshot; const result = await stack.zones.listByPlan(plan.id); return result.ok ? ok({ zones: result.value.loaded.map(z => toZoneDto(z.entity)), unreadable: result.value.refused, structure: snapshot.value.document.structure, intended: snapshot.value.document.intended, groups: snapshot.value.document.groups }) : result; },
 			assetShapes: async ids => { await ready; return readAssetShapes(new GetAssetDesignQuery(stack.assets, new ObsidianAssetGeometrySidecar(stack.assetGeometry)), ids); },
+			// With planning a room can carry materials, so the delete flow's two reads go to the SAME
+			// requirements the planning service writes, as `catalogueRequirementComposition` pairs them;
+			// the base's empty answers would hide every referent from the Reassign/Detach dialog.
+			...(planning ? {
+				listRequirementsReferencing: zoneId => new ListRequirementsReferencing(stack.requirements, stack.projects, id => projectLocationOf(stack.index, id)).execute({ kind: 'zone', zoneId: zoneId as ZoneId }),
+				listReassignmentTargets: zoneId => new ListReassignmentTargets(stack.zones, stack.assets).execute({ kind: 'zone', zoneId: zoneId as ZoneId }),
+			} : {}),
 		},
 		commands: { ...base.commands, groups: groupGeometryServices(geometry, stack.zones, stack.events), referencePlan: services, zones: stack.zones, events: stack.events,
 			assetCreation: assetCreation(stack),
@@ -112,6 +123,9 @@ export function referenceWorkspace(base: PlanEditorDeps, dto: PlanDto, planning 
 			reviewNote: async (id, body) => { const result = await reviewNotes.generate(id, body); return result.ok ? ok(undefined) : result; },
 			structure: structureServices(geometry, stack.events), deleteZone: makeDeleteZoneCommand(stack.zones, stack.events, stack.requirements), requirementEdits: { ...base.commands.requirementEdits, requirements: stack.requirements },
 			createZone: new CreateZoneCommand(stack.zones, stack.plans, stack.events), moveObject: new MoveSpatialObjectCommand(stack.zones, stack.events), zoneInspector: new GetZoneInspector(stack.zones),
+			// Rebound with this workspace's own zones and bus, for the reason
+			// `areaNumericWorkspace` gives: the base bundle's pair refuses.
+			...zoneEditCommands(stack.zones, stack.events),
 		},
 		vault: {
 			getAbstractFileByPath: path => stack.vault.getAbstractFileByPath(path) as never,

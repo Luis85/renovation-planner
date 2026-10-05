@@ -131,6 +131,17 @@ describe('ListRequirementsReferencing groups by project', () => {
 		expect(groups[0]?.requirementIds).toHaveLength(2);
 	});
 
+	// Owner ruling 62: a group says whether any member is measured from geometry (a quantity
+	// `source`), for either target kind — whether that matters is the delete door's to decide.
+	it('marks a group sourced when one of its requirements carries a quantity source', async () => {
+		const f = await fixture();
+		expect(expectOk(await f.query.execute({ kind: 'zone', zoneId: KITCHEN_ZONE }))[0]?.sourced).toBeUndefined();
+		const source = { planId: 'plan-1', targetId: KITCHEN_ZONE, workId: '', outcomeId: '', state: 'current' as const, rule: 'room-area' as const, manual: '0', coverage: '1', lot: '', minimum: '' };
+		expectOk(await f.requirements.save(makeRequirement({ projectId: f.kitchen, assetId: f.tiles, origin: { kind: 'zone', zoneId: KITCHEN_ZONE }, source }), 'absent'));
+		expect(expectOk(await f.query.execute({ kind: 'zone', zoneId: KITCHEN_ZONE })).map((g) => g.sourced)).toEqual([true]);
+		expect(expectOk(await f.query.execute({ kind: 'asset', assetId: f.tiles })).map((g) => g.sourced)).toEqual([true, undefined]);
+	});
+
 	it('supplies projectPath — the FOLDER, not the note — where two projects share a name', async () => {
 		// `Project.create` trims a name and rejects only an empty one, so two projects may
 		// legitimately share one and nothing refuses it. This fixture is the ONLY way to

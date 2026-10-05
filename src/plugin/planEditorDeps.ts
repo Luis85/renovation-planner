@@ -10,6 +10,9 @@ import { planNorthServices } from '../application/commands/plan/SetPlanNorth';
 import { guardedPlanNorth } from './guardedPlanNorth';
 import type { Vault, Workspace } from 'obsidian';
 import { ReversibleCalibratePlanCommand } from '../application/commands/plan/ReversibleCalibratePlan';
+import { EditZoneDetailsCommand } from '../application/commands/zone/EditZoneDetails';
+import { RenameZoneCommand } from '../application/commands/zone/RenameZone';
+import { ReversibleRenameZoneCommand } from '../application/commands/zone/reversible-rename-zone-command';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
 import { createProjectPlansChangeSource } from '../application/events/projectPlansChangeSource';
 import { createAssetCatalogueChangeSource } from '../application/events/assetCatalogueChangeSource';
@@ -23,6 +26,7 @@ import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
 import { notifyWarning } from '../presentation/notices/notify';
 import { VAULT_EXCEPTION_MAPPER, guardCalibratePlan } from './guardedServices';
+import { guardZoneEdit } from './guardedZoneEdit';
 import { planEditorOpenNote } from './renovationProjectOpenSeams';
 import type { CompositionRoot } from './composition-root';
 import { editorWorkspaceNavigation } from './editorWorkspaceNavigation';
@@ -75,6 +79,15 @@ export function planEditorDeviceSlots(adapter: LocalStorageAdapter, pluginId: st
  * and because it answers `null` for a session with no persistence at all: with settings
  * unrecovered there is no query service to hand a view, so registering one that would
  * draw an empty pane is worse than not being able to open it.
+ *
+ * **`Omit<…, 'openDiagnosticsReport'>` rather than the whole bundle, and the omission is the
+ * point.** That member opens a `plugin/` modal through
+ * `RenovationPlannerPlugin.openDiagnosticsReport()`, and this function holds no `App` and no
+ * plugin instance — it takes a root, a workspace, a vault and two slots. Composing
+ * `showDiagnosticsReport(host)` here would be a SECOND composition of an action that already
+ * has one, which is exactly the "re-decide beside it" CLAUDE.md's *one action, every input*
+ * forbids. So the member is added by `planEditorViewDeps()`, which holds `this`, and this
+ * annotation is what makes the omission a compiler-checked fact rather than a convention.
  */
 export function planEditorDeps(
 	root: CompositionRoot,
@@ -82,7 +95,7 @@ export function planEditorDeps(
 	vault: Vault,
 	clipboard: EditorClipboard,
 	panelLayout: DeviceStorage,
-): PlanEditorDeps {
+): Omit<PlanEditorDeps, 'openDiagnosticsReport'> {
 	const persistence = root.persistence;
 	return {
 		navigation: editorWorkspaceNavigation(workspace, root.logger),
@@ -147,6 +160,25 @@ export function planEditorDeps(
 							new ReversibleCalibratePlanCommand(persistence.plans, persistence.geometry, root.eventBus),
 							root.logger,
 							VAULT_EXCEPTION_MAPPER,
+						),
+					// The Inspector's two per-EDIT zone writes, guarded per call for the SAME reason
+					// as the line above: the factory is the only door either has. Until BP-02 slice
+					// 4 `inspector-wiring.ts` built both against `persistence.zones` directly, so
+					// neither passed through `guardCommand` — ADR-0034's Coverage paragraph names
+					// both, and an incident raised anywhere else in the vault left exactly these two
+					// edits writing while every other editor write was refused (tracker L-05).
+					// BOTH doors each: `undo` is the half ADR-0034 records as open everywhere else.
+					editZoneDetails: (ledger, input) =>
+						guardZoneEdit(
+							new EditZoneDetailsCommand(persistence.zones, root.eventBus, ledger, input),
+							{ execute: 'command.editZoneDetails.failed', undo: 'command.editZoneDetails.undo.failed' },
+							root.logger,
+						),
+					renameZone: (ledger, input) =>
+						guardZoneEdit(
+							new ReversibleRenameZoneCommand(new RenameZoneCommand(persistence.zones, root.eventBus), ledger, input),
+							{ execute: 'command.renameZone.failed', undo: 'command.renameZone.undo.failed' },
+							root.logger,
 						),
 				}
 			: unavailablePlanEditorCommands(),

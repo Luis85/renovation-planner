@@ -6,22 +6,35 @@ import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import {
+	mountPlanEditor,
 	mountPlanEditorCanvas,
 	runtimeOf,
 	settle,
 	type CanvasHarness,
 	type EditorHarness,
 } from '../../helpers/editor';
-import { FIXTURE_PLAN } from '../../helpers/planFixtures';
+import { ok } from '../../../src/core/result/Result';
+import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
+import { FIXTURE_PLAN, fakeQueries } from '../../helpers/planFixtures';
 import { ZONE_A_DTO, actionButton, click, rig } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
 import { makeAsset } from '../../helpers/entities';
 import EmptyState from '../../../src/presentation/components/EmptyState.vue';
 
 /**
- * Design spec §2.9: every write control pauses while `runtime.writesBlocked` (a computed
- * over `ProjectStore.stale`) is true, and says why through ONE hidden sentence
- * (`runtime.pausedReasonId`) every paused control's `aria-describedby` names.
+ * Design spec §2.9: every write control pauses while `runtime.writesBlocked` is true, and says
+ * why through ONE hidden sentence (`runtime.pausedReasonId`) every paused control's
+ * `aria-describedby` names.
+ *
+ * **`writesBlocked` is not "a computed over `ProjectStore.stale`", which is what this header
+ * used to say.** Read it from `runtime.ts` rather than from here: today it is a three-term
+ * `||` over `ProjectStore.status`, `ProjectStore.stale` and `unsafeHistory()`, itself
+ * `planning.failed || save.unrecoveredWrite`. The status term is BP-03 / F2's.
+ *
+ * **The sentence is gated on LESS than that**, since F2, and the last case below is why:
+ * `pausedReasonApplies` in `PlanEditorRoot.vue` drops the status term, because both strings
+ * this sentence can carry name something that has already happened and neither has on a first
+ * load. Pausing and being able to say why are two questions here.
  *
  * `aria-disabled`, never `:disabled` — the add-room plan's own rule, restated here because
  * this is the task that applies it everywhere: a paused control stays focusable so its
@@ -50,6 +63,14 @@ function reasonOf(harness: EditorHarness, el: ReturnType<EditorHarness['wrapper'
 	if (describedBy === undefined) throw new Error('expected an aria-describedby');
 	const id = describedBy.split(' ').at(-1) as string;
 	return harness.wrapper.find(`#${id}`).text();
+}
+
+/** Every element in the tree whose `aria-describedby` names `id` — the reference side of the
+ * sentence, read as a COUNT over the whole subtree rather than as a list of the components
+ * somebody remembered. */
+function namesTheReason(root: HTMLElement, id: string): number {
+	return [...root.querySelectorAll('[aria-describedby]')]
+		.filter((node) => (node.getAttribute('aria-describedby') ?? '').split(' ').includes(id)).length;
 }
 
 describe('write controls while the floor is stale', () => {
@@ -308,5 +329,50 @@ describe('write controls while the floor is stale', () => {
 		expect(r.harness.wrapper.find('input[data-field="quantity"]').attributes('readonly')).toBeDefined();
 
 		r.harness.unmount();
+	});
+});
+
+/**
+ * **A first load is not a pause with a reason.** BP-03 / F2 gave `writesBlocked` a
+ * `status !== 'ready'` term, which is right for the DISPATCHER and wrong for the sentence:
+ * measured before the split, an ordinary first load of a healthy vault put
+ * "Editing is paused: the floor could not be re-read after the last change. Retry from the
+ * warning above." into the DOM for the whole of the read, and the `failed` terminal state
+ * did the same. Wrong information, not wrong emphasis, and it reaches a screen reader in
+ * browse mode even with nothing referencing it.
+ *
+ * Both halves are asserted here, because dropping the sentence is only safe while nothing
+ * points at it: the count of elements naming `pausedReasonId` must be zero in the same
+ * reading. The case above — one sentence, present, while `stale` — is the other direction,
+ * and is what would go red if this narrowing went too far.
+ */
+describe('the paused-reason sentence while the first read is still in flight', () => {
+	it('renders no sentence, and nothing names its id, though writes are blocked', async () => {
+		let release!: () => void;
+		const held = new Promise<void>((resolve) => { release = resolve; });
+		const queries: PlanEditorQueryServices = {
+			...fakeQueries(FIXTURE_PLAN, [ZONE_A_DTO]),
+			getPlan: async (planId) => { await held; return ok(FIXTURE_PLAN.id === planId ? FIXTURE_PLAN : null); },
+		};
+		const harness = await mountPlanEditor({ queries });
+		const runtime = runtimeOf(harness);
+		const id = runtime.pausedReasonId;
+		const root = harness.wrapper.element as HTMLElement;
+
+		const inFlight = [
+			useProjectStore(harness.pinia).status,
+			runtime.writesBlocked.value,
+			root.querySelectorAll(`#${CSS.escape(id)}`).length,
+			namesTheReason(root, id),
+		];
+
+		release();
+		await settle();
+
+		expect(inFlight).toEqual(['loading', true, 0, 0]);
+		// And the read completing is what retires the block, so the window really was the read.
+		expect([useProjectStore(harness.pinia).status, runtime.writesBlocked.value]).toEqual(['ready', false]);
+
+		harness.unmount();
 	});
 });

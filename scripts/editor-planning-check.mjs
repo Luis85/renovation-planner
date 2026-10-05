@@ -7,6 +7,8 @@ import { drawWalls, panel, preserveTheme } from './editor-structure-check.mjs';
 import { captureEvidenceGallery } from './editor-evidence-gallery.mjs';
 import { inspectorVisibility } from './editor-inspector-visibility.mjs';
 import { captureReviewIssues } from './editor-review-issues.mjs';
+import { planningEn } from '../src/presentation/i18n/locales/en/planning.ts';
+import { planningDe } from '../src/presentation/i18n/locales/de/planning.ts';
 const form = '[data-rp-form="planning"]';
 async function shot(page, scenario, out, state) {
  if (state === 'photos' || state === 'photos-gallery') await page.waitForFunction(async () => {
@@ -25,6 +27,8 @@ async function choose(page, name, index) { await tabTo(page, `${form} select[nam
 const apply = (page, scope = form) => recordApply(page, scope, scope !== form);
 async function work(page) {
  const recordForm = '[data-rp-form="renovation"]';
+ // Plan's Room Inspector offers one route into Renovate (RoomInspector.vue, `renovate-room`), not the mode list.
+ await activate(page, '[data-rp-action="renovate-room"]');
  await activate(page, '[data-rp-mode="existing"]'); await activate(page, '[data-rp-action="new-record"]'); await text(page, 'description', 'Timber floor', recordForm); await apply(page, recordForm);
  await activate(page, '[data-rp-action="plan-record"]'); await text(page, 'description', 'Repair and oil', recordForm); await apply(page, recordForm);
  await activate(page, '[data-rp-mode="planned"]'); await activate(page, '[data-rp-action="work-record"]'); await text(page, 'title', 'Floor finish', recordForm); await apply(page, recordForm);
@@ -51,7 +55,10 @@ async function costs(page, scenario, out) {
 }
 async function evidence(page, scenario, out) {
  let gallery;
- await activate(page, '.rp-planning-actions button:last-child'); await activate(page, '[data-rp-new-evidence]'); await text(page, 'title', 'Invoice'); await text(page, 'path', 'scan.pdf'); await choose(page, 'phase', 1); await apply(page); await shot(page, scenario, out, 'documents');
+ // The cost row's Documents button by its LABEL, in either locale (L-44): its last button has been "Delete record" since 58c4fb4d1.
+ const actions = page.locator('.rp-planning-actions');
+ await tabTo(page, actions.getByRole('button', { name: planningEn['renovation.documents'], exact: true }).or(actions.getByRole('button', { name: planningDe['renovation.documents'], exact: true }))); await page.keyboard.press('Enter');
+ await activate(page, '[data-rp-new-evidence]'); await text(page, 'title', 'Invoice'); await text(page, 'path', 'scan.pdf'); await choose(page, 'phase', 1); await apply(page); await shot(page, scenario, out, 'documents');
  await activate(page, '.rp-planning-actions button:first-child');
  await activate(page, '[data-rp-mode="notes"]'); await activate(page, '[data-rp-new-evidence]'); await text(page, 'title', 'Hidden service route'); await activate(page, `${form} button[type="button"]`); await page.waitForFunction(() => document.querySelector('[name="path"]')?.value.includes('Evidence/Note-')); await choose(page, 'phase', 3); await tabTo(page, `${form} input[type="checkbox"]`); await page.keyboard.press('Space'); await apply(page); await shot(page, scenario, out, 'notes');
  if (scenario.width === 460) await page.keyboard.press('Escape');

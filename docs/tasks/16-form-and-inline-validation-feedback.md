@@ -1226,6 +1226,24 @@ root while publishing NOTHING — `projectIndexRebuilt()` has exactly one publis
 scan, and `saveSettings` runs that BEFORE `rebindOpenViews`. The rebound list is therefore
 stale until the leaf is reopened.
 
+**AMENDED — the last two clauses of that paragraph were refuted by measurement.** A rig driving
+the real plugin, the real composition root and the real `applySettings` → `rebindOpenViews`
+chain with a `vault.create` held open confirms the first two clauses exactly as written (created
+under the previous folder, `ProjectCreated` on the retired bus) and refutes the rest. What
+happens to the list is a SPLIT, decided by whether Obsidian's metadata cache has parsed the note
+when `VaultChangeAdapter` processes the `create`. Cache warm: the entry is indexed into the new
+root AND one `ProjectIndexEntryChanged` is published on the new bus, the rebound tree hydrates,
+the row appears unprompted — not stale at all. Cache cold: nothing is indexed and nothing is
+published, so there is no arm in which "indexes while publishing nothing" is true; and
+**reopening the leaf does NOT fix it**, because `ListProjects` resolves through the Project
+Index and a fresh leaf reads the same empty index. In that arm it clears only at the next FULL
+index rebuild — the next settings save, a library migration, or in practice a plugin reload —
+and the user is told nothing, the project exists under the old folder and the list never shows
+it, so they may create it again and end up with two. **Which arm production takes is UNVERIFIED:**
+Obsidian's `create` ordering against its parse and the adapter's 500 ms debounce decide it, and
+nothing on this branch has been run in a vault. (The publisher count is also wrong here:
+`projectIndexRebuilt()` has 2 publishers in `src/`, re-counted, neither on this path.)
+
 Reachability is one `vault.create` wide and is real rather than theoretical: `DialogHost`'s
 `onKeydown` deliberately calls `preventDefault()` without `stopPropagation()`, so Obsidian's
 own keymap stays live behind an open dialog and `Ctrl+,` reaches the settings pane.

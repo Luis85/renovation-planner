@@ -377,3 +377,42 @@ describe('ReversibleCalibratePlanCommand caption offsets', () => {
 		expect(expectOk(await w.sidecar.read(w.planId)).document.objects[0].labelOffset).toEqual({ dx: 100, dy: -40 });
 	});
 });
+
+// Picked 800 apart, so the correction is knownDistance / 800.
+const gesture = (w: Wired, correction: number) =>
+	w.command.execute({ planId: w.planId, pointA: { x: 0, y: 0 }, pointB: { x: 800, y: 0 }, knownDistance: 800 * correction });
+
+/**
+ * Owner ruling 57: calibration stays outside the Room check, but a scale that COLLAPSES or
+ * OVERFLOWS a room is refused under the existing `calibration.degenerate-scale`. A uniform
+ * scale keeps a room's area-to-box ratio, so only an absurd one can do either — reachable
+ * because the Calibrate tool's known-distance field accepts any positive finite number.
+ */
+describe('ReversibleCalibratePlanCommand refuses a scale that collapses or overflows a room', () => {
+	it.each([
+		// Every point stays finite (about 1e-298) while the area underflows to 0.
+		['collapses', 1e-300],
+		// Every point stays finite (about 1e162) while the area overflows.
+		['overflows', 1e160],
+	])('refuses a correction that %s a room and writes nothing', async (_label, correction) => {
+		const w = await wired([zoneEntry('zone-1' as never, 10)]);
+		const error = expectErr(await gesture(w, correction));
+
+		expect(error).toMatchObject({ category: 'Calculation', code: 'calibration.degenerate-scale' });
+		const { document, version } = expectOk(await w.sidecar.read(w.planId));
+		expect(document.calibration).toBeNull();
+		expect(version.revision).toBe(1);
+		expect(w.events.published).toHaveLength(0);
+	});
+
+	it('still calibrates a plan holding a room already stored with no area (ruling 35)', async () => {
+		// Collinear: no area before and none after, so the scale did not collapse it.
+		const sliver: SpatialObjectGeometry = { id: 'zone-sliver', points: [{ x: 0, y: 0 }, { x: 50, y: 0 }, { x: 100, y: 0 }] };
+		const w = await wired([sliver, zoneEntry('zone-1' as never, 10)]);
+		expectOk(await gesture(w, 4));
+
+		const { document } = expectOk(await w.sidecar.read(w.planId));
+		expect(document.objects[0].points[2]).toEqual({ x: 400, y: 0 });
+		expect(document.objects[1].points[2]).toEqual({ x: 440, y: 400 });
+	});
+});

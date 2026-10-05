@@ -215,6 +215,21 @@ describe("§3.5's Delete and the resolution behind it", () => {
 		]);
 	});
 
+	// Owner ruling 62 is the ROOM door's: reassigning a requirement measured from its room to
+	// another ASSET keeps that room, so `repointedTo` accepts it and every choice stays offered.
+	it('offers every choice and no measured-from line for a requirement measured from its room', async () => {
+		const entries = shelf('material', ['Alder plank']);
+		const lib = await library({ entries, referents: [{ ...GROUP, sourced: true }] });
+		await lib.select(entries[0]?.assetId as AssetId);
+		await lib.pressDelete();
+
+		const offered = lib.root.findAll('.rp-dialog [data-rp-action]').map((button) => button.attributes('data-rp-action'));
+		expect(offered).toEqual(['cancel', 'remove-references', 'reassign', 'delete-anyway']);
+		expect(lib.root.find('[data-rp-contextual-only]').exists()).toBe(false);
+		await lib.root.get('[data-rp-action="cancel"]').trigger('click');
+		await settle();
+	});
+
 	/**
 	 * Slice 10's rule, verbatim: a zero count dispatches the ABSENT-resolution form rather than a
 	 * `delete-anyway` the user was never offered. Asserted on the command INPUT and never on

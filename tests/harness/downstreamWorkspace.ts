@@ -8,6 +8,7 @@ import { buildProjectIndexEntries } from '../../src/infrastructure/persistence/i
 import { navigateToProject } from '../../src/infrastructure/obsidian/workspace/navigateToProject';
 import { type PlanEditorView, PLAN_EDITOR_VIEW } from '../../src/presentation/views/PlanEditorView';
 import { RenovationProjectView, RENOVATION_PROJECT_VIEW } from '../../src/presentation/views/RenovationProjectView';
+import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 import { FakeLeaf, FakeWorkspace } from '../helpers/workspace';
 import { expectDefined } from '../helpers/domain';
 import type { referenceWorkspace } from './referenceWorkspace';
@@ -59,18 +60,23 @@ export function downstreamWorkspace(reference: ReturnType<typeof referenceWorksp
 	const vault = stack.deps.vault as Vault;
 	const workspace = new BrowserWorkspace((leaf, type) => {
 		if (type !== RENOVATION_PROJECT_VIEW) throw new Error(`Unexpected downstream view: ${type}`);
-		const deps = renovationProjectDeps(root, workspace as unknown as Workspace, vault, {
+		// `openDiagnosticsReport` is a no-op here for the same reason the plan editor's copy
+		// below is: a browser page holds no plugin, so there is no report modal to open.
+		const deps: RenovationProjectDeps = { openDiagnosticsReport: () => undefined, ...renovationProjectDeps(root, workspace as unknown as Workspace, vault, {
 			projectId: null, indexScanCompleted: () => scanned,
 			continueContext: () => Promise.resolve(null), rememberContinue: () => undefined, forgetContinue: () => undefined,
 			navigate: (projectId, section) => { void navigateToProject({ workspace: workspace as unknown as Workspace,
 				reportFault: cause => { throw cause; } }, RENOVATION_PROJECT_VIEW, projectId, leaf as never, section); },
-		});
+		}) };
 		const view = new RenovationProjectView(leaf as never, deps);
 		host.appendChild(view.containerEl);
 		return view;
 	});
 	const native = planEditorDeps(root, workspace as unknown as Workspace, vault, createEditorClipboard(), memoryDeviceStorage());
-	const deps = { ...native, vault: reference.deps.vault, onThemeChange: reference.deps.onThemeChange };
+	// `openDiagnosticsReport` is added here rather than by `planEditorDeps`, which deliberately
+	// omits it (see its own annotation): a no-op, for the reason `harnessEditorContext`'s copy
+	// gives — a browser page holds no plugin, so there is no report modal to open.
+	const deps = { ...native, openDiagnosticsReport: () => undefined, vault: reference.deps.vault, onThemeChange: reference.deps.onThemeChange };
 	const leaf = workspace.getLeaf();
 	leaf.state = { type: PLAN_EDITOR_VIEW, state: { planId: reference.plan.id } };
 	const attach = (view: PlanEditorView) => {

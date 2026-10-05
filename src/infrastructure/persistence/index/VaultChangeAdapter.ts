@@ -11,16 +11,24 @@ import {
 	entityRefOf,
 	stringField,
 } from './buildProjectIndexEntries';
-import { incrementalSidecarMapping } from './sidecarMapping';
+import { incrementalSidecarMapping, promotedSidecarMapping } from './sidecarMapping';
 import { entryById } from './entryLookup';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
 import { fileStatToken, frontmatterOf } from '../../obsidian/repositories/noteIo';
 
 /**
- * The vault-change pipeline (SDD §46): Obsidian's create/modify/rename/delete events,
- * debounced per path, resolved ("is this file one of ours?"), validated against the
+ * The vault-change pipeline (SDD §46): Obsidian's create/modify/rename/delete events, plus
+ * the metadata cache's `changed` (owner ruling 76, which re-enters as a `modify`), queued
+ * into ONE debounce window, resolved ("is this file one of ours?"), validated against the
  * cached frontmatter, and applied to the Project Index incrementally.
+ *
+ * **One window, not one per path, and it is never re-armed** (`enqueue`): the first path
+ * queued starts the timer and every path queued after it is processed when THAT timer fires,
+ * so a note queued late in a running window gets only the remainder — possibly ~0 ms — for
+ * Obsidian to parse it. A note read against a null cache in that remainder (or after any
+ * slower parse) is dropped as "not ours"; what puts it back is its parse arriving as
+ * `changed`, never the debounce.
  *
  * The repositories update the index synchronously on their own writes; this pipeline is
  * the SOLE path for everything else — hand edits, sync, another device. A `modify` whose
@@ -66,6 +74,33 @@ export class VaultChangeAdapter {
 		this.enqueue(file.path);
 	}
 
+	/**
+	 * Also the metadata cache's `changed` (owner ruling 76), registered in `src/plugin/` onto
+	 * this same method: one action, every input. EVERY `changed`, not only a path whose last
+	 * read saw a null cache, for three reasons:
+	 *
+	 * - **The echo window already answers it.** A `changed` for this plugin's own write reads a
+	 *   cache that now shows what we wrote, `frontmatterOf` answers that, and `echo.matches`
+	 *   drops it — no index mutation, no announcement, and no write, so no further parse and no
+	 *   loop. Nothing about the own-write marks has to change.
+	 * - **It costs a Set insert in the common case.** A parse inside the window joins the path
+	 *   the `create`/`modify` already queued; only a parse landing AFTER the flush reprocesses,
+	 *   which is exactly the case this exists for. **Not at startup, inferred rather than seen
+	 *   on a host:** an index Obsidian builds or rebuilds after layout-ready would fire `changed`
+	 *   per file, foreign notes included, and every one is processed in one synchronous flush
+	 *   with `findByPath` a linear scan per path — O(notes × entries). The review's run
+	 *   (2026-10-03, real adapter, index and echo window, fake timers, one flush) measured
+	 *   500 notes of ours among 10 000 foreign at 51 ms, and 2 000 among 50 000 at 565 ms on the
+	 *   main thread; 0 announcements for notes already indexed. A path-keyed lookup is the
+	 *   upgrade if a large vault is ever reported.
+	 * - **A null cache is not the only late read.** A hand edit whose parse outlasts the window
+	 *   is read against the STALE cache entry; its `changed` corrects the index too, which a
+	 *   null-cache-only set would not, and that set would be state to clear on every delete,
+	 *   rename and hand-over besides.
+	 *
+	 * What it costs a FOREIGN note read too early: a second announcement, the first of which
+	 * carried the stale (or no) answer. Correct over silent.
+	 */
 	onModify(file: TFileType): void {
 		this.enqueue(file.path);
 	}
@@ -105,6 +140,44 @@ export class VaultChangeAdapter {
 			this.pending.delete(path);
 			this.processPath(path);
 		}
+	}
+
+	/**
+	 * Owner ruling 41: the paths this adapter is still waiting on, taken out UNPROCESSED, with
+	 * the timer cancelled — for a settings swap to give to the incoming root's `adopt`.
+	 *
+	 * `flush` is the wrong door at a swap, and it was the one used: a path still pending is
+	 * usually a note Obsidian created a few milliseconds ago and has not parsed yet, so flushing
+	 * it read a null cache and an echo window that had not heard of it, called it "not ours" and
+	 * spent the only event there would ever be — the S21 investigation's 0 of 20. Taken out
+	 * here, it is processed ~500 ms later by the adapter that replaces this one, against a cache
+	 * that has caught up. Nothing is processed here, so this adapter publishes nothing after it.
+	 *
+	 * **What closes the rest is not this:** the hand-over buys the note one debounce window for
+	 * Obsidian to parse it. A note whose parse lands after that window is still read against a
+	 * null cache by the adopting adapter and dropped as "not ours" — and since owner ruling 76
+	 * its parse arriving as `changed` re-queues it here (`onModify`), so it joins then rather
+	 * than at the next full rebuild.
+	 */
+	handOver(): string[] {
+		if (this.timer !== null) {
+			window.clearTimeout(this.timer);
+			this.timer = null;
+		}
+		const paths = Array.from(this.pending);
+		this.pending.clear();
+		return paths;
+	}
+
+	/**
+	 * The other half of `handOver`: each path queued exactly as if its vault event had just
+	 * arrived here, so it waits out this adapter's own debounce and meets THIS root's index and
+	 * echo window. It trusts nothing from the root it came from — a note of ours that the old
+	 * echo window would have recognised reads here as a change the plugin did not make, which
+	 * costs one `ProjectIndexEntryChanged` and is what puts it in the new index at all.
+	 */
+	adopt(paths: readonly string[]): void {
+		for (const path of paths) this.enqueue(path);
 	}
 
 	private enqueue(path: string): void {
@@ -156,7 +229,7 @@ export class VaultChangeAdapter {
 		// raises `create` for this plugin's own writes, and if that event is processed
 		// before Obsidian has parsed the new file, a direct cache read answers nothing —
 		// so a note we had just indexed would be read as "not ours" and REMOVED from the
-		// index below, with no future event to put it back.
+		// index below, until its parse came back as `changed` to put it back.
 		const frontmatter = frontmatterOf(this.deps, file);
 
 		const ref = entityRefOf(frontmatter);
@@ -222,28 +295,56 @@ export class VaultChangeAdapter {
 		// spelled in this method, beside the call below rather than inside it, which is why the
 		// repositories' own upserts did neither: the rollback of a failed delete displaced a
 		// promoted loser into no collection at all.
-		this.applyUpsert({
+		const arriving: ProjectIndexEntry = {
 			id: ref.id as ProjectIndexEntry['id'],
 			type: ref.type,
 			path,
 			projectId: stringField(frontmatter['project']) as ProjectIndexEntry['projectId'],
 			planId: stringField(frontmatter['plan']) as ProjectIndexEntry['planId'],
-			// Preserve a sidecar mapping an out-of-band note edit cannot have moved — the sidecar
-			// path lives only in this index and in the writers that record it. ASSETS as well as
-			// plans since asset paths became index-backed: this door used to answer `undefined`
-			// for everything but a plan, so one synced or hand-edited asset note dropped the
-			// mapping and the asset went shapeless.
-			//
-			// **The preservation is for the SAME id, and `existing` is the entry at this PATH.**
-			// An id swap in the frontmatter — a hand edit, a sync, a copied note — makes those two
-			// different entities, and the displaced one's geometry is not its successor's. Handing
-			// it over pointed every Zone read and write on the new id at the old plan's sidecar,
-			// so the entity that was just removed above kept receiving the writes. Unqualified,
-			// the `??` never even reached the index lookup on this path.
-			geometrySidecarPath:
-				(existing?.id === ref.id ? existing.geometrySidecarPath : undefined)
-				?? this.deps.index.getGeometrySidecarPath(ref.id as ProjectIndexEntry['id']),
-		});
+		};
+		this.applyUpsert({ ...arriving, geometrySidecarPath: this.sidecarMappingOf(arriving, existing) });
+	}
+
+	/**
+	 * The sidecar mapping a note arriving through this pipeline carries into the index.
+	 *
+	 * It preserves a sidecar mapping an out-of-band note edit cannot have moved — the sidecar
+	 * path lives only in this index and in the writers that record it. ASSETS as well as
+	 * plans since asset paths became index-backed: this door used to answer `undefined`
+	 * for everything but a plan, so one synced or hand-edited asset note dropped the
+	 * mapping and the asset went shapeless.
+	 *
+	 * **The preservation is for the SAME id, and `existing` is the entry at this PATH.**
+	 * An id swap in the frontmatter — a hand edit, a sync, a copied note — makes those two
+	 * different entities, and the displaced one's geometry is not its successor's. Handing
+	 * it over pointed every Zone read and write on the new id at the old plan's sidecar,
+	 * so the entity `processNote` had just removed kept receiving the writes. Unqualified,
+	 * the `??` never even reached the index lookup on this path.
+	 *
+	 * **And when neither knows one and the entry is NEW, it is RESOLVED from the vault** (owner
+	 * ruling 41's review, I1), through `promotedSidecarMapping`. A plan's
+	 * sidecar is written BEFORE its note, so a `.rpgeo` event processed while the note was
+	 * not yet indexed took `processSidecar`'s "no indexed plan" arm and recorded nothing,
+	 * and this upsert then listed a plan every geometry read refused. A settings swap
+	 * inside that create reaches it in either order (the handed-over list, or a note event
+	 * arriving at the new adapter after the adopted sidecar), which is why it is answered
+	 * here, after the note, rather than by ordering one flush.
+	 *
+	 * **NEW only, because the resolution is a walk of every file in the vault** inside one
+	 * synchronous flush: an entry already indexed under this id cannot have gained a sidecar
+	 * through an edit of its NOTE (a `.rpgeo` arriving is `processSidecar`'s to record), so a
+	 * sync burst re-touching shapeless assets must not pay a walk per note.
+	 * `sidecarResolutionWalks.test.ts` pins the count.
+	 *
+	 * **It is the rebuild's join only where the answer is unambiguous.** When two sidecars name
+	 * one plan (a copied folder) and its project is not indexed yet, there is no derived path to
+	 * prefer, so this takes the first in vault order where the rebuild takes the derived one —
+	 * exactly what `processSidecar` already does for the same reason. The next rebuild corrects it.
+	 */
+	private sidecarMappingOf(arriving: ProjectIndexEntry, existing: ProjectIndexEntry | undefined): string | undefined {
+		return (existing?.id === arriving.id ? existing.geometrySidecarPath : undefined)
+			?? this.deps.index.getGeometrySidecarPath(arriving.id)
+			?? (existing?.id === arriving.id ? undefined : promotedSidecarMapping(this.deps, arriving));
 	}
 
 	private processSidecar(path: string): void {
@@ -287,7 +388,10 @@ export class VaultChangeAdapter {
 		// last step the plan is not indexed yet; a debounce landing in that window found our
 		// own sidecar and reported "no indexed plan carries this id" on a save that was
 		// working perfectly. The writer owns the mapping in that case, so there is nothing
-		// here to do and nothing to say.
+		// here to do and nothing to say. **Except across a settings swap** (ruling 41): the
+		// handed-over sidecar meets the NEW root's echo window, which never saw our write, so
+		// that save still logs `sidecar-skipped` here (and the new root's scan logs its own) —
+		// the plan is indexed correctly anyway, since `processNote` resolves the mapping.
 		//
 		// COARSER than the note path's check, and the sentence has to say exactly how: notes
 		// compare a DIGEST of the bytes on disk against the bytes written, while this compares

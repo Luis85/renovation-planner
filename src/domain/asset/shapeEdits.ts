@@ -273,7 +273,7 @@ export function markClearanceReviewed(shape: AssetShape): Result<AssetShape, Val
 /**
  * Every outline scaled about the ANCHOR, so the point a plan positions the asset by stays where it
  * is, by one raw factor per axis — **except a MEASURED clearance, which is preserved and flagged**
- * (AD14-R1, ADR-0034, superseding `2026-09-16-asset-designer-consolidate-design.md` §7's
+ * (AD14-R1, ADR-0035, superseding `2026-09-16-asset-designer-consolidate-design.md` §7's
  * "every part — clearance and details included — is scaled about the anchor").
  * `scaleDesignToDimensions` below is the caller for the dimensions gesture: it uses this as the
  * per-axis `apply` a secant solve calls with successive factors, one axis at a time, rather than

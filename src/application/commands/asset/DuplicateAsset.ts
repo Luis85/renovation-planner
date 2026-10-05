@@ -141,6 +141,6 @@ export class DuplicateAssetCommand
 		if (!isErr(written)) return ok(undefined);
 
 		const removed = await assets.delete(assetId, noteVersion);
-		return err(isErr(removed) ? markUncompensated(written.error) : written.error);
+		return err(isErr(removed) ? markUncompensated(written.error, [{ entityKind: 'asset', entityId: assetId }]) : written.error);
 	}
 }

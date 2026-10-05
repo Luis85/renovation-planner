@@ -880,18 +880,20 @@ suite, the harness and nothing else share.
 **Known limits of the fakes**, so nothing trusts them wider than they are: the module mock
 models only the members something drives, and its `getLanguage()` answers `'en'` **unless a
 caller sets it** — the Home surface branch made it a module-level `let` behind a `setLanguage`
-setter for the browser harness's `?lang=` knob, and **no suite calls that setter**, so the
-suite's own exposure is unchanged: a call site resolving the language wrongly is still
-invisible to it, which is why `t` is pure and driven per locale directly. What DID change is
-that the value is now mutable across a worker, so a suite that ever calls it owes every later
-file in that worker the reset — the setter's own docblock is the authority and says so. (This
+setter for the browser harness's `?lang=` knob. **Suites call that setter too**, to draw a
+German case — `grep -rln "setLanguage(" tests/` lists them; no count is kept here, since this
+sentence said "no suite calls that setter" while several did — so a call site resolving the
+language wrongly is visible only where one of those cases happens to drive it, which is why `t`
+is pure and driven per locale directly. The value is mutable, so each caller owes the reset to
+`'en'` — the setter's own docblock is the authority and says so. (This
 sentence read "always answers `'en'`" for the whole of the branch that falsified it, in a
 paragraph the same branch edited by 179 lines: the count of a claim's readers is not the count
 of its editors.) **`Platform` is the mock's other mutable object, and `isMobile` is the member
-the suite drives most** — nine files under `tests/` assign it, counted by grepping
-`Platform.isMobile =` (eight test files, plus `tests/harness/theme.ts`'s `applyPlatform`, which
-`tests/harness/platform.test.ts` drives), against one file for `isMacOS`, the other one, whose
-only driver is `platformModifier`'s cases reaching the macOS arm. **The reset either owes is
+the suite drives most** — `grep -rlE "Platform\.isMobile = [^=]" tests/` lists the files that
+assign it (one of them `tests/harness/theme.ts`'s `applyPlatform`, which
+`tests/harness/platform.test.ts` drives), and the same grep for `isMacOS`, the other one, lists
+far fewer. **No count is kept here**: this one said nine while each branch measured ten, and the
+merge of the two summed them. **The reset either owes is
 WITHIN its own file, across that file's cases — not across the files in a worker**: only
 `build-lint` and `build` take `isolate: false` in `vitest.config.ts`, so every file in the
 `suite` project gets its own module registry and its own `Platform`, and
@@ -955,8 +957,15 @@ The rules this suite is actually held to:
   earned `onunload` an existence — it releases the global, and only while it is still the one
   that load claimed, since another Konva-bundling plugin may have replaced it since.
   `pdfjs-dist` had the same shape (`globalThis.pdfjsWorker`) and lost it by ceasing to be
-  bundled. Check what a new dependency writes to `window`, and check it in the BUILT bundle
-  rather than in the dependency's docs.
+  bundled. Vue pushes a setter onto two SHARED lists, `__VUE_INSTANCE_SETTERS__` and
+  `__VUE_SSR_SETTERS__`, and its own lifecycle hooks call through them, so `vueGlobals.ts`
+  takes this load's entry back by identity only after this load's LAST app has unmounted —
+  released under a live app, the next hook throws or writes into another plugin's Vue. That
+  is why every view mounts through `createViewApp`, and why `eslint.config.mjs` bans
+  `createApp` elsewhere in `src/`. zod's `__zod_globalConfig` and `__zod_globalRegistry` are
+  written once and kept, so they pin the FIRST load's bundle; whether to release them is an
+  open question awaiting an owner decision. Check what a new dependency writes to `window`,
+  and check it in the BUILT bundle rather than in the dependency's docs.
 - **A test that writes into a directory another test WALKS is a race, and the exclusion has to
   live with the walk rather than with whoever remembered it.** `tests/gates/lint-edited.test.ts`
   plants real `.vue` probes under `tests/harness/` — it must, because only a path matching
@@ -996,8 +1005,8 @@ The rules this suite is actually held to:
   argument is a regex literal counted once, as the literal), each hit then classified by what its
   subject IS. On 2026-09-13 that found 414 hits in 127 files. Most
   read a RUNTIME value — a rendered text, a thrown message, a note's frontmatter the code under
-  test wrote, an id, a path, a URL knob, whitespace — and are not source-text gates. **Thirty-six
-  files still read source or config TEXT through one**, none touched by this branch, in three
+  test wrote, an id, a path, a URL knob, whitespace — and are not source-text gates. **Thirty-five
+  files still read source or config TEXT through one**, in three
   groups: twenty-one stylesheet-or-SFC-text pins (`prototype-styles`, `libraryComponentStyles`,
   `styles.test.ts` — fourteen of whose twenty-six hits are the assembler's own messages and
   twelve read the assembled sheet's text — eight its `@container` preludes, two its
@@ -1007,8 +1016,8 @@ The rules this suite is actually held to:
   `projectFilterStyles`, `projectListStyles`, `continueRowStyles`, `projectListOverlap`,
   `assetPriceList`, `viewRootOpenLibrary`, `projectList` under `tests/presentation/views/`;
   `assetMark` and `narrowComposition.ts` under `tests/presentation/library/`;
-  `tests/helpers/buttonRules.ts`; `prototype-promotion` and `entryBoundary`), ten TypeScript
-  source scans (`saveStateWiring`, `toolManager`, `eventVocabularyCensus`, `toUserMessage`,
+  `tests/helpers/buttonRules.ts`; `prototype-promotion` and `entryBoundary`), nine TypeScript
+  source scans (`toolManager`, `eventVocabularyCensus`, `toUserMessage`,
   `spatialMessage`, `declarations`, `reversibleWritePathDiscovery`, `creationCatalogue`,
   `editorContext`, `appIdPrefix`) and five config-or-document reads (`manifest.test.ts` over
   the workflow YAML, `lint-edited.test.ts` over the hook command in `.claude/settings.json`,
@@ -1019,6 +1028,14 @@ The rules this suite is actually held to:
   imports, a named function's body), `tests/helpers/importGraph.ts` (edges, and what the reached
   files name), `tests/helpers/selectors.ts`'s `stylesheetRules` and `classesNamed` (CSS through
   lightningcss), and `tests/helpers/environmentDirective.ts`.
+
+  `saveStateWiring` left that list on 2026-09-19, and what it cost to leave it is the argument
+  for the rest: its six `toMatch` pins ran over TWO files joined and whitespace-collapsed, so a
+  COMMENT in either satisfied an assertion about code — measured, with the incident gate removed
+  from the real dispatcher and one comment line restoring the gate to green, and measured the
+  other way too, with a legitimate `// Never write wrapDispatcher(history, tracked) here.`
+  reddening correct code. Four AST cases replace the six, through
+  `parsedSource.ts`'s `functionNamed` and the call and binding nodes inside that one function.
 
   What this branch converted, each watched red first: `harness-shot.test.ts`'s ~55 pins over
   `scripts/harness-shot.mjs` (the `SHOTS` table evaluated through the script's own constants,

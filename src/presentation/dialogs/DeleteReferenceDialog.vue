@@ -21,10 +21,11 @@
  * candidate either (two entity types can legitimately share one), and inventing an id the
  * caller did not supply would be this component computing something it was handed.
  */
+import { computed } from 'vue';
 import { tr } from '../i18n/strings';
 import type { DeleteReferenceDescriptor, DeleteReferenceDialogResult } from './dialog-store';
 
-defineProps<{ descriptor: DeleteReferenceDescriptor; titleId: string }>();
+const props = defineProps<{ descriptor: DeleteReferenceDescriptor; titleId: string }>();
 defineEmits<{ resolve: [result: DeleteReferenceDialogResult] }>();
 
 const ACTIONS = [
@@ -33,6 +34,13 @@ const ACTIONS = [
 	{ action: 'reassign', label: 'dialog.delete-reference.reassign', danger: false },
 	{ action: 'delete-anyway', label: 'dialog.delete-reference.delete-anyway', danger: true },
 ] as const;
+
+// NOT rendered, rather than hidden or disabled: a choice the command cannot complete must be
+// unreachable from the keyboard as well as invisible (owner rulings 62 and 64).
+const REMOVE_ONLY: ReadonlySet<string> = new Set(['cancel', 'remove-references']);
+const actions = computed(() =>
+	props.descriptor.removeOnly === true ? ACTIONS.filter((entry) => REMOVE_ONLY.has(entry.action)) : ACTIONS,
+);
 </script>
 
 <template>
@@ -57,9 +65,16 @@ const ACTIONS = [
 			</li>
 		</ul>
 	</template>
+	<p
+		v-if="descriptor.removeOnly"
+		class="rp-dialog-message"
+		data-rp-contextual-only
+	>
+		{{ tr('dialog.delete-reference.contextual-only') }}
+	</p>
 	<div class="rp-dialog-actions">
 		<button
-			v-for="entry in ACTIONS"
+			v-for="entry in actions"
 			:key="entry.action"
 			type="button"
 			class="rp-dialog-button"

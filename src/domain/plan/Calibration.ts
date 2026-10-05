@@ -146,10 +146,14 @@ export function deriveCalibration(
  * a real distance gives a finite `scaleCorrection` whose product with any ordinary
  * coordinate is Infinity — which JSON persists as null). Same failure class, same code;
  * the caller that multiplies raises it over its output, not its inputs.
+ *
+ * `calibrateDocument` raises it for a room the rescale COLLAPSED or whose area overflowed too
+ * (owner ruling 57): every coordinate finite, the room unmeasurable. The same failure class
+ * again, so the same code, and a message that names both.
  */
 export function nonFiniteRescaleError(): CalibrationError {
 	return calibrationError(
 		'calibration.degenerate-scale',
-		'The rescale overflowed; the corrected coordinates would not be finite.',
+		'The rescale overflowed or collapsed; the corrected geometry would not be measurable.',
 	);
 }

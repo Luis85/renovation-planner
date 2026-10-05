@@ -209,7 +209,7 @@ size fields that shipped in #224 their exactness, or require the solver to run o
   detail and a PENDING clearance are scaled about the anchor; pending flags ride through unchanged;
   a design whose footprint has no representable extent refuses.
 
-  **AMENDED 2026-09-18 by AD14 / ADR-0034, and the amendment is the point of the line.** This read
+  **AMENDED 2026-09-18 by AD14 / ADR-0035, and the amendment is the point of the line.** This read
   *"every part — clearance and details included — is scaled about the anchor"*, which was true when
   it was written and is no longer true of a MEASURED clearance: that one is an authored planning
   boundary, so it is now PRESERVED at the size its author drew and carries a durable

@@ -12,6 +12,7 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
 	'Domain',
 	'Reference',
 	'Calculation',
+	'Geometry',
 ];
 
 /**
@@ -103,6 +104,36 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * the category is pre-write by the resolution's error union rather than by anything here, and
  * a later widening of that union is the change that would falsify this paragraph.
  *
+ * **`Geometry`**, owner ruling 37. It was left out as one of the categories "whose whole subject
+ * IS the write" — a default nobody had measured, and one a sweep of the code refutes: every
+ * `category: 'Geometry'` literal is in a pure function (`core/geometry/`, `Zone.ts`,
+ * `AssetShape.ts`, the editor's own `areaOutline`/`simpleOutline`), and every repository port's
+ * write answers `RepositoryError` — `Persistence | Migration | Validation`, no `Geometry` arm —
+ * so no write can return one; the infrastructure re-labels what it meets on a read
+ * (`zone.entity-invalid`, `plan-geometry.curve-invalid`). The one port that DOES answer one,
+ * `ZoneGeometryVersions.versionFor`, is a pure computation `GroupGeometryCommand` asks before
+ * `geometry.write`. **That much IS a type guarantee — no write can return one — and it is
+ * narrower than the category being pre-write.** Nothing in the port types stops a future command
+ * from writing first and calling a pure geometry function afterward, returning its raw error; a
+ * command shaped that way still type-checks. That within one command today's `Geometry` refusal
+ * precedes that command's first write holds by ENUMERATION of the commands that raise it:
+ * `MoveSpatialObject` (`preservePointCurves`/`withGeometry` before `zones.save`), `CreateZone`
+ * (`Zone.create`, which runs `enclosingOutline`, before its own `zones.save`),
+ * `GroupGeometryCommand` (`zoneReceipts`'s `versionFor` before `geometry.write`), and
+ * `PasteCommand`'s pre-check (`enclosingOutline` over every Room before anything is written) —
+ * L-23's `polygon-zero-area` and `polygon-area-overflow` from `withGeometry`, the curve codes
+ * from `preservePointCurves`. The same ordering holds for the asset designer's writers,
+ * reaching this predicate through `designer/runtime.ts`'s own `withSaveStateTracking`:
+ * `updateAssetShape` runs `validateAssetShape` before `sidecar.write`, `CalibrateAsset`
+ * likewise. The one shape that can follow a write is a COMPOSED command
+ * (`PasteCommand`, `DeleteSelectionCommand`) whose later step refuses after an earlier step wrote
+ * — and `restoreSteps` puts those back and stamps the refusal when it cannot, which is the stamp
+ * below answering exactly as it does for the other four. **Nothing checks the ordering for a
+ * command not yet written** — a new command that saves and only then asks a pure geometry
+ * function would type-check and would under-report exactly as described below. Before this, a
+ * drag leaving a room with no area put a sticky "Save error" over a vault nothing had touched,
+ * with no sentence naming why.
+ *
  * That set is REACHABLE, not theoretical, and each widening was one keystroke or one click
  * away. The Inspector's two override fields are `type="text"` (`RequirementRow.vue`), so
  * typing `-5` into one raises the first `Domain` site. The Inspector's Delete button opens
@@ -154,22 +185,23 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * **Still an inequality against a named set rather than a list of the categories that count,
  * deliberately.** A new `AppError` category added by a later slice defaults to AFFECTING the
  * indicator, because "we might not have written your data" is the safe answer to give while
- * nobody has thought about it. The unsafe default is silence. **Four of the eight are in the
- * pre-write set now and four are not** (`Persistence`, `Geometry`, `Import`, `Migration`), and
- * a set that has grown to half the vocabulary is worth stopping at rather than letting grow
- * quietly. What remains outside it is the four categories whose whole subject IS the write —
- * two of them, `Import` and `Migration`, having no dispatched raise site at all today. The
- * further this widens the more the indicator depends on every enumerated raise site STAYING
+ * nobody has thought about it. The unsafe default is silence. **Five of the eight are in the
+ * pre-write set now and three are not** (`Persistence`, `Import`, `Migration`). `Geometry` was
+ * admitted as the fifth, on the enumeration in the paragraph above, not because the badge
+ * annoyed anyone. What remains outside it is the three categories whose whole subject IS the
+ * write — two of them, `Import` and `Migration`, having no dispatched raise site at all today.
+ * The further this widens the more the indicator depends on every enumerated raise site STAYING
  * pre-write, with nothing checking that; the next widening should be argued against that
- * rather than against the nuisance of a badge, and if a fifth is ever proposed the honest
+ * rather than against the nuisance of a badge, and if a SIXTH is ever proposed the honest
  * answer is probably that the CATEGORY is the wrong axis and the command should report
- * whether it wrote. **That last sentence has since come true and is no longer a prediction**
- * — see the stamp below, which is the category axis being overruled by a report at the one
- * place a report was available.
+ * whether it wrote. **That last sentence has since come true and is no longer only a
+ * prediction about some future sixth** — see the stamp below, which is the category axis
+ * already being overruled by a report, at the one place (the composed commands) a report was
+ * available.
  *
  * **The exposure this creates is the unsafe direction, and the part of it that was REACHABLE
  * is now closed by a report rather than by this predicate.** A `Domain`, `Validation`,
- * `Reference` or `Calculation` error raised AFTER a write had already landed would be
+ * `Reference`, `Calculation` or `Geometry` error raised AFTER a write had already landed would be
  * under-reported: the indicator settles `saved`, or reverts to what it read before the batch,
  * over data whose write half-completed. An earlier draft said "the sweeps above found NO such
  * site today" and named `deleteResolution.ts` as where one was "likeliest to appear" on the

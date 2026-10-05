@@ -28,7 +28,13 @@ describe('linear element production paths', () => {
 			await r.wrapper.get('[data-rp-form="outline-points"] input[name="1.x"]').setValue('4,75');
 			await r.wrapper.get('[data-rp-form="outline-points"]').trigger('submit'); await settle();
 			expect(r.project.plan?.spatialElements?.[0].name).toBe('Side route'); expect(r.project.structure.elements?.[0].points[1].x).toBe(4750);
+			const edited = expectDefined(r.project.structure.elements?.[0], 'edited element');
 			await r.runtime.undo(); await settle(); expect(r.project.plan?.spatialElements?.[0].name).toBe('Garden route');
+			expect(r.project.structure.elements?.[0]).toEqual(saved);
+			// Redo through the same door, `runtime.redo()`: the edit's name and geometry come back as saved, then Undo takes them away again.
+			await r.runtime.redo(); await settle();
+			expect(r.project.structure.elements?.[0]).toEqual(edited); expect(r.project.plan?.spatialElements?.[0].name).toBe('Side route');
+			await r.runtime.undo(); await settle(); expect(r.project.structure.elements?.[0]).toEqual(saved);
 			await r.wrapper.get('[data-rp-action="delete-element"]').trigger('click'); await settle(); r.dialogs.resolve('confirm'); await settle();
 			expect(r.project.structure.elements ?? []).toHaveLength(0); await r.runtime.undo(); await settle();
 			expect(r.project.structure.elements?.[0]).toEqual(saved); expect(r.project.plan?.spatialElements?.[0].name).toBe('Garden route');

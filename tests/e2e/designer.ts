@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect } from 'vitest';
 import { PLUGIN_ID, type NativeBrowser } from './session';
-import type { createPlannerPage } from './helpers';
+import { noticeMessages, type createPlannerPage } from './helpers';
 
 export const DESIGNER = 'renovation-asset-designer';
 export const LIBRARY = 'renovation-asset-library';
@@ -62,20 +62,8 @@ export function createDesignerPage(browser: NativeBrowser, page: ObsidianPage, u
 		return text.split('\n').at(-1) ?? text;
 	};
 
-	/**
-	 * Every toast currently in the notice container, as its message alone — read from the DOM, not
-	 * with WebDriver's `getText`. Obsidian builds a notice at `translateX(350px)` and slides it in
-	 * over ~100 ms inside `.notice-container`, which clips (`overflow: hidden`), so `getText` —
-	 * visible text only — answers `''` for a notice read inside that slide: the empty-catalogue
-	 * case failed on exactly that, `[ '' ]`, three times on CI. `isDisplayed` says `true` there,
-	 * so waiting on it does not help either.
-	 */
-	const notices = (): Promise<string[]> =>
-		browser.execute(() =>
-			[...document.querySelectorAll('.notice-container .notice')].map(
-				(notice) => (notice.querySelector('.rp-notice-message') ?? notice.querySelector('.notice-message') ?? notice).textContent ?? '',
-			),
-		);
+	/** Every toast currently in the notice container, as its message alone (`noticeMessages` in `helpers.ts`). */
+	const notices = (): Promise<string[]> => noticeMessages(browser);
 
 	const submitDialog = async (fill: (form: ReturnType<typeof browser.$>) => Promise<void>): Promise<void> => {
 		const form = browser.$('.rp-dialog .rp-dialog-form');

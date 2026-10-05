@@ -29,7 +29,7 @@ export class MaterialCommand {
 		this.current = this.before;
 	}
 	async run(forward: boolean): Promise<DispatchResult> {
-		if (this.retired) return err(markUncompensated(undoSuperseded(this.id)));
+		if (this.retired) return err(markUncompensated(undoSuperseded(this.id), [{ entityKind: 'requirement', entityId: this.id }]));
 		if (this.busy || this.applied === forward) return ok('no-write');
 		this.busy = true;
 		let release: (() => void) | undefined;
@@ -81,7 +81,13 @@ export class MaterialCommand {
  if (!removed.ok) throw Object.assign(new Error(removed.error.message), { cause: removed.error }); this.current = null;
  }
  if (this.current) this.ledger.record(this.id, this.current.version); else this.ledger.forget(this.id);
- } catch (cause) { this.retired = true; return err(markUncompensated(persistenceError('renovation.compensation-failed', 'Material recovery failed.', cause))); }
+ } catch (cause) {
+	this.retired = true;
+	return err(markUncompensated(
+		persistenceError('renovation.compensation-failed', 'Material recovery failed.', cause),
+		[{ entityKind: 'requirement', entityId: this.id }],
+	));
+ }
  return result;
  }
 

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Decimal } from 'decimal.js';
 import { settleUntil as until } from '../../../helpers/editor';
-import { actionButton, click, PROJECT_ID, rig } from '../../../helpers/planEditorRig';
+import { actionButton, canvasOf, click, PROJECT_ID, rig } from '../../../helpers/planEditorRig';
 import { expectOk } from '../../../helpers/domain';
 import { makeAsset, makeZone } from '../../../helpers/entities';
 import type { PlanId } from '../../../../src/domain/plan/PlanId';
@@ -19,8 +19,11 @@ import type { ZoneId } from '../../../../src/domain/zone/ZoneId';
  * query nobody passed it would pass every test there and open a dialog reading zero here.
  */
 
+type Rigged = Awaited<ReturnType<typeof rig>>;
+const canvas = (r: Rigged): HTMLElement => canvasOf(r.harness);
+
 /** The dialog's own buttons, addressed by `data-rp-action` rather than by position. */
-function dialogButton(harness: Awaited<ReturnType<typeof rig>>['harness'], action: string) {
+function dialogButton(harness: Rigged['harness'], action: string) {
 	const found = harness.wrapper.find(`[data-rp-action="${action}"]`);
 	if (!found.exists()) throw new Error(`no dialog button for ${action}`);
 	return found;
@@ -113,6 +116,34 @@ describe('deleting a Zone that Requirements reference', () => {
 		await until(() => !r.harness.wrapper.find('[data-rp-action="cancel"]').exists(), 'the dialog closed');
 
 		expect(expectOk(await r.zonesRepo.getById('zone-a' as never))).not.toBeNull();
+		expect(expectOk(await r.requirementsRepo.listByZone('zone-a' as never))).toHaveLength(1);
+		r.harness.unmount();
+	});
+
+	// Owner ruling 61: every single-room door reaches the resolution dialog, and none of them
+	// writes before the user chooses. Red while the room guard counted origin-zone requirements.
+	const doors = {
+		inspector: (r: Rigged) => actionButton(r.harness, 'Delete').click(),
+		'context menu': async (r: Rigged) => {
+			canvas(r).dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true, cancelable: true }));
+			await until(() => r.harness.wrapper.find('[data-rp-context-action="delete"]').exists(), 'the menu');
+			await r.harness.wrapper.get('[data-rp-context-action="delete"]').trigger('click');
+		},
+		'Delete key': (r: Rigged) => canvas(r).dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true, cancelable: true })),
+	};
+	it.each(Object.keys(doors) as (keyof typeof doors)[])('the %s door opens the reference dialog for a room an assigned asset refers to, writing nothing', async (door) => {
+		const r = await selectZoneWithRequirements(1);
+		const writes = [vi.spyOn(r.zonesRepo, 'delete'), vi.spyOn(r.requirementsRepo, 'save'), vi.spyOn(r.requirementsRepo, 'delete')];
+		await doors[door](r);
+		await until(() => r.harness.wrapper.find('.rp-dialog').exists(), 'a dialog');
+		expect(r.harness.wrapper.find('[data-rp-action="reassign"]').exists()).toBe(true);
+		// Owner ruling 62 touches only a room something is MEASURED from; an assigned asset is not.
+		expect(r.harness.wrapper.find('[data-rp-action="delete-anyway"]').exists()).toBe(true);
+		expect(r.harness.wrapper.find('[data-rp-contextual-only]').exists()).toBe(false);
+		for (const write of writes) expect(write).not.toHaveBeenCalled();
+		await dialogButton(r.harness, 'cancel').trigger('click');
+		await until(() => !r.harness.wrapper.find('.rp-dialog').exists(), 'the dialog closed');
+		for (const write of writes) expect(write).not.toHaveBeenCalled();
 		expect(expectOk(await r.requirementsRepo.listByZone('zone-a' as never))).toHaveLength(1);
 		r.harness.unmount();
 	});

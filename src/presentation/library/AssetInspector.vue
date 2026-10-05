@@ -12,12 +12,13 @@ import AssetInspectorUsedIn from './AssetInspectorUsedIn.vue';
 import AssetUsageDuplicate from './AssetUsageDuplicate.vue';
 import AssetInspectorActions from './AssetInspectorActions.vue';
 
-const props = defineProps<{ assetId: AssetId | null }>();
+const props = defineProps<{ assetId: AssetId | null; readOnlyReasonId?: string }>();
 
 const emit = defineEmits<{ back: []; delete: [assetId: AssetId] }>();
 
 const context = useAssetLibraryContext();
 const draftGuard = useLibraryDraftGuard();
+const readOnly = context.readOnly === true;
 const library = useAssetLibraryStore();
 const selection = useAssetSelectionStore();
 
@@ -67,7 +68,7 @@ const canOpenDesigner = computed(
 
 const canOpenNote = computed(() => state.value === 'ready' || state.value === 'note-unreadable');
 
-const canDelete = computed(() => state.value === 'ready' && selection.usedInStatus === 'ready');
+const canDelete = computed(() => !readOnly && state.value === 'ready' && selection.usedInStatus === 'ready');
 
 /**
  * Whether the duplicate panel is open — a plain `ref` and NOT part of the panel's `PanelState`,
@@ -91,7 +92,8 @@ const deleteReason = computed((): string | null =>
 const deleteReasonId = useId();
 const deleteAttributes = computed(() => ({
 	'aria-disabled': canDelete.value ? undefined : 'true' as const,
-	'aria-describedby': deleteReason.value === null ? undefined : deleteReasonId,
+	'aria-describedby': [props.readOnlyReasonId, deleteReason.value === null ? undefined : deleteReasonId]
+		.filter((id) => id !== undefined).join(' ') || undefined,
 }));
 
 
@@ -111,7 +113,7 @@ async function openNote(): Promise<void> {
 
 function onOpenDesigner(): void {
 	const assetId = props.assetId;
-	if (assetId !== null) void draftGuard.leave(() => context.openDesigner(assetId));
+	if (!readOnly && assetId !== null) void draftGuard.leave(() => context.openDesigner(assetId));
 }
 
 function onDelete(): void {
@@ -174,6 +176,7 @@ async function onOpenNote(): Promise<void> {
 			<AssetInspectorFields
 				:key="assetId"
 				:entry="entry"
+				:read-only-reason-id="readOnlyReasonId"
 			/>
 			<AssetInspectorShape
 				:design="selection.design"
@@ -200,12 +203,14 @@ async function onOpenNote(): Promise<void> {
 			:can-open-note="canOpenNote"
 			:can-duplicate="state === 'ready' && !duplicating"
 			:can-delete="state === 'ready'"
+			:read-only="readOnly"
+			:read-only-reason-id="readOnlyReasonId"
 			:delete-attributes="deleteAttributes"
 			:delete-reason="state === 'ready' ? deleteReason : null"
 			:delete-reason-id="deleteReasonId"
 			@open-designer="onOpenDesigner"
 			@open-note="void onOpenNote()"
-			@duplicate="duplicating = true"
+			@duplicate="duplicating = !readOnly"
 			@remove="onDelete"
 		/>
 		<AssetUsageDuplicate

@@ -1,6 +1,6 @@
 import { expect } from 'vitest';
 import { createDesignerPage, LIBRARY, type ObsidianPage } from './designer';
-import type { PlannerPage } from './helpers';
+import { setWindowSize, type PlannerPage } from './helpers';
 import type { NativeBrowser } from './session';
 
 /** One catalogue note, written straight into the copied vault the way a user or a sync client writes one. */
@@ -95,12 +95,7 @@ function createLibraryPage(browser: NativeBrowser, ui: PlannerPage) {
 			app.workspace.leftSplit.collapse();
 			app.workspace.rightSplit.collapse();
 		});
-		// WebDriver's own window/rect is refused by Electron's chromedriver (`Browser.getWindowForTarget`
-		// wasn't found), so the window is sized through Electron itself.
-		await browser.execute((px) => {
-			const remote = (window as unknown as { require(id: string): { getCurrentWindow(): { setSize(w: number, h: number): void } } }).require('@electron/remote');
-			remote.getCurrentWindow().setSize(px, 900);
-		}, width);
+		await setWindowSize(browser, width, 900);
 		await browser.pause(400);
 		return browser.execute(() => document.querySelector('.workspace-leaf.mod-active .renovation-asset-library')?.clientWidth ?? 0);
 	};

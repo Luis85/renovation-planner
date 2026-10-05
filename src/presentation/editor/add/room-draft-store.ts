@@ -62,10 +62,10 @@ export function polygonForRect(r: RoomRect): Polygon | null {
  * A module-level pure function beside `polygonForRect` and for its reason: the setup function
  * below has a 100-line budget.
  *
- * The class this belongs to is the one `CLAUDE.md` already records as open — three COLLINEAR
- * vertices are a zero-area polygon that nothing refuses, and closing it is a change to
- * `createPolygon` (SDD §26 files degeneracy under "Future"). This closes the rectangular case
- * at the one door that can see it, and claims nothing wider.
+ * The class this belongs to — a zero-area outline — is refused for every zone WRITE by the Zone
+ * entity since L-23 (owner ruling 34), so a flat rectangle would be refused at dispatch anyway.
+ * This refusal stays because it is the one that reaches the form: it keeps the draft from ever
+ * offering a Create button for a shape the write would then refuse.
  */
 function rectFrom(corner: Point | null, width: number | null, depth: number | null): RoomRect | null {
 	if (corner === null || width === null || depth === null) return null;

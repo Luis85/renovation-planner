@@ -3,10 +3,10 @@ import { tr } from '../../i18n/strings';
 
 defineProps<{ points: readonly { label: string; selected: boolean; coordinates: string; state: string }[]; paused: boolean }>();
 const emit = defineEmits<{ another: [] }>();
-const ax = defineModel<string>('ax', { required: true });
-const ay = defineModel<string>('ay', { required: true });
-const bx = defineModel<string>('bx', { required: true });
-const by = defineModel<string>('by', { required: true });
+const ax = defineModel<string | number>('ax', { required: true });
+const ay = defineModel<string | number>('ay', { required: true });
+const bx = defineModel<string | number>('bx', { required: true });
+const by = defineModel<string | number>('by', { required: true });
 const length = defineModel<string>('length', { required: true });
 const coordinateFields = [
 	{ key: 'ax', model: ax }, { key: 'ay', model: ay },

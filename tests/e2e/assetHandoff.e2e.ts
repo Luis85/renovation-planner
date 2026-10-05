@@ -4,16 +4,24 @@ import { describe, expect } from 'vitest';
 import { test } from './fixture';
 import { createDesignerPage, DESIGNER, LIBRARY, PLAN_EDITOR, type DesignerPage } from './designer';
 import type { PlannerPage } from './helpers';
-import { mobileEmulation } from './session';
+import { mobileEmulation, type NativeBrowser } from './session';
 
 /**
  * `docs/tests/cases/Take an asset from the library into a plan.md`: the three doors between the
  * library, the designer and the plan, walked in a real host — the hand-off's picker, banner and
- * Continue context, the duplicate that touches no plan, and the mobile gate that keeps both
- * commands out of the palette while a leaf restored there still refuses.
+ * Continue context, the duplicate that touches no plan, and the mobile gate that keeps the
+ * designer's command out of the palette while the library stays offered and read-only there
+ * (owner ruling 66 undid AD13's library half of that gate; L-43 makes the library read-only).
  */
 const desktop = mobileEmulation ? test.skip : test;
 const mobile = mobileEmulation ? test : test.skip;
+
+/** Each asset command's palette answer: its `checkCallback(true)`, or `function` for a plain callback. */
+const palette = (browser: NativeBrowser) =>
+	browser.executeObsidian(({ app }) => {
+		const commands = (app as unknown as { commands: { commands: Record<string, { name: string; callback?: () => void; checkCallback?: (checking: boolean) => boolean }> } }).commands.commands;
+		return ['renovation-planner:open-asset-library', 'renovation-planner:open-asset-designer'].map((id) => [commands[id]?.name, commands[id]?.checkCallback?.(true) ?? typeof commands[id]?.callback]);
+	});
 
 const BANNER = 'Click the plan to place a copy; near a wall it turns to face the room. Esc stops placing.';
 
@@ -151,33 +159,30 @@ describe('Take an asset from the library into a plan, in the real Obsidian host'
 		expect(await designer.leafStates(DESIGNER)).toEqual([{ assetId }]);
 	});
 
-	// Steps 24 and 27: the palette gate, both sides.
-	mobile('keeps both commands out of the palette on mobile', async ({ native: { browser } }) => {
-		const gate = () =>
-			browser.executeObsidian(({ app }) => {
-				const commands = (app as unknown as { commands: { commands: Record<string, { checkCallback?: (checking: boolean) => boolean }> } }).commands.commands;
-				return ['renovation-planner:open-asset-library', 'renovation-planner:open-asset-designer'].map((id) => commands[id]?.checkCallback?.(true) ?? 'no checkCallback');
-			});
-		expect(await gate()).toEqual([false, false]);
+	// Steps 24 and 27: the palette gate, both sides. The library's command is a plain callback on
+	// every device since owner ruling 66, so it has no `checkCallback` to ask and is always listed;
+	// the designer's still answers `false` on mobile.
+	mobile('keeps the designer out of the palette on mobile, and offers the read-only library', async ({ native: { browser } }) => {
+		expect(await palette(browser)).toEqual([
+			['Renovation Planner: Open asset library', 'function'],
+			['Renovation Planner: Open asset designer', false],
+		]);
 	});
 	desktop('lists both commands in the palette on the desktop', async ({ native: { browser } }) => {
-		const names = await browser.executeObsidian(({ app }) => {
-			const commands = (app as unknown as { commands: { commands: Record<string, { name: string; checkCallback?: (checking: boolean) => boolean }> } }).commands.commands;
-			return ['renovation-planner:open-asset-library', 'renovation-planner:open-asset-designer'].map((id) => [commands[id]?.name, commands[id]?.checkCallback?.(true)]);
-		});
-		expect(names).toEqual([
-			['Renovation Planner: Open asset library', true],
+		expect(await palette(browser)).toEqual([
+			['Renovation Planner: Open asset library', 'function'],
 			['Renovation Planner: Open asset designer', true],
 		]);
 	});
 
-	// Step 25: the deliberately ungated button, and the view's own refusal behind it.
-	mobile('opens a library leaf that refuses, from the project view button, rather than nothing', async ({ native: { ui } }) => {
+	// Step 25: the project view's button opens the library, which draws READ-ONLY on mobile (L-43,
+	// owner ruling 66): the read-only notice is there and New asset is disabled.
+	mobile('opens the read-only library from the project view button', async ({ native: { ui } }) => {
 		await ui.openProjectView();
 		await ui.projectView().$('.rp-view-aside__open-library').click();
 		await ui.activate(LIBRARY);
 		const library = ui.leaf(LIBRARY);
-		await expect.poll(() => library.getText()).toContain('desktop');
-		expect(await library.$('.rp-al-shelf').isExisting()).toBe(false);
+		await expect.poll(() => library.$('[data-rp-notice="mobile-read-only"]').isExisting()).toBe(true);
+		expect(await library.$('.rp-al-create').isEnabled()).toBe(false);
 	});
 });

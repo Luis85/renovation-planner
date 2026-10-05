@@ -91,6 +91,24 @@ const TS_EXTENSION_BAN = {
 };
 
 /**
+ * `createApp` is reached through `createViewApp` and nowhere else in `src/`, because that helper is
+ * where an app gets the two things every mount owes: `app.config.idPrefix` (`app-id-prefix.ts`)
+ * and `trackVueApp`, without which the release of Vue's window globals can run under a live app
+ * (`vueGlobals.ts`). Both were a line at each of four sites, held by memory.
+ *
+ * In EVERY block that lets a file name `vue` — the catch-all and root blocks below, and
+ * `forbidden(...)` for a layer whose packages do not already ban `vue` outright — because two
+ * blocks matching one file override `no-restricted-imports` rather than merging it. One block,
+ * `CREATE_VIEW_APP_DOOR`, lifts it for the helper's own file.
+ *
+ * What it cannot see: `createApp` re-exported from a module of our own and imported from
+ * there (the ban reads the specifier `vue`), a namespace import (`import * as Vue`), a
+ * dynamic `import('vue')`, `createSSRApp`, and `defineCustomElement`, which mounts an app of its
+ * own. `src/` uses none of them today; `tests/gates/layer-boundaries.test.ts` drives the ban.
+ */
+const CREATE_APP_BAN = { name: 'vue', importNames: ['createApp'], message: "Use createViewApp (src/presentation/views/createViewApp.ts): it sets app.config.idPrefix and registers the app with trackVueApp, which every mount owes." };
+
+/**
  * `groups` are sibling LAYERS this one may not reach; `packages` are npm packages it may
  * not name at all. Both in one rule because both are the same statement — what this layer
  * is not allowed to know about — and because two `no-restricted-imports` entries for one
@@ -105,7 +123,7 @@ const forbidden = (layer, { groups = [], packages = [] }, reason) => ({
 		'no-restricted-imports': [
 			'error',
 			{
-				paths: packages.map((name) => ({ name, message: reason })),
+				paths: [...packages.map((name) => ({ name, message: reason })), ...(packages.includes('vue') ? [] : [CREATE_APP_BAN])],
 				patterns: [
 					{
 						group: [
@@ -261,6 +279,9 @@ const networkFree = (layer, layerBan, reason) => {
 
 const PROTOTYPES_GROUP = ['**/prototypes', '**/prototypes/*', '**/prototypes/**/*'];
 
+/** The ban for the two blocks outside `forbidden(...)`: the catch-all and the root of `src/`. */
+const prototypesOnly = (message) => ['error', { paths: [CREATE_APP_BAN], patterns: [{ group: PROTOTYPES_GROUP, message }, TS_EXTENSION_BAN] }];
+
 /**
  * The four the SDD prohibits in the inner layers (§3.4): a `Zone` is not a Konva polygon
  * and a `WorkPackage` is not a Markdown file, so the code that decides what they ARE may
@@ -305,6 +326,17 @@ const INFRASTRUCTURE_LAYER = {
 		'infrastructure/ implements the ports the inner layers declare. It may name obsidian — that is its job — but nothing about how anything is drawn.',
 };
 
+const PRESENTATION_BLOCK = forbidden('presentation', { groups: ['infrastructure', 'plugin', 'prototypes'] }, 'presentation/ talks to application/, never to a repository directly. What it gets handed is composed in plugin/.');
+
+/**
+ * `createViewApp.ts` is the one file `CREATE_APP_BAN` does not reach. Built FROM
+ * `PRESENTATION_BLOCK` with that one entry filtered out, never restated: this block overrides
+ * the presentation ban for the file, so a hand-written copy would be a second list of that
+ * layer's groups, which is the defect `networkFree`'s docblock describes.
+ */
+const [, PRESENTATION_BAN] = PRESENTATION_BLOCK.rules['no-restricted-imports'];
+const CREATE_VIEW_APP_DOOR = { files: ['**/src/presentation/views/createViewApp.ts'], rules: { 'no-restricted-imports': ['error', { ...PRESENTATION_BAN, paths: PRESENTATION_BAN.paths.filter((entry) => entry !== CREATE_APP_BAN) }] } };
+
 /**
  * The Obsidian ruleset is about *shipped plugin* code, and it is type-aware, which
  * `test/` cannot satisfy: tsconfig.json covers `src/` only, and the test doubles exist
@@ -320,11 +352,24 @@ const pluginRules = obsidianmd.configs.recommendedWithLocalesEn.map((c) => ({
 }));
 
 /**
- * `SKU` is this plugin's own vocabulary (design "Asset library overview" §5, §8's
- * `view.asset-library.sku`) and `sentence-case-locale-module`'s default acronym list does not
- * carry it — measured: `SKU` mid-sentence is reported wanting `sku`. The fix widens the
- * RULE's vocabulary rather than the product's, per the ruling on that finding: changing what
- * the field is called to satisfy a linter's word list is the wrong direction.
+ * The acronym vocabulary `sentence-case-locale-module` is given for EVERY English locale
+ * module — not only the asset library's, which is what this constant was called until the
+ * axis letters joined it. It carries two kinds of word, both for the same reason: the fix
+ * widens the RULE's vocabulary rather than the product's copy, per the ruling on the `SKU`
+ * finding, because changing what a thing is called to satisfy a linter's word list is the
+ * wrong direction.
+ *
+ * `SKU` is this plugin's own word (design "Asset library overview" §5, §8's
+ * `view.asset-library.sku`) and the rule's default list does not carry it — measured: `SKU`
+ * mid-sentence is reported wanting `sku`.
+ *
+ * `X` and `Y` are the plan's axis letters (`editor.area.coordinates-hint`, and the `X`/`Y`
+ * chooser rows and fieldset legends on the same screen). The rule lowercases every non-first
+ * token that is not an acronym or a BRAND, and neither letter is in `acronyms.js` — measured.
+ * `X` passes today only because `brands.js` carries "X", the social network; `Y` has no such
+ * accident and was reported wanting `y`. So the pair is added TOGETHER: listing only `Y` would
+ * leave `X` resting on a vendor word list that can change at any release, and the two letters
+ * name one thing.
  *
  * `DEFAULT_ACRONYMS` is imported from the rule's own module rather than hand-copied, for the
  * same reason `OBSIDIAN_RESTRICTED_GLOBALS` below reads its list out of the plugin's config
@@ -348,14 +393,14 @@ const pluginRules = obsidianmd.configs.recommendedWithLocalesEn.map((c) => ({
 const localeModuleFiles = obsidianmd.configs.recommendedWithLocalesEn.find(
 	(c) => c.rules?.['obsidianmd/ui/sentence-case-locale-module'] !== undefined,
 )?.files;
-const ASSET_LIBRARY_ACRONYMS = [...DEFAULT_ACRONYMS, 'SKU'];
+const LOCALE_MODULE_ACRONYMS = [...DEFAULT_ACRONYMS, 'SKU', 'X', 'Y'];
 
 /**
  * The seven `form.new-asset.unit-symbol.*` values (`MEASUREMENT_UNIT_SYMBOLS`'s printed
  * strings for a shelf row: 'pcs', 'm', 'm²', 'm³', 'h', 'd', 'fixed') are notation, not
  * prose — a unit of measure, never a sentence a reader parses word by word — so
  * `sentence-case-locale-module` reporting them for not opening with a capital letter is the
- * rule applied outside its own domain, the same shape `ASSET_LIBRARY_ACRONYMS` above widens
+ * rule applied outside its own domain, the same shape `LOCALE_MODULE_ACRONYMS` above widens
  * for `SKU`: fix the RULE's vocabulary, not the copy, because "M²" is wrong regardless of
  * what a linter's word list wants.
  *
@@ -394,8 +439,7 @@ const UNIT_SYMBOLS_PATTERN = '^(?:pcs|m|m²|m³|h|d|fixed)$';
  * is checked exactly as any other string's is. `tests/gates/localeModuleSentenceCase.test.ts`
  * pins that with a NEGATIVE case built from that exact counter-example.
  */
-const LEADING_COUNT_PATTERN =
-	'^(?:1 asset|1 matching asset|1 asset note could not be read\\. Open the diagnostics report to see which note refused\\.|1 note could not be read, so this list may be incomplete)$';
+const LEADING_COUNT_PATTERN = '^(?:1 asset|1 matching asset|1 asset note could not be read\\. Open the diagnostics report to see which note refused\\.|1 note could not be read, so this list may be incomplete)$';
 
 /**
  * `eslint-plugin-vue`'s flat configs carry NO `files` of their own, so spreading them as
@@ -734,13 +778,51 @@ const LANGUAGE_RESOLUTION_BAN = [
 ];
 
 /**
+ * A "partly failed write" stamp is BUILT in exactly one place: `markUncompensated`
+ * (`src/application/commands/DispatchOutcome.ts`), which is also, since owner ruling 13, the one
+ * place the stamp is RECORDED as a write incident. The record is therefore only as complete as
+ * that function's monopoly on the construction: a stamp spelled by hand elsewhere reaches every
+ * reader of `leftWritesBehind` — the save indicator, the undo pause — and opens no incident,
+ * which is the unrecorded half-write the ruling closed. A check at the forbidden construction
+ * rather than a list of the raise sites, so it holds for a raise site not yet written.
+ *
+ * The spellings these SEE: an object-literal property keyed `uncompensatedWrite` by identifier
+ * (shorthand included, and `Object.assign(e, { uncompensatedWrite: … })`, whose argument is such
+ * a literal) anywhere outside a function DECLARED `markUncompensated`; one keyed by the string
+ * `'uncompensatedWrite'` anywhere; and an assignment to a member of that name, dotted or
+ * string-keyed. A read, a destructuring pattern and a type declaring the field are not
+ * constructions and pass untouched.
+ *
+ * What they CANNOT see, pinned as absences in `tests/gates/stamp-construction-boundary.test.ts`:
+ * a computed key (`{ [KEY]: [] }`, and so `Object.assign` with one); `Object.defineProperty`,
+ * whether its name is computed or a literal — the name is an argument, not a property; a class
+ * field; and a SECOND function declared `markUncompensated`, since the exemption is by name.
+ * oxlint has no `no-restricted-syntax`, so the edit-loop hook cannot see any of this either.
+ */
+const STAMP_CONSTRUCTION_MESSAGE =
+	"A write-incident stamp built by hand opens no incident. Call markUncompensated (src/application/commands/DispatchOutcome.ts), which stamps AND records in one place (owner ruling 13).";
+const STAMP_CONSTRUCTION_BAN = [
+	{
+		selector:
+			"ObjectExpression > Property[key.name='uncompensatedWrite']:not(FunctionDeclaration[id.name='markUncompensated'] Property)",
+		message: STAMP_CONSTRUCTION_MESSAGE,
+	},
+	{ selector: "ObjectExpression > Property[key.value='uncompensatedWrite']", message: STAMP_CONSTRUCTION_MESSAGE },
+	{
+		selector:
+			"AssignmentExpression > MemberExpression.left:matches([property.name='uncompensatedWrite'], [property.value='uncompensatedWrite'])",
+		message: STAMP_CONSTRUCTION_MESSAGE,
+	},
+];
+
+/**
  * The `no-restricted-syntax` selectors EVERY file in `src/` carries, hoisted because three
  * blocks below now spread them and a hand-restated third copy is how the write boundary's
  * own extension list went stale once already. The two that are NOT here differ per block on
  * purpose: `WRITE_BOUNDARY` is off inside `infrastructure/obsidian/` (the sanctioned writer),
  * and `LANGUAGE_RESOLUTION_BAN` is off inside `strings.ts` (the sanctioned resolver).
  */
-const SHARED_SRC_SYNTAX_BANS = [...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN, ...NOTICE_TEXT_BAN];
+const SHARED_SRC_SYNTAX_BANS = [...SVG_CLASS_TOKENS, ...I18N_LITERAL_BAN, ...NOTICE_TEXT_BAN, ...STAMP_CONSTRUCTION_BAN];
 
 export default defineConfig([
 	{
@@ -763,6 +845,14 @@ export default defineConfig([
 			// worktree in place — build and oxlint both ignored it and only this step broke,
 			// which is the sentence above about this list being load-bearing, proved.
 			'.worktrees/**',
+			// Gitignored session scratch — working notes and one-off tooling that a working
+			// checkout holds and no other checkout ever does, committed by nothing, imported
+			// by nothing, shipped by nothing. Here for the same mechanism as `.worktrees/**`
+			// above rather than for tidiness: ESLint's flat config reads no `.gitignore`, so
+			// `eslint .` walks in and reddens the gate over files CI never sees. oxlint needs
+			// no matching entry and has none — it DOES read `.gitignore`, measured in both
+			// directions, so `.oxlintrc.json` is deliberately untouched by this.
+			'.superpowers/**',
 			'scripts/**',
 			'docs/**',
 			'**/*.md',
@@ -797,9 +887,9 @@ export default defineConfig([
 		linterOptions: { noInlineConfig: true },
 	},
 	...pluginRules,
-	// Widens `sentence-case-locale-module`'s acronym vocabulary for `SKU` — see
-	// `ASSET_LIBRARY_ACRONYMS`'s own comment above for why the fix lives here rather than in
-	// the product's copy. Placed AFTER `...pluginRules` so its `sentence-case-locale-module`
+	// Widens `sentence-case-locale-module`'s acronym vocabulary for `SKU` and the axis letters
+	// `X`/`Y` — see `LOCALE_MODULE_ACRONYMS`'s own comment above for why the fix lives here
+	// rather than in the product's copy. Placed AFTER `...pluginRules` so its `sentence-case-locale-module`
 	// entry, for the identical `files`, wins: two flat-config blocks matching one file OVERRIDE
 	// a rule key rather than merging it, which is this file's own recorded trap for
 	// `no-restricted-globals` and `no-restricted-syntax` alike.
@@ -819,7 +909,7 @@ export default defineConfig([
 		rules: {
 			'obsidianmd/ui/sentence-case-locale-module': [
 				'warn',
-				{ acronyms: ASSET_LIBRARY_ACRONYMS, ignoreRegex: [UNIT_SYMBOLS_PATTERN, LEADING_COUNT_PATTERN] },
+				{ acronyms: LOCALE_MODULE_ACRONYMS, ignoreRegex: [UNIT_SYMBOLS_PATTERN, LEADING_COUNT_PATTERN] },
 			],
 		},
 	},
@@ -878,19 +968,7 @@ export default defineConfig([
 		 */
 		files: SRC_EXTENSIONS.map((ext) => `**/src/**/*.${ext}`),
 		rules: {
-			'no-restricted-imports': [
-				'error',
-				{
-					patterns: [
-						{
-							group: PROTOTYPES_GROUP,
-							message:
-								'src/prototypes/ is design scaffolding: nothing outside it may import from it, including a subtree with no forbidden(...) call of its own yet.',
-						},
-						TS_EXTENSION_BAN,
-					],
-				},
-			],
+			'no-restricted-imports': prototypesOnly('src/prototypes/ is design scaffolding: nothing outside it may import from it, including a subtree with no forbidden(...) call of its own yet.'),
 		},
 	},
 	forbidden(
@@ -911,11 +989,7 @@ export default defineConfig([
 	),
 	forbidden('application', APPLICATION_LAYER.ban, APPLICATION_LAYER.reason),
 	forbidden('infrastructure', INFRASTRUCTURE_LAYER.ban, INFRASTRUCTURE_LAYER.reason),
-	forbidden(
-		'presentation',
-		{ groups: ['infrastructure', 'plugin', 'prototypes'] },
-		'presentation/ talks to application/, never to a repository directly. What it gets handed is composed in plugin/.',
-	),
+	PRESENTATION_BLOCK,
 	forbidden(
 		'plugin',
 		{ groups: ['prototypes'] },
@@ -938,19 +1012,7 @@ export default defineConfig([
 		 */
 		files: SRC_EXTENSIONS.map((ext) => `**/src/*.${ext}`),
 		rules: {
-			'no-restricted-imports': [
-				'error',
-				{
-					patterns: [
-						{
-							group: PROTOTYPES_GROUP,
-							message:
-								'src/main.ts is the build entry, so an import of src/prototypes/ here puts design scaffolding in every user’s plugin.',
-						},
-						TS_EXTENSION_BAN,
-					],
-				},
-			],
+			'no-restricted-imports': prototypesOnly('src/main.ts is the build entry, so an import of src/prototypes/ here puts design scaffolding in every user’s plugin.'),
 		},
 	},
 	forbidden(
@@ -974,6 +1036,8 @@ export default defineConfig([
 	// see `APPLICATION_LAYER`'s docblock for what a copy silently costs.
 	networkFree('application/queries', APPLICATION_LAYER.ban, APPLICATION_LAYER.reason),
 	networkFree('infrastructure/logging', INFRASTRUCTURE_LAYER.ban, INFRASTRUCTURE_LAYER.reason),
+	// After `PRESENTATION_BLOCK`, which it has to override for its one file.
+	CREATE_VIEW_APP_DOOR,
 	{
 		// -- invariants that are checked rather than described ----------------------
 		// Everything in src/ EXCEPT the sanctioned writer: `src/infrastructure/obsidian/`

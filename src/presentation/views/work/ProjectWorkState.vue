@@ -7,11 +7,14 @@ import { useDialogStore } from '../../dialogs/dialog-store';
 import NamedCatalogueForm from '../../catalogue/NamedCatalogueForm.vue';
 import { captureDownstreamDialogFocus } from '../downstreamDialogFocus';
 import RecoverySourceAction from '../RecoverySourceAction.vue';
+import UnreadablePlansNotice from '../UnreadablePlansNotice.vue';
 import ProjectWorkToolbar from './ProjectWorkToolbar.vue';
 import ProjectWorkRow from './ProjectWorkRow.vue';
 import { tr } from '../../i18n/strings';
 import { trError } from '../../i18n/toUserMessage';
 import { SAVE_STATE_KEYS } from '../../editor/save-state/save-state';
+import { markPausedOnRefusal } from '../../editor/save-state/with-save-state-tracking';
+import type { NamedCatalogueCreate } from '../../../application/commands/catalogue/NamedCatalogueServices';
 const props = defineProps<{ projectId: string }>();
 const context = useRenovationProjectContext(), dialogs = useDialogStore();
 const read = useProjectWorkRead(context.work, props.projectId), actions = useProjectWorkActions(context, read);
@@ -19,6 +22,8 @@ const filter = ref('all');
 const floors = computed(() => Array.from(new Map(read.data.value?.rows.map(row => [row.planId, row.floor])).entries()));
 const rows = computed(() => read.data.value?.rows.filter(row => filter.value === 'all' || row.planId === filter.value) ?? []);
 const saveLabel = computed(() => tr(actions.save.state === 'saved' && read.error.value ? 'save-state.saved-refresh-needed' : SAVE_STATE_KEYS[actions.save.state]));
+// This surface has no `all-plans-unreadable` arm: the sentence renders on the count alone.
+const plansNotice = computed(() => (read.data.value?.unreadablePlans ? tr('view.project.some-plans-unreadable') : null));
 const recoverySource = computed(() => {
  const id = actions.sourceId.value;
  const needed = (actions.save.state === 'saved' && read.error.value) || actions.save.unrecoveredWrite;
@@ -31,10 +36,11 @@ async function retry(): Promise<void> {
  try { await read.refresh(); } finally { await restoreFocus(); }
 }
 async function createTrade(): Promise<void> {
- if (actions.blocked.value || dialogs.current || !context.work) return;
+ const work = context.work, create = work ? markPausedOnRefusal(actions.save, (input: NamedCatalogueCreate) => work.trades.create(input)) : undefined;
+ if (actions.blocked.value || dialogs.current || !create) return;
  const busy = ref(false);
  await dialogs.openDialog({ kind: 'form', title: tr('trade.add'), component: markRaw(NamedCatalogueForm), busy,
-  props: { kind: 'trade', busy, create: context.work.trades.create } });
+  props: { kind: 'trade', busy, create } });
  if (alive) await read.refresh();
 }
 </script>
@@ -98,12 +104,14 @@ async function createTrade(): Promise<void> {
 				:blocked="recoverySource.blocked"
 			/>
 			<template v-if="read.data.value">
-				<p
-					v-if="read.data.value.unreadablePlans"
-					role="status"
-				>
-					{{ tr('view.project.some-plans-unreadable') }}
-				</p>
+				<!-- No band class: this sentence's siblings above are bare paragraphs, and this
+				     surface has no second arm, so the report is always the one the sentence
+				     names. -->
+				<UnreadablePlansNotice
+					:notice="plansNotice"
+					can-open-report
+					@diagnostics="context.openDiagnosticsReport()"
+				/>
 				<p
 					v-if="read.data.value.roomsIncomplete"
 					role="status"

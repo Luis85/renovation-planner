@@ -24,7 +24,12 @@ export async function restoreSteps(moved: readonly ComposedStep[], forward: bool
 		// Stopping here rather than continuing to compensate the rest is deliberate:
 		// `markUncompensated` sends the editor into reopen-the-floor recovery, so continuing
 		// would write against a floor state this command can no longer vouch for.
-		if (!back.ok) return err(markUncompensated(error));
+		//
+		// Empty, genuinely: `ComposedStep` is opaque (`execute`/`undo`, no id), and this walks
+		// whatever mix of zone/plan/group steps `PasteCommand` or `DeleteSelectionCommand`
+		// composed for one gesture — nothing here can name which of those steps' entities the
+		// failed `back` call left inconsistent.
+		if (!back.ok) return err(markUncompensated(error, []));
 	}
 	return err(error);
 }

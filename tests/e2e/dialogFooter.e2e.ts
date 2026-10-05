@@ -1,7 +1,7 @@
 import { describe, expect } from 'vitest';
 import { test } from './fixture';
 import { createDesignerPage, type ObsidianPage } from './designer';
-import type { PlannerPage } from './helpers';
+import { setWindowSize, windowSize, type PlannerPage } from './helpers';
 import { contrastOf } from './designerParity';
 import { writeEvidence } from './diagnostics';
 import { inBothThemes, TEXT_CONTRAST } from './legibility';
@@ -89,14 +89,13 @@ const submitPaint = (browser: NativeBrowser) =>
 
 /**
  * The window narrowed, both sidebars collapsed, so the leaf holding the dialog is about as wide as
- * an Obsidian sidebar. Obsidian's chromedriver refuses `setWindowSize`; Electron sizes it instead.
+ * an Obsidian sidebar (`setWindowSize` in `helpers.ts`).
  */
 const narrowTo = async (browser: NativeBrowser, width: number): Promise<void> => {
-	await browser.executeObsidian(({ app }, px) => {
+	await browser.executeObsidian(({ app }) => {
 		for (const split of [app.workspace.leftSplit, app.workspace.rightSplit]) split.collapse();
-		const electron = window as unknown as { require(id: string): { getCurrentWindow(): { setSize(w: number, h: number): void } } };
-		electron.require('@electron/remote').getCurrentWindow().setSize(px, 900);
-	}, width);
+	});
+	await setWindowSize(browser, width, 900);
 	await browser.pause(400);
 };
 
@@ -110,14 +109,10 @@ const openPresetDialog = async (browser: NativeBrowser, page: ObsidianPage, ui: 
 
 /**
  * The window made SHORT (sidebars left alone), so even a few-field dialog overflows its panel and the
- * body scrolls. Electron sizes it; Obsidian's chromedriver refuses `setWindowSize`.
+ * body scrolls (`setWindowSize` in `helpers.ts`).
  */
 const shortenTo = async (browser: NativeBrowser, height: number): Promise<void> => {
-	await browser.executeObsidian((_obsidian, px) => {
-		const electron = window as unknown as { require(id: string): { getCurrentWindow(): { getSize(): number[]; setSize(w: number, h: number): void } } };
-		const current = electron.require('@electron/remote').getCurrentWindow();
-		current.setSize(current.getSize()[0], px);
-	}, height);
+	await setWindowSize(browser, (await windowSize(browser)).width, height);
 	await expect.poll(() => browser.execute(() => window.innerHeight)).toBeLessThanOrEqual(height);
 };
 

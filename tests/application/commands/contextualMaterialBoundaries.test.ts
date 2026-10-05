@@ -56,6 +56,6 @@ it('refuses moving a contextual material to another Room during delete resolutio
 	expect(deleted).not.toHaveBeenCalled();
 	expect(recalculated).not.toHaveBeenCalled();
 	expect([...rig.stack.vault.entries]).toEqual(before);
-	expect(expectOk(await sequence.markers.list())).toEqual([]);
+	expect(expectOk(await sequence.markers.list()).markers).toEqual([]);
 	expect(expectOk(await rig.deps.requirements.getById(rig.material.entity.id))).toEqual(rig.material);
 });

@@ -8,7 +8,7 @@ import { mobileEmulation } from './session';
 
 /**
  * `docs/tests/cases/Browse the asset library.md` step 33's colour-magnitude clause, "noticeably"
- * fainter than a real design's mark, in a real Obsidian. The library refuses to mount on mobile, so
+ * fainter than a real design's mark, in a real Obsidian. The library is read-only on mobile since owner ruling 66 (L-43), and this was written against the desktop one, so
  * the case is desktop only.
  */
 const desktop = mobileEmulation ? test.skip : test;

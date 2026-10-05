@@ -24,7 +24,7 @@ import { dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { TFile, TFolder, type FileStats } from 'obsidian';
 import { currencyOf } from '../../src/core/money/Money';
-import { applyFrontmatterEdit, describeFile, fileCacheAnswer, VaultEventBus } from './vault';
+import { applyFrontmatterEdit, describeFile, drainParseQueue, fileCacheAnswer, VaultEventBus } from './vault';
 import { ObsidianPlanRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianProjectRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianZoneRepository';
@@ -410,14 +410,16 @@ class FixtureFileManager {
 	}
 }
 
-class FixtureMetadataCache {
+class FixtureMetadataCache extends VaultEventBus {
 	/**
 	 * The window record lives on the VAULT (`FixtureVaultAdapter.pendingParse`), read from
 	 * here — the same relationship `FakeMetadataCache` has with `FakeVault`. The cache owns no
 	 * state of its own at all, which is what makes staleness unrepresentable rather than
 	 * merely refreshed, and what leaves nothing for the two objects to disagree about.
 	 */
-	constructor(private readonly vault: FixtureVaultAdapter) {}
+	constructor(private readonly vault: FixtureVaultAdapter) {
+		super();
+	}
 
 	/**
 	 * What Obsidian's parse queue last reached for this path — never necessarily the bytes on
@@ -445,9 +447,9 @@ class FixtureMetadataCache {
 		return fileCacheAnswer(behind === undefined ? this.vault.readOrUndefined(file.path) : behind);
 	}
 
-	/** What Obsidian eventually does on its own, once its parse queue drains. */
+	/** What Obsidian eventually does on its own, once its parse queue drains — `changed` included. */
 	catchUp(): void {
-		this.vault.pendingParse.clear();
+		drainParseQueue(this, this.vault, (path) => this.vault.readOrUndefined(path));
 	}
 }
 

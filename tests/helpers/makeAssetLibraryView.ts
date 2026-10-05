@@ -43,6 +43,9 @@ export function defaultAssetLibraryDeps(overrides: Partial<AssetLibraryDeps> = {
 		openAssetNote: () => Promise.resolve('opened'),
 		openProject: () => Promise.resolve('opened'),
 		openDesigner: () => Promise.resolve(),
+		// A no-op: the modal lives in `plugin/` and nothing built here holds a plugin. A case
+		// asserting the door presses overrides this member with its own spy.
+		openDiagnosticsReport: () => undefined,
 		libraryFolder: 'Renovation/Library',
 		...overrides,
 	};

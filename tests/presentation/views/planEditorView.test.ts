@@ -15,6 +15,7 @@ import {
 	type PlanEditorDeps,
 } from '../../../src/presentation/views/PlanEditorView';
 import { EDITOR_RUNTIME, type EditorRuntime } from '../../../src/presentation/editor/runtime';
+import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../../../src/presentation/editor/PlanEditorContext';
 import { t } from '../../../src/presentation/i18n/strings';
 import type { BackgroundVault } from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
@@ -59,6 +60,9 @@ function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 		// The lifecycle tests here dispatch nothing; the refusal commands keep that honest.
 		commands: unavailablePlanEditorCommands(),
 		openNote: vi.fn<(entityId: string) => Promise<'opened' | 'missing' | 'failed'>>().mockResolvedValue('opened'),
+		// Overridden per case where the binding itself is the subject; inert here, like every
+		// other door this fixture only has to make EXIST.
+		openDiagnosticsReport: () => undefined,
 		vault: {
 			getAbstractFileByPath: () => null,
 			getResourcePath: () => '',
@@ -159,16 +163,30 @@ async function sizeShell(view: PlanEditorView): Promise<void> {
  * Only this file's own binding test needs it: everything else here asserts through the DOM,
  * which is the honest instrument for a lifecycle case.
  */
-function runtimeOfView(view: PlanEditorView): EditorRuntime {
+function providedByView<T>(view: PlanEditorView, key: symbol, what: string): T {
 	const app = (view as unknown as { vueApp: { _instance: { provides: Record<symbol, unknown> } } | null }).vueApp;
 	if (app === null) {
 		throw new Error('expected the view to have mounted a Vue app');
 	}
-	const runtime = app._instance.provides[EDITOR_RUNTIME as unknown as symbol];
-	if (runtime === undefined) {
-		throw new Error('expected the mounted tree to have provided an EditorRuntime');
+	const provided = app._instance.provides[key];
+	if (provided === undefined) {
+		throw new Error(`expected the mounted tree to have provided ${what}`);
 	}
-	return runtime as EditorRuntime;
+	return provided as T;
+}
+
+function runtimeOfView(view: PlanEditorView): EditorRuntime {
+	return providedByView<EditorRuntime>(view, EDITOR_RUNTIME as unknown as symbol, 'an EditorRuntime');
+}
+
+/**
+ * The same reach, one key over. `PLAN_EDITOR_CONTEXT` is provided on the APP rather than on
+ * the root component, and a component instance's `provides` inherits from the app's through
+ * the prototype chain — so one accessor answers for both, and a build that stopped providing
+ * the context at all throws here rather than reading `undefined` off a member.
+ */
+function contextOfView(view: PlanEditorView): PlanEditorContext {
+	return providedByView<PlanEditorContext>(view, PLAN_EDITOR_CONTEXT as unknown as symbol, 'a PlanEditorContext');
 }
 
 /** Opening a view that already knows which Plan it shows — the restored-leaf path. */
@@ -529,6 +547,32 @@ describe('mount and unmount', () => {
 		await runtimeOfView(view).openPlanNote();
 
 		expect(openedIds).toEqual([FIXTURE_PLAN.id]);
+	});
+
+	/**
+	 * `PlanEditorContext.openDiagnosticsReport`, at the seam that supplies it: unlike
+	 * `openPlanNote` above the view binds NO id and awaits nothing — it passes
+	 * `deps.openDiagnosticsReport` straight through, because the plugin method behind it owns
+	 * its own fault door. Read off the provided context rather than through `runtimeOfView`,
+	 * because the runtime does not forward this one: `PlanEditorRoot` reads it from the context
+	 * directly, and the context is what this case is about.
+	 *
+	 * The "not at mount" half is the one that would otherwise rot silently: a binding spelled
+	 * `openDiagnosticsReport: this.deps.openDiagnosticsReport()` compiles to `void` at the
+	 * literal and opens a modal on every leaf that opens.
+	 */
+	it('passes openDiagnosticsReport through untouched, and calls it exactly once, never at mount', async () => {
+		const openReport = vi.fn<() => void>();
+		const view = new PlanEditorView(new FakeLeaf() as never, { ...deps(), openDiagnosticsReport: openReport });
+		openViews.push(view);
+		await view.setState({ planId: FIXTURE_PLAN.id }, {} as never);
+		await view.onOpen();
+
+		expect(openReport).not.toHaveBeenCalled();
+
+		contextOfView(view).openDiagnosticsReport();
+
+		expect(openReport).toHaveBeenCalledTimes(1);
 	});
 
 	/**

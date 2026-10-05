@@ -1,5 +1,7 @@
 # Project experience implementation record
 
+> **Historical record — status added 2026-10-02.** This records the build and date it names. It is not acceptance of a beta release candidate; that status lives only in [first beta readiness](../../../releases/first-beta-readiness/README.md).
+
 Baseline: `d00e9993` on `origin/main`, 2026-09-05. Topic: `codex/project-experience`.
 
 The implementation follows WP-00–05 as one project-entry increment. The difference from the reconciliation baseline `7b6bb2b2` consists of the design documentation commit, not changed runtime contracts. No repository AGENTS.md or .codex workflow directory was present. PRODUCT.md, the SDD, the workspace PRD, and the repository gate in CLAUDE.md were reconciled with the selected scope.

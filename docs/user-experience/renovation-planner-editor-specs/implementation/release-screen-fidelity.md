@@ -1,5 +1,7 @@
 # First usable editor release: screen and interaction audit
 
+> **Historical record — status added 2026-10-02.** This records the build and date it names. It is not acceptance of a beta release candidate; that status lives only in [first beta readiness](../../../releases/first-beta-readiness/README.md).
+
 Baseline: `7d4bc381` (origin/main inspected 2026-09-08). This is a new release work record, separate from PR #93's historical closeout. Earlier completion-matrix, implementation-status and RESUME entries identify evidence and accepted boundaries; their dated open-work prose is not a fresh missing-feature inventory.
 
 Repository follow-up on 2026-09-08: the parent revalidated PR #93 at `56b4b906`, still open

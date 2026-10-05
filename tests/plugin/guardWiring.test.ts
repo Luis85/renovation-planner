@@ -35,6 +35,20 @@ import { planEditorDeps } from '../../src/plugin/planEditorDeps';
 import { createEditorClipboard } from '../../src/presentation/editor/clipboard/editorClipboard';
 import { memoryDeviceStorage } from '../helpers/deviceStorage';
 import { VAULT_EXCEPTION_MAPPER, guardCalibratePlan } from '../../src/plugin/guardedServices';
+import { guardZoneEdit } from '../../src/plugin/guardedZoneEdit';
+import { SessionWriteLedger } from '../../src/application/editor/WriteLedger';
+import { EditZoneDetailsCommand } from '../../src/application/commands/zone/EditZoneDetails';
+import { RenameZoneCommand } from '../../src/application/commands/zone/RenameZone';
+import { ReversibleRenameZoneCommand } from '../../src/application/commands/zone/reversible-rename-zone-command';
+import {
+	WriteIncidentRegistry,
+	installWriteIncidentRegistry,
+} from '../../src/application/incidents/WriteIncidentRegistry';
+import { InMemoryWriteIncidentStore } from '../helpers/InMemoryWriteIncidentStore';
+import { createRepositoryStack } from '../helpers/vault';
+import { makePlan, makeProject, makeZone } from '../helpers/entities';
+import { expectFound, expectOk } from '../helpers/domain';
+import { ok } from '../../src/core/result/Result';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { installObsidianDom } from '../helpers/dom';
 import { lines, recorder, resetRecorder } from '../helpers/logger';
@@ -190,5 +204,199 @@ describe('the calibration transaction leaves the composition root guarded', () =
 		expect(result.ok).toBe(false);
 		expect(result.ok === false && result.error.code).toBe('vault.unexpected-failure');
 		expect(lines.map((line) => line.event)).toEqual(['command.calibratePlan.undo.failed']);
+	});
+});
+
+/**
+ * The Inspector's two per-EDIT zone writes, guarded the same way and for the same reason.
+ *
+ * `EditZoneDetailsCommand` and `ReversibleRenameZoneCommand` were built in
+ * `presentation/editor/inspector-wiring.ts` straight against the raw `ZoneRepository` port
+ * until BP-02 slice 4 — ADR-0034's Coverage paragraph names both by file and line as outside
+ * the `guardCommand` chokepoint, which is tracker limitation L-05. Like `calibratePlan` they
+ * hold one edit's inverse, so they cross as FACTORIES and are guarded per call.
+ *
+ * BOTH doors of each, because `undo()` is the door ADR-0034's own Consequences correction
+ * records as the one every other reversible adapter still leaves open, and because an
+ * `execute` guarded beside a raw `undo` is a wrapper by every structural test anyone can
+ * write — the shape `guardCategory.test.ts`'s header exists to refuse.
+ *
+ * The door list is TWO per adapter, measured rather than assumed — and it takes THREE
+ * measurements, because the single grep an earlier version of this header quoted could not see
+ * the whole of what the sentence beneath it claimed. All run 2026-09-17 over
+ * `src/application/commands/zone/EditZoneDetails.ts` and
+ * `src/application/commands/zone/reversible-rename-zone-command.ts`:
+ *
+ * 1. Members indented exactly one level, with a literal tab in the pattern (`grep -E` does not
+ *    read `\t` as one, which is why an earlier spelling printed nothing and would have been a
+ *    false "no second door"): `grep -nE "^<TAB>[a-z]" <both files>` printed 14 lines — nine for
+ *    `EditZoneDetails.ts` (four `EditZoneDetailsInput` fields, `private generation`, the
+ *    constructor, `execute`, `undo`, `private async dispatch`) and five for the rename adapter
+ *    (the same, minus the input fields). In what it prints, exactly `execute()` and `undo()`
+ *    are public.
+ * 2. Neither class has a base, so there is no inherited member for (1) to have missed:
+ *    `grep -nE "^export class .*\bextends\b" <both files>` printed nothing (exit 1).
+ * 3. Neither declares an accessor, which (1) would have printed looking like a method:
+ *    `grep -nE "\b(get|set)[[:space:]]+[a-zA-Z_]" <both files>` printed nothing (exit 1).
+ *
+ * What none of the three can see is a member indented other than one tab. Neither file has one
+ * — read whole — but that is a reading rather than a check, and this header says so rather than
+ * letting the greps be quoted for more than they cover.
+ */
+describe("the Inspector's zone edits leave the composition root guarded", () => {
+	const ZONE_ID = 'zone-1' as never;
+	const EXPECTED = { revision: 1, observed: 'observed-1' as never };
+	const DETAILS_INPUT = {
+		zoneId: ZONE_ID,
+		forward: { name: 'Kitchen', zoneType: 'Room' as const },
+		inverse: { name: 'Küche', zoneType: 'Room' as const },
+		expected: EXPECTED,
+	};
+	const RENAME_INPUT = { zoneId: ZONE_ID, name: 'Kitchen', inverse: 'Küche', expected: EXPECTED };
+
+	function editorCommands() {
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
+		const persistence = root.persistence;
+		if (persistence === null) throw new Error('expected a composed persistence stack');
+		const deps = planEditorDeps(root, {} as never, {} as never, createEditorClipboard(), memoryDeviceStorage());
+		return { persistence, deps };
+	}
+
+	it.each([
+		['editZoneDetails', 'execute', 'command.editZoneDetails.failed'],
+		['editZoneDetails', 'undo', 'command.editZoneDetails.undo.failed'],
+		['renameZone', 'execute', 'command.renameZone.failed'],
+		['renameZone', 'undo', 'command.renameZone.undo.failed'],
+	] as const)('turns a thrown fault at %s#%s into a resolved refusal under its own event name', async (factory, door, event) => {
+		resetRecorder();
+		const { persistence, deps } = editorCommands();
+		detonate(persistence.zones);
+
+		const transaction = factory === 'editZoneDetails'
+			? deps.commands.editZoneDetails(new SessionWriteLedger(), DETAILS_INPUT)
+			: deps.commands.renameZone(new SessionWriteLedger(), RENAME_INPUT);
+		const result = await (door === 'execute' ? transaction.execute() : transaction.undo());
+
+		expect(result.ok).toBe(false);
+		expect(result.ok === false && result.error.code).toBe('vault.unexpected-failure');
+		expect(lines.map((line) => line.event)).toEqual([event]);
+	});
+
+	/**
+	 * The regression that matters most, since the cheapest way to pass every case above is to
+	 * refuse unconditionally: with no incident open the wrapper CALLS the transaction and hands
+	 * its answer back untouched, at both doors.
+	 */
+	it('passes a clean write straight through at both doors', async () => {
+		resetRecorder();
+		const called: string[] = [];
+		const guarded = guardZoneEdit(
+			{
+				execute: () => { called.push('execute'); return Promise.resolve(ok('wrote' as const)); },
+				undo: () => { called.push('undo'); return Promise.resolve(ok('no-write' as const)); },
+			},
+			{ execute: 'test.execute.failed', undo: 'test.undo.failed' },
+			recorder,
+		);
+
+		expect(await guarded.execute()).toEqual(ok('wrote'));
+		expect(await guarded.undo()).toEqual(ok('no-write'));
+		expect(called).toEqual(['execute', 'undo']);
+		expect(lines).toEqual([]);
+	});
+
+	/**
+	 * The same regression one layer deeper, JOINED: the guarded facade, over the real command,
+	 * over a real Markdown/sidecar repository, with a real registry installed and nothing open
+	 * in it — one successful edit travelling the whole path the plugin ships.
+	 *
+	 * **Why it is worth a case of its own.** Three cases held that property between them and
+	 * none of them joined it. The case above proves the wrapper passes an `ok` through, over a
+	 * FAKE command that touches no vault; `tests/plugin/writeIncidentWiring.test.ts` proves the
+	 * Inspector's switch reaches these factories, over a MISSING zone that never gets past the
+	 * repository's own `zone.zone-not-found`; and
+	 * `tests/presentation/editor/roomNamingPersistence.test.ts` proves the command writes, over
+	 * the RAW composition `inspector-wiring.ts` no longer builds. Whether some fourth case
+	 * elsewhere in `tests/` also joins all three is not something this docblock has measured —
+	 * what is measured is the three reds below, which is the claim that matters here.
+	 *
+	 * The registry is INSTALLED rather than left null on purpose: a null registry skips the
+	 * gate's arm altogether (`guardCommand` tests `incidents !== null` first), so the open-gate
+	 * arm would go undriven over a real write.
+	 *
+	 * Composed exactly as `planEditorDeps` composes the two — same constructor arguments, same
+	 * event names — because what is under test is that composition and not `guardZoneEdit` in
+	 * the abstract. `planEditorDeps` itself is not called here: it needs a `CompositionRoot`
+	 * over an Obsidian `Vault`, and this stack IS the repository half of one.
+	 *
+	 * **Watched red at each of the three links, 2026-09-17**, because a joined case that is
+	 * secretly joined to nothing looks exactly like a passing one:
+	 *
+	 * - recording an incident on the installed registry before the first door →
+	 *   `expected { ok: false, code: 'write-incident.writes-paused' } to equal ok('wrote')`.
+	 *   The GUARD is in the path.
+	 * - `detonate(stack.zones)` after seeding → `Error: the vault exploded`. The real
+	 *   REPOSITORY is in the path.
+	 * - the rename adapter swapped for `{ execute: () => ok('wrote'), undo: … }` →
+	 *   `expected 'Kitchen' to be 'Lounge'`. The name assertions read what the COMMAND wrote,
+	 *   not what it returned.
+	 */
+	it('writes and reverts a real zone through both guarded doors of both factories', async () => {
+		resetRecorder();
+		const stack = createRepositoryStack();
+		const project = makeProject();
+		const plan = makePlan({ projectId: project.id });
+		expectOk(await stack.projects.save(project, 'absent'));
+		expectOk(await stack.plans.save(plan, 'absent'));
+		const zone = makeZone({ projectId: project.id, planId: plan.id, name: 'Kitchen' });
+		expectOk(await stack.zones.save(zone, 'absent'));
+		const saved = async () => expectFound(await stack.zones.getById(zone.id));
+		const nameNow = async () => (await saved()).entity.name;
+
+		installWriteIncidentRegistry(new WriteIncidentRegistry(new InMemoryWriteIncidentStore(), recorder));
+		try {
+			const rename = guardZoneEdit(
+				new ReversibleRenameZoneCommand(new RenameZoneCommand(stack.zones, stack.events), new SessionWriteLedger(), {
+					zoneId: zone.id,
+					name: 'Lounge',
+					inverse: 'Kitchen',
+					expected: (await saved()).version,
+				}),
+				{ execute: 'command.renameZone.failed', undo: 'command.renameZone.undo.failed' },
+				recorder,
+			);
+			expect(await rename.execute()).toEqual(ok('wrote'));
+			expect(await nameNow()).toBe('Lounge');
+			expect(await rename.undo()).toEqual(ok('wrote'));
+			expect(await nameNow()).toBe('Kitchen');
+
+			const details = guardZoneEdit(
+				new EditZoneDetailsCommand(stack.zones, stack.events, new SessionWriteLedger(), {
+					zoneId: zone.id,
+					// Same zone TYPE both ways: `Zone.withDetails` refuses a Room/Area exchange
+					// outright (`zone.category-change`), so a type change here would test the
+					// domain rule rather than the chain this case exists to join. The `locked`
+					// flag is the second field, so the edit is not a rename in disguise.
+					forward: { name: 'Utility', zoneType: 'Room' as const, locked: true },
+					inverse: { name: 'Kitchen', zoneType: 'Room' as const, locked: false },
+					expected: (await saved()).version,
+				}),
+				{ execute: 'command.editZoneDetails.failed', undo: 'command.editZoneDetails.undo.failed' },
+				recorder,
+			);
+			expect(await details.execute()).toEqual(ok('wrote'));
+			expect(await nameNow()).toBe('Utility');
+			expect((await saved()).entity.locked).toBe(true);
+			expect(await details.undo()).toEqual(ok('wrote'));
+			expect(await nameNow()).toBe('Kitchen');
+			expect((await saved()).entity.locked).toBe(false);
+		} finally {
+			// Module-level state, the same rule `tests/application/errors/writeIncidentGate.test.ts`
+			// states: a global this case installs is a global this case removes, on the failing
+			// path too.
+			installWriteIncidentRegistry(null);
+		}
+
+		expect(lines).toEqual([]);
 	});
 });

@@ -1,5 +1,7 @@
 # Wall rotation and hosted openings
 
+> **Historical record — status added 2026-10-02.** This records the build and date it names. It is not acceptance of a beta release candidate; that status lives only in [first beta readiness](../../../releases/first-beta-readiness/README.md).
+
 Owner: wall rotation subagent, `codex/editor-release-wall-rotation`, initial evidence
 `43fd968bf2aedd3e7b1c9dfa1ae57d470fff1880` (2026-09-08). User expanded the release scope to
 every free spatial item and explicitly chose wall rotation with hosted openings. PR #94's

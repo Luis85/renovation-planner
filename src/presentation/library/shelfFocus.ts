@@ -34,10 +34,10 @@
  * rows pays for all of them on every `↑`/`↓` in a real browser, where each call can force style
  * resolution. §5.3 is the section that cares about that order of cost; nothing here measures it,
  * and it is written down so the next author meets it as a known price rather than as a stutter.
- * The selector is `button`, which is a RULE rather than a list of the two components that ship
- * one — and it does not exclude a `disabled` button, of which this region has none: `focus()`
- * on one silently does nothing, which reads as a dead arrow key, so a control added here that
- * can be disabled owes this filter a second condition.
+ * The selector is `button:not(:disabled)`, which is a RULE rather than a list of the components
+ * that ship one. The `:disabled` half arrived with the Grid's `Create your own` card, drawn
+ * disabled on a read-only library (L-43): `focus()` on a disabled button silently does nothing,
+ * so a stop on it swallowed the arrow key and focused nothing — a dead key.
  *
  * **What no walk here can report is genuine LAYOUT.** `offsetParent` answers `null` for every
  * element in jsdom, so a manager built on it would filter out every row and the arrow keys
@@ -75,7 +75,7 @@ export function isLaidOut(el: HTMLElement, root: HTMLElement | null): boolean {
  * walked around.
  */
 export function focusStops(region: HTMLElement): readonly HTMLElement[] {
-	return [...region.querySelectorAll<HTMLElement>('button')].filter((el) => isLaidOut(el, region));
+	return [...region.querySelectorAll<HTMLElement>('button:not(:disabled)')].filter((el) => isLaidOut(el, region));
 }
 
 /**

@@ -1,4 +1,4 @@
-import { inject, onBeforeUnmount, provide, reactive, ref, watch, type InjectionKey, type Ref } from 'vue';
+import { computed, inject, onBeforeUnmount, provide, reactive, ref, watch, type InjectionKey, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger, type WriteLedger } from '../../application/editor/WriteLedger';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
@@ -29,6 +29,8 @@ import { designerCandidateSupply } from './grid/designerGrid';
 import { createEditShape, createWriteChain, type EditShape } from './selection/editShape';
 import { createPartView, type PartView } from './parts/partView';
 import { withStateRefresh, type RefreshedHistory } from '../editor/tools/with-state-refresh';
+import { withStaleGate } from '../editor/tools/with-stale-gate';
+import { withIncidentGate } from '../editor/tools/with-incident-gate';
 import { wrapDispatcher } from '../editor/tools/wrap-dispatcher';
 import { useSaveStateStore } from '../editor/save-state/save-state-store';
 import { withSaveStateTracking } from '../editor/save-state/with-save-state-tracking';
@@ -495,15 +497,71 @@ function writingFor(
 }
 
 /**
- * The leaf's dispatcher, decorated in the order the two decorators require.
+ * This leaf's whole dispatcher chain, and the SAME links in the SAME order the Plan Editor's
+ * runtime composes (`editor/runtime.ts`, whose own header spells it): `CommandHistory` →
+ * `withStateRefresh` → `withSaveStateTracking` → `withStaleGate` → `withIncidentGate` (both
+ * AFTER the tracker, so a refusal opens no saving batch; both BEFORE `wrapDispatcher`, so the
+ * undo/redo flags still refresh) → `wrapDispatcher`. The incident gate is OUTSIDE the stale
+ * gate, so a paused vault answers `WRITES_PAUSED_CODE` rather than `STALE_WRITE_REFUSED`,
+ * whose copy tells a user their last read-back failed — which is not what happened.
+ * `withSaveStateTracking` sits OUTSIDE the refresh decorator so `Saved` never appears while the
+ * canvas still shows the pre-command state; the order is the behaviour, which is why the links
+ * stay together here rather than being spelled at the call.
  *
- * `withSaveStateTracking` sits OUTSIDE the refresh decorator, so `Saved` never appears while the
- * canvas still shows the pre-command state, and INSIDE `wrapDispatcher`, which is the one object a
- * leaf hands out. Extracted for `buildRuntime`'s 100-line budget; the order is the behaviour and is
- * why the three lines stay together rather than being inlined at the call.
+ * Extracted rather than spelled inline for `calibrationDeps`' reason: `buildRuntime` sits AT
+ * `max-lines-per-function`'s 100-line budget, and the gate does not fit beside it.
+ *
+ * **Two gates, and they answer different questions — the split is BP-02's L-16.**
+ * `withIncidentGate` is the outer one and asks `activeWriteIncidentRegistry()` LIVE at every
+ * dispatch; `withStaleGate`'s `unsafeHistory` reads `saveState.unrecoveredWrite`, which is
+ * `leafOwn || vaultPaused`.
+ *
+ * **The store predicate alone was tried first and is not sufficient, measured rather than
+ * argued.** `vaultPaused` is seeded from the registry ONCE, while the store is created, and is
+ * set afterwards only by `withSaveStateTracking` on a refusal THIS leaf received. A probe
+ * asserting a sentinel so the values print: a store built while an incident is open reads
+ * `unrecoveredWrite: true`; a store built clean reads `false` both before AND after an incident
+ * is opened behind it. So the sequence L-16 names — a gesture lands, a peer leaf half-writes the
+ * vault, the user reaches straight for Undo with no write of their own in between — was NOT
+ * refused by a store-backed gate, on this surface or on the Plan Editor's. The live read is what
+ * closes it, and `designerIncidentGate.test.ts` carries both sequences as separate cases.
+ *
+ * It has to be refused HERE and cannot be refused underneath:
+ * `ReversibleAssetDesignCommands`' inverses write the captured snapshot back through the RAW
+ * `assets.save` / `sidecar.write` ports, and neither passes `guardCommand` — the gap
+ * `designerIncidentRefusal.test.ts` measured, and still measures at that level, since an inverse
+ * called DIRECTLY bypasses this dispatcher entirely.
+ *
+ * **`isStale` is `() => false`, and the honest reason is that the fact EXISTS and is
+ * deliberately left unwired — not that this surface has no such fact.** `assetDesignStore`
+ * carries a `stale` ref, set when a refresh fails over content already on screen, and
+ * `AssetDesignerRoot.vue` reads it: `staleAfterRefresh` draws the `designer.refresh-failed`
+ * notice, with its `Try again`, from it. (A grep for `\.stale` under `src/presentation/designer/`
+ * finds prose only — the reader arrives through `storeToRefs` destructuring, so that grep is the
+ * wrong instrument for this question, not evidence of no reader.) Refusing a NEW write on it is
+ * the decision AD18-R13 took the other way — the context's `writesBlocked` below carries the
+ * ruling — and it would also answer with `STALE_WRITE_REFUSED`, whose copy names a failed
+ * read-back, where the guarded doors underneath already answer `WRITES_PAUSED_CODE` correctly.
+ * `run` is therefore not gated here, and is gated at every guarded door beneath.
  */
-function dispatchingFor(history: CommandHistory, refresh: () => Promise<void>): ReturnType<typeof wrapDispatcher> {
-	return wrapDispatcher(history, withSaveStateTracking(withStateRefresh(history, refresh), useSaveStateStore()));
+function designerDispatcher(
+	history: CommandHistory,
+	refresh: () => Promise<void>,
+	saveState: ReturnType<typeof useSaveStateStore>,
+): Pick<DesignerRuntime, 'dispatcher' | 'canUndo' | 'canRedo'> {
+	const tracked = withSaveStateTracking(withStateRefresh(history, refresh), saveState);
+	const unsafeHistory = (): boolean => saveState.unrecoveredWrite;
+	const stepping = wrapDispatcher(history, withIncidentGate(withStaleGate(tracked, () => false, unsafeHistory)));
+	// The AFFORDANCE half, gated on the same fact and in the same spelling `editor/runtime.ts`
+	// uses for its own `canUndo`/`canRedo`: the toolbar's Undo and Redo go disabled on exactly
+	// what the dispatcher refuses on, so a user is never offered a gesture that would be
+	// declined — and `STALE_WRITE_REFUSED`'s wrong-subject copy is reached only by a caller
+	// that bypasses the button.
+	return {
+		dispatcher: stepping.dispatcher,
+		canUndo: computed(() => !unsafeHistory() && stepping.canUndo.value),
+		canRedo: computed(() => !unsafeHistory() && stepping.canRedo.value),
+	};
 }
 
 /**
@@ -516,9 +574,13 @@ function dispatchingFor(history: CommandHistory, refresh: () => Promise<void>): 
  * and the snap service reads this leaf's own Snap choice at every call — the grid reaches it only
  * while this leaf's grid is SHOWN (snapping spec §2.4).
  *
+ * The save-state store is here for the same SETUP reason, and is read twice: `designerDispatcher`
+ * gates Undo and Redo on its `unrecoveredWrite`, and the tool context's `writesBlocked` answers with it.
+ *
  * Extracted for `buildRuntime`'s 100-line budget.
  */
 function leafStores(): {
+	readonly saveState: ReturnType<typeof useSaveStateStore>;
 	readonly editor: ReturnType<typeof useEditorStore>;
 	readonly selection: ReturnType<typeof useSelectionStore>;
 	readonly workspace: ReturnType<typeof useWorkspaceStore>;
@@ -527,6 +589,7 @@ function leafStores(): {
 } {
 	const editor = useEditorStore();
 	return {
+		saveState: useSaveStateStore(),
 		editor,
 		selection: useSelectionStore(),
 		workspace: useWorkspaceStore(),
@@ -553,7 +616,7 @@ function leafStores(): {
  * named door and, since W20-A, a member of `DesignerRuntime` rather than a local. Written
  * from `grep -rn "refresh" src/presentation/designer/runtime.ts` plus `grep -rn
  * "runtime\.refresh" src/presentation/designer/`, after the edit that added the third: the
- * post-command read-back (`dispatchingFor` below), the cross-leaf subscription at the foot of
+ * post-command read-back (`designerDispatcher` above), the cross-leaf subscription at the foot of
  * `buildRuntime`, and `AssetDesignerRoot`'s `onRetry` — the stale notice's `Try again`, which
  * AD18-R13 rules this surface owes.
  *
@@ -591,7 +654,8 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	const store = useAssetDesignStore();
 	const history = new CommandHistory();
 	const { hydrate, refresh } = readingFor(context, store);
-	const { dispatcher, canUndo, canRedo } = dispatchingFor(history, refresh);
+	const { saveState, editor, selection, workspace, viewportAdapter, snapService } = leafStores();
+	const { dispatcher, canUndo, canRedo } = designerDispatcher(history, refresh, saveState);
 
 	/**
 	 * The ONE cast in this file, and the shape `presentation/editor/runtime.ts` already draws
@@ -604,8 +668,6 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	 * leaf is designing.
 	 */
 	const assetId = context.assetId as AssetId;
-
-	const { editor, selection, workspace, viewportAdapter, snapService } = leafStores();
 
 	const renderState = reactive(new RenderState());
 	// Four view preferences and nothing else, here rather than in `writingFor` because none of
@@ -648,36 +710,50 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			writeLedger: geometryLedger,
 			renderState,
 			subject: { id: assetId, calibration: store.design?.calibration ?? null },
-			// The Plan Editor's trust path (design spec §2.2) has no counterpart here: nothing
-			// under `src/presentation/designer/` READS this, so every tool `registerDesignerTools`
-			// registers is answered `false` by a member none of them asks for.
-			//
-			// **The claim is about this directory and says nothing about the Plan Editor's**,
-			// which is the W18-C fix round's finding: the first version of this comment named
-			// `SelectTool` as the only reader of `context.writesBlocked()` anywhere, and
-			// `grep -rn "writesBlocked" src/` refutes that — `ElementMove`, `ElementResize`,
-			// `ElementRotation`, `LabelMove` and `OpeningResize` read it off an `EditorContext`
-			// too, all of them Plan-Editor-owned gesture helpers `SelectTool` composes. The
-			// narrower sentence is the one this file needs and the one it can hold: the same grep
-			// over `src/presentation/designer/` prints three lines, all of them in THIS file — two
-			// lines of this very comment, and the member below — so do not read a count off it as
-			// READS. There are none.
+			// **Two halves of the Plan Editor's trust path (design spec §2.2), and only one of them
+			// is here.** The STALE half is refused on this surface by decision; the INCIDENT half is
+			// carried.
 			//
 			// **A re-read here CAN go stale**, and this comment claimed otherwise until W18-C:
 			// `assetDesignStore.stale` is set on a keep-on-failure re-read and is drawn by
 			// `AssetDesignerRoot` — as a strip, and since W18-C as the save state's own
-			// `Saved · refresh needed` qualifier. What stays true is the sentence below:
-			// nothing on this surface blocks a write on that account.
-			//
-			// **Whether it SHOULD was the open question W18-C reported, and AD18-R13 has since
-			// ANSWERED it: no.** `stale` here is set by a failed READ and never by a failed
-			// write, so the design on screen is still exactly what the user drew; blocking
-			// would freeze a valid surface over a vault hiccup and take a gesture away from
-			// somebody mid-drawing. The same ruling refuses the Plan Editor's hidden
-			// `pausedReason` sentence WITH the block — with nothing paused, its id would be
+			// `Saved · refresh needed` qualifier. **Whether it should block was the open question
+			// W18-C reported, and AD18-R13 has since ANSWERED it: no.** `stale` here is set by a
+			// failed READ and never by a failed write, so the design on screen is still exactly what
+			// the user drew; blocking would freeze a valid surface over a vault hiccup and take a
+			// gesture away from somebody mid-drawing. The same ruling refuses the Plan Editor's
+			// hidden `pausedReason` sentence WITH the block — with nothing paused, its id would be
 			// named by no element — and gives the stale notice a `Try again` instead, which
-			// `refresh` above is the door for. So this member stays `false` by decision.
-			writesBlocked: () => false,
+			// `refresh` above is the door for. So nothing here reads `stale`.
+			//
+			// **An open write incident is a different fact, and vault-wide** (ADR-0034):
+			// `save-state-store.ts` seeds its `vaultPaused` ref — the vault half of this gate,
+			// exported as `vaultWritesPaused`, and NOT `unrecoveredWrite`, which is a computed OR
+			// that nothing writes — from `activeWriteIncidentRegistry()` at setup, and sets that same
+			// ref on the gate's own refusal code through `markVaultPaused`. This leaf mounts that
+			// same store (`leafStores`). AD18-R13's ruling is about `stale`, which is not this fact.
+			//
+			// **What this value IS: correct, and read by NOTHING on this surface today.** Each TOOL
+			// asks the context, and no tool this surface registers does. Re-measured when `main`'s
+			// asset-designer round was merged: `grep -rn "writesBlocked()" src/presentation/editor/`
+			// prints **21** call sites in SEVEN modules — `tools/select-tool.ts`,
+			// `tools/previewed-drag.ts`, `elements/ElementMove.ts`, `elements/ElementResize.ts`,
+			// `elements/ElementRotation.ts`, `labels/LabelMove.ts`, `structure/OpeningResize.ts` —
+			// and `registerDesignerTools` builds `DesignerSelectTool`, `DrawPolygonTool`,
+			// `DrawDetailTool`, `DrawLineTool`, `SetAnchorTool`, `SetFacingTool` and `CalibrateTool`,
+			// none of which is among them. That grep is SCOPED to `editor/` deliberately: an unscoped
+			// one over `src/` counts this comment, which spells the call it is counting — the trap
+			// `CLAUDE.md` records for `grep -c "registerView"`.
+			//
+			// What the incident half DOES close is Undo and Redo: `designerDispatcher` refuses them
+			// on this same `unrecoveredWrite`, and `canUndo`/`canRedo` disable the toolbar's two
+			// controls — and `AssetDesignerRoot`'s history shortcut, which asks `canUndo`/`canRedo`
+			// too — on it. Every FORWARD write (no tool, no inspector field and no preset form asks
+			// this member) is refused by the guarded doors underneath with nothing on screen saying
+			// so first. The honest value is here anyway because a hard-coded `false` is a lie waiting
+			// to be read by the first tool that asks. `tests/presentation/designer/designerIncidentGate.test.ts`
+			// carries that measurement in a case name.
+			writesBlocked: () => saveState.unrecoveredWrite,
 		}),
 	);
 	/**

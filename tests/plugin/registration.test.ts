@@ -128,9 +128,8 @@ describe('what onload registers', () => {
 			// and both reach `openDiagnosticsReport`. Pinned here as an id like the rest,
 			// because a user's hotkey binds to this string.
 			'show-diagnostics-report',
-			// §2's fourth registration's own command. A `checkCallback` since AD13's mobile gate,
-			// and still never gated on the active NOTE — the precondition is the device, which no
-			// vault can change, so it is absent from a mobile palette and present everywhere else.
+			// §2's fourth registration's own command. A plain callback on every platform: AD13's
+			// mobile gate was undone by owner ruling 66, since the library is read-only on a phone (L-43).
 			'open-asset-library',
 			// Task 9, §5's region 7 and the locked `Mod+N` decision: a real command rather than
 			// a pane-local key, so Obsidian owns the binding and the palette can find it.
@@ -143,6 +142,9 @@ describe('what onload registers', () => {
 			// Scaffolding, and it still has to obey the id rule — a user who binds a hotkey to
 			// it has bound it to this string. `sampleProject.ts` names what deletes it.
 			'create-sample-project',
+			// Owner rulings 47 and 49: the getting-started guide. A plain callback gated on nothing —
+			// reading it needs no settings, no index and no desktop.
+			'open-help',
 		]);
 	});
 
@@ -218,7 +220,7 @@ describe('both ways in', () => {
 	it('opens the asset library from its own command', async () => {
 		const command = plugin.commands.find((c) => c.id === 'open-asset-library');
 
-		command?.checkCallback?.(false);
+		command?.callback?.();
 		await settle();
 
 		expect(workspace.getLeavesOfType(ASSET_LIBRARY_VIEW)).toHaveLength(1);
@@ -237,7 +239,7 @@ describe('both ways in', () => {
 		});
 		const command = plugin.commands.find((c) => c.id === 'open-asset-library');
 
-		command?.checkCallback?.(false);
+		command?.callback?.();
 		await settle();
 
 		const logged = lines.find((line) => line.event === 'view.asset-library.reveal-failed');

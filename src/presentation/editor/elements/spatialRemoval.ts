@@ -51,7 +51,8 @@ export function createSpatialRemoval(context: PlanEditorContext, runtime: Pick<E
  }
  async function approve(baseline: RenovationBaseline, selected: readonly string[], zoneIds: readonly string[], proposal: Proposal): Promise<boolean> {
   const ids = [...zoneIds, ...proposal.ids];
-  const [materials, referenced] = await Promise.all([removalSources(context, ids), referencedZones(zoneIds)]);
+  // A selected Room's own Requirements are `referencedZones`' to name (ruling 61); materials count for the structure.
+  const [materials, referenced] = await Promise.all([removalSources(context, proposal.ids), referencedZones(zoneIds)]);
   if (!alive) return false;
   if (!materials.ok) { notifyOperationFailure(materials.error); return false; }
   if (!referenced.ok) { notifyOperationFailure(referenced.error); return false; }

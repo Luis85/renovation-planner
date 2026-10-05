@@ -21,6 +21,10 @@ import type { Query } from '../../application/queries/Query';
 import type { NewAssetDialogDeps } from '../views/newAssetDialog';
 import type { CalibratePlanInput } from '../../application/commands/plan/ReversibleCalibratePlan';
 import type { CreateZoneInput } from '../../application/commands/zone/CreateZone';
+import type { EditZoneDetailsInput } from '../../application/commands/zone/EditZoneDetails';
+import type { RenameZoneInput } from '../../application/commands/zone/RenameZone';
+import type { WriteLedger } from '../../application/editor/WriteLedger';
+import type { UndoableCommand } from './tools/undoable-command';
 import type { MoveSpatialObjectInput, MoveSpatialObjectResult } from '../../application/commands/zone/MoveSpatialObject';
 import type { DeleteZoneInput } from '../../application/commands/zone/DeleteZone';
 import type { GetZoneInspectorInput, ZoneInspectorFields } from '../../application/queries/GetZoneInspector';
@@ -147,6 +151,29 @@ export interface PlanEditorCommandServices {
 	 */
 	readonly calibratePlan: () => CalibratePlanTransaction;
 	/**
+	 * The Inspector's two per-EDIT zone writes, factories for exactly the reason
+	 * `calibratePlan` is one: each adapter holds one edit's inverse and its own generation, so
+	 * the editor makes one per edit rather than sharing an instance two edits would fight over.
+	 * They take the leaf's `WriteLedger` as an argument because that is per-leaf state the
+	 * composition root has none of.
+	 *
+	 * `UndoableCommand` rather than a second name for the same pair of doors: that is already
+	 * what `CommandHistory` takes and what `toCommand` answers, and both adapters satisfy it
+	 * structurally.
+	 *
+	 * **What crosses here is a GUARDED facade, never the adapter class** (BP-02 slice 4,
+	 * tracker limitation L-05). `inspector-wiring.ts` used to construct both against `zones`
+	 * below, so neither passed through `guardCommand` — ADR-0034's Coverage paragraph names
+	 * both — which left an incident raised anywhere else in the vault refusing every other
+	 * editor write while these two went on writing. `src/plugin/planEditorDeps.ts` composes
+	 * them through `guardZoneEdit`, both doors each.
+	 */
+	readonly editZoneDetails: (ledger: WriteLedger, input: EditZoneDetailsInput) => UndoableCommand;
+	readonly renameZone: (
+		ledger: WriteLedger,
+		input: RenameZoneInput & { readonly inverse: string },
+	) => UndoableCommand;
+	/**
 	 * Design slice 10's Requirements panel: the shared, stateless collaborators the
 	 * Inspector's reversible adapters are constructed from PER EDIT — the same bargain the
 	 * header states for `calibratePlan`, one seam over. The repository ports and the lock
@@ -227,6 +254,12 @@ function noop(): void {
 	// A logger member that records nothing — see `requirementEdits.logger` below.
 }
 
+/** Both doors of one zone edit, refusing the way every other member of this bundle does. */
+function refusingZoneEdit(): UndoableCommand {
+	const refuse = (): Promise<DispatchResult> => Promise.resolve(err(persistenceFailure()));
+	return { execute: refuse, undo: refuse };
+}
+
 function refusingPort<T>(): T {
 	return new Proxy({}, {
 		get: () => () => Promise.resolve(err(persistenceFailure())),
@@ -276,6 +309,11 @@ export function unavailablePlanEditorCommands(): PlanEditorCommandServices {
 				return Promise.resolve(err(persistenceFailure()) as CalibratePlanUndoResult);
 			},
 		}),
+		// The same refusal at both doors of each zone edit. A refusing FACTORY rather than an
+		// absent member: `inspector-wiring.ts` calls one for every `'details'` and `'name'`
+		// edit, so an unrecovered session has to answer the shape rather than `undefined`.
+		editZoneDetails: refusingZoneEdit,
+		renameZone: refusingZoneEdit,
 		requirementEdits: {
 			assignAsset: new AssignAssetCommand({
 				zones: refusingPort(),

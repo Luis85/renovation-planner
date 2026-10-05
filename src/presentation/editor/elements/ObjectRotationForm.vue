@@ -72,9 +72,6 @@ async function submit(): Promise<void> { if (!disabled.value && await form.submi
 		>
 			{{ latest.value }}
 		</p>
-		<FormSubmitRow
-			:submitting="disabled"
-			:label="tr('editor.rename.apply')"
-		/>
+		<FormSubmitRow :submitting="disabled" />
 	</form>
 </template>

@@ -73,7 +73,7 @@ function textFor<T>(aggregate: Aggregate<T>, format: (value: T) => string): stri
 	if (aggregate.state === 'unavailable') return tr('editor.inspector.unavailable');
 	const value = format(aggregate.value);
 	if (aggregate.state === 'partial') {
-		return `${value} ${tr('editor.inspector.partial', { count: String(aggregate.unreadable) })}`;
+		return `${value} (${tr('editor.inspector.partial', { count: String(aggregate.unreadable) })})`;
 	}
 	return value;
 }

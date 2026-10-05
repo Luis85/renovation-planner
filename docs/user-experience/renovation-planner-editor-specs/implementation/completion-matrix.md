@@ -1,5 +1,7 @@
 # Editor completion matrix
 
+> **Historical record — status added 2026-10-02.** This records the build and date it names. It is not acceptance of a beta release candidate; that status lives only in [first beta readiness](../../../releases/first-beta-readiness/README.md).
+
 ## Current evidence reconciliation — 2026-09-08
 
 The [release execution and acceptance ledger](release-2026-09-08.md) supersedes the operational revisions and owners in the historical snapshot below. This matrix's individual M00–M17 criteria remain in scope, alongside its use cases and shared interaction contracts. The current audit begins at landed main `7d4bc381`; Object rotation, selection priority, opening fresh-stack evidence and exact retyped dimensions have named owners. No historical successful capture or gate alone establishes current acceptance.

@@ -197,6 +197,25 @@ export interface PlanEditorContext {
 	 * inside the opener — routing it a second time would be the double report slice 17 forbids.
 	 */
 	openPlanNote(): Promise<void>;
+	/**
+	 * Open a ROOM's note by its zone id — the `unrecovered` row's door when the write left
+	 * standing was a room's (owner ruling 72). The same `deps.openNote` as `openPlanNote` above,
+	 * with that door's two arms: `'missing'` is notified here (`project.source-note-missing`,
+	 * since `editor.source-note-missing` names the floor), `'failed'` was reported by the opener.
+	 */
+	openRoomNote(zoneId: string): Promise<void>;
+	/**
+	 * Open the diagnostics report — the surface `editor.some-zones-unreadable` has told the
+	 * user to open since it was written, with no control that could. The third door onto
+	 * `RenovationPlannerPlugin.openDiagnosticsReport()`, beside the palette command and
+	 * `SettingsTab`'s action row: ONE action, every input.
+	 *
+	 * Injected rather than reached, because the modal is `plugin/`'s and `presentation/` may
+	 * not import that layer. Synchronous and answers nothing, unlike `openPlanNote` above: the
+	 * method it lands on owns the detached-fault decision (`runDetached`, `'diagnostics.report
+	 * .failed'`), so there is nothing here to await and nothing to report a second time.
+	 */
+	openDiagnosticsReport(): void;
 }
 
 export const PLAN_EDITOR_CONTEXT: InjectionKey<PlanEditorContext> = Symbol('renovation-planner:editor-context');

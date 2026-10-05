@@ -11,7 +11,8 @@ import { ReversibleAssetDesignCommands } from '../../../src/application/editor/a
 import type { WriteLedger } from '../../../src/application/editor/WriteLedger';
 import { leftWritesBehind } from '../../../src/application/commands/DispatchOutcome';
 import type { AssetRepository } from '../../../src/application/ports/AssetRepository';
-import { expectErr, expectOk } from '../../helpers/domain';
+import { err, ok } from '../../../src/core/result/Result';
+import { expectErr, expectOk, injectedPersistenceError } from '../../helpers/domain';
 import {
 	SQUARE,
 	TRIANGLE,
@@ -47,6 +48,21 @@ function assetsWritingAfterRead(
 			if (++seen === after) await peer();
 			return found;
 		},
+		listAll: () => real.listAll(),
+		delete: (id, expected) => real.delete(id, expected),
+		save: (asset, expected) => real.save(asset, expected),
+	};
+}
+
+/** Answers `answer` instead of reading, for every note read after the first `after`. */
+function assetsAnsweringReadsAfter(
+	real: AssetRepository,
+	after: number,
+	answer: Awaited<ReturnType<AssetRepository['getById']>>,
+): AssetRepository {
+	let seen = 0;
+	return {
+		getById: (id) => (++seen > after ? Promise.resolve(answer) : real.getById(id)),
 		listAll: () => real.listAll(),
 		delete: (id, expected) => real.delete(id, expected),
 		save: (asset, expected) => real.save(asset, expected),
@@ -218,8 +234,9 @@ describe('the window between the command\'s write and the version this gesture r
 		expect(peerRan.done).toBe(true);
 
 		// Asserted on the CODE: this refusal comes from the store, because the version the
-		// gesture presents is the one it really wrote and the peer has moved past it.
-		expect(expectErr(await gesture.undo()).code).toBe('asset-geometry.revision-conflict');
+		// gesture presents is the one it really wrote and the peer has moved past it — a
+		// conflict, which the adapter reports as `undo.superseded` (owner rulings 27 and 30).
+		expect(expectErr(await gesture.undo()).code).toBe('undo.superseded');
 		expect((await w.document()).shape?.facing).toBe(1);
 	});
 
@@ -238,7 +255,7 @@ describe('the window between the command\'s write and the version this gesture r
 		expect(expectOk(await gesture.execute())).toBe('wrote');
 		expect(peerRan.done).toBe(true);
 
-		expect(expectErr(await gesture.undo()).code).toBe('asset.revision-conflict');
+		expect(expectErr(await gesture.undo()).code).toBe('undo.superseded');
 		expect(await w.height()).toBe(1200);
 	});
 });
@@ -258,6 +275,10 @@ describe('the window between the command\'s write and the version this gesture r
  * store that has moved on is exactly the fail-closed answer — better than overwriting a state
  * this adapter can no longer describe. Both adapters, because a build that fixed one is a
  * build the other's identical line says nothing about.
+ *
+ * The store refuses it as a CONFLICT, the same code a racing peer gets, and the adapter cannot
+ * tell the two apart by it — so by owner ruling 30 this refusal reads as `undo.superseded` too:
+ * the user is shown the superseded toast rather than a save error, and nothing is written.
  */
 /** Records nothing and remembers nothing — every question answered as if unasked. */
 const silentLedger = (): WriteLedger => ({
@@ -269,7 +290,7 @@ const silentLedger = (): WriteLedger => ({
 });
 
 describe('an undo whose ledger answers nothing at all', () => {
-	it('falls back to the pre-gesture version and is refused, on the geometry side', async () => {
+	it('falls back to the pre-gesture version and is refused as superseded, writing nothing, on the geometry side', async () => {
 		const w = await seeded();
 		const adapters = new ReversibleAssetDesignCommands(
 			{
@@ -286,11 +307,11 @@ describe('an undo whose ledger answers nothing at all', () => {
 		expect(expectOk(await gesture.execute())).toBe('wrote');
 		const written = await w.document();
 
-		expect(expectErr(await gesture.undo()).code).toBe('asset-geometry.revision-conflict');
+		expect(expectErr(await gesture.undo()).code).toBe('undo.superseded');
 		expect(await w.document()).toEqual(written);
 	});
 
-	it('falls back to the pre-gesture version and is refused, on the note side', async () => {
+	it('falls back to the pre-gesture version and is refused as superseded, writing nothing, on the note side', async () => {
 		const w = await seeded();
 		const adapters = new ReversibleAssetDesignCommands(
 			{
@@ -305,7 +326,7 @@ describe('an undo whose ledger answers nothing at all', () => {
 		const gesture = adapters.setHeight({ assetId: w.assetId, height: 900 });
 		expect(expectOk(await gesture.execute())).toBe('wrote');
 
-		expect(expectErr(await gesture.undo()).code).toBe('asset.revision-conflict');
+		expect(expectErr(await gesture.undo()).code).toBe('undo.superseded');
 		expect(await w.height()).toBe(900);
 	});
 });
@@ -387,6 +408,77 @@ describe('a background undo after a peer has written the sidecar', () => {
 		const noteAfterUndo = present(expectOk(await w.stack.assets.getById(w.assetId)));
 		expect(noteAfterUndo.version).toEqual(noteAfterGesture.version);
 	});
+
+	/**
+	 * The undo's pre-flight NOTE read — the note it is about to replace, which is what it puts
+	 * back if the sidecar restore is then refused (census #17). Its two refusals are asked BEFORE
+	 * either resource is written, like the sidecar read's above. `after: 2` names the two reads a
+	 * background gesture's own `execute` makes — this adapter's pre-read and the command's own.
+	 */
+	for (const [answer, code] of [
+		[err(injectedPersistenceError()), 'test.injected-failure'],
+		[ok(null), 'asset.not-found'],
+	] as const) {
+		it(`refuses on a pre-flight note read answering ${code}, touching neither resource`, async () => {
+			const w = await seeded({ assets: (real) => assetsAnsweringReadsAfter(real, 2, answer) });
+			await w.seed(drawn());
+			await w.seedCalibration();
+			const gesture = w.reversible.setBackground({ assetId: w.assetId, path: 'Specs/a.png', kind: 'image', page: null });
+			expect(expectOk(await gesture.execute())).toBe('wrote');
+			const before = { note: expectOk(await w.stack.assets.getById(w.assetId)), sidecar: await w.geometryVersion() };
+
+			expect(expectErr(await gesture.undo()).code).toBe(code);
+			expect({ note: expectOk(await w.stack.assets.getById(w.assetId)), sidecar: await w.geometryVersion() }).toEqual(before);
+		});
+	}
+});
+
+/**
+ * `putNoteBack`'s stamp follows the put-back's REFUSAL, not the vault (owner ruling 18). A put-back
+ * refused as a conflict — `WRITE_BOUNDARY_CODES`, from `checkExpectedVersion` — means another writer
+ * changed the note after the restore, so the vault holds that writer's state and the undo returns
+ * the sidecar restore's cause unstamped. Any other refusal is a write fault and stamps, carrying that
+ * same cause; a code that is neither (`asset.pre-write-invalid`) counts as a fault. Driven on a
+ * CALIBRATED asset, where the old vault check stamped every one of these.
+ */
+describe('a background undo whose restore and put-back are both refused', () => {
+	for (const [code, stamped] of [
+		['asset.revision-conflict', false],
+		['asset.external-modification', false],
+		['asset.write-failed', true],
+		['asset.pre-write-invalid', true],
+	] as const) {
+		it(`${stamped ? 'stamps' : 'does not stamp'} a put-back refused as ${code}, answering the sidecar restore's cause`, async () => {
+			const undoing = { on: false, saves: 0 };
+			const w = await seeded({
+				sidecar: (real) => ({
+					read: (id) => real.read(id),
+					write: (id, written, expected) => (undoing.on ? Promise.resolve(err(injectedPersistenceError())) : real.write(id, written, expected)),
+				}),
+				assets: (real) => ({
+					getById: (id) => real.getById(id),
+					listAll: () => real.listAll(),
+					delete: (id, expected) => real.delete(id, expected),
+					save: (asset, expected) =>
+						undoing.on && ++undoing.saves > 1 ? Promise.resolve(err({ ...injectedPersistenceError(), code })) : real.save(asset, expected),
+				}),
+			});
+			await w.seed(drawn());
+			await w.seedCalibration();
+			const gesture = w.reversible.setBackground({ assetId: w.assetId, path: 'Specs/a.png', kind: 'image', page: null });
+			expect(expectOk(await gesture.execute())).toBe('wrote');
+			const announced = w.designChanges.length;
+
+			undoing.on = true;
+			const refused = expectErr(await gesture.undo());
+			// A stamped undo's note restore stands, so it is announced for every leaf to redraw; a conflict's vault is the other writer's.
+			expect({ code: refused.code, stamped: leftWritesBehind(refused), announced: w.designChanges.length - announced }).toEqual({
+				code: 'test.injected-failure',
+				stamped,
+				announced: stamped ? 1 : 0,
+			});
+		});
+	}
 });
 
 describe('a background gesture whose note save refuses after the sidecar was cleared', () => {

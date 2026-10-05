@@ -28,7 +28,7 @@ export function useDefinitionDraft(entry: () => CatalogueEntryDto) {
 	const dirty = computed(() => JSON.stringify(values.value) !== JSON.stringify(definitionDraft(baseline.value)));
 	const conflict = computed(() => writeConflict.value || !sameVersion(entry().version, baseline.value.version));
 	const busy = computed(() => status.value === 'saving' || reading.value);
-	const locked = computed(() => busy.value || status.value === 'refresh' || status.value === 'unknown');
+	const locked = computed(() => context.readOnly === true || busy.value || status.value === 'refresh' || status.value === 'unknown');
 	const canSave = computed(() => dirty.value && !locked.value && !conflict.value);
 	const needsRead = computed(() => status.value === 'refresh' || status.value === 'unknown' || conflict.value);
 	const statusText = computed(() => {

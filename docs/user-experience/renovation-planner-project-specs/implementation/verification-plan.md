@@ -1,5 +1,7 @@
 # Verification plan and evidence
 
+> **Historical record — status added 2026-10-02.** This records the build and date it names. It is not acceptance of a beta release candidate; that status lives only in [first beta readiness](../../../releases/first-beta-readiness/README.md).
+
 ## Checks performed for this package
 - Eight English screen specifications each embed their corresponding original mockup.
 - Corrected P02/P04 images are retained, not rejected intermediates.

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { leftWritesBehind } from '../../../../src/application/commands/DispatchOutcome';
 import { createRepositoryStack, parseFrontmatter, type RepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectFound, expectOk } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity, squareAt } from '../../../helpers/entities';
@@ -101,6 +102,10 @@ describe('compensated sequences', () => {
 		stack.vault.failures.add(`modify:${sidecarPathOf(stack, projectId, planId)}`);
 		const deleted = await stack.zones.delete(zoneId, written.version);
 		expect(deleted.ok).toBe(false);
+		// The restore WORKED: the compensated code, and no stamp. The stamped twin is in
+		// `errorPaths.test.ts`, where the restore refuses too.
+		expect(expectErr(deleted).code).toBe('zone.sidecar-remove-failed');
+		expect(leftWritesBehind(expectErr(deleted))).toBe(false);
 
 		// A caller whose Result is an error must be able to trust that NOTHING was deleted.
 		expect(zoneNoteText(stack, zoneId)).toBe(before);
@@ -168,6 +173,8 @@ describe('compensated sequences', () => {
 		// which is exactly how this case went silently untested against the wrong branch
 		// during the ADR-0013 conversion.
 		expect(result.ok === false && result.error.code).toBe('plan.write-failed');
+		// The sidecar rollback WORKED, so nothing is left standing and nothing is stamped.
+		expect(leftWritesBehind(expectErr(result))).toBe(false);
 		expect(stack.vault.entries.get(sidecarPathOf(stack, projectId, planId))).toBeUndefined();
 	});
 
@@ -182,6 +189,8 @@ describe('compensated sequences', () => {
 		const result = await stack.plans.delete(planId, read.version);
 
 		expect(expectErr(result).code).toBe('plan.delete-failed');
+		// The compensation WORKED, so the vault is at its pre-state and nothing is stamped.
+		expect(leftWritesBehind(expectErr(result))).toBe(false);
 		expect(planNotePath ? stack.vault.entries.get(planNotePath) : undefined).toBe(before);
 	});
 });

@@ -212,12 +212,15 @@ it('orders the menu by group with a separator between groups, draws one known ic
 	await empty.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select([rig.room.id]); await menu(rig);
 	const menuEl = rig.wrapper.get('.rp-canvas-context-menu');
-	expect(menuEl.get('.rp-canvas-context-menu-title').text()).toBe(`${t('en', 'editor.input.current-target', { target: rig.room.name })} ${t('en', 'editor.input.overlap-cycle-guidance')}`);
-	expect(groupedIds(menuEl)).toEqual(['rename', 'add-point', 'rotate', '|', 'add-menu', 'measure', 'drafting-menu', '|', 'copy', '|', 'enclose', '|', 'fit', 'pan', '|', 'delete']);
+	expect(menuEl.get('.rp-canvas-context-menu-title').text()).toBe(`${t('en', 'editor.input.current-target', { target: rig.room.name })}. ${t('en', 'editor.input.overlap-cycle-guidance')}`);
+	// `edit-outline` (BP-04 slice B) sits beside `rename` in the `edit` group, on every zone type.
+	expect(groupedIds(menuEl)).toEqual(['rename', 'edit-outline', 'add-point', 'rotate', '|', 'add-menu', 'measure', 'drafting-menu', '|', 'copy', '|', 'enclose', '|', 'fit', 'pan', '|', 'delete']);
 	for (const item of menuEl.findAll('[data-rp-context-action]')) { expect(item.find('.rp-host-icon[data-icon]').exists()).toBe(true); expect(item.find('[data-icon-missing]').exists()).toBe(false); }
 	await menuEl.get('[data-rp-context-action="fit"]').trigger('keydown', { key: 'Escape' });
 	rig.selection.select(['wall-a' as never]); await menu(rig);
-	expect(rig.wrapper.get('.rp-canvas-context-menu-title').text()).toBe(`${t('en', 'editor.input.current-target', { target: 'Wall 1' })} ${t('en', 'editor.input.overlap-cycle-guidance')}`);
+	// Written out rather than rebuilt from the two keys: an assertion that joins them the way the
+	// component does cannot fail on how they are joined, which is how a run-on survived here.
+	expect(rig.wrapper.get('.rp-canvas-context-menu-title').text()).toBe('Current target: Wall 1. Alt-click to select another overlapping item.');
 	for (const item of rig.wrapper.findAll('[data-rp-context-action]')) expect(item.find('[data-icon-missing]').exists()).toBe(false);
 });
 

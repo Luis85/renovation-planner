@@ -94,7 +94,7 @@ Written 2026-09-17 during wave 2.
       ruling also answers the question underneath it, in C07's own words rather than a third option
       invented beside them: a **measured** clearance is PRESERVED under a whole-object scale rather
       than scaled, so the mismatch is visible on the canvas and not merely recorded, while a
-      **pending** one goes on scaling per r1 row 2. `ADR-0034` carries it in the repository's durable
+      **pending** one goes on scaling per r1 row 2. `ADR-0035` carries it in the repository's durable
       record, because C03 requires a spec or ADR update to supersede this behaviour rather than an
       unrecorded cleanup. **The row stays unchecked until the gate is green on the SHA that builds
       it** — a ruling is not an implementation. The original statement of the obligation follows,

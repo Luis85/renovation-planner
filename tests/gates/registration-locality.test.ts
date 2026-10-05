@@ -17,7 +17,8 @@
  *
  * A FOURTH joined in Task B9 (`assetDesignerCommands.ts`), the identical shape
  * `planEditorCommands.ts` already takes — which is the measurement this file exists to keep
- * current rather than a count anyone should trust from memory.
+ * current rather than a count anyone should trust from memory. A FIFTH joined with owner
+ * rulings 47 and 49 (`help/GettingStartedModal.ts`), the getting-started guide's one command.
  *
  * **What the instrument sees**, stated rather than implied: it reads source TEXT for the
  * member name, so a registration reached through a differently-named wrapper or a computed
@@ -72,14 +73,15 @@ describe('registering with Obsidian', () => {
 		expect(outside).toEqual([]);
 	});
 
-	it('names the four modules that do it, so a fifth is a deliberate change', () => {
+	it('names the modules that do it, so another is a deliberate change', () => {
 		// Pinned by exact set rather than by count: a module dropping OUT of this list is as
 		// much a change worth seeing as one joining it, and a count cannot tell the two apart.
 		// This is also the measurement the header sentence should have been written from —
-		// four modules now, three when this file was written, never one.
+		// five modules now, three when this file was written, never one.
 		expect(modulesRegistering()).toEqual([
 			'src/plugin/RenovationPlannerPlugin.ts',
 			'src/plugin/assetDesignerCommands.ts',
+			'src/plugin/help/GettingStartedModal.ts',
 			'src/plugin/planEditorCommands.ts',
 			'src/plugin/sampleProject.ts',
 		]);

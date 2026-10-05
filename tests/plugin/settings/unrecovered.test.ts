@@ -104,6 +104,9 @@ describe('a read that failed', () => {
 			// missing from the palette.
 			'open-asset-designer',
 			'create-sample-project',
+			// Owner rulings 47 and 49: the getting-started guide. A plain callback gated on nothing —
+			// reading it needs no settings, no index and no desktop.
+			'open-help',
 		]);
 	});
 

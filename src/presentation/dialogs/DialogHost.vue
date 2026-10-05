@@ -356,15 +356,45 @@ watch(
  * leaving the caller suspended is the defect this hook was added for. So a `saveSettings`
  * landing inside the window of a single `vault.create` tells `ViewRoot.onCreateProject()`
  * the dialog was cancelled while its write runs on against the root `rebind` is retiring.
- * What that costs, measured rather than assumed: the project IS created, under the PREVIOUS
- * default project folder; `ProjectCreated` reaches the retired root's event bus, so the
- * rebound tree's `onProjectsChanged` never hears it; and `VaultChangeAdapter` indexes the
- * note into the new root while publishing nothing — the publisher that matters on this path is
- * the full scan, and `saveSettings` runs that BEFORE the rebind. The rebound list is stale
- * until the leaf is reopened. (This said `projectIndexRebuilt()` has "exactly one publisher",
- * which stopped being true when the create-zone adapter gained a refused-reverse-lookup
- * fallback that publishes it too. That second publisher does not sit on this path, so the
- * conclusion is unchanged and only the count was wrong.)
+ * What that costs, measured on a rig driving the real plugin, the real composition root and
+ * the real `applySettings` → `rebindOpenViews` chain with a `vault.create` held open:
+ * the project IS created, under the PREVIOUS default project folder, and `ProjectCreated`
+ * reaches the retired root's event bus, so the rebound tree's `onProjectsChanged` never
+ * hears it. Both confirmed exactly as they were written.
+ *
+ * **What is NOT one behaviour is everything after that, and this paragraph used to state one
+ * arm of it as the whole.** It SPLITS on whether Obsidian's metadata cache has parsed the new
+ * note by the time `VaultChangeAdapter` processes the `create` event:
+ *
+ * - **Cache warm.** `frontmatterOf` reads a real cache entry, the note is recognised as ours,
+ *   the entry is upserted into the NEW root's index and ONE `ProjectIndexEntryChanged` is
+ *   published on the NEW bus. The rebound tree hydrates and the project row appears
+ *   unprompted. **The list is not stale at all** in this arm.
+ * - **Cache cold.** `getFileCache` answers `null`, `frontmatterOf` falls back to the new
+ *   root's echo window — which has never heard of the path — and `processNote` takes the
+ *   not-ours arm: nothing indexed, nothing published — for now. When the parse queue later
+ *   drains, Obsidian's `metadataCache` `changed` re-queues the path (owner ruling 76; it
+ *   re-enters as a `modify`), the NEW root's adapter reads it against a real cache entry,
+ *   and it takes the warm arm's upsert and announcement then. **The list is stale for the
+ *   gap between the processing and the parse, not until a rebuild.** Before ruling 76 nothing
+ *   re-raised the spent `create`, reopening the leaf did not help (`ListProjects` resolves
+ *   through the same index), and the row appeared only at the next FULL rebuild.
+ *
+ * **Which arm production takes was measured in S21** (real Obsidian, CI): warm, unless a
+ * SECOND settings apply lands between the `create` event and the parse (2–19 ms) — its swap
+ * used to FLUSH the pending path and take the cold arm. Owner ruling 41 changed that swap to
+ * hand the path to the incoming root's adapter (`VaultChangeAdapter.handOver`/`adopt`), so the
+ * cold arm now needs a parse that lands after that adapter's debounce window closes — which
+ * is NOT "a parse slower than 500 ms": the window is armed once by the first path queued and
+ * never re-armed, so a path queued late in a running one gets only the remainder. That arm is
+ * still reachable, which is why both stay written down here; since ruling 76 it is transient.
+ *
+ * (This paragraph also said `VaultChangeAdapter` "indexes the note into the new root while
+ * publishing nothing at all". That is false in BOTH arms — warm it publishes and indexes,
+ * cold it does neither — and it predates `ProjectIndexEntryChanged` existing. And it said
+ * `projectIndexRebuilt()` has "exactly one publisher", which stopped being true when the
+ * create-zone adapter gained a refused-reverse-lookup fallback that publishes it too; that
+ * count is 2 in `src/`, re-counted, and neither publisher sits on this path.)
  *
  * The remedy the report named — defer the rebind, or otherwise coordinate the active write —
  * needs the `ItemView` to learn that its Vue tree is mid-write, a seam that does not exist,

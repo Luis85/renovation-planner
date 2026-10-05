@@ -170,6 +170,8 @@ describe('arriving in a project', () => {
 		await flushPromises();
 
 		expect(wrapper.find('.rp-recovery__warning').exists()).toBe(false);
-		expect(wrapper.get('.rp-view-notice').text()).toBe(t('en', 'view.project.some-plans-unreadable'));
+		// `.rp-view-notice p`, not the band: the band holds the diagnostics button beside the
+		// sentence, so only the live region is the sentence alone.
+		expect(wrapper.get('.rp-view-notice p').text()).toBe(t('en', 'view.project.some-plans-unreadable'));
 	});
 });

@@ -99,11 +99,22 @@ npm run test-build
 
 That installs the plugin into `.obsidian/plugins/renovation-planner/` in this repository, so
 the repository root opens as a vault — no second checkout, no symlink. On a vault's first
-open, turn off Restricted Mode in Settings → Community plugins.
+open, turn off Restricted Mode in Settings → Community plugins. **It is a development-mode
+build** (`vite build --mode development`, unminified, with Vue's development branches), not the
+bytes the Release workflow attaches — so a sweep on it finds defects early and is not acceptance of the
+release. Acceptance of a candidate is recorded against that candidate's own built assets, in the
+tracker's [candidate identity record](docs/releases/first-beta-readiness/03-execution-tracker.md#candidate-identity-record)
+and the [beta acceptance matrix](docs/releases/first-beta-readiness/04-beta-acceptance-matrix.md);
+[first beta readiness](docs/releases/first-beta-readiness/README.md) is where that status lives.
 
-**There is no case catalog yet, so this step is currently a judgement call rather than a
-list**, and that is the honest state rather than a gap to paper over. What to walk today:
-every surface the release touches, plus these, which nothing automated here can see —
+**The case catalogue is [`docs/tests/cases/`](docs/tests/cases/)**; the two suites under
+[`docs/tests/suites/`](docs/tests/suites/) walk subsets of it. Each case says what to check. Most carry a `## Runs` table recording who
+or what walked them, on which build; a few older ones record runs under another heading or not at
+all. Most of those records hold no run, so walking the catalogue is still a judgement call rather
+than a checklist to tick: read a case's runs before trusting it, and treat a recorded run as
+evidence about the build it names, not about this one. `npm run test:e2e` drives some steps in a
+real Obsidian, and its runs are recorded in the same tables; it covers neither a themed vault nor a device. What to walk today: every
+surface the release touches, plus these, which nothing automated here can see —
 
 - the plugin loads with no console error, and unloads without leaving a view behind;
 - each view opens, redraws after a workspace layout change, and survives a reload;
@@ -111,14 +122,13 @@ every surface the release touches, plus these, which nothing automated here can 
   answers only Obsidian's defaults;
 - anything using an Obsidian API this code assumes rather than exercises.
 
-The source project makes this repeatable by keeping each check as a note under
-`docs/tests/cases/` with a `## How to check` section and a `cadence:` (`release` or
-`conditional`), queried from the register at release time rather than read from a checklist
-in this file. Two rules from it worth adopting with the first note: **date each note's
-`Outcome` with what was seen**, and **a check that has found nothing across two releases
-gets reviewed, not retired** — what retires a check is evidence about its subject (the thing
-is gone, or an automated test now watches it), never its hit rate. A sweep that drops its
-quietest checks empties itself while reading as disciplined.
+Two rules for the catalogue: **date each case's run with the build and what was seen**, and
+**a check that has found nothing across two releases gets reviewed, not retired** — what
+retires a check is evidence about its subject (the thing is gone, or an automated test now
+watches it), never its hit rate. A sweep that drops its quietest checks empties itself while
+reading as disciplined. `docs/README.md`'s schema also asks each case for a `cadence:`
+(`release` or `conditional`); no case carries one yet, so the release-time query that field
+would drive does not exist.
 
 ### 3. Cut the tag and publish
 

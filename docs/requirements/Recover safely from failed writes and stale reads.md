@@ -126,6 +126,73 @@ checkpoint C3. Which test holds each criterion:
    on rebind" pins the window rather than closing it; closing it means carrying the flag as
    view-owned state the way `planId` already is, which is its own task.
 
+   **Amendment (2026-09-16): that task is done, and the flag is the LEAF's.**
+   `PlanEditorView` holds its own `unrecoveredWrite`, emitted by `getState` and read back by
+   `setState` beside `planId`, and `mount` seeds each fresh store from it — so a settings save
+   keeps the warning, a close-and-reopen keeps it, and nothing clears it at all (R1's other half
+   is unchanged: this layer still cannot tell a repairing write from any other).
+   **"Close and reopen" is two mechanisms**: a tab that stays in the layout is closed and
+   reopened on the SAME view object, so the field is simply still there, which is the half this
+   repository drives; a leaf detached and reopened from the palette — and every leaf after an
+   application restart — is a NEW view, and gets the incident back if and only if Obsidian hands
+   it the persisted view state, which is Obsidian's own behaviour and not a checked claim here.
+   Neither direction manufactures an all-clear: a leaf that comes back without the state comes
+   back clean. Three limits, stated rather than left to be read wider: a SECOND Plan Editor leaf
+   on the same plan is still not gated by the first one's incident, with or without a rebind,
+   which needs an affected-identity model nobody has built; the Asset Designer and the project
+   view's work section still hold a mount-local flag each, unseeded; and a write already IN
+   FLIGHT when the settings are saved can have its compensation refuse after the remount, onto
+   the retired store — lost before this change too, and not closable without deferring the
+   rebind, which is refused.
+
+   **Amendment (2026-09-17, BP-02 slice 4): the first two of those three limits are closed, and
+   the affected-identity model the first one asked for was not needed.** The save-state store now
+   SEEDS its `vaultPaused` ref — one of the two terms of the `unrecoveredWrite` gate, exported as
+   `vaultWritesPaused`; the gate itself is a computed OR with no writer — from the vault-scoped
+   `WriteIncidentRegistry` (ADR-0034) when the
+   store is created, and every leaf — a second Plan Editor on the same plan, a leaf opened by hand
+   at any time after the plugin has loaded — mounts its own Pinia and therefore its own store, so
+   each asks the vault's record for itself and is paused from its first frame. Three things this does
+   not do, stated so the amendment is not read wider than the change: an incident raised in
+   another leaf while this one is ALREADY open does not re-render it — the registry notifies
+   nobody, so that leaf catches up at its next write, which `guardCommand` refuses and
+   `withSaveStateTracking` marks on; a leaf Obsidian RESTORES from the workspace layout seeds
+   clean, because the registry's own file read is started at `onLayoutReady` and Obsidian restores
+   leaves before that, so it catches up the same way; and **the Asset Designer is not gated at
+   all**. The third limit — the project view's work section —
+   turned out to be closed by the same edit, because that section calls the same shared store
+   (`views/work/projectWorkActions.ts`); what none of them gets is a leaf-owned field surviving a
+   rebind the way `PlanEditorView`'s does, which the durable vault record makes far less
+   important than it was.
+
+   **Correction (2026-09-17, later the same day): the sentence "The Asset Designer's tool framework
+   reads that flag too" was false and is removed above rather than softened.** The designer's
+   `EditorContext.writesBlocked` carries the honest value now where it carried a hard-coded
+   `false`, and nothing consults it. Measured:
+   `grep -rn "writesBlocked()" src/presentation/editor/` prints 23 call sites in six modules —
+   scoped to `editor/` because the unscoped grep also counts the comments that quote the call —
+   namely `tools/select-tool.ts`,
+   `elements/ElementMove.ts`, `elements/ElementResize.ts`, `elements/ElementRotation.ts`,
+   `labels/LabelMove.ts`, `structure/OpeningResize.ts` — and the designer registers none of them
+   (`DesignerSelectTool`, `DrawPolygonTool`, `DrawDetailTool`, `SetAnchorTool`, `SetFacingTool`,
+   `CalibrateTool`). So on the Asset Designer nothing is gated: not a tool, not a button, not the
+   inspector, not the preset form. Every write it dispatches is still refused by the guarded doors
+   underneath, so this is an affordance gap and not a data-safety one — but a reader must not take
+   the paragraph above as saying a designer gesture stops.
+
+   **And a second correction of the same date: the flag was SPLIT, because one boolean was
+   answering two questions.** The store now holds this leaf's own unrecovered write and the
+   vault's write pause as separate facts, with `unrecoveredWrite` the OR of them. Sharing one ref
+   had two visible consequences, both now closed: a leaf's own half-written write stopped reaching
+   Obsidian's persisted view state while the vault was paused, and a vault-wide incident removed
+   the **Try again** READ retry from the draft-recovery panel — which ADR-0034 forbids, since it
+   gates commands precisely so the vault stays inspectable.
+   `tests/presentation/views/planEditorIncident.test.ts` raises the incident through the real
+   dispatch path and walks that lifecycle; the rebind case the amendment above named has been
+   renamed with the behaviour it now asserts, to
+   `tests/plugin/rootSwapRebind.test.ts`'s "keeps a leaf’s unrecovered-write flag across a
+   rebind, re-seeded into the fresh Pinia" — the 2026-09-06 title is gone from `tests/`.
+
    **What the stamp cannot see, stated here because it is where a reader of this PBI stands.** The
    row fires for a refusal that was STAMPED at the site that wrote. CLAUDE.md's own
    `affectsSaveState` account records the residue this inherits: **a post-write refusal raised in a

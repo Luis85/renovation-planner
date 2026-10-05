@@ -6,7 +6,7 @@ date: 2026-09-17
 area: domain
 ---
 
-# ADR-0034: A resized object preserves its measured clearance and flags it for review
+# ADR-0035: A resized object preserves its measured clearance and flags it for review
 
 ## Context
 

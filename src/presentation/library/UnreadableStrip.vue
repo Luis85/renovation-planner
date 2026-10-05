@@ -89,7 +89,7 @@ import type { UnreadableEntry } from '../../application/queries/ListCatalogueEnt
 import { tr } from '../i18n/strings';
 
 const props = defineProps<{ entries: readonly UnreadableEntry[] }>();
-const emit = defineEmits<{ open: [path: string] }>();
+const emit = defineEmits<{ open: [path: string]; diagnostics: [] }>();
 
 /** The strip's headline (§4), `.one`/`.other` chosen at the caller (Task 6, AD18 UI critique
  *  round) rather than the "(s)" shorthand it carried until then. */
@@ -122,6 +122,17 @@ function reasonLabel(entry: UnreadableEntry): string {
 <template>
 	<div class="rp-view-notice rp-al-repair">
 		<p>{{ headline }}</p>
+		<!-- The heading above names the diagnostics report; this opens it. EMITTED for the
+		     same reason the per-row action is: this component knows a path and a reason, and
+		     the modal is the root's to reach. Outside the `<ul>`, so a case counting the
+		     per-row buttons still counts rows. -->
+		<button
+			type="button"
+			data-rp-action="open-diagnostics"
+			@click="emit('diagnostics')"
+		>
+			{{ tr('command.show-diagnostics-report') }}
+		</button>
 		<ul>
 			<li
 				v-for="entry in entries"

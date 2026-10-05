@@ -161,6 +161,17 @@ does announce.
 `docs/tests/cases/Notices and save state.md` is where that gap is worked, and a vault is the
 only instrument.
 
+**The optional action is shipped once: "Show diagnostics report".** Tracker row L-37's ruling
+gave a notice whose sentence tells the user to open the diagnostics report the button that does
+— today `zone.listing-incomplete` and `asset.listing-incomplete`, the two error codes whose
+sentence names the report; `notifyError` attaches it by code, so no string-taking door exists
+for it. Anatomy: a real `<button class="rp-notice-action">` between the message and the `×`,
+labelled by the palette command's own key, whose visible text is its accessible name. Pressing
+it closes the notice and then calls the plugin's one `openDiagnosticsReport`. A notice
+carrying it wraps, so the unshrinkable button cannot squeeze the message at phone width. It
+takes no focus on its own, which keeps the rule under *States*. Unverified in a vault — step
+25 of `docs/tests/cases/Notices and save state.md`.
+
 ## Open
 
 1. **Whether a toast may carry an undo.** SDD §30's undoable editor commands make it possible; PRD §67

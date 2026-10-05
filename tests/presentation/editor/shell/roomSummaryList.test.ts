@@ -257,6 +257,257 @@ describe('RoomSummaryList', () => {
 });
 
 /**
+ * L-46, the owner's "One Tab stop" (2026-09-25): Tab once into the list, the arrows between rooms,
+ * and the lock reached by a key. Attached to `document.body` because focus is the subject, and
+ * jsdom moves `document.activeElement` only for a connected element.
+ */
+const FOUR: readonly SpatialRecordDto[] = [
+	...RECORDS,
+	{ kind: 'room', id: 'zone-bath', planId: 'plan-ground', name: 'Bath', zoneType: 'Room', points: [], areaMm2: 0 },
+	{ kind: 'room', id: 'zone-hall', planId: 'plan-ground', name: 'Hall', zoneType: 'Room', points: [], areaMm2: 0 },
+];
+
+function mountFour(options: Parameters<typeof mountList>[1] = {}) {
+	const mounted = mountList(vi.fn(), { ...options, attachTo: document.body });
+	return { ...mounted, ready: mounted.wrapper.setProps({ records: FOUR }) };
+}
+const rowOf = (id: string) => document.querySelector<HTMLElement>(`.rp-room-list__row[data-rp-id="${id}"]`);
+const tabStops = () => [...document.querySelectorAll<HTMLElement>('.rp-room-list button')].filter((button) => button.tabIndex >= 0);
+const press = (key: string) => {
+	(document.activeElement as HTMLElement).dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+	return nextTick();
+};
+
+describe('RoomSummaryList keyboard (one Tab stop)', () => {
+	afterEach(() => { document.body.innerHTML = ''; });
+
+	it('puts exactly one control of the whole list in the Tab order: the first row', async () => {
+		const { ready } = mountFour();
+		await ready;
+		expect(document.querySelectorAll('.rp-room-list button')).toHaveLength(8);
+		expect(tabStops()).toEqual([rowOf('zone-kitchen')]);
+		expect([...document.querySelectorAll('[data-rp-lock]')].map((lock) => lock.getAttribute('tabindex'))).toEqual(['-1', '-1', '-1', '-1']);
+	});
+
+	it('ArrowDown and ArrowUp move the focus and the one Tab stop, clamped at both ends', async () => {
+		const { ready } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowUp');
+		expect(document.activeElement).toBe(rowOf('zone-kitchen'));
+		await press('ArrowDown');
+		await press('ArrowDown');
+		expect(document.activeElement).toBe(rowOf('zone-bath'));
+		expect(tabStops()).toEqual([rowOf('zone-bath')]);
+		await press('ArrowDown');
+		await press('ArrowDown');
+		expect(document.activeElement).toBe(rowOf('zone-hall'));
+		await press('ArrowUp');
+		expect(document.activeElement).toBe(rowOf('zone-bath'));
+		expect(tabStops()).toEqual([rowOf('zone-bath')]);
+	});
+
+	it('leaves a modified arrow to the host and consumes a plain one', async () => {
+		const { ready } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		for (const key of ['ArrowDown', 'ArrowRight']) {
+			for (const modifier of ['altKey', 'ctrlKey', 'metaKey', 'shiftKey']) {
+				const modified = new KeyboardEvent('keydown', { key, [modifier]: true, bubbles: true, cancelable: true });
+				rowOf('zone-kitchen')?.dispatchEvent(modified);
+				expect(modified.defaultPrevented, `${modifier}+${key}`).toBe(false);
+				expect(document.activeElement).toBe(rowOf('zone-kitchen'));
+			}
+		}
+		const plain = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
+		rowOf('zone-kitchen')?.dispatchEvent(plain);
+		expect(plain.defaultPrevented).toBe(true);
+	});
+
+	it('ArrowRight reaches the row\'s own lock and ArrowLeft returns to the row; the arrows still move between rooms from the lock', async () => {
+		const { ready } = mountFour();
+		await ready;
+		rowOf('zone-terrace')?.focus();
+		await press('ArrowRight');
+		expect(document.activeElement).toBe(document.querySelector('[data-rp-lock="zone-terrace"]'));
+		expect(tabStops()).toEqual([rowOf('zone-terrace')]);
+		await press('ArrowLeft');
+		expect(document.activeElement).toBe(rowOf('zone-terrace'));
+		await press('ArrowRight');
+		await press('ArrowDown');
+		expect(document.activeElement).toBe(rowOf('zone-bath'));
+	});
+
+	it('the lock ArrowRight reaches is the same toggle: it dispatches the same edit, and nothing while writes are paused', async () => {
+		const { ready, commitEdit } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowRight');
+		(document.activeElement as HTMLElement).click();
+		await flushPromises();
+		expect(commitEdit).toHaveBeenCalledWith(expect.objectContaining({ kind: 'details', zoneId: 'zone-kitchen' }));
+
+		document.body.innerHTML = '';
+		const paused = mountFour({ writesBlocked: true });
+		await paused.ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowRight');
+		expect(document.activeElement?.getAttribute('aria-disabled')).toBe('true');
+		(document.activeElement as HTMLElement).click();
+		await flushPromises();
+		expect(paused.commitEdit).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * jsdom does not synthesize a native button's Enter/Space-to-click activation (that is a
+	 * user-agent default action, not something the DOM event pipeline performs), so a test that
+	 * dispatched a `keydown` for either key and asserted `selectAndFrame` was called would pass
+	 * for the wrong reason: nothing in this component would fire it either way. What IS checkable
+	 * is the half this component controls — that it stays a plain native button and does not
+	 * intercept and `preventDefault` either key, which is what would block the platform's own
+	 * activation from applying (L-46 review finding 4; the row-click path itself is covered above).
+	 */
+	it('rows stay native buttons, so the platform\'s Enter/Space activation applies', async () => {
+		const { ready } = mountFour();
+		await ready;
+		const row = rowOf('zone-bath');
+		expect(row?.tagName).toBe('BUTTON');
+		expect(row?.getAttribute('type')).toBe('button');
+
+		row?.focus();
+		for (const key of ['Enter', ' ']) {
+			const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+			row?.dispatchEvent(event);
+			expect(event.defaultPrevented).toBe(false);
+		}
+	});
+
+	it('keeps the focus and the Tab stop on the same room when rooms are added, removed and renamed around it', async () => {
+		const { wrapper, ready } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowDown');
+		await press('ArrowDown');
+		const bath = rowOf('zone-bath');
+		expect(document.activeElement).toBe(bath);
+
+		const [kitchen, terrace, bathRecord, hall] = FOUR;
+		const added = { ...kitchen, id: 'zone-attic', name: 'Attic' };
+		await wrapper.setProps({ records: [added, kitchen, { ...terrace, name: 'Patio' }, bathRecord, hall] });
+		expect(document.activeElement).toBe(bath);
+		expect(tabStops()).toEqual([bath]);
+
+		await wrapper.setProps({ records: [bathRecord, hall] });
+		expect(document.activeElement).toBe(bath);
+		expect(tabStops()).toEqual([bath]);
+	});
+
+	it('moves the Tab stop to a surviving row when the room holding it is removed', async () => {
+		const { wrapper, ready } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowDown');
+		await press('ArrowDown');
+		await press('ArrowDown');
+		await wrapper.setProps({ records: FOUR.slice(0, 3) });
+		expect(tabStops()).toEqual([rowOf('zone-bath')]);
+	});
+
+	/**
+	 * `reconcile` moves the Tab STOP (a `tabindex` write) to a survivor, but nothing else moves
+	 * actual FOCUS — a plain `ref` write reaches no element — so it fell to `BODY` on removal
+	 * (L-46 review finding 2).
+	 */
+	it('moves FOCUS itself to the surviving stop when the focused room is removed', async () => {
+		const { wrapper, ready } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowDown');
+		expect(document.activeElement).toBe(rowOf('zone-terrace'));
+
+		await wrapper.setProps({ records: FOUR.filter((record) => record.id !== 'zone-terrace') });
+		expect(document.activeElement).toBe(rowOf('zone-bath'));
+	});
+
+	it('does not move focus on a removal when focus was outside the list to begin with', async () => {
+		const { wrapper, ready } = mountFour();
+		await ready;
+		expect(document.activeElement).toBe(document.body);
+
+		await wrapper.setProps({ records: FOUR.filter((record) => record.id !== 'zone-terrace') });
+		expect(document.activeElement).toBe(document.body);
+	});
+
+	/**
+	 * Regression (L-46 re-review, Important): `useSpatialRecords`/`buildFloorSummary` rebuild the
+	 * `records` array on every reactive read, so a rename, a lock toggle or an undo of either hands
+	 * this component a NEW array holding the SAME ids. The two watchers above are keyed on
+	 * `records.map(r => r.id)`, a fresh array every evaluation, so they fire on every such
+	 * content-only update too — not only a removal — and the post-flush watcher's unconditional
+	 * `.focus()` on the row then yanked focus off a LOCK back onto its row on every content change,
+	 * even though nothing left the list. Refocusing must be conditioned on the previously focused
+	 * room's id actually being gone from the new ids, the same test `reconcile`'s own
+	 * `surviving === -1` branch already makes.
+	 */
+	it('does not steal focus from a lock when an update leaves the same ids in place', async () => {
+		const { wrapper, ready } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowRight');
+		const lock = document.querySelector('[data-rp-lock="zone-kitchen"]');
+		expect(document.activeElement).toBe(lock);
+
+		const [kitchen, terrace, bath, hall] = FOUR;
+		await wrapper.setProps({ records: [{ ...kitchen, locked: true }, terrace, bath, hall] });
+		expect(document.activeElement).toBe(lock);
+	});
+
+	it('does not move focus off a row when a same-ids update renames it', async () => {
+		const { wrapper, ready } = mountFour();
+		await ready;
+		rowOf('zone-terrace')?.focus();
+
+		const [kitchen, terrace, bath, hall] = FOUR;
+		await wrapper.setProps({ records: [kitchen, { ...terrace, name: 'Patio' }, bath, hall] });
+		expect(document.activeElement).toBe(rowOf('zone-terrace'));
+	});
+
+	it('a lock focused directly, not reached via ArrowRight, syncs the roving index to its own row', async () => {
+		const { ready } = mountFour();
+		await ready;
+		rowOf('zone-kitchen')?.focus();
+		await press('ArrowDown');
+		await press('ArrowDown');
+		await press('ArrowDown');
+		expect(document.activeElement).toBe(rowOf('zone-hall'));
+
+		// A pointer click on a DIFFERENT row's lock, bypassing ArrowRight entirely — the roving
+		// index must follow it rather than staying on the row ArrowDown last visited.
+		document.querySelector<HTMLElement>('[data-rp-lock="zone-kitchen"]')?.focus();
+		await nextTick();
+		await press('ArrowDown');
+		expect(document.activeElement).toBe(rowOf('zone-terrace'));
+		expect(tabStops()).toEqual([rowOf('zone-terrace')]);
+	});
+
+	it('consumes a plain ArrowRight and ArrowLeft on a row', async () => {
+		const { ready } = mountFour();
+		await ready;
+		rowOf('zone-terrace')?.focus();
+
+		const right = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+		rowOf('zone-terrace')?.dispatchEvent(right);
+		expect(right.defaultPrevented).toBe(true);
+		expect(document.activeElement).toBe(document.querySelector('[data-rp-lock="zone-terrace"]'));
+
+		const left = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true });
+		document.activeElement?.dispatchEvent(left);
+		expect(left.defaultPrevented).toBe(true);
+		expect(document.activeElement).toBe(rowOf('zone-terrace'));
+	});
+});
+
+/**
  * The two shipped rules that read the toggle's lock STATE, asked of the ASSEMBLED sheet against the
  * real mounted toggles rather than of a selector string: the Layers sidebar's quiet lock (an
  * UNLOCKED room's padlock at `opacity: 0` until hover or focus) and the locked toggle's

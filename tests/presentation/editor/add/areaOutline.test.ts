@@ -7,6 +7,8 @@ describe('Area creation outline', () => {
 		{ points: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: NaN, y: 1 }], code: 'polygon-non-finite-coordinate' },
 		{ points: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 2, y: 0 }], code: 'polygon-zero-area' },
 		{ points: [{ x: 0, y: 0 }, { x: 1e308, y: 0 }, { x: 0, y: 1e308 }], code: 'polygon-area-overflow' },
+		// Ruling 36, the rule the Zone entity writes by: about 3.5e-10 mm² beside a 2842 × 1442 box is none.
+		{ points: [{ x: 4594, y: 3606 }, { x: 7436, y: 2164 }, { x: 5162.4, y: 3317.6 }], code: 'polygon-zero-area' },
 	])('refuses $code before a command exists', ({ points, code }) => {
 		expect(areaOutline(points)).toMatchObject({ ok: false, error: { code } });
 	});

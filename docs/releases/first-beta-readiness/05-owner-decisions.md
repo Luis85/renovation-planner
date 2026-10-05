@@ -1,0 +1,1147 @@
+# Owner decisions before the first beta
+
+Assembled 2026-09-19 from the records named at the foot of each section. **Nothing here is a
+recommendation.** Each section states a situation, what a user would see, the options that have
+already been costed (including the ones that were refused, with their refusals), and the cheapest
+experiment that would settle it. Choosing is the release owner's.
+
+## 1. How to use this document
+
+Read it once and answer the questions in sections 3 to 5. Answering them:
+
+- **does** decide whether each named behaviour is acceptable in a first beta, and unblocks the G1
+  data-trust gate evaluation and five blocked test rows (section 6);
+- **does not** commit anyone to a schedule, a package, or a particular implementation. Where an
+  option has an implementation cost it is stated, but no option here has been taken;
+- **does not** rest on anything anybody has seen in Obsidian. **Nothing on this branch has ever
+  been run in an Obsidian vault.** No native, device, screen-reader or performance verification
+  has been performed or is claimed anywhere in this document.
+
+*Superseded in part 2026-09-26 (session 21).* Two of those three bullets no longer hold as
+written. Options have been taken: Q1's in section 3 (rulings 13 and 19) and Q3's in section 5
+(ruling 16), each built on this branch. And the plugin has now run in a real Obsidian: the
+`E2E` workflow merged at `5bcefced7` drives it (1.13.7 and `latest` on Linux, plus a
+mobile-emulation leg that is not a device test) over the repository's test vault
+`tests/e2e/vault`. The owner's own cases measured Q2 and Q3 on 1.13.7, Windows, one machine
+(sections 4 and 5); the E2E workflow re-runs both cases on Linux.
+What still holds: nothing has been run in the owner's own vault or on a device, and no
+screen-reader or performance verification has been performed.
+
+Where a question has a residual fact that only a vault run can settle, it says so in the sentence
+that needs it. The word **unverified** in this document always means exactly that:
+measured on a test rig, never in Obsidian.
+
+Q2 and Q3 are already **accepted by a recorded ruling** (Q2 by R-S7-11, Q3's test-row half by
+R-S8-3/R-S8-4). Those rulings are not being re-opened here; what is open is whether the accepted
+residual blocks a first beta.
+
+**Q1 below merges two tracker rows, L-06 and L-11, into one question.** They are the same question
+seen from two sides — L-06 asks how a half-failed write gets recorded, L-11 asks which writes the
+vault-wide pause covers, and both turn on the same missing check. The tracker's own L-11 row says
+so ("Closing the category is L-06's subject"). They are presented once so an owner answers once.
+
+## 2. Summary
+
+| Id | The question | Needs a vault run? | What it blocks |
+|---|---|---|---|
+| Q1 (L-06 + L-11) | Some half-failed writes are recorded and some are silently discarded, and no check says which. Does that stand for a first beta? | No to decide. Yes to verify any fix in situ. | G1 — data trust. The tracker's G1 row names it among the owner questions, Q1 to Q3, that its evaluation waits on. |
+| Q2 (L-19) | Changing a setting while a project is being created can leave that project in the old folder, invisible in the list, with the user told nothing — so they may create it twice. Does that block first beta? | **Yes** — which of two arms production takes is unverified. | G1 — data trust. Accepted by ruling R-S7-11; only the release call is open. |
+| Q3 (L-21) | May a view that is still on screen write to the vault after the plugin has been unloaded? | **Yes** — whether Obsidian leaves such a view alive, and in what order, is unverified. | G1, and five of BP-03 F3's six test rows, deliberately unwritten. |
+| Q4 | Q4 does not exist as a separate question: L-11 folds into Q1 for the reason in section 1. | — | — |
+
+**Where the three stand, 2026-09-26.** The table above is the questions as put on 2026-09-19,
+kept as history.
+
+- **Q1 is decided and built** (section 3). The census (`11-q1-stamp-census.md`) was taken
+  first, then #23's rename pause was skipped past unreadable plans (ruling 14), then #17's false
+  mark on a healthy vault was split into a conflict, unstamped, and a fault, stamped (rulings 13
+  and 18), then Q3's keep-alive landed (ruling 16), and then step 2: every stamp is recorded
+  where `markUncompensated` makes it, and a recorded stamp is durable (D-08) — it pauses every
+  guarded write across reloads and restarts until the user removes `write-incidents.json` and
+  reloads (rulings 13, 19, 20, 21 and 22).
+- **Q2 was measured warm**, 3 of 3, by the owner's automated run in a real Obsidian 1.13.7 on
+  Windows over the test vault (section 4), so by ruling 3 it ships as is. A run in the owner's
+  own vault has not happened. *2026-09-28:* CI then observed the cold arm once, on the `latest`
+  leg; its cause was found and fixed by owner ruling 41, and the fix is verified in CI (section
+  4). *2026-10-03:* a note whose parse outlasts the ~500 ms debounce was not covered until
+  owner ruling 76 (`75f07aaaf`): its parse arriving as Obsidian's `changed` now re-queues it, so
+  it joins the index without a reload. Verified in the unit suite (`tests/plugin/lateParse.test.ts`),
+  not yet on a real host.
+- **Q3 is decided by ruling 16, "Keep the record alive"**, which supersedes ruling 4's costing
+  of view teardown after the owner's measurement refuted that option's premise; it is built
+  (section 5).
+
+## 3. Q1 — the stamp category nothing checks (tracker L-06, with L-11 folded in)
+
+### The situation
+
+When a write to the vault half-fails — part of it landed, the undo meant to put it back also
+failed — the code marks the failure with a stamp saying "this left writes behind". The stamp is
+produced in exactly one function, `markUncompensated` in
+`src/application/commands/DispatchOutcome.ts`. A stamp only becomes a durable, vault-wide record
+if it travels back through one of **two** recorders: the wrapper every guarded command passes
+through (`guardCommand`, in `src/application/errors/guardAgainstThrowing.ts`) and one hand-written
+recorder in the file-rename listener (`src/plugin/evidenceRename.ts`). A stamp raised on a path
+that reaches neither recorder is produced, mapped into that one editor pane's own "unsaved" flag,
+and then lost — nothing pauses, nothing is written to disk, and the diagnostics report never names
+it. Undo is where this lives: an undo does not dispatch a command, it writes its saved snapshot
+straight back through the raw storage ports, and those ports do not pass `guardCommand`
+(`src/presentation/editor/tools/with-incident-gate.ts` states that mechanism in its own docblock).
+
+Three such sites are named in the records; a fourth of the same shape is named on no list and is
+described under "what is not settled" below. **No check anywhere refuses a new one.** That is both
+halves of the question: L-06 asks why a stamp goes unrecorded, L-11 asks which writes the vault-wide
+pause actually covers, and the answer to both is the same missing check.
+
+*Superseded 2026-09-26 (step 2, `8895ddc45`), and kept above as the situation the owner ruled
+on.* `markUncompensated` now records the stamp it makes, and neither `guardCommand` nor the
+rename listener records anything, so there are no longer two recorders to reach: every stamp
+`markUncompensated` makes is recorded, provided a write-incident registry is installed when it is
+made.
+The census counted six sites with a path that reached neither recorder, not three or four
+(`11-q1-stamp-census.md`); they close by construction. `STAMP_CONSTRUCTION_BAN` in
+`eslint.config.mjs` is the check that now exists, refusing a stamp built by hand in `src/`.
+
+### What the user experiences
+
+A user deletes a room, then presses Undo. The undo puts the room's note back but fails to restore
+one of the requirement records it was linked to. Today: the pane that did it shows its own unsaved
+indicator, and that is all. Writing is **not** paused. No warning is raised. The diagnostics report
+does not mention it. If the user closes that pane, or reloads the plugin, even the indicator is
+gone, and the vault is left inconsistent with nothing anywhere saying so. The same applies to
+undoing a multi-element delete or a paste, and to undoing an edit in the Asset designer.
+*Superseded 2026-09-26 (step 2):* that undo's stamp is now recorded, so every guarded write pauses
+across the vault, durably, and the diagnostics report names the incident. A stamp made
+while no registry is installed is still lost; the keep-alive of section 5 keeps one installed
+for the saves it counts.
+
+For contrast, the *covered* half behaves very differently: a half-failed write that does reach a
+recorder pauses **every** write in the vault, and names itself in the diagnostics report. The pause
+is **durable** (decision D-08, ADR-0034): it is written to `write-incidents.json` and re-read at
+every load, so it survives reloads and restarts, and it ends only when the user removes that file
+and then reloads (the file is read once per load, tracker L-09, so the removal takes effect only
+at the next one; a reload alone is not a way out). This paragraph said "until the plugin is reloaded (decision D-06)" until owner ruling 21,
+which is the session-scoped behaviour D-08 replaced.
+
+### Options
+
+| Option | What it changes | What it costs | What it costs if this is the wrong choice |
+|---|---|---|---|
+| **Leave it** (today) | Nothing. The named sites stay live and stay silent. | Nothing to build. The existing pin (below) stops the hole getting wider on the two of four pane bundles it walks — not on `assetDesignerDeps`, which is the one handing out the fourth site's ports. | A user's vault is left half-written after an undo, with no pause, no notice and nothing in the diagnostics report — and the plugin keeps writing over it. Nobody can tell from the product that it happened. |
+| **Record inside `markUncompensated` itself** | Closes the category by construction: every stamp becomes a durable incident wherever it is raised, because that function is the only place the stamp is made. | Makes a pure stamping function write to module-level state — it is currently a copy-and-return with no side effect. And it necessarily turns stamps that today reach no recorder into vault-wide write blocks, which is the point of the option and also its risk. | Every newly-recorded stamp pauses **all** writing in the vault, and under decision D-08 that pause survives reloads and restarts: the only way a user clears it is removing `write-incidents.json` and reloading. If any site turns out to raise a stamp routinely on a vault that is in fact fine, the plugin cannot write to that vault until the user does that — on a branch nothing has ever run in a vault. (Corrected under owner ruling 21: this cell said "until reload", citing D-06, which D-08 superseded.) |
+| **A static check that a stamp can reach a recorder** | Would refuse a raise site whose dispatch cannot reach `guardCommand`. | **Refused by measurement, not by argument** — recorded in ADR-0034. The guarded relation is made by wrapping an object at runtime and consumed by calling a port method; neither is an import edge. A walk from `guardedServices.ts` reaches 1 of the 17 stamping modules; one from `composition-root.ts` reaches 929 files including all of presentation. | Nothing — it was attempted and does not work. It is listed so it is not re-proposed. |
+| **List the covered paths in prose and keep them current** | Nothing in the code. | This is what the ADR did, and it contradicted itself: a site sat on the COVERED list while being uncovered (`undoDeleteResolution.rollBack`), found only when someone measured. | A list that reads as authoritative and is wrong is worse than no list, because the next reader stops measuring. |
+
+**One recorded cost in that table's second row does not survive checking, and it is stated here
+rather than repeated.** ADR-0034 gives as its example of the risk that
+`ConstructionMaterialCommand` "swallows" a stamp, so recording at stamp time would create a
+vault-wide block that does not happen today. Re-read against the code, that command re-raises the
+stamped error on every arm (`putBack` returns `err(error)` with the stamp intact), and its
+composition wraps both its doors in `guardCommand` (`src/plugin/guardedRenovation.ts`, wired at
+`src/plugin/planningEditorServices.ts`), so that stamp **already** becomes a durable incident
+today. The direction of the risk is unchanged — recording at stamp time would newly block the
+vault for the sites that genuinely reach no recorder, which is what the option is for — but the
+named example does not demonstrate it, and no other example has been costed.
+
+**Two further options are absent from that table because nobody has costed them, and that is said
+here rather than left silent:** guarding the raw ports handed to a pane, and routing undo through a
+recorder of its own. No cost, blast radius or wrong-choice cost is recorded for either anywhere, and
+none is invented here — taking either means costing it first. That is the same position as Q3's
+fourth option, which is in its table labelled **not costed anywhere**; the difference is that
+session 8 named that one explicitly as the scope question its row is about, and no session has
+costed these two.
+
+### The deciding experiment
+
+**No vault is needed to decide this one.** What would settle the risk in the second option is
+cheap and has not been done: take the raise sites that reach no recorder, and for each one
+establish whether it fires only on a genuinely half-written vault or can fire on a healthy one. The
+sites are reachable from the suite. That is an afternoon of measurement against a category nobody
+has enumerated, and its own result would be a count that is not a census (see below).
+
+A vault run is needed only to verify a chosen fix in situ, never to choose.
+
+### What is already fixed, and not in question
+
+- **The hole cannot get wider on the bundles one pin walks — which is two of the four.**
+  `tests/plugin/guardCategory.test.ts` pins, by exact value, the raw class instances it reaches from
+  the shared persistence bundle and from two of the four bundles the composition root builds a pane
+  from: `planEditorDeps` and `assetLibraryDeps`. A **new** raw port handed out *there* turns that
+  test red and its author has to justify it in the same edit. What that check sees is class
+  instances handed out by a zero-argument factory or as a field of a bundle. What it cannot see:
+  - a raw port handed out by **`assetDesignerDeps` or `renovationProjectDeps`**, which the pin does
+    not walk at all. The test's own comment states why it has missed nothing yet and refuses to
+    call that a guarantee — those two *"hand out only members `persistence` already carries, which
+    is why nothing here has missed a raw door yet, **and is a reason rather than a guarantee**"*.
+    So a raw port handed out by `assetDesignerDeps` that `persistence` does not already carry is
+    reached by no walk and the pin stays green. **`assetDesignerDeps` is the bundle that hands the
+    Asset designer the raw ports behind the fourth site named below**, so this blind spot is the one
+    containing this document's own new finding;
+  - a port handed to a pane by a factory that takes arguments (recorded in the file as a
+    `function-with-arguments` skip);
+  - anything past depth 8;
+  - a command hidden as a field inside another class instance.
+
+  It does **not** see a stamp at all either: adding a second `markUncompensated` behind one of the
+  live sites turns nothing red.
+- **The vault-wide pause itself works**, on the paths it covers, and covers both the forward door
+  and Undo — tracker row **L-05** (two Plan editor commands brought inside the gate, both of their
+  doors) and tracker row **L-16** (undo and redo refused on both editor surfaces) are closed. **Two
+  neighbouring rows are easy to read as closed with them and are not**, and the tracker says so in
+  its own words: **L-01** is *"Closed for the Plan Editor only"* — a second Plan Editor pane on one
+  plan is gated, and that row itself records that this **does not on its own unblock G1** — and
+  **L-13** is *"RECLASSIFIED … not closed"*: the Asset Designer's forward writes ARE refused while
+  an incident is open, and what is left there is a feedback gap, an enabled control that refuses on
+  use, carried as L-14.
+- **"Three live sites" is a count of what has been NAMED, not a census, and it is at least four.**
+  The three named are `undoDeleteResolution.rollBack`
+  (`src/application/reference/undoDeleteResolution.ts`), `restoreSteps`
+  (`src/application/commands/spatial/composedSteps.ts`, reached from `DeleteSelectionCommand` and
+  `PasteCommand`) and the stamp inside `ReversibleDeleteZoneCommand.undo()`'s `restoreEntity`
+  callback (`src/application/commands/zone/reversible-delete-zone-command.ts`). A fourth of
+  identical shape — the undo door of `ReversibleAssetDesignCommands`
+  (`src/application/editor/asset/ReversibleAssetDesignCommands.ts`) — is named on no list, and the
+  mechanism that puts it there is stated in `with-incident-gate.ts`'s own docblock. **The true size
+  of the set is unmeasured**, which is the whole of what this question is about.
+  *Superseded 2026-09-25 by the census:* 23 raise sites, 6 of them with a path reaching no
+  recorder (#11, #15, #16, #17, #21, #22 in `11-q1-stamp-census.md`), measured with a
+  type-checker instrument tested on planted fixtures first.
+
+### Where the evidence lives
+
+- `docs/development/adrs/0034-a-write-incident-is-durable-and-vault-scoped.md` — the decision and
+  its three self-corrections
+- `src/application/commands/DispatchOutcome.ts` — `markUncompensated`
+- `src/application/errors/guardAgainstThrowing.ts` — `guardCommand`, the first recorder and the gate
+- `src/plugin/evidenceRename.ts` — the second recorder (records nothing since step 2; it now
+  only holds the registry for its relocation)
+- `src/presentation/editor/tools/with-incident-gate.ts` — why an undo reaches neither
+- `tests/plugin/guardCategory.test.ts` — the pin, at `e7c24d91b..9d08aeed4`
+- Tracker rows L-06 and L-11 in `03-execution-tracker.md`
+
+### The owner's choice, 2026-09-25
+
+The release owner chose **"Measure first"** in session 21's chat: agents list every place that can
+raise this "partly failed" mark without it being recorded, and check whether any can fire on a
+healthy vault, and the owner decides the fix from that result. The deciding experiment above is
+authorised as the next step. **Q1 remains open.** *Superseded 2026-09-25 and 2026-09-26 by the
+choices below.*
+
+### The owner's choice, 2026-09-26 — taken
+
+The measurement is `11-q1-stamp-census.md`: 23 raise sites, 6 with a path reaching no recorder,
+and one of those six (#17, the Asset designer's background undo) able to stamp a healthy vault.
+The owner then ruled, in order:
+
+- **Ruling 13, "Fix false marks, then record".** First stop #17 marking a vault that is fine
+  (done under rulings 13 and 18, census §7), then **record every mark in one place** — this
+  section's option "Record inside `markUncompensated` itself" — so all six gaps close by
+  construction.
+- **Ruling 19, "Go ahead, Q3 first".** Land the keep-alive of Q3 (ruling 16) first, then record.
+  Taken knowing the corrected cost: a recorded stamp is **durable across restarts** (D-08), so
+  #17's remaining fault-shaped cases can durably block a healthy vault until the user removes
+  `write-incidents.json`. **The owner ruled on three of them here** — the ruling's own words are
+  "two disk faults, a sync write plus a fault, a delete at the exact moment of the read". A
+  fourth, a put-back refused `asset.pre-write-invalid`, was found by the step-2 review after this
+  ruling and was not in its option text; the owner accepted it separately, by **ruling 23** on
+  2026-09-26 ("Accept it"). This bullet said the ruling was taken knowing all four until the S21
+  close-out.
+- **Ruling 20, "Accept both" side effects.** The diagnostics report lists slightly different
+  entry counts on nested undo chains (a stamp crossing two guarded doors is one entry, not two;
+  a compensation stamping over an already-stamped cause adds one), and once a mark lands
+  mid-gesture a later guarded step of the same gesture is refused — restored walls stay restored
+  rather than being re-deleted.
+- **Ruling 21, "D-08 is right".** The pause persists across restarts on purpose; this section's
+  "until reload" wording is corrected above, with no code change.
+- **Ruling 22, "Yes, acceptable".** Ruling 20's option text understated the count effect as "one
+  extra entry in two rare cases"; the step-2 review measured it on about six nested chains, and
+  the owner accepted the corrected count as built. Only counts change; the gate does not.
+
+**Implemented**: `markUncompensated` records the stamped copy through the existing write-incident
+holder; `guardCommand` and the rename listener record nothing; `eslint.config.mjs`'s
+`STAMP_CONSTRUCTION_BAN` refuses a stamp built by hand anywhere in `src/`, with its blind spots
+pinned in `tests/gates/stamp-construction-boundary.test.ts`. The ADR-0034 amendment dated
+2026-09-26 carries the reasoning, and census §7 the commit. **Q1 is decided.** Nothing here ran
+in a vault: a fix verified in situ is still the vault run this section's "deciding experiment"
+reserves for that.
+
+**What holds now, and what does not** (added 2026-09-26, S21 close-out). Built at
+`a932d1c77..326ce794d` on top of #17's fix (`29d35cc45..4e5e2de75`) and Q3's keep-alive
+(`4e5e2de75..a932d1c77`). It holds that every stamp `markUncompensated` makes is recorded, once,
+into the registry installed when it is made. It does not hold:
+
+- **A stamp made while no registry is installed is still lost.** The keep-alive narrows that to
+  saves none of its holders counts.
+- **The ban has blind spots**, pinned as blind spots in
+  `tests/gates/stamp-construction-boundary.test.ts`: a computed key, `Object.assign` with a
+  computed key, `Object.defineProperty`, a class field, a second function of that name, and
+  oxlint, which does not carry the rule.
+- **Durable pauses over a vault that may be coherent** — each pauses writing across restarts:
+  #17's fault-shaped residuals P2, P5 and P8's delete (census §7, accepted by ruling 19); P8's
+  sync-client lock (`EBUSY`, established by reading only, ruling 31); a put-back refused
+  `asset.pre-write-invalid` (ruling 23); two older paths recorded as owner questions by ruling
+  25 (section 8); and a rename whose later plan's READ is refused with a code the skip does not
+  cover (`plan.migration-failed`) after an earlier plan was written — the same `abort` as ruling
+  25's rename, a stamp and a durable pause, an owner question, ruling 32 (driven generically:
+  `relocateEvidenceIncident.test.ts` › "stamps a failed READ that follows a write, not only a
+  failed save").
+- **A reload while an old save is still running** records that save's half-failure into the NEW
+  session's registry, pinned as "not endorsed" and disclosed in ADR-0034's amendment.
+- **No E2E case drives the designer undo race or the registry across unload**; both rest on the
+  fake-vault suite.
+
+## 4. Q2 — a settings change landing inside a live project create (tracker L-19)
+
+### The situation
+
+A user starts creating a project and, while that create is still running, saves a change in the
+plugin's settings — for instance the default folder new projects go into. Saving settings rebuilds
+the plugin's internals and rebinds every open pane. The project that was already in flight is
+written by the **old** internals, so it lands in the **previous** folder. That much is confirmed by
+measurement on a real rig.
+
+What happens next splits on a timing question nobody has answered in Obsidian: whether Obsidian's
+own note cache has finished parsing the new note at the moment the plugin's change pipeline sees
+it. In the **warm** arm it has, the project is picked up, the row appears in the list unprompted,
+and nothing is wrong. In the **cold** arm it has not, and the project is indexed nowhere — the list
+resolves through the index, so the row never appears, and **closing and reopening the pane does not
+help**; in practice it clears only when the plugin is reloaded. **Which arm production takes is
+unverified and needs one vault run.**
+
+### What the user experiences
+
+In the cold arm: the user creates "Kitchen", changes a setting, and Kitchen never appears in their
+project list. Nothing tells them anything went wrong. The note exists, in the folder that was the
+default a moment ago. The obvious thing to do is create it again — and now there are two Kitchen
+projects in two folders, one of which is invisible until the plugin restarts.
+
+In the warm arm the user sees nothing wrong at all, except that the project is filed under the old
+folder.
+
+### Options
+
+| Option | What it changes | What it costs | What it costs if this is the wrong choice |
+|---|---|---|---|
+| **D — accept, correct the documents** (taken, ruling R-S7-11) | Nothing in behaviour. Three documents that stated something measurement refuted are corrected. | Already done. | The cold arm ships: silence, an invisible project, and a duplicate the user creates themselves. |
+| **A — defer the rebind until the create finishes** | The in-flight create would finish against the internals it started with. | **Refused, and the refusal was re-confirmed by the measurement.** There is no seam to defer at, and deferring only lengthens the window in which the retired internals — the ones writing to the wrong folder — are still live. | Nothing; it does not close the case it was proposed for. |
+| **B — give the dialog a distinct result for this case** | The form could tell the user what happened. | **Refuted as unsafe.** The controller's premise was that the result type is compiler-enforced. It is not: there is no exhaustive `switch` over a dialog result anywhere in `src/presentation/` — every call site that reads a dialog result narrows by equality, so a new value compiles clean and falls through to **SUCCESS**. A user-facing message variant is separately blocked by L-15. | Its failure mode is silent success at every place a dialog result is read, with nothing at the compiler to catch it. |
+| **C — close the cold arm in the index pipeline** | The note would be indexed even when the cache is cold. | Free in the warm arm (nothing to do). In the cold arm it means changing the index pipeline, which is the widest blast radius in this area — for a path nobody has shown production takes. | If production is in fact always warm, this is a large change to the riskiest component for no user-visible gain. If production is cold and this is skipped, the duplicate-project outcome above is what ships. |
+
+**On the size of that last one, and why no number is given for it.** The tracker's L-19 row states
+"46 call sites across 34 files", and **no instrument for that figure is recorded anywhere** — its
+provenance is a working note that is not tracked in git. Re-derived here with the obvious
+instrument, `grep -rnE "openDialog[<(]" src/` prints **52 lines in 35 files** today, which counts
+the declaration and docblock prose as well as call sites, so it neither reproduces nor refutes 46.
+The number is therefore not carried here. What the option turns on is not the magnitude but the
+shape, and the shape was re-checked directly: every site narrows a dialog result by equality and no
+exhaustive `switch` over one exists in `src/presentation/`, so the count only sizes a risk that is
+already established.
+
+**The owner's question is not which option.** Option D is taken. The question is: **does the cold
+arm's outcome — told nothing, project invisible, reopening does not help, duplicate likely — block
+a first beta?**
+
+### The deciding experiment
+
+**One vault run**, and it is already on the native-verification list: in a real Obsidian vault,
+start a project create, save a settings change before it completes, and observe whether the new
+project's row appears in the list without a plugin reload. Warm arm and cold arm are
+distinguishable by that one observation. A rig cannot answer it, because the thing being raced is
+Obsidian's own note parser.
+
+**The run has happened, automated, and the answer is WARM:** measured warm on 1.13.7/Windows on
+2026-09-25, 3 of 3; by the owner's ruling this ships as is. The case is
+`tests/e2e/settingsDuringCreate.e2e.ts`, driving a real Obsidian 1.13.7 through
+`npm run test:e2e`. Each of three iterations holds the plugin's real `vault.create` open, changes
+the default projects folder in the host's own settings window, confirms the rebind cancelled the
+busy dialog while the write was still held, releases the write, finds the note under the
+PREVIOUS folder, and watches the rebound list for 3000 ms. Every iteration's row appeared
+unprompted, first seen 177 to 498 ms into the window over four recorded runs (12 of 12). The
+evidence file is `l19-arms.json` in the case's `e2e-results/cases/` folder. Two checks stand
+behind that answer. A plugin reload afterwards lists all three through the same selector. And
+forcing the cold arm, by making the index pipeline ignore creates, turns the case red, so the
+case can see a miss. (*2026-10-03, owner ruling 76:* that control no longer sees one — with
+creates ignored, the note's parse still arrives as `changed` and lists it. Inferred from the
+code path, not run; a control for this case now has to drop the `changed` registration too.)
+**What it does not cover:** the vault was the small e2e test vault on one
+machine, so a large vault or a slow disk, where Obsidian's parse could outlast the plugin's
+500 ms debounce, is not measured. The project also still lands in the old folder, as the warm
+arm says.
+
+### What is already fixed, and not in question
+
+- The behaviour itself is **accepted by ruling R-S7-11** and is not being re-litigated.
+- The documented account of it was wrong in both directions and has been corrected in four
+  documents; a fifth, a dated historical record, carries a pointer to the refutation rather than a
+  rewrite.
+- The claim that the dialog-result option is compiler-safe is **refuted** and must not be revived
+  without the exhaustive-handling mechanism that does not exist.
+
+### Where the evidence lives
+
+- Tracker row L-19 in `03-execution-tracker.md`, and the session 7 log in the same file
+- Ruling R-S7-11
+- The measurement rig and its four numbered claims are recorded in the session 7 F1 discovery
+  report (in the working notes, not tracked in git)
+- Fix commits for F1's documentation half: `c5b2817e2`, `1979aa7f6`
+
+### The owner's choice, 2026-09-25
+
+The release owner chose **"Block only if run shows it"** in session 21's chat: if the vault run
+shows the project appearing anyway, ship as is; if it shows the project missing, that blocks the
+beta until the plugin's indexing is fixed. The owner cannot do that run soon, so the release call
+is conditional and unresolved, and G1 cannot be evaluated until the run happens. **Q2 remains
+open.** *Superseded 2026-09-25:* the run happened, automated rather than by hand, and measured the
+warm arm, 3 of 3 (see "The deciding experiment" above). By this ruling Q2 ships as is.
+
+### The cold arm, found in CI on 2026-09-28, and owner ruling 41's fix
+
+**Found.** On 2026-09-28 the E2E run `36462205808`, attempt 2, failed on its `latest` desktop
+leg in `settingsDuringCreate.e2e.ts`'s Q2 case with `[ true, false, true ]` against
+`[ true, true, true ]`: one of three iterations did not list the new project without a reload.
+It was the first observation of the cold arm anywhere, in CI on Linux, not in a vault.
+
+**The mechanism**, from an investigation of three dispatched E2E runs on throwaway branches
+(`36470438857`, `36471212931`, `36471926146`, the branches deleted after), established by a
+forced reproduction and a control; that it is what failed `36462205808` is inferred from the
+matching result and warnings, since that run's artifact was not read.
+A settings apply landing between Obsidian's vault `create` event for the plugin's
+note and Obsidian's metadata parse of it (2 to 19 ms in CI) flushed the outgoing index adapter's
+pending path against a null cache and an empty echo window, so the note was dropped as "not
+ours"; the new root's scan also ran before the parse, and nothing re-read the note after it.
+Forced inside the `create` event: 0 of 20 listed, all 20 recovered by a reload; forced after the
+parse: 20 of 20 listed. In the test, the trigger was the folder text control saving on every
+keystroke, each save queuing a settings apply, with the create released while later applies
+were still queued. The E2E stale-element failures in settings-window cases share that upstream
+cause (trailing applies remount the view while WebDriver holds its elements); which element went
+stale was inferred, not proven.
+
+**Owner ruling 41 ("Fix product + tests") and its fix**, at `710ae3541`, `4c0953cd5`, `d6f3da245`
+and `0f9fa51e5`. At a settings swap the outgoing adapter hands its pending paths, unprocessed,
+to the incoming one (`VaultChangeAdapter.handOver` and `adopt`), which processes them after its
+own debounce against a parsed cache. A plan created across the swap needed a second change: its
+sidecar can arrive before its note, so `processNote` now resolves a missing sidecar mapping from
+the vault — for every new plan or asset note the pipeline meets with no known mapping, not only
+across a swap; one walk of the vault's files each (a reviewer's estimate: ~1.8 ms at 10 000
+files) — which owner ruling 55 accepts. Both e2e cases wait for
+the settings writes to settle, and a new case forces the race and expects the project listed.
+
+**Verification, in CI and not in a vault.** The new e2e cases over the pre-fix swap path, on a
+throwaway branch (run `36479247196`), failed the forced case on both desktop legs, `[false ×5]`
+against `[true ×5]`; the same cases on the fixed path passed (run `36479214036` at `4c0953cd5`),
+and every completed E2E run on the branch since, to `3d85db7a0`, has passed.
+
+**The residual.** The hand-over gives a note one debounce (~500 ms) for Obsidian to parse it. A
+note whose parse takes longer is still read against a null cache and dropped until the next
+full rebuild, as before; nothing listens for the parse itself. A large vault or a slow disk is
+where that could happen, and none has been measured. *2026-10-03, from the review of
+`5444b843e`:* the exposure is wider than "a parse that outlasts ~500 ms". The debounce is one
+batch window, not one per note: `VaultChangeAdapter.enqueue` arms a single timer on the first
+queued path and does not reset it for later ones, so a note queued late in an open window is
+processed after only the window's remainder, which can be about 0 ms. *2026-10-03 and 2026-10-04:* owner
+ruling 76 (`75f07aaaf`, with `fc7bf414e`) makes the plugin listen for the parse
+(`metadataCache`'s `changed`) and re-queue the note through the same pipeline a `modify` takes.
+That this closes the residual, the late-in-window case included, is shown in the unit suite
+(`tests/plugin/lateParse.test.ts`, which queues a note with 10 ms of the window left and was
+watched red on the old code), not yet on a real host. That the forced case's `listed` half
+passes on EITHER mechanism, hand-over or flush, is shown in the unit suite too
+(`tests/plugin/settingsSwapHandOver.test.ts`, whose listing stays green with the hand-over
+reverted); that is why the e2e case's premise now records whether the retired adapter
+processed the path, which is what tells the two apart (`tests/e2e/settingsDuringCreate.e2e.ts`).
+That premise was watched red in a real Obsidian on Linux under xvfb, in the throwaway E2E
+`37158112955` with the hand-over removed. *2026-10-04:* E2E `37159158823` at `925e2f33d` was
+green on all five legs, the forced case and the mobile-emulation leg's seed case included,
+whose earlier failures are consistent with this residual (the logs carry only the asset count,
+so no run proves it). That is one run, not a rate, and its log does not show whether a late
+parse happened in it.
+
+**Owner ruling 42 ("Investigate + fix"), answered 2026-09-28.** The `latest` E2E leg installs
+1.13.7 correctly: the newest public release, 1.13.8 (2026-08-21), is Android-only, and
+Obsidian's own desktop release feed names 1.13.7 as the latest stable desktop build. The version
+resolution is not wrong, so nothing was fixed there; the leg duplicates 1.13.7 until a newer
+desktop build ships. Its cache key, which never re-saved, was changed separately under owner
+ruling 48 (`171eeb571`).
+
+## 5. Q3 — may a still-mounted view write to the vault after `onunload`? (tracker L-21)
+
+### The situation
+
+When Obsidian disables or reloads the plugin, it calls `onunload`. This plugin's `onunload` sets an
+"unloaded" flag and runs five cleanup steps, and does nothing else — it **closes no view and takes
+no pane off the screen**. So when `onunload` returns, every open editor pane is still on screen,
+still wired up, and still able to write to the vault. *Superseded 2026-09-25 (1.13.7, Windows, one
+machine): Obsidian closes the Plan Editor pane before `onunload`, so none is left on screen. See
+"The run has happened".*
+
+Session 8 found and fixed the sharp end of that: one of the cleanup steps used to switch off the
+plugin's record of half-written writes, which simultaneously disarmed all three things that read it
+— the refusal on a forward write, the refusal on Undo, and the recording of a new half-write. A
+pane that was correctly refusing writes over a half-written vault started accepting them the moment
+the plugin unloaded. That is fixed at `f5a7f219e`: an **open** record is no longer released, a clean
+one still is.
+
+What the fix deliberately does **not** settle is the general case. With nothing half-written, a
+guarded write dispatched after `onunload` still runs, and if it half-fails it is recorded nowhere.
+Reaching that window does not need a user: a queued or debounced write already in flight — a text
+field committing after a pause, a queued sequence of writes — lands there with no gesture at all.
+*Superseded 2026-09-25 (1.13.7, Windows, one machine): no field is debounced. The write measured
+in this window is a field commit started by the teardown's own blur. See "The run has happened".*
+
+**Unverified:** whether Obsidian leaves a still-usable pane alive after `onunload`, and in what
+order it tears things down relative to the cleanup steps. The test fakes here record requests
+rather than behaving, so they cannot answer it. *Superseded 2026-09-25: both are now measured in a
+real Obsidian. See "The run has happened" under "The deciding experiment" below. No Plan Editor
+pane is left alive, but a pending field edit is still written after `onunload` returns.*
+
+### What the user experiences
+
+A user edits a room dimension and, within the same second, disables the plugin or triggers a
+reload (an update installs, or they toggle it off). The field's delayed save fires after the plugin
+has unloaded. Today that write goes to the vault. If it half-lands, nothing records it: there is no
+plugin left to warn, the diagnostics report will not name it on the next load, and the pane that
+did it is about to disappear. The user has no way to know.
+
+Whether that window is a fraction of a second or long enough for a click is exactly the unverified
+part. *Superseded 2026-09-25: the run below measured it. It is not long enough for a click, because
+no pane is left to click. It does not need one either: a value typed and not yet committed is
+written by the teardown itself, and the write lands after `onunload` has returned. That changes
+the paragraph above in one way. No delayed save is involved, because no field here is debounced.
+The field commits when it loses focus, and Obsidian's teardown takes the focus away.*
+
+### Options
+
+| Option | What it changes | What it costs | What it costs if this is the wrong choice |
+|---|---|---|---|
+| **Leave it** (today) | Nothing. Open records survive unload; clean sessions release, and a post-unload write with nothing open still lands. | Nothing to build. | A half-failed write in the unload window is unrecorded and unrecoverable, and the user is not told. Blast radius is unknown because the window's width in Obsidian is unverified. *Superseded in part 2026-09-25 (1.13.7, Windows, one machine): a teardown-started write lands after `onunload`, about 60 ms after it in one probe; see "The run has happened".* |
+| **Never release the record at all** (drop the `anyOpen()` guard in `SessionStores.dispose()`) | Every post-unload write stays gated and recordable. | Named as the remedy in `src/plugin/sessionStores.ts`'s own docblock. The price stated there: a disposed session's record answers for the vault from module scope until the next load constructs a new one — the window is exactly "after unload, before the next load". Existing cases asserting that a clean dispose releases would need re-aiming. | The plugin's own rule that a global it installs is a global it removes is given up for one case; a stale record could answer for a vault the next load has not looked at yet. |
+| **A permanently-refusing sentinel after unload** | Every post-unload write refused outright. | **Refuted by measurement in session 8.** It would refuse a write in a never-half-written vault using the only refusal message that exists, which says an earlier write left the vault half-written. Minting a message variant is blocked by limitation L-15 (no agent-minted copy in the second language). | A user in a perfectly healthy vault is told their vault is half-written. |
+| **Make `onunload` own view teardown** — unmount the Vue apps, detach the leaves, or order the cleanup steps against view teardown | The premise of the whole question disappears: no pane is alive to write. *Superseded 2026-09-25: Obsidian already closes the pane before `onunload` (measured, 1.13.7, Windows, one machine), and the pending write still landed. So, following from that order rather than measured, this option alone would not close the window; see "The run has happened".* | **Not costed anywhere.** Session 8 named it as a scope decision and stopped at its stop rather than build it. The plugin's own `onunload` docblock records a deliberate policy of not repeating teardown Obsidian's base class already does, which this would sit against. | Unknown, because it is uncosted. Taking it means costing it first. |
+
+### The deciding experiment
+
+**One vault run**, and it is the same session as Q2's: in a real vault, with an editor pane open
+and a field edit pending, disable the plugin and observe whether the pane is still on screen and
+whether the pending write reaches the note. That answers both halves — whether the window exists in
+Obsidian at all, and roughly how wide it is. Nothing in this repository can answer it: the fakes
+record requests rather than behaving, and the mock plugin base unregisters nothing.
+
+**The run has happened, automated. No pane survives, but the pending write still reaches the note,
+after `onunload`.** This was measured on Obsidian 1.13.7 on Windows, on one machine, on
+2026-09-25, by `tests/e2e/unloadWindow.e2e.ts` through `npm run test:e2e`. The case opens the
+sample project's Plan Editor and assigns an asset to the Kitchen. Then it types `7.5` into the
+Room Inspector's quantity override and does not blur it, and disables the plugin. The cases
+passed on three full runs after the probe runs. The first two cases write their recorded order to
+`unload-order.json` in the case's `e2e-results/cases/` folder. They pin these facts:
+
+- **The pane.** Obsidian calls the Plan Editor view's `onClose` twice, both before `onunload`. It
+  replaces the view with an empty "New tab" whose view state carries no plan id. No Plan Editor
+  leaf is left, and enabling the plugin again does not bring one back. So the premise of the
+  question, a pane still on screen after `onunload`, does not hold on this build.
+- **The write.** No key is pressed after the disable. The field gets a `focusout` while it is
+  still in the page, before the first `onClose`, and that blur starts the commit. The requirement
+  note's `vault.process` starts only after `onunload` has returned. The note's `quantity-override`
+  goes from empty to `7.5`, and its revision goes up by one. In a probe run the write ended about
+  80 ms after the `focusout` and about 60 ms after `onunload` returned.
+- **Under an open write incident** (`f5a7f219e`'s claim). The paused field is `readonly`, so no
+  edit can be pending, and no pane survives the disable to offer another write. The note is
+  unchanged over a 2000 ms window. This half of the experiment is **moot**, so the mutation the
+  plan named for it (dropping the `anyOpen()` guard in `SessionStores.dispose()`) was not run.
+
+**What this means for the options**, stated as a measurement and not a recommendation. The fourth
+option, making `onunload` own view teardown, would not close this window on its own: Obsidian
+already closes the view before `onunload` runs, and the write still landed. The window is a write
+that the teardown STARTS and that finishes after `onunload`. **Not measured:** whether the write's
+incident guard is consulted before or after `onunload` releases a clean registry, a write that
+half-fails in this window, other panes and fields, other Obsidian versions, and mobile.
+
+### What is already fixed, and not in question
+
+- **The sharp end is fixed** at `f5a7f219e` and locked by `tests/plugin/unloadWithViewOpen.test.ts`,
+  which drives the plugin's own registered view factory over a real repository stack and covers
+  both the forward-write arm and the Undo arm. It was watched failing against the old code as
+  assertion failures, not timeouts.
+- **Five of BP-03 F3's six test rows are deliberately unwritten, and this is the part an owner will
+  most want to re-open, so it is stated plainly.** The six rows are the six states a pane can be in
+  at unload; one — an unresolved half-write — is now covered. For three of the other five
+  (idle, an unsaved form, a part-drawn shape) the lifecycle rules measure as **not violated** at
+  this boundary, so a test asserting the current behaviour would assert that nothing happens —
+  and what actually happens at this boundary is that a still-mounted pane **can** write after
+  unload. *(Superseded 2026-09-25, 1.13.7, Windows, one machine: no pane stays mounted, but a
+  write the teardown starts lands after unload. See "The run has happened".)* Such a test would therefore certify that write as correct, and it would stay green on
+  exactly the day somebody changes it by accident. A fourth (a write already dispatched) is
+  satisfied by the **absence** of cancellation code, so there is no mechanism to break and no
+  failing state to watch. **The fifth is named here rather than left to be counted: a stale
+  read-back** — a pane that is refusing writes because its own last read of the project failed. It
+  carries the blanket reason and nothing more specific: `04-lifecycle-contract.md`'s F3 row gives
+  one reason for all five rows at once, and the one measured bad property recorded against a stale
+  read-back — F2, where a remount clears the refusal and the fresh hydrate cannot re-derive it, rule
+  3 declined by design — is recorded against a **settings rebind**, not against unload. **Whether
+  that row also has a reason of its own that nobody wrote down is recorded nowhere**, and this
+  document cannot settle it. That is rulings **R-S8-3 and R-S8-4** and it is **not open for
+  revisiting**: what unblocks those rows is this question being answered, not a decision to write
+  them anyway.
+
+### Where the evidence lives
+
+- `src/plugin/RenovationPlannerPlugin.ts` — `onunload`
+- `src/plugin/sessionStores.ts` — `dispose()`, and the docblock stating the residual and the remedy
+- `tests/plugin/unloadWithViewOpen.test.ts` — the lock
+- `docs/releases/first-beta-readiness/04-lifecycle-contract.md` — the six rules and the state table
+- Fix commit `f5a7f219e`; helper promotion `45c88a73e`
+- Tracker row L-21 and the session 8 log in `03-execution-tracker.md`
+
+### The owner's choice, 2026-09-25
+
+The release owner chose **"Cost view teardown"** in session 21's chat: agents estimate the cost of
+making unload close the plugin's own panes, so nothing is left alive to write, and the owner
+decides after the estimate and the vault run, which the owner cannot do soon. Costing the fourth
+option in the table above is authorised. **Q3 remains open.** *Superseded 2026-09-25 by ruling 16
+below: the owner's own measurement refuted this option's premise, since Obsidian closes the
+plugin's panes before `onunload`, so no costing step is recorded as having run.*
+
+### The owner's choice, 2026-09-25 — re-asked and taken
+
+After the measurement above, the owner re-ruled (ruling 16, **"Keep the record alive"**): "Don't
+release the plugin's record of partly failed writes at unload while a save is still running, so
+the teardown's save is still checked and recorded. Your typed value still gets saved. Cost
+(already recorded): an old session's record can answer for the vault until the next load." It
+**supersedes ruling 4**, and it is this section's option "Never release the record at all",
+scoped by the owner's words to "while a save is still running". **Q3 is decided.**
+
+**Built at `4e5e2de75..a932d1c77`.** `WriteIncidentRegistry` counts running saves (`hold()`,
+`whenIdle()`), and `SessionStores.dispose()` releases the record only when none is running. A
+save is counted from its gesture at the two doors a gesture reaches synchronously —
+`guardCommand` and the editors' `withSaveStateTracking` — and by two holders outside them:
+`useFieldCommit`, over a field's whole chain of commit rounds, and `evidenceRenamed`, over a
+rename's whole relocation. **What it does not hold:** a path that awaits before reaching a
+holder is not counted until it does; a reload while an old save is running leaves two
+registries over one file, and that save records into the new one (section 3); and where the
+guard sits relative to `onunload` in Obsidian, and a half-failed write in the unload window, are
+still unmeasured — no E2E case drives the registry across unload, so all of this rests on the
+fake-vault suite. This block does not revisit BP-03 F3's five unwritten test rows (rulings
+R-S8-3 and R-S8-4).
+
+## 6. What answering Q1 to Q3 unblocks
+
+- **The G1 data-trust gate evaluation.** The tracker's gate table records G1 as "not evaluated",
+  with two owner calls standing between it and an evaluation — L-19's duplicate-project risk and
+  L-21's post-unload write — and the L-06 category still open beside them. G1 is the gate the rest
+  of the beta sequence hangs off; G2 to G5 are all unevaluated behind it.
+- **Five of BP-03 F3's six test rows.** The package's test column is locked at 1 of 6 for the
+  reason in section 5. Answering Q3 says what the other five should assert; until then writing them
+  would certify a behaviour nobody has decided is correct.
+- **BP-02's remaining work.** The register's BP-02 row records no further action in that package
+  until Q1 is answered.
+- **The production candidate, indirectly.** The register's BP-12 row says the candidate depends on
+  the selected production changes, several of which wait on owner questions in this document.
+
+*Added 2026-09-26:* Q1 and Q3 are decided and built, and Q2 is measured (section 2). Whether that
+lets G1 be evaluated, and what the five F3 rows should now assert, has not been decided in this
+document; the tracker's G1, BP-02 and BP-03 rows carry their state.
+
+## 7. What this document does not cover
+
+- **It decides nothing**, by design. Where a course of action is described it is described with
+  what it costs and what it costs if it is wrong, never as a recommendation.
+- **It is not a fresh investigation.** Every question here was measured and argued in an earlier
+  session; this distils those records and re-drives the load-bearing claims. Three claims were
+  re-driven for Q1 and one of them did not hold — it is flagged in section 3 where it sits.
+- **It does not size the Q1 category.** How many raise sites reach no recorder is unmeasured, and
+  every count in section 3 is a count of what has been *named*. *Superseded 2026-09-25:*
+  `11-q1-stamp-census.md` sizes it — 23 raise sites, 6 with a path reaching no recorder.
+- **It covers no other open limitation beyond section 8's pointers.** The tracker's "Decisions and
+  explicit limitations" table is the list of what is open or partly open. This section keeps no
+  list of its own, because the one it kept went stale: it named L-04, which is REFUTED, and none
+  of the owner questions in section 8.
+- **It claims no verification in Obsidian, on any device, with any screen reader, or of any
+  performance property.** None has been performed on this branch, ever. Q2 and Q3 each need one
+  vault run before their answer can be acted on with confidence, and Q1 needs one before any fix to
+  it can be trusted in situ. *Narrowed 2026-09-26:* the `E2E` workflow now runs the plugin in a
+  real Obsidian over the test vault (section 1). Q2 and Q3 were measured on 1.13.7, Windows, one
+  machine (sections 4 and 5); the E2E workflow re-runs both cases on Linux. None of that is the
+  owner's own vault or a device, and no E2E case drives Q1's fix.
+- **It adds no user-facing copy.** Any option here that would need a new user-visible message is
+  blocked behind limitation L-15 until a human writes the second language, and the option's row
+  says so. Since 2026-09-25 the owner's ruling on L-15 (section 8) lets an agent draft the German,
+  marked as a draft, for the owner to approve or rewrite before merge; it was given for four items
+  section 8 names, none of them an option in sections 3 to 5.
+
+## 8. Other owner questions recorded in the tracker, open and decided since
+
+Added 2026-09-23 (session 17). These are owner questions the tracker records outside Q1 to Q3.
+This is a reading of the tracker on that date, not a census, and nothing here decides any of them.
+Each names the tracker row that carries its evidence.
+
+- *Decided 2026-09-25 (below).* **L-23: a vertex drag can write a zero-area straight Zone to the vault**, which BP-04's typed
+  dialog then refuses to save. The recorded remedy (`enclosesArea` in `Zone.withGeometry`) changes
+  behaviour at a trust boundary: a vault already holding such a Zone keeps loading but refuses
+  further edits. It waits on a recorded trade (R-S12-7). Tracker row L-23.
+- *Decided 2026-09-25 (below).* **L-33's residue: whether to mint a sentence naming the cause of a whole-outline refusal.** The
+  outline dialog now shows the fallback-tier `error.category.geometry` sentence, which the locale
+  file's own convention treats as a defect worth a key to avoid. Minting one needs German, which
+  L-15 keeps out of an agent's hands. Tracker row L-33.
+- *Decided 2026-09-25 (below).* **L-36: one form's two axis labels are written in two English registers**
+  (`Starting horizontal coordinate (m)` beside `Start Y (m)`). Both remedies are copy judgements,
+  and the symmetric one needs German that L-15 blocks. Tracker row L-36, to be revisited with
+  L-33's residue.
+- *Decided 2026-09-25 (below).* **L-37: two strings that tell the user to open the diagnostics report arrive as toasts, which
+  cannot carry an action.** The question is whether a notice in this plugin should be able to
+  carry an action at all. The row records it as not blocking a first beta. Tracker row L-37.
+- *Decided 2026-09-25 (below).* **BP-05: the plan's clause "rejected/no-op operations do not add history".** Its no-op half
+  contradicts `CommandHistory.runNow`, which puts a no-write gesture on the undo stack by design,
+  and the Done PBI `docs/requirements/Undo and redo.md` records that half as NARROWED at its
+  criterion 6. Narrow the clause, or change the code. Tracker row BP-05.
+- *Decided 2026-09-25 (below).* **BP-08: which performance targets a run is judged against.** The plan's targets and the PBI
+  `docs/requirements/Meet editor performance and cleanup budgets.md` disagree, and the plan requires
+  a recorded decision for a changed target. Tracker row BP-08.
+- *Decided 2026-09-25 (below).* **BP-10: copy for a help entry and for a fictional sample label.** A help entry needs a new
+  command name and new copy, and labelling the sample fictional changes `sample.project.name` in
+  both locales. Tracker row BP-10.
+
+Added 2026-09-23 (session 19):
+
+- *Decided 2026-09-25 (below).* **L-46: whether each Rooms-and-areas row should stay two sequential Tab stops.** Each row of
+  `RoomSummaryList.vue` is a select button and a lock toggle, so an 80-room floor puts 160 Tab
+  stops after the section's summary while it is open. No binding spec, ADR, PBI or test says
+  whether that is intended. Keep it, or make the list one composite stop with the lock reachable
+  inside it. Tracker row L-46, for BP-07.
+- *Decided 2026-09-25 (below).* **L-47: the colours of two editor-shell texts that axe reports in the harness.** The context
+  bar's "Renovate" label (2.6:1) and the Layers panel's "Set scale" link (4.25:1), in the
+  harness's light scenario over Obsidian's reduced default CSS. This is an axe finding in a
+  browser render, not a contrast verification. A colour change is a design decision, and the
+  recovery driver's default path cannot pass its axe assertion until it is made. Tracker row
+  L-47, for BP-07.
+- *Decided 2026-09-25 (below).* **BP-06: copy for a PDF page that does not exist.** Refusing page 3 of a two-page PDF by name
+  needs a new sentence, and perhaps a "page X of N" label, in both locales. L-15 keeps the German
+  from an agent. Tracker row BP-06, whose session 19 log scopes the change.
+
+**Decided since, and no longer open:**
+
+- **L-43, decided by the release owner on 2026-09-23: "guard the asset library on mobile."** The
+  question was whether the Asset Library, which could create, edit and delete assets on mobile,
+  should be guarded there or the beta's "mobile read-only" claim narrowed. The claim stands.
+  `20ff37f29` refuses the library's writes on mobile with the `view.mobile.read-only` sentence,
+  tested in jsdom. Nothing has been run on a device, so a published mobile claim still waits on
+  BP-09's device run. Tracker row L-43 and package BP-09.
+
+**Decided 2026-09-25 (session 21), by the release owner in the session's chat.** Each answered a
+multiple-choice question. The quoted words are the chosen option's label and its description as the
+owner saw it; what each decides, and what it does not, follows.
+
+- **Q1 (L-06 with L-11): "Measure first".** "Agents list every place that can raise this 'partly
+  failed' mark without it being recorded, and check whether any can fire on a healthy vault. No
+  vault needed, about an afternoon. You decide the fix from that result." It authorises section
+  3's deciding experiment as the next step. It does not choose a fix: Q1 stays open. Tracker rows
+  L-06 and L-11. *Superseded: the measurement is done, and rulings 13 and 19 below choose the fix.*
+- **The vault run for Q2 and Q3: "Not soon".** The owner cannot do the one vault run soon. It does
+  not decide when the run happens, or the answer to either question. Tracker rows L-19 and L-21.
+  *Superseded in part the same day: the owner automated both runs as E2E cases in a real
+  Obsidian (sections 4 and 5). A run in the owner's own vault has still not happened.*
+- **Q2 (L-19): "Block only if run shows it".** "If the vault run shows the project appearing
+  anyway, ship as is. If it shows the project missing, that blocks the beta until the plugin's
+  indexing is fixed." It makes the release call conditional on the vault run. It does not resolve
+  the call: with the run not soon, G1 cannot be evaluated until the run happens. Tracker row L-19
+  and the tracker's G1 row. *Superseded the same day: the automated run measured the warm arm, 3
+  of 3, so by this ruling Q2 ships as is (section 4).*
+- **Q3 (L-21): "Cost view teardown".** "Have agents estimate the cost of making unload close the
+  plugin's own panes, so nothing is left alive to write. Decide after the estimate and the vault
+  run." It authorises costing section 5's fourth option. It does not choose an option: Q3 stays
+  open. Tracker row L-21. *Superseded by ruling 16 below, after the owner's measurement refuted
+  this option's premise.*
+- **L-47: "Normal text colour".** "Draw both labels in the theme's normal or muted text colour and
+  keep the green or purple only on a small marker (a dot or icon). Passes the check under any theme
+  and keeps the colour cue." It decides the colour change for the context bar's "Renovate" label
+  and the Layers panel's "Set scale" link. It does not choose between normal and muted, or between
+  a dot and an icon, and nothing has been built or checked. Tracker row L-47, for BP-07.
+  *Built since at `7c57dc6bd`: both labels in `var(--text-normal)`, the context bar's hue on its
+  icon, and Set scale's marker an accent underline, which ruling 26 below accepts.*
+- **L-46: "One Tab stop".** "Tab once into the list, move between rooms with the arrow keys, and
+  reach the lock with a key or the room's context menu. The standard pattern for long lists.
+  Moderate work (BP-07)." It decides that the Rooms-and-areas list becomes one Tab stop. It does
+  not name the key that reaches the lock, and nothing has been built. Tracker row L-46.
+- **BP-05's no-op clause: "Narrow the plan".** "The plan's rule keeps only its 'rejected' half.
+  That matches the code's deliberate design and the already-narrowed Undo backlog item. No code
+  change." It decides that the clause "rejected/no-op operations do not add history" keeps only
+  its rejected half, and that `CommandHistory.runNow` stays as it is. It does not decide any other
+  clause of BP-05. Tracker row BP-05.
+- **BP-08's targets: "Plan's for beta".** "Open within 3 s, visible feedback within 100 ms, frames
+  around 33 ms at the 95th percentile. The backlog item's tighter budgets stay as later goals.
+  Recorded as a decision, as the plan requires for a changed target." This bullet is that recorded
+  decision. It does not say whether the driver's `targets` object, which encodes the PBI's set,
+  changes, and no recorded run has been judged against either set. Tracker row BP-08.
+- **L-15's German copy: "Agent drafts, I approve".** "An agent writes the English and a German
+  draft side by side, marked as drafts. You approve or rewrite the German before anything merges.
+  Unblocks all four items and keeps you as the final word." The four items: BP-06's page-count
+  copy, BP-10's help entry and fictional-sample label, L-33's residue, and L-36. It changes L-15's
+  rule for them: the German may be drafted by an agent, marked as a draft, and approved or
+  rewritten by the owner before merge. It approves no copy, none has been drafted, and it names no
+  item beyond those four. Tracker rows L-15, BP-06, BP-10, L-33 and L-36.
+- **L-37: "Add actionable notices".** "Notices gain an 'Open report' button. A new notice type,
+  with its own accessibility and testing work." It decides that a notice in this plugin may carry
+  that action. It does not settle how: L-37's row records `minAppVersion` compatibility and the
+  fold-and-`update` behaviour as unanswered, and nothing has been built. Tracker row L-37.
+- **L-23: "Add the guard".** "A zero-area room can no longer be saved. A vault that already holds
+  one still loads, but that room refuses further edits until it is fixed, which is the trade-off
+  already recorded for this change." It accepts the trade the row records under R-S12-7. It does
+  not build the guard. Tracker row L-23.
+- **Text Escape, session 21's new question: "Keep as is".** "Escape steps back one level at a
+  time, and typed words cost more to retype than a click. It matches every other drafting kind,
+  which also keeps its name. Just record it as intended." It decides that Escape's first press on
+  a Text draft, which keeps the typed words, is intended. It adds no test: the session 21 log
+  records no committed test driving Escape for this kind, from a text search that is not a
+  census. The session 21 log and tracker row BP-05.
+
+Not asked, and not decided: L-50, and anything needing a vault.
+
+**Decided 2026-09-25 to 2026-09-27 (session 21, later rounds), by the release owner in the same
+chat.** Numbered as in the session's record of rulings, which continues the twelve above as 1 to
+12. Quoted words are the chosen option's label and description as the owner saw them.
+
+- **Ruling 13, Q1 — "Fix false marks, then record"** (2026-09-25). "First stop the designer's undo
+  from marking a vault that is fine: re-read or restore in a safe order, so a peer write can't
+  trigger it. Then record every mark in one place, so all 6 gaps close by construction. Two
+  steps, each reviewed; the first needs a small design." Section 3's option "Record inside
+  `markUncompensated` itself", taken after #17 is fixed. Built; section 3.
+- **Ruling 14, the rename pause (#23) — "Skip unreadable plans"** (2026-09-25). "Update every
+  readable plan's links and leave unreadable ones as they are, as other parts of the product
+  already treat those notes. No vault-wide pause for a rename that succeeded; the skipped plans
+  get named in the diagnostics report." Built at `9ba3432a2`; census §5. `plan.migration-failed`
+  is outside it and still stops a rename.
+- **Ruling 15, Q2 and Q3 as e2e — "Yes, automate them"** (2026-09-25). Those cases
+  (`settingsDuringCreate.e2e.ts` at `30ea1bc9d`, `unloadWindow.e2e.ts` at `bff12d416`) were
+  committed from the owner's own session (`luis.mendez@generic.de`, with a Claude co-author
+  trailer), not by this session's agents, so no committed record shows the agent task it
+  authorised running.
+- **Ruling 16, Q3 — "Keep the record alive"** (2026-09-25). Supersedes ruling 4. Quoted and
+  described in section 5; built at `4e5e2de75..a932d1c77`.
+- **Ruling 17, a designer Undo refused by a racing change — "Always 'superseded'"**
+  (2026-09-25). "A refusal caused by a racing change always shows the 'undo superseded' toast and
+  leaves the save badge alone; genuine write faults still show 'save error'. Uses existing copy,
+  no German needed." Built for the background undo at `99f8ff21f` (ruling 24), and extended to
+  the single-file undos by rulings 27 and 30.
+- **Ruling 18, #17's refused put-back — "Mark only on real faults"** (2026-09-26). "If the
+  put-back is refused because someone else changed the note (a conflict), don't mark: the vault
+  holds the other writer's state, not a half-undo. Mark only when the write genuinely failed
+  (disk or I/O fault). Simpler and safe for step 2. It can miss a real half-undo when an outside
+  writer and a fault happen in the same moment." Built at `b22a2ed41`. Its "Simpler and safe for
+  step 2" rested on a pause lasting until a reload; ruling 19 re-confirmed it on the durable cost.
+- **Ruling 19, step 2 — "Go ahead, Q3 first"** (2026-09-26). Section 3, including which residual
+  cases it named.
+- **Ruling 20, side effects — "Accept both"** (2026-09-26). Section 3.
+- **Ruling 21, pause length — "D-08 is right"** (2026-09-26). "A pause persists across restarts on
+  purpose (a half-written vault stays flagged until you act). Fix 05's wording to match; no code
+  change." Section 3's wording is corrected.
+- **Ruling 22, the report count corrected — "Yes, acceptable"** (2026-09-26). Section 3.
+- **Ruling 23, #17's put-back refused `asset.pre-write-invalid` — "Accept it"** (2026-09-26).
+  "Same class as the two-disk-faults case you accepted; needs the entity that was just loaded to
+  fail its own re-save validation. Record it as ruled." Coherent only on an uncalibrated asset; a
+  true half-undo on a calibrated one. It stamps, and the pause is durable.
+- **Ruling 24, ruling 17 — "Build it now"** (2026-09-26). Built at `5edecb8ac` (tests) and `99f8ff21f`.
+- **Ruling 25, two older coherent-vault pauses — "Record, decide later"** (2026-09-26). "Add both
+  to the tracker as owner questions with their mechanism; no change now." The two: a rename whose
+  later plan's save is refused by a conflict after an earlier plan was written, and a
+  delete-resolution sequence the plugin repairs at the next load, which stays paused because
+  nothing retires the incident. **Both are open owner questions**, in the tracker's limitations
+  table.
+- **Ruling 26, L-47's Set scale marker is an underline — "Underline is fine"** (2026-09-26). "The
+  text is normal colour; the coloured underline marks it as a link. Record it as accepted."
+- **Ruling 27, the designer's single-file undos — "Extend, conflicts only"** (2026-09-26). "Map
+  only the two conflict codes on those undos to 'superseded'. The 'undo history broken' cases keep
+  failing as faults." **Superseded by ruling 30**: those cases leave by the same write with the
+  same conflict codes as a race, so the code cannot tell them apart, and the option text had
+  promised a split the ruling-17 implementer and reviewer had both reported the code could not
+  make.
+- **Ruling 28, the "Reload and undo again" copy — "Keep wording"** (2026-09-26). "It already says
+  reload first; accurate as written. No German change needed." A second Undo press without a
+  reload answers the same toast again.
+- **Ruling 29, the double-conflict half-undo on a calibrated asset now reading "edited elsewhere"
+  — "Accept, record it"** (2026-09-26). Unstamped since ruling 18; ruling 17 moved it from the
+  save-error badge to the toast. Recorded as an accepted residual in census §7.
+- **Ruling 30, ruling 27 corrected — "Map all conflicts"** (2026-09-26). "Facing/height Undo shows
+  'superseded' for every conflict, including the bookkeeping-bug case — same as background Undo
+  already does. Smallest change. A bookkeeping bug would show a reload hint instead of 'Save
+  error'; nothing is written in either case." Built at `5ee9b9c16` (tests) and `274cd9499`.
+- **Ruling 31, #17's P8 sync-client lock (`EBUSY`) — "Accept, record it"** (2026-09-26). "Recorded
+  beside P2, P5, P8's delete and pre-write-invalid as an accepted durable residual. No code
+  change." Same class as ruling 19's "delete at the exact moment of the read"; established by
+  reading only, never driven.
+- **Ruling 32, #23's non-skippable read refusal (`plan.migration-failed`) after an earlier plan
+  was written — "Owner question, decide later"** (2026-09-27). "Added to L-51 beside the conflict
+  case (same mechanism, same 'abort'), and to the lists of durable pauses. No code change now."
+  A rename whose later plan's read is refused `plan.migration-failed` after an earlier plan was
+  written stamps and pauses durably; before any write, the same refusal is a failure notice and
+  no stamp. **An open owner question**, tracker row L-51.
+- **Ruling 33, a note deleted alone before a designer background Undo — "Accept as is"**
+  (2026-09-27). "'Not found' is accurate for a deleted asset; record as accepted." The undo
+  answers `asset.not-found`, a toast with the save badge unchanged, not the superseded copy
+  (census §7).
+
+**Decided 2026-09-27 to 2026-09-29 (session 21, continued), by the release owner in the same
+chat.** Numbered as in the session's record of rulings, continuing from 33. Quoted words are the
+chosen option's label and description as the owner saw them; where the record carries the
+approved text instead of a description, that text is quoted, and a line marked *summary* is not
+a quotation.
+
+- **Ruling 34, L-23's guard placement — "Create + edit, separate load"** (2026-09-27). "One check
+  in the Room entity for both creating and changing an outline; loading from the vault gets its
+  own unchecked entry so old vaults still load. Covers paste, drawing, Add Room, every drag and
+  form. Small structural change in the domain." Asked because the recorded remedy,
+  `Zone.withGeometry` (R-S12-8), is not a chokepoint: creation goes through `Zone.create`, which
+  loading shared. Built at `c75d21b47`: `Zone.create` and `withGeometry` refuse, and the unchecked
+  `Zone.fromStored` is used only by `zoneFromPersistence`, pinned by
+  `tests/gates/zone-load-entry.test.ts`. Tracker row L-23.
+- **Ruling 35, edits on an existing zero-area room — "Keep as described"** (2026-09-27).
+  "Outline-touching edits refused; rename, details, lock, delete still allowed (lets you find and
+  delete it). Recorded as what 'refuses further edits' means."
+- **Ruling 36, L-23's near-zero case — "Refuse near-zero"** (2026-09-27). "Treat an outline whose
+  area is negligible relative to its size (e.g. below a millionth of its bounding box) as zero.
+  Closes the slanted-edge case. Small change + tests; a genuinely thin but real room (e.g. 1 cm ×
+  10 m) still passes." Built at `2b9a667cc` (`isNegligibleArea`, a millionth of the corners'
+  bounding box) and made overflow-safe for the box's width at `543513d53`.
+- **Ruling 37, the "Save error" badge on a geometry refusal from a drag — "Message, badge
+  unchanged"** (2026-09-27). "Show the existing 'A geometry value is invalid.' message and leave
+  the badge alone, like the 'undo superseded' case. Existing copy in both languages. The agent
+  first checks why the code deliberately treats geometry as maybe-written, and stops if that
+  reason holds." The check found no such reason, and the implementer did not stop: `Geometry` had
+  been left out of the pre-write set by grouping, not by measurement. Built at `679b6075f`, its
+  comments narrowed at `096fee008`: the ordering (every geometry refusal before the first write)
+  holds by enumeration of the commands that exist, and nothing checks it for a command not yet
+  written.
+- **Ruling 38, the near-zero rule's reach into objects, posts and hatches — "Keep it"**
+  (2026-09-27). "Same rule for rooms and drawn elements; slanted-snap slivers of hatches/objects
+  are refused too. Record as extending ruling 36."
+- **Ruling 39, a mixed paste holding a zero-area room — "Check before writing"** (2026-09-27).
+  "Paste checks every room's area first and refuses the whole paste without writing anything.
+  Small change + test." Built at `ce0e532cc`.
+- **Ruling 40, pasting an old near-zero object or hatch — "Record, leave it"** (2026-09-27).
+  "Only reachable by copying an old sliver element; harmless (a near-invisible hatch/object).
+  Recorded as a known gap." Elements have no area rule in the domain, so such a paste is still
+  written. **A known gap, not closed.**
+- **Ruling 41, Q2's cold arm — "Fix product + tests"** (2026-09-28). "Hand pending notes to the
+  new index instead of dropping them (small change in the settings-swap path, own review), wait
+  for settings to finish in the two e2e tests, and add a test that forces the race and expects
+  the project to appear." Built and verified in CI; section 4.
+- **Ruling 42, the E2E `latest` leg installing 1.13.7 — "Investigate + fix"** (2026-09-28). "Find
+  why 'latest' resolves to 1.13.7 (maybe 1.13.7 truly is the newest public build, or a cache) and
+  fix the workflow if it's wrong; record the answer." Answered in section 4: 1.13.7 is the newest
+  desktop build, so there was nothing to fix.
+- **Ruling 43, BP-06's page-out-of-range copy — "Approve both"** (2026-09-28). EN "This PDF has
+  no page {page}. Its last page is {count}." / DE "Diese PDF-Datei hat keine Seite {page}. Die
+  letzte Seite ist {count}." Built at `cac179940`; the page field's `max`, added in the same
+  commit, is dropped at `62f164a75` because native validation silently blocked Continue.
+- **Ruling 44, BP-10's fictional sample label — "Approve both"** (2026-09-28).
+  `sample.project.name`: EN "Sample renovation (fictional)" / DE "Beispiel-Renovierung (fiktiv)".
+  Built at `5a7b9c4a9`.
+- **Ruling 45, L-33's residue — "Approve both"** (2026-09-28). A new `editor.outline.invalid` on
+  the outline form only: EN "These positions do not form a valid shape. Correct any marked field,
+  and check for lines that cross or overlap or for two neighbouring points in the same place." /
+  DE "Diese Positionen ergeben keine gültige Form. Korrigieren Sie markierte Felder und prüfen
+  Sie, ob sich Linien kreuzen oder überlappen oder zwei benachbarte Punkte an derselben Stelle
+  liegen." Built at `71843d284`.
+- **Ruling 46, L-36's axis labels — "Start X / Start Y"** (2026-09-28). "Both English forms become
+  'Start X (m)' / 'Start Y (m)' and 'Start X' / 'Start Y', matching German. No German change."
+  Built at `d81c1b95f`.
+- **Ruling 47, BP-10's help entry — "In-plugin guide view"** (2026-09-28). "Agent writes a short
+  getting-started guide (EN + DE draft for your approval) shown in a plugin modal; the command
+  opens it. No web access." Built at `3d85db7a0`.
+- **Ruling 48, the E2E cache-key fix from a side session — "Land it on this branch"**
+  (2026-09-29). "An agent here applies the exact 4-line change to .github/workflows/e2e.yml,
+  commits, pushes after the running E2E finishes, and I check one E2E log shows the new cache
+  save. PR #231 stays a draft; nothing is merged into main." Asked because the request arrived
+  from another session claiming the owner's instruction; the session did not act on that claim
+  until the owner answered. Landed at `171eeb571`: E2E `36601456699` saved under the new
+  run-unique key, and the next run, `36607127922`, restored from its prefix.
+- **Ruling 49, the getting-started guide — "Approve as drafted"** (2026-09-29). *Summary:* the
+  guide's title, seven steps and reopen line in English and German as drafted, with control names
+  filled from the controls' own keys; the command "Open getting-started help" / "Einstiegshilfe
+  öffnen", id `open-help`; "Befehlspalette" and "Menüband" accepted as drafted, not checked
+  against a German Obsidian. Built at `3d85db7a0`.
+- **Ruling 50, the German library button and spelling — "Button 'Objekt-Bibliothek', one
+  spelling"** (2026-09-29). "German button becomes 'Objekt-Bibliothek'; the two editor labels use
+  the same hyphenated spelling." Built at `11dc9d332`.
+- **Ruling 51, the planned-geometry form's end labels — "'End X' / 'End Y'"** (2026-09-29).
+  "English end labels become 'End X' / 'End Y', matching German 'Ende X' / 'Ende Y'. No German
+  change." Built at `564847249`.
+- **Ruling 52, the third German library spelling — "Change to Objekt-Bibliothek"** (2026-09-29).
+  "One German name everywhere; the test is widened to catch any 'Bibliothek' spelling." Built at
+  `2412a4657`. The widened test catches a word joined to „Bibliothek“ (such as
+  „Asset-Bibliothek“), not the plain noun „Bibliothek“ or a compound beginning with it (such as
+  „Zurück zur Bibliothek“ or „Bibliothekspreis“), which the session read as not being names for
+  the library; whether the owner meant those too was then asked, and ruling 56 below leaves
+  them as they are.
+- **Ruling 53, guide step 6 on mobile — "Leave as approved"** (2026-09-29). "The mobile line
+  covers it; record it as a known note." Step 6 names the sample command, which is desktop-only.
+
+**Decided 2026-09-29 (session 21, continued), from final whole-branch review 4**, by the release
+owner in the same chat. Quoted words are the chosen option's label and description as the owner
+saw them.
+
+- **Ruling 54, L-37's button label — "Keep 'Show diagnostics report'"** (2026-09-29). "Consistent
+  with the other report buttons; record as your choice." Ruling 10's option text had said "Open
+  report"; the button built at `b493618b8` reuses the palette command's label, "Show diagnostics
+  report" / "Diagnosebericht anzeigen".
+- **Ruling 55, the Q2 fix's wider reach — "Accept"** (2026-09-29). "It matches what a full rebuild
+  does and fixed the plan case; record it." The reach: the vault lookup of a missing geometry
+  mapping for every new plan or asset note the index pipeline meets, not only across a settings
+  swap (`d6f3da245`, narrowed to new entries at `0f9fa51e5`); section 4.
+- **Ruling 56, ruling 52 and the plain noun „Bibliothek“ — "Leave plain 'Bibliothek'"**
+  (2026-09-29). "Short form in context is fine; only the name/compounds are unified." The plain
+  noun stays where it stands in the German copy, and the widened test at `2412a4657` is left as
+  it is.
+
+**Decided 2026-09-30 to 2026-10-03 (session 21, third continuation), rulings 57 to 74**, by the
+release owner in the same chat. Quoted words are the chosen option's label and its description as
+the owner saw them, copied from the session's record of the questions; a line marked *Summary* is
+the recorder's one-line account where the record kept no option text. Each ruling's date is the
+day it was given. This block is where the ruling numbers that the manual cases and code comments
+cite resolve, in a committed file. "Built at" names the commit that carries the change, not a verification
+of it; the tracker carries the earlier E2E and CI runs, not the runs of this session's last rounds.
+
+- **Ruling 57, calibration outside the room check — "Refuse absurd scales only (Recommended)"**
+  (2026-09-30). "Keep calibration outside the room check; refuse only the extreme-scale case under
+  the existing 'degenerate scale' message. About 6 lines plus a test." Built at `51c881142`.
+- **Ruling 58, L-29's remainder — "Record all, change nothing (Recommended)"** (2026-09-30). The
+  remainder is stored crossing rooms, the asset designer's shape edits and a paste of a copied
+  crossing room. "Refusing on load would hide rooms; a domain rule would also block moving or
+  recolouring an old crossing room. Record the three gaps for beta." No code change.
+- **Ruling 59, L-22 — "Preview asks the write's checks (Recommended)"** (2026-09-30). "The preview
+  flags a crossing curve before Apply and stops falsely refusing curved rooms with collinear
+  corners. Test first." Built at `4062357d7`.
+- **Ruling 60, Vue shipped in development mode — "Fix it, with a gate (Recommended)"**
+  (2026-09-30). "Add define 'process.env.NODE_ENV' = 'production' to the build, and a test that
+  fails if the built bundle still references it. E2E then runs the production-mode bundle." Built
+  at `45b74524c`.
+- **Ruling 61, a room delete with requirements never reached Reassign or Detach — "Fix:
+  requirements go to Reassign/Detach (Recommended)"** (2026-09-30). "The room check stops counting
+  requirements; it keeps blocking on renovation records (work, costs, evidence). Walls and elements
+  unchanged. Red test first, plus the rig fixed so planning is wired." Built at `768fdb747`.
+- **Ruling 62, a room carrying a contextual planning material: Reassign and Delete anyway always
+  fail — "Hide the two choices (Recommended)"** (2026-10-01). "For a room carrying a contextual
+  planning material, offer only Remove references, plus one line saying why. The line is new copy:
+  English and a German draft for your approval (ruling L-15)." Built at `100c15bdb`, with rulings
+  64 and 69.
+- **Ruling 63, ruling 62's line — "A: says why (Recommended)"** (2026-10-01). EN: "Some of these
+  requirements are measured from this room, so they cannot be reassigned to another room or kept
+  without it. Removing the references is the only option." DE (approved as drafted): "Einige dieser
+  Anforderungen beruhen auf den Maßen dieses Raums. Sie lassen sich weder einem anderen Raum neu
+  zuweisen noch ohne diesen Raum behalten; möglich ist nur das Entfernen der Referenzen."
+  **Superseded by ruling 69.**
+- **Ruling 64, a list mixing ordinary and contextual requirements — "Hide for whole room
+  (Recommended)"** (2026-10-01). "Any contextual requirement hides both choices; the ordinary ones
+  then also can only be removed. Simple, and no choice that will fail is offered."
+- **Ruling 65, whether the line says Remove references deletes — "No, keep one line
+  (Recommended)"** (2026-10-01). "The button's own name stays the description; the line explains
+  only why it is the only choice."
+- **Ruling 66, the Asset library on a phone (main's AD13 desktop-only against L-43 read-only) —
+  "Read-only on mobile (L-43)"** (2026-10-01). "Keep your earlier ruling: phone users can browse and
+  search the library. Main's mobile refusal and hidden command are undone; main's tests for them
+  change." Related commits: `842f0081b` (the Grid's New asset card drawn read-only), `a05a4c4fc`
+  (the mobile mount and command gate pinned) and `0e3a7a9fe` (the prose).
+- **Ruling 67, two ADR-0034 files — "Renumber main's to next free (Recommended)"** (2026-10-01).
+  "Main's clearance ADR gets the next free number, and its 22 citations are updated in a separate
+  commit after the merge. Fewer edits; the write-incident ADR keeps its widely cited number." Main's
+  became ADR-0035 at `c9ae5fcee`.
+- **Ruling 68, `npm ci` in this worktree — "Yes, run npm ci"** (2026-10-01). "Local tests then run
+  the merged versions; the e2e packages install too, so vue-tsc can type-check tests/e2e locally
+  (E2E itself still runs in CI)." The question also stated that it downloads the locked packages
+  from the npm registry into this worktree's node_modules, several hundred MB, replacing the
+  current install.
+- **Ruling 69, ruling 63's line covers Areas too — "Room or area, restructured DE
+  (Recommended)"; it supersedes ruling 63's text** (2026-10-01). EN: "Some of these requirements
+  are measured from this room or area, so they cannot be reassigned elsewhere or kept without it.
+  Removing the references is the only option." DE (approved): "Einige dieser Anforderungen beruhen
+  auf den Maßen dieses Raums oder dieser Fläche. Sie lassen sich weder anderswo neu zuweisen noch
+  ohne diese Grundlage behalten; möglich ist nur das Entfernen der Referenzen." Built at
+  `100c15bdb`.
+- **Ruling 70, post-merge E2E debugging — "Download CI artifacts"** (2026-10-01). *Summary:* of
+  "Download CI artifacts" / "Run E2E locally" / "Neither, CI only", a multi-select, only the first
+  was chosen. The question described the artifacts as "a few MB"; the download was 535 MB (five
+  artifacts with per-case screenshots and page HTML), so the controller's estimate was wrong.
+  **Narrowed by the owner's later direction below ("no artifact downloads").**
+- **Ruling 71, the German guide's word for the ribbon — "Use \"Werkzeugleiste\" (Recommended)"**
+  (2026-10-03). "Step 1 DE becomes \"…über die Befehlspalette oder das Symbol in der Werkzeugleiste
+  aus.\" — Obsidian's own word, so a German user finds it. The E2E case then checks it against the
+  host." The evidence behind the question: the `[evidence] host-words` line of E2E run
+  `37060108804` shows Obsidian 1.13.7 and `latest` German i18next (`i18nLanguage: de`, 2558 keys)
+  using "Werkzeugleiste" (`interface.menu.ribbon`, `commands.toggle-ribbon`,
+  `setting.appearance.option-show-ribbon`) and no "Menüband", and "Befehlspalette" confirmed
+  (`plugins.command-palette.name`). This supersedes ruling 49's acceptance of "Menüband" in step 1.
+  Built at `12019c23a` (the copy) and `529c004ec` (the host check).
+- **Ruling 72, the never-shown 17a sentence and the standing warning's wrong note — "Fix the doc +
+  point to the room (Recommended)"** (2026-10-03). "Rewrite step 17a to what Obsidian shows, AND
+  make the standing warning show the specific sentence naming the room's note (about 3 files; it
+  falls back to the generic sentence when a tab is restored). No new notice, no double report." The
+  owner had first answered "i dont know"; see the direction below. Built at `8ec5a82d3`.
+- **Ruling 73, ruling 72's button finds nothing in the host (the room's note joins the index late)
+  — both chosen: "Index the room at once (Recommended)" and "Same sentence for screen readers"**
+  (2026-10-03). "Fix the race so the button opens the room's note immediately after the failure."
+  / "Paused controls' hidden description uses the same room/generic sentence as the warning (about
+  3 lines, no new copy)." The question stated the side effect: the live tab then immediately shows
+  the "1 room could not be read" row, as a restarted tab already does. Built at `da6aed4b2`, then
+  corrected at `592e1dcea` (see the second extension below).
+- **Ruling 74, the planning panel's read refused during a write pause (a false "could not be
+  re-read" row) — "Let reads through (Recommended)"** (2026-10-03). "The planning panel's read uses
+  a read-side guard: it still reads (and shows current figures) during a pause; all writes stay
+  refused. The false \"could not be re-read\" row and \"refresh needed\" disappear. Red test first."
+  Built at `61fb866c9`.
+
+**Where a ruling was applied beyond its literal text.** Each is the controller's, not the
+owner's, recorded with its cost if wrong so that the owner can reverse it. *2026-10-03:* owner
+ruling 75 (below) confirms the first of the three; the other two are still open.
+
+- **Ruling 74 reaches three more reads (ledger R-S21-276, 2026-10-03); confirmed by ruling 75.**
+  The implementer found the same defect behind `guardCommand` in the trade catalogue's list, the
+  project work read and the quote read. The controller applied the owner's principle to those three: the same class, the same
+  remedy, writes stay refused (`059bd6b2a`; the quotes and work panes also catch up on a refused
+  pause write at `3177312b5`). The renovation, structure, group and reference reads stay gated,
+  because they are read only just before a refused write. *Cost if wrong:* if the owner wanted the
+  ruling confined to the planning panel, three reads become readable during a pause — display only,
+  with no write path.
+- **Ruling 73's "immediately" was reversed by the fix round (ledger R-S21-279, 2026-10-03).** The
+  review of the first build found that the room entry survived only when Obsidian parsed the note
+  before the vault pipeline's debounce; the fix (`592e1dcea`) marks the half-inserted room's note as
+  the repository's own write, so the button opens the room's note in either order, but the
+  pipeline then no longer announces that note. The "1 room could not be read" row therefore waits
+  for the next re-read of the floor instead of appearing in the live tab at once, which is the
+  opposite of what the question stated. This was not re-asked; the owner was told afterwards, by a
+  controller message on 2026-10-03 (ledger R-S21-282).
+  The manual case's step 17a records it.
+- **The step-19 reversal follows rulings 17 and 18 (ledger R-S21-216, 2026-10-01).** After the
+  merge of `origin/main`, main's E2E case for the asset-recovery walk's step 19 expected a
+  half-undo; this branch's `ede046a05` (rulings 17 and 18) puts the note back when the sidecar
+  restore is refused, so the case was reversed to "restores neither" (`88c742057`) and the manual
+  case followed (`64c8a660d`). Not re-asked. *Cost if wrong:* if the owner preferred main's
+  half-undo, `88c742057` reverts alone and the put-back needs a decision.
+
+**Two directions that are not rulings.** Neither chose between options the controller had costed.
+
+- **No artifact downloads (ledger R-S21-241, 2026-10-02).** The owner rejected the controller's
+  question asking to download E2E artifacts for the rest of the session and said "continue". The
+  controller read that as an instruction to diagnose from run logs only (its inference, not a
+  statement of the owner's), and has worked that way since; E2E cases print their evidence as
+  `[evidence]` lines to stdout so that `gh run view --log` carries it.
+- **"i dont know" on the 17a routing question was investigated, not defaulted (ledger R-S21-264 and
+  R-S21-265, 2026-10-03).** The owner answered "i dont know" to whether the specific 17a sentence
+  should reach the user. The controller did not pick an answer for them: a read-only investigation
+  found neither a routing defect nor dead copy (slice 17 deliberately routed Plan Editor write
+  failures to the badge only, and the keys arrived later into that silent route), and that the
+  standing warning's **Open source note** opened the plan's note while the half-written note is the
+  room's. The question was asked again with that evidence and became ruling 72.
+
+**Decided 2026-10-03 (session 21, third continuation), rulings 75 and 76**, by the release owner
+in the same chat, after final whole-branch review 5 and the E2E flake round. Quoted words are the
+owner's message or the chosen option's label and description as the owner saw them. "Built at"
+names the commits that carry the change, not a verification of it.
+
+- **Ruling 75, ruling 74's extension to the trade list, project work and quote reads (`059bd6b2a`,
+  `3177312b5`) — kept** (2026-10-03). The owner's chat message, verbatim: "keep extension of rule
+  74". Asked in the controller's status message after final review 5 flagged the extension as wider
+  than ruling 74's words. It does not cover the other two extensions above (ruling 73's reversed
+  "immediately", the step-19 reversal), which stay open. No code change.
+- **Ruling 76, Q2's residual caught in CI (a note Obsidian has not parsed within the ~500 ms
+  debounce is dropped from the index until the next full rebuild) — "Fix now (Recommended)"**
+  (2026-10-03). "When the note's parse arrives later, process it again (Obsidian's metadataCache
+  'changed' event), so a dropped note joins the index. Change in src/ (vault-change pipeline). Test
+  watched failing on the old code first, plus the E2E poll as is. One implementer, review, fix
+  round." Built at `75f07aaaf`, with `fc7bf414e` (the tests) and `925e2f33d` (the documents); what
+  it is verified by is in section 4's residual.

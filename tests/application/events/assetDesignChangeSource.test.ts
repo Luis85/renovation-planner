@@ -7,9 +7,9 @@
  * would re-read one asset's design because a different asset was edited.
  *
  * **One event, not a list of them.** `SetAssetHeight` changes a field the designer draws and
- * touches no geometry, and it publishes the same `AssetDesignChanged` the five shape commands
+ * touches no geometry, and it publishes the same `AssetDesignChanged` the six shape commands
  * do. A source keyed on shape events alone would leave a peer leaf's height stale, and a
- * per-field list is a rule stated as a list: it goes stale the day a ninth command is added,
+ * per-field list is a rule stated as a list: it goes stale the day a tenth command is added,
  * silently and in the direction of a stale surface.
  */
 import { describe, expect, it } from 'vitest';

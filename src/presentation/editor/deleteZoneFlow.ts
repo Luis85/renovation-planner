@@ -44,6 +44,7 @@ export interface DeleteZoneFlowDeps {
 	askResolution(
 		entityLabel: string,
 		references: readonly ReferenceRow[],
+		sourced: boolean,
 	): Promise<DeleteReferenceDialogResult>;
 	askReassignTarget(
 		title: string,
@@ -91,7 +92,7 @@ export async function deleteZoneWithReferences(
 	const bound: DeleteWithReferencesDeps<ZoneId> = {
 		listReferents: () => deps.listReferents(zoneId),
 		listReassignmentTargets: () => deps.listReassignmentTargets(zoneId),
-		askResolution: (entityLabel, references) => deps.askResolution(entityLabel, references),
+		askResolution: (entityLabel, references, sourced) => deps.askResolution(entityLabel, references, sourced),
 		askReassignTarget: (title, candidates) => deps.askReassignTarget(title, candidates),
 		// SPREAD rather than reassembled field by field, which is the whole reason
 		// `ResolvedDeletion` is parameterised by the id type: the zero branch hands `{}` and

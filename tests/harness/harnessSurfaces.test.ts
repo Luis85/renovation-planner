@@ -186,6 +186,32 @@ describe('the browser harness, plan editor', () => {
 	});
 
 	/**
+	 * `?details` (R-S12-6's capture knob). At a sidebar's width the Inspector region is `v-show`n
+	 * away until `overlay === 'inspector'`, so every control in it is ATTACHED and `display:
+	 * none` — which is why `?select` alone cannot produce `plan-editor-selected-narrow` and why a
+	 * presence check is no check at all here.
+	 *
+	 * **The `false` row is the point of this case**, not a symmetry: it is what makes the `true`
+	 * row a statement about the knob rather than about the markup, and it is the state a capture
+	 * would have photographed — a canvas, under a name promising an Inspector — if the selector
+	 * for that shot had been a bare `.rp-room-inspector`.
+	 */
+	it.each([false, true])('puts the Inspector on screen at a sidebar width only when ?details presses the rail (%s)', async (details) => {
+		installCanvas();
+		installResizeObserver();
+
+		const { leafEl, view } = mountPlanEditorHarness(document.body, { select: 'harness-kitchen', details });
+		resizeTo(sizedShellRoot(leafEl, { skipResize: true }), 460, 800);
+		await settleUntil(() => leafEl.querySelector('[data-rp-action="edit-outline"]') !== null, 'the Room Inspector to attach at 460px');
+		if (details) await settleUntil(() => leafEl.querySelector('.rp-inspector-drawer') !== null, 'the ?details knob to open the Inspector drawer');
+
+		expect(leafEl.querySelector('.rp-editor-shell')?.getAttribute('data-layout')).toBe('constrained');
+		expect(leafEl.querySelector('.rp-inspector-drawer [data-rp-action="edit-outline"]') !== null).toBe(details);
+		expect((leafEl.querySelector('[data-rp-shell-region="inspector"]') as HTMLElement).style.display).toBe(details ? '' : 'none');
+		await view.onClose();
+	});
+
+	/**
 	 * The `?stale` knob (Task 14) — the one knob whose landing was checked by a manually read
 	 * PNG alone (`plan-editor-stale.png`/`plan-editor-stale-narrow.png`) and nothing else.
 	 * `driveStaleKnobOnceReady` selects and deletes a sacrificial zone

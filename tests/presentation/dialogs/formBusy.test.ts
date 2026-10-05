@@ -259,16 +259,33 @@ describe('a form dialog with a write in flight', () => {
 	 * was written for. So the residual is written down instead, in three places that each
 	 * inherit it: `DialogHost`'s own hook, `docs/tasks/16`, and here.
 	 *
-	 * What the residual costs, measured rather than described: the project IS created, under
-	 * the PREVIOUS default project folder; its `ProjectCreated` goes to the retired root's
-	 * event bus, so the rebound tree's `onProjectsChanged` never hears it; and
-	 * `VaultChangeAdapter` indexes the note into the new root while publishing nothing at all
-	 * — `projectIndexRebuilt()` has exactly one publisher, the full scan, and `saveSettings`
-	 * runs that BEFORE the rebind. The rebound list is therefore stale until the leaf is
-	 * reopened.
+	 * What the residual costs, measured on a rig driving the real plugin and the real
+	 * `applySettings` → `rebindOpenViews` chain with a `vault.create` held open: the project IS
+	 * created, under the PREVIOUS default project folder, and its `ProjectCreated` goes to the
+	 * retired root's event bus, so the rebound tree's `onProjectsChanged` never hears it. Both
+	 * confirmed.
 	 *
-	 * This case asserts the settlement, which is the half that is code. That the list goes
-	 * stale is a fact about three modules and is asserted by nothing here.
+	 * **What happens to the LIST is a split, not a behaviour, and this docblock used to state
+	 * one arm as the whole.** It turns on whether Obsidian's metadata cache has parsed the new
+	 * note by the time `VaultChangeAdapter` processes the `create` event. Cache warm: the entry
+	 * is indexed into the new root and one `ProjectIndexEntryChanged` is published on the new
+	 * bus, the rebound tree hydrates, and the row appears unprompted — the list is NOT stale.
+	 * Cache cold: `processNote` takes the not-ours arm, nothing is indexed and nothing is
+	 * published, and **reopening the leaf does NOT fix it** — worse than the "stale until the
+	 * leaf is reopened" this said before, because `ListProjects` resolves through the Project
+	 * Index and a fresh leaf reads the same empty index. It clears only at the next full index
+	 * rebuild: the next settings save, a library migration, or in practice a plugin reload.
+	 * The user is told nothing, the project exists under the old folder and the list never
+	 * shows it, so they may create it again and end up with two.
+	 *
+	 * **Which arm production takes is UNVERIFIED** — the ordering of Obsidian's `create` event,
+	 * its asynchronous parse and the adapter's 500 ms debounce decide it, and nothing on this
+	 * branch has ever been run in a vault. (The earlier count here, "`projectIndexRebuilt()`
+	 * has exactly one publisher", is also wrong: it is 2 in `src/`, re-counted, and neither sits
+	 * on this path.)
+	 *
+	 * This case asserts the settlement, which is the half that is code. Everything about the
+	 * list above is a fact about three modules and is asserted by nothing here.
 	 */
 	it('settles a BUSY dialog on unmount anyway, which is the one door busy does not hold', async () => {
 		harness = mountDialogHost();

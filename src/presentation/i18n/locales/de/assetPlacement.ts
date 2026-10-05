@@ -1,7 +1,7 @@
 import type { assetPlacementEn } from '../en/assetPlacement';
 export const assetPlacementDe: Record<keyof typeof assetPlacementEn, string> = {
 	'editor.add.asset.label': 'Bibliotheksobjekt',
-	'editor.add.asset.description': 'Etwas aus Ihrer Objektbibliothek platzieren',
+	'editor.add.asset.description': 'Etwas aus Ihrer Objekt-Bibliothek platzieren',
 	'editor.layer.assets': 'Bibliotheksobjekte',
 	'editor.asset.pick-title': 'Bibliotheksobjekt platzieren',
 	'editor.asset.banner': 'Klicken Sie in den Plan, um eine Kopie zu platzieren; an einer Wand dreht sie sich zum Raum. Esc beendet das Platzieren.',

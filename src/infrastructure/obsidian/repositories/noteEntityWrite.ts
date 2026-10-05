@@ -27,6 +27,7 @@ import { observeFrontmatter } from './digest';
 import { freshNotePath } from './paths';
 import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
+import { markUncompensated } from '../../../application/commands/DispatchOutcome';
 
 /**
  * The conditional note write the asset and requirement repositories share — the Zone
@@ -189,7 +190,9 @@ export interface NoteDeleteSpec {
  *
  * Where `spec.alsoRemove` is given, the note's bytes are snapshotted BEFORE anything is
  * deleted and restored when that second removal refuses, so a failed `Result` never means
- * "partly done" (SDD §42). This function never removes the index entry until it succeeds —
+ * "partly done" (SDD §42) — while the restore itself succeeds. When it does not, the note is
+ * gone with its second file still there and its index entry never put back, and the refusal
+ * says so: `<kind>.delete-uncompensated`, stamped with `markUncompensated`. This function never removes the index entry until it succeeds —
  * which is what keeps the restored note READABLE, every read here resolving through the
  * index — and that is a statement about this function and NOT about the vault. Obsidian's
  * own delete event can take the entry out from under it, so the entry and the echo record
@@ -275,6 +278,30 @@ export async function trashNoteBackedEntity(
 			// owed, and a compensation that could not write is the only account of the note
 			// that is now gone with its second file still there.
 			deps.logger.error(`${kind}.delete-compensation-failed`, { id, cause: restored.error });
+			// And STAMPED, which is the half the log cannot do: the note is gone, its second
+			// file is still there, and the index entry and echo record above were never put
+			// back — so the entity is unreachable as well as half-deleted. The code is DERIVED
+			// from the kind rather than taken from a second `NoteDeleteSpec` field: all three
+			// call sites spell `deleteFailedCode` as `<kind>.delete-failed` (asset,
+			// asset-price, requirement — grepped 2026-09-16), so a field would be three copies
+			// of a derivation. Only a kind with an `alsoRemove` can reach here at all.
+			return err(
+				markUncompensated(
+					persistenceError(
+						`${kind}.delete-uncompensated`,
+						`Could not remove the second file of ${kind} ${id}, and the note could NOT be restored; inspect it by hand.`,
+						removed.error,
+					),
+					// `kind` is `DiagnosticEntityKind`, and `AffectedEntityKind` is now an alias of
+					// that same type (DispatchOutcome.ts), so no cast is needed here — this
+					// function's three real callers pass exactly `'asset'`, `'asset-price'` and
+					// `'requirement'` (`ObsidianAssetRepository.ts`,
+					// `ObsidianAssetPriceOverrideRepository.ts`, `ObsidianRequirementRepository.ts`),
+					// which is what `AffectedEntityKind`'s own docblock records as this site's
+					// measured coverage of the wider alias.
+					[{ entityKind: kind, entityId: id }],
+				),
+			);
 		}
 		return err(persistenceError(spec.deleteFailedCode, `Could not remove the second file of ${kind} ${id}.`, removed.error));
 	}

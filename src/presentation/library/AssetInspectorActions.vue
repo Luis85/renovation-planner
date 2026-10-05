@@ -23,6 +23,11 @@
  * nothing. That is why `deleteAttributes` and the reason id are threaded from the parent rather
  * than derived here: the id has to be the same string in both places, and one `useId()` in the
  * parent is what guarantees it.
+ *
+ * **A read-only library (L-43, a mobile device) draws `Open designer` and `Duplicate` DISABLED**,
+ * each described by the read-only sentence through `readOnlyReasonId`, and the parent refuses both
+ * gestures too. `Delete` needs nothing extra here: its `aria-disabled` and the same id already
+ * arrive in `deleteAttributes`. `Open note` reads, so it stays live.
  */
 defineProps<{
 	canOpenDesigner: boolean;
@@ -34,6 +39,9 @@ defineProps<{
 	/** The sentence under `Delete`, or `null` when it has nothing to explain. */
 	deleteReason: string | null;
 	deleteReasonId: string;
+	/** L-43: the write controls here are drawn disabled, described by `readOnlyReasonId`. */
+	readOnly?: boolean;
+	readOnlyReasonId?: string;
 }>();
 
 const emit = defineEmits<{
@@ -52,6 +60,8 @@ import { tr } from '../i18n/strings';
 			v-if="canOpenDesigner"
 			type="button"
 			class="rp-al-action rp-al-action--designer"
+			:disabled="readOnly"
+			:aria-describedby="readOnlyReasonId"
 			@click="emit('openDesigner')"
 		>
 			{{ tr('view.asset-library.open-designer') }}
@@ -69,6 +79,8 @@ import { tr } from '../i18n/strings';
 			type="button"
 			class="rp-al-action"
 			data-action="duplicate-open"
+			:disabled="readOnly"
+			:aria-describedby="readOnlyReasonId"
 			@click="emit('duplicate')"
 		>
 			{{ tr('view.asset-library.duplicate') }}

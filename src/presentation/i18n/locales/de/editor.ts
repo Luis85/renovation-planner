@@ -132,6 +132,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	"editor.reference.loading": "Quelle wird gelesen…",
 	"editor.reference.missing": "Die Quelldatei fehlt. Korrigieren Sie den Pfad oder wählen Sie einen Ersatz und laden Sie erneut.",
 	"editor.reference.unreadable": "Bild oder PDF-Seite nicht lesbar. Prüfen Sie die Seitennummer, versuchen Sie es erneut oder wählen Sie eine andere Datei.",
+	"editor.reference.page-out-of-range": "Diese PDF-Datei hat keine Seite {page}. Die letzte Seite ist {count}.",
 	"editor.reference.source-changed": "Die Quelle wurde geändert. Kehren Sie zur Vorbereitung zurück und laden Sie erneut.",
 	"editor.reference.crop-x": "Zuschnitt links (px)",
 	"editor.reference.crop-y": "Zuschnitt oben (px)",
@@ -169,6 +170,7 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.resize.anchor': 'Die linke obere Ecke bleibt fest. Die Breite wächst nach rechts, die Tiefe nach unten. Werte in Metern. Der gestrichelte Umriss ist eine Vorschau; erst Anwenden ändert den Raum. Unabhängige Wände bleiben unverändert.',
 	'editor.resize.preview': 'Vorschau: {width} m × {depth} m — {area}',
 	'editor.resize.invalid': 'Geben Sie gültige Maße ein, die diesen Raum beschreiben können.',
+	'editor.outline.invalid': 'Diese Positionen ergeben keine gültige Form. Korrigieren Sie markierte Felder und prüfen Sie, ob sich Linien kreuzen oder überlappen oder zwei benachbarte Punkte an derselben Stelle liegen.',
 	'editor.resize.paused': 'Der Grundriss wird gespeichert oder aktualisiert. Änderungen können derzeit nicht angewendet werden.',
 	'editor.resize.apply': 'Maße anwenden',
 	'editor.resize.unsupported': 'Breite und Tiefe lassen sich nur bei Rechtecken entlang der Grundrissachsen ändern. Gedrehte und andere Umrisse können über ihre vorhandenen Eckgriffe bearbeitet werden.',
@@ -205,6 +207,9 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.add.door.description': 'Eine Öffnung zwischen zwei Räumen',
 	'editor.add.window.label': 'Fenster',
 	'editor.add.window.description': 'Eine Öffnung für Licht und Luft',
+	// Owner-supplied, 2026-09-20 (L-15 is satisfied for this string and this string only). It is
+	// exactly the plural of `editor.area.edit-corner` below, which is what corroborates it.
+	'editor.area.outline': 'Eckpunkte bearbeiten',
 	'editor.area.coordinates': 'Eckpunkte numerisch eingeben',
 	'editor.area.coordinates-hint': 'Positionen in Metern ab dem Planursprung (0, 0): X steigt nach rechts, Y nach unten. Null und negative Werte sind erlaubt. Dezimalpunkt oder Komma verwenden; die Eingabe wird auf ganze Millimeter gerundet.',
 	'editor.area.corner': 'Eckpunkt {n}',

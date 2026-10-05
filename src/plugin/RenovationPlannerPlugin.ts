@@ -25,7 +25,9 @@ import { registerPlanEditorCommands } from './planEditorCommands';
 import { registerEditorIcons } from './editorIconRegistration';
 import { registerAssetDesignerCommands } from './assetDesignerCommands';
 import { registerSampleProjectCommand } from './sampleProject';
+import { registerHelpCommand } from './help/GettingStartedModal';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
+import { claimVueGlobals } from '../presentation/views/vueGlobals';
 import { activateNotices, disposeNotices, noticeOnlySinks, notifyFault } from '../presentation/notices/notify';
 import { surfaceError } from '../presentation/errors/surfaceError';
 import { assetDesignerDeps, assetDesignerDeviceSlots } from './assetDesignerDeps';
@@ -41,7 +43,7 @@ import type { RenovationProjectDeps } from '../presentation/views/RenovationProj
 import { isDataAbsent, settingsFrom, type RenovationPlannerSettings, type SettingsPatch } from './settings/settings';
 import type { LibraryPersistOutcome } from './settings/libraryMigration';
 import { SettingsTab } from './settings/SettingsTab';
-import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
+import { SessionStores } from './sessionStores';
 import { ContinueContextStore } from '../infrastructure/obsidian/plugin-data/continueContextStore';
 import { recoverInterruptedSequences } from '../application/reference/recoverInterruptedSequences';
 import { ReferenceLocks } from '../application/reference/ReferenceLocks';
@@ -92,7 +94,8 @@ function swallow(): void {
  * class already does is a place for a future mistake to hide. What IS there is
  * `window.Konva`: Konva assigns it at module scope on every load and nothing took it back
  * off, so reactivating the plugin logged "Several Konva instances detected" and the previous
- * load's whole bundle stayed reachable from `window`.
+ * load's whole bundle stayed reachable from `window`. Vue's two setter lists had the same
+ * shape and are released beside it (`vueGlobals.ts`).
  *
  * Measured by coverage like everything else in `src/` — only `src/main.ts` is excluded
  * (`vitest.config.ts`). The wiring here is exactly what breaks silently, so
@@ -177,6 +180,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// `window` — its module scope runs before Obsidian calls `onload` — so this is the
 		// moment at which that global is provably this load's own and safe to claim.
 		this.disposers.push(claimKonvaGlobal());
+		// Vue's two setter lists, for the same reason and at the same moment; the release waits
+		// for this load's last Vue app to unmount (`vueGlobals.ts` says why).
+		this.disposers.push(claimVueGlobals());
 
 		// Design slice 13's notices outlive any view — they report things that have nothing to
 		// do with an open leaf — so the queue is plugin-scoped and its teardown belongs on the
@@ -185,7 +191,10 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// BOTH halves, and in this order. The queue is inert until activated, so without the
 		// first line nothing ever shows a notice; without the second, a promise resolving after
 		// unload attaches one to a vault with no plugin left to remove it.
-		activateNotices();
+		// The closure reads `this.root` only when pressed, so handing it over this early is safe.
+		activateNotices(() => {
+			this.openDiagnosticsReport();
+		});
 		this.disposers.push(disposeNotices);
 		this.disposers.push(registerEditorIcons());
 
@@ -212,12 +221,14 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// live. Applied once the setting could have been read. Unreadable settings keep the
 		// bootstrap floor — no verbosity without a preference that asked for it.
 		if (loaded?.verboseLogging) logger.setLevel('debug');
+		this.stores = new SessionStores(this.app.vault.adapter, this.manifest.dir, logger);
+		this.disposers.push(() => this.stores.dispose());
 		this.root = createCompositionRoot(
 			loaded,
 			logger,
 			this.vaultStack,
 			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
-			{ ledger: this.ledger, markers: this.sequenceMarkerStore(logger), locks: this.sessionLocks() },
+			{ ledger: this.ledger, markers: this.stores.markers, locks: this.sessionLocks() },
 		);
 		// The cascade handlers and the adapter's pending flush are retired together, last in
 		// push order — the drain loop is synchronous, so nothing can land between disposers.
@@ -266,9 +277,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// remember. Where that answering LIVES moved a review round later: into
 		// `revealCandidate`, so one failed activation is one report however many clicks
 		// joined it.
-		this.addRibbonIcon(RENOVATION_PROJECT_ICON, tr('command.open-project'), () => {
-			this.openProject();
-		});
+		this.addRibbonIcon(RENOVATION_PROJECT_ICON, tr('command.open-project'), () => { this.openProject(); });
 
 		this.addCommand({
 			id: 'open-project',
@@ -311,35 +320,19 @@ export default class RenovationPlannerPlugin extends Plugin {
 		 * name, the ribbon being shared real estate across every installed plugin and this
 		 * surface being reached often but not constantly.
 		 *
-		 * **A `checkCallback`, and the precondition is the DEVICE alone** — exactly
-		 * `open-plan-editor`'s shape and for the same reason, which is worth stating because the
-		 * obvious reading is the wrong one. `open-plan-editor`'s lesson is that a command gated on
-		 * something the VAULT has to contain is a command absent from the palette in every vault
-		 * that has none of it, and that lesson still holds here: this command asks nothing of the
-		 * vault and needs no active note. `Platform.isMobile` is not that kind of gate — nothing a
-		 * user does in a vault can change it — so gating on it hides the command exactly where the
-		 * surface behind it would refuse anyway, and nowhere else.
-		 *
-		 * AD13 gave `AssetLibraryView.onOpen` the same mobile refusal the Plan Editor and the
-		 * designer draw; this is the matching second site, so a mobile palette no longer offers a
-		 * door whose only answer is a refusal. The surface's own refusal remains the load-bearing
-		 * half, and is still the only half that answers a leaf restored from a workspace layout,
-		 * where no command runs at all.
-		 *
-		 * It shipped as a plain callback for one card, and the reason was a LEASE rather than a
-		 * decision: two cases in `tests/plugin/registration.test.ts` drove it through
-		 * `command?.callback?.()`, and optional chaining would have made them go silently inert
-		 * rather than loudly wrong. Those two call sites move to `checkCallback?.(false)` in this
-		 * same change, which is why the pair was filed as one.
+		 * **A plain callback, on every platform, by owner ruling 66 (2026-10-01).** AD13 made this
+		 * a `checkCallback` that answered `false` on `Platform.isMobile`, the palette half of a
+		 * desktop-only library. The beta's L-43 ruling had already made the library READ-ONLY on a
+		 * phone instead — browsable and searchable, every write refused with the reason beside it
+		 * (`AssetLibraryView`'s `readOnly`) — and ruling 66 kept that one when the two branches met.
+		 * A surface a phone can use is a surface its palette offers, so the gate is gone rather than
+		 * narrowed. `open-plan-editor`'s lesson still holds as well: nothing here asks the vault
+		 * for anything. `tests/plugin/assetLibraryCommandGate.test.ts` pins both platforms.
 		 */
 		this.addCommand({
 			id: 'open-asset-library',
 			name: tr('command.open-asset-library'),
-			checkCallback: (checking: boolean) => {
-				if (Platform.isMobile) return false;
-				if (!checking) this.openAssetLibrary();
-				return true;
-			},
+			callback: () => { this.openAssetLibrary(); },
 		});
 
 		/**
@@ -396,6 +389,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// creation forms are what remove it — slice 15 built the dialog framework they mount in,
 		// which is not the same thing as being able to name a project.
 		registerSampleProjectCommand(this);
+
+		// Owner rulings 47 and 49: the getting-started guide, one modal behind one command.
+		registerHelpCommand(this);
 
 		// The index scan runs from `onLayoutReady`, NOT here: a vault-wide scan in `onload`
 		// competes with workspace restoration, and `MetadataCache` is incomplete until
@@ -515,7 +511,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * `queueSettingsWrite`'s tail swallows on both arms so the chain survives — so this is the
 	 * one place that can report either failure. The write's own rejection was already caught;
 	 * the swap's was not, and `applySettings` can throw exactly the way `persistLibraryFolder`
-	 * already plans for (the outgoing adapter's `flush()`, an open view's `rebind()`): the
+	 * already plans for (`disposeCascade`'s flush and disposals, an open view's `rebind()`): the
 	 * write had already landed in `data.json` by the time that happens, so the outcome is N4's
 	 * `'apply-failed'` in every way but its shape — this door has no outcome value to hand a
 	 * caller, so it reports the identical sentence itself rather than leaving the promise to
@@ -639,17 +635,17 @@ export default class RenovationPlannerPlugin extends Plugin {
 	/**
 	 * Retires the OUTGOING root's cascade — the adapter's pending flush and the subscriptions
 	 * composition wired at construction time — as one step, called from exactly two places: the
-	 * disposer `onload` pushes, and the top of `applySettings` (G10). Both boundaries retire the
+	 * disposer `onload` pushes, and `applySettings` before it composes the next root (G10) —
+	 * second there, after the pending hand-over (ruling 41). Both boundaries retire the
 	 * same root the same way, because a root left mid-flush or mid-subscription past either one
 	 * is a root something can still publish INTO: `onunload`'s own reason is a timer landing
 	 * after teardown (G1), and a settings swap's is the identical timer landing against a bus
-	 * the new root's views no longer read from.
+	 * the new root's views no longer read from. At a swap the flush finds nothing to process:
+	 * `applySettings` has already handed the pending paths to the incoming root (ruling 41).
 	 */
 	private disposeCascade(): void {
 		this.root.persistence?.changeAdapter.flush();
-		for (const subscription of this.root.persistence?.subscriptions ?? []) {
-			subscription.dispose();
-		}
+		for (const subscription of this.root.persistence?.subscriptions ?? []) subscription.dispose();
 	}
 
 	/**
@@ -669,26 +665,38 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * cutting it is a change to what a root OWNS, not a parameter here.
 	 */
 	private applySettings(next: RenovationPlannerSettings): void {
-		// FIRST, before the swap: the outgoing root's pending flush and cascade subscriptions
-		// must not run against a bus nothing will consult (G10) — the timer is the one
-		// publisher that could.
-		this.disposeCascade();
+		// Owner ruling 41: the outgoing adapter's pending paths are taken out UNPROCESSED before
+		// `disposeCascade` flushes, so that flush finds nothing — a path still pending is usually
+		// a note created milliseconds ago that Obsidian has not parsed, and flushing it read a
+		// null cache and dropped it as "not ours" for the rest of the session. They are adopted
+		// by whichever root is in charge when this ends: the new one, or — if the swap throws —
+		// the old one, which is then still the adapter every vault event reaches.
+		const pending = this.root.persistence?.changeAdapter.handOver() ?? [];
+		try {
+			// Before the swap, and right after the hand-over above: the outgoing root's cascade
+			// subscriptions must not run against a bus nothing will consult (G10), and its timer —
+			// the one publisher that could — is already cancelled, so this flush finds nothing.
+			this.disposeCascade();
 
-		// The verbose-logging floor is re-applied HERE, not only at load: a toggle in the
-		// pane takes effect immediately, in both directions, without a plugin reload.
-		this.logger.setLevel(next.verboseLogging ? 'debug' : LOG_LEVEL);
+			// The verbose-logging floor is re-applied HERE, not only at load: a toggle in the
+			// pane takes effect immediately, in both directions, without a plugin reload.
+			this.logger.setLevel(next.verboseLogging ? 'debug' : LOG_LEVEL);
 
-		this.root = createCompositionRoot(
-			next,
-			this.root.logger,
-			this.vaultStack,
-			{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
-			{ ledger: this.ledger, markers: this.sequenceMarkerStore(this.root.logger), locks: this.sessionLocks() },
-		);
-		// The new root carries an EMPTY index. Re-running the build is what makes the swap
-		// complete; without it the session reads an index of nothing until the next reload,
-		// and every already-registered listener maintains a root nobody consults.
-		this.startPersistence();
+			this.root = createCompositionRoot(
+				next,
+				this.root.logger,
+				this.vaultStack,
+				{ pluginVersion: this.manifest.version, obsidianVersion: apiVersion },
+				{ ledger: this.ledger, markers: this.stores.markers, locks: this.sessionLocks() },
+			);
+			// The new root carries an EMPTY index. Re-running the build is what makes the swap
+			// complete; without it the session reads an index of nothing until the next reload,
+			// and every already-registered listener maintains a root nobody consults. A handed-over
+			// note the scan cannot see yet is the adopted path's to index, ~500 ms from now.
+			this.startPersistence();
+		} finally {
+			this.root.persistence?.changeAdapter.adopt(pending);
+		}
 		// AFTER the rebuild, deliberately: a view rebound first would mount against the new
 		// root's still-empty index, draw its "nothing here" state, and need the rebuild event
 		// to correct itself. Rebinding second means each view mounts once, against an index
@@ -725,7 +733,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * exports, not a dead argument.
 	 */
 	private projectViewDeps(leaf: WorkspaceLeaf): RenovationProjectDeps {
-		return renovationProjectDeps(this.root, this.app.workspace, this.app.vault, {
+		// `openDiagnosticsReport` is added HERE and not inside `renovationProjectDeps`, for the
+		// reason `planEditorViewDeps` below states about its own bundle: that function holds no
+		// plugin instance, so reaching the report from there would compose the action a second
+		// time. This closure calls the same public method every other door into it calls.
+		return { ...renovationProjectDeps(this.root, this.app.workspace, this.app.vault, {
 			projectId: null,
 			// Through `navigateToProject` (Task 11), NOT a raw `setViewState`, and it closes
 			// two holes at once. A bare `void` on a rejecting `setViewState` is an unhandled
@@ -762,7 +774,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// Task 2 (design slice 22). Same `void` reasoning as `rememberContinue` above:
 			// `ContinueContextStore.clear` cannot reject either.
 			forgetContinue: (validated) => void this.continueContextStore(this.root.logger).clear(validated),
-		});
+		}), openDiagnosticsReport: () => { this.openDiagnosticsReport(); } };
 	}
 
 	/**
@@ -775,7 +787,12 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 */
 	private planEditorViewDeps(): PlanEditorDeps {
 		const { panelLayout, viewPreferences } = planEditorDeviceSlots(this.app, this.manifest.id, this.root.logger);
-		return { ...planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard, panelLayout), viewPreferences };
+		// `openDiagnosticsReport` is added HERE rather than inside `planEditorDeps`, and that is
+		// the one-action-every-input rule rather than a preference: that function holds no `App`
+		// and no plugin instance, so reaching the report from there would mean composing
+		// `showDiagnosticsReport(host)` a second time. This closure calls the same public method
+		// the palette command and `SettingsTab`'s action row call.
+		return { ...planEditorDeps(this.root, this.app.workspace, this.app.vault, this.editorClipboard, panelLayout), viewPreferences, openDiagnosticsReport: () => { this.openDiagnosticsReport(); } };
 	}
 
 	/** ONE spelling of the asset designer's bundle, for the factory and the rebind. */
@@ -797,9 +814,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/** ONE spelling of the Asset library's bundle, for the factory and the rebind. */
 	private assetLibraryViewDeps(): AssetLibraryDeps {
-		return assetLibraryDeps(this.root, this.app.workspace, this.app.vault, {
+		return { ...assetLibraryDeps(this.root, this.app.workspace, this.app.vault, {
 			indexScanCompleted: () => this.indexScanCompleted,
-		});
+		}), openDiagnosticsReport: () => { this.openDiagnosticsReport(); } };
 	}
 
 	/**
@@ -868,22 +885,15 @@ export default class RenovationPlannerPlugin extends Plugin {
 	private vaultStack: VaultStack | null = null;
 
 	/**
-	 * The durable marker store behind multi-entity deletes — one plugin-local FILE beside
-	 * `data.json`, deliberately not `data.json`'s settings object (`settingsFrom` drops
-	 * undeclared keys, which would silently discard an outstanding recovery). One instance
-	 * per session: the file it points at survives root swaps, and a store rebuilt per swap
-	 * would buy nothing but a second queue.
+	 * The plugin-directory stores whose lifetime is the SESSION rather than the composition
+	 * root — the sequence-marker file and ADR-0034's write-incident record, with the registry
+	 * `guardCommand` reads. Their own module, because this file is at its `max-lines` cap and
+	 * the fix for that is the extraction; `sessionStores.ts` carries why they outlive a root.
+	 *
+	 * Definite assignment: `onload` builds it before the first `createCompositionRoot` call,
+	 * and `applySettings` cannot run before `onload`.
 	 */
-	private markerStore: SequenceMarkerFileStore | null = null;
-
-	private sequenceMarkerStore(logger: Logger): SequenceMarkerFileStore {
-		this.markerStore ??= new SequenceMarkerFileStore(
-			this.app.vault.adapter,
-			`${this.manifest.dir}/sequence-markers.json`,
-			logger,
-		);
-		return this.markerStore;
-	}
+	private stores!: SessionStores;
 
 	/**
 	 * G2/R7's third session collaborator, memoised for the reason `markerStore` above is: what
@@ -980,6 +990,21 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// was no catch anywhere in that module, so a faulting vault read at load became an
 			// unhandled rejection. `tests/application/reference/recovery.test.ts` is what fails
 			// without the catch that makes the sentence true.
+			// ADR-0034: an incident recorded in a PREVIOUS session has to close the gate before
+			// the user can write anything, so the registry is seeded from the same load step the
+			// sequence recovery runs in. `seed` resolves rather than rejects for every fault and
+			// fails CLOSED on a refused read — an unreadable incidents file is not an empty one
+			// (SDD §87 rule 8) — which is why the `void` here is safe and why a fault leaves the
+			// gate shut rather than open. `startPersistence` is re-entered by `applySettings` on
+			// every settings save, ABOVE the `listenersRegistered` guard below — so THIS call
+			// re-runs on every save too, and it is idempotent by `WriteIncidentRegistry`'s OWN
+			// `seeded` guard rather than by memoisation here: the registry itself is constructed
+			// once per session (`SessionStores`), but until that guard existed a second `seed()`
+			// re-read the store and re-pushed the same durable incidents onto the open list,
+			// unbounded — invisible only because `anyOpen()` tests `length > 0` rather than a
+			// count.
+			void this.stores.writeIncidents.seed();
+
 			void recoverInterruptedSequences({
 				markers: persistence.markers,
 				requirements: persistence.requirements,
@@ -999,6 +1024,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 				if (file instanceof TFile) adapterOf()?.onRename(file, oldPath);
 				void evidenceRenamed(this.root, oldPath, file.path);
 			}));
+			// Owner ruling 76: a parse that lands after the debounce re-enters as a `modify` would.
+			// Every `changed`, not only a null-cache path — `VaultChangeAdapter.onModify` says why.
+			this.registerEvent(this.app.metadataCache.on('changed', onNoteFile(adapterOf, 'onModify')));
 		} catch (cause) {
 			// G4: the scan READS the vault and can throw — `libraryMigration.ts` already wraps
 			// this same call for that reason, and this site did not. A throw here used to leave
@@ -1100,9 +1128,18 @@ export default class RenovationPlannerPlugin extends Plugin {
 	}
 
 	/**
-	 * Both doors into the diagnostics report land here, and this is the whole of what either
-	 * one does — the command above and `SettingsTab`'s action row, which reaches it through
-	 * the same public method.
+	 * EVERY input that opens the diagnostics report lands here, and this is the whole of what
+	 * any of them does — CLAUDE.md's *one action, every input*, stated as the RULE rather than
+	 * as a list of doors. The list spelling went stale exactly once: it read "both doors… the
+	 * command above and `SettingsTab`'s action row" while the Plan Editor's `unreadable-zones`
+	 * warning row was becoming the third. Adding an input means calling this method; it never
+	 * means composing `showDiagnosticsReport` beside it.
+	 *
+	 * The rule above is a rule and not a check. `tests/plugin/diagnostics/diagnosticsReportDoors.test.ts`
+	 * drives the doors it names and counts the modals they open, so it catches a door that stops
+	 * opening one or opens two — and it can say nothing about a door nobody gave it a case for,
+	 * nor about one that composed its own report, since the fake counts a modal whoever built
+	 * it. Measured, by making a door compose its own and watching that file stay green.
 	 *
 	 * `runDetached` rather than a bare `void`, and the difference from `openProjectDetail`
 	 * below is the reason rather than a preference: that one calls `navigateToProject`, which

@@ -1,8 +1,6 @@
-import path from 'node:path';
-import { build } from 'vite';
-import type { Rolldown } from 'vite';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { toPosix } from '../helpers/posix';
+import { BUILD_MS, releaseBuild } from '../helpers/releaseBuild';
 import { REPO } from '../helpers/repo';
 
 /**
@@ -21,21 +19,12 @@ import { REPO } from '../helpers/repo';
  * specifier slips past it; this sees whatever actually got in, and reports only after the
  * fact.
  *
- * `write: false` — the modules that composed the chunk are in the returned output, so
- * nothing is emitted to disk and this does not race `npm run build`'s own `dist/`.
- *
- * `Rolldown` comes from `vite` itself (`node_modules/vite/dist/node/index.d.ts` re-exports
- * it), not from `rollup`: this repo's Vite (`^8`) bundles with Rolldown, and `rollup` is not
- * an installed dependency here at all. Importing `RollupOutput` from `rollup` would
- * type-check nowhere — this file is outside the one `tests/**` path that gets type-checked
- * (CLAUDE.md's Testing section) — but would still trip `npm run analyze`'s
- * unlisted-dependency scan, which reads import specifiers rather than resolved types.
+ * The in-memory build is `../helpers/releaseBuild.ts`, shared with `release-bundle.test.ts`.
  */
-const BUILD_MS = 120_000;
 
 // Absolute, normalised to forward slashes exactly like `modules` below, so a module id can
 // be compared against it the same way on every platform — REPO holds backslashes on
-// Windows and the ids built below never do.
+// Windows and the ids `releaseBuild` returns never do.
 //
 // The trailing separator is APPENDED rather than inherited. `REPO` gets one today from
 // `fileURLToPath(new URL('../..', …))`, and both leak filters below build their prefix as
@@ -46,28 +35,10 @@ const BUILD_MS = 120_000;
 // idempotent, so it is correct whichever way `REPO` is spelled.
 const repoRoot = `${toPosix(REPO).replace(/\/$/, '')}/`;
 
-let modules: string[] = [];
+let modules: readonly string[] = [];
 
 beforeAll(async () => {
-	const result = (await build({
-		configFile: path.resolve(REPO, 'vite.config.ts'),
-		root: REPO,
-		build: { write: false },
-		logLevel: 'error',
-	})) as Rolldown.RolldownOutput | Rolldown.RolldownOutput[];
-
-	const output = Array.isArray(result) ? result[0] : result;
-	// EVERY chunk, not the first. A dynamic import — the exact route this test exists to
-	// catch, since lint cannot see it — is what Rollup most likely emits as a SEPARATE chunk,
-	// so inspecting `output[0]` alone would leave the interesting case unexamined while
-	// looking thorough.
-	const chunks = output.output.filter((part): part is Rolldown.OutputChunk => part.type === 'chunk');
-
-	if (chunks.length === 0) throw new Error('the build produced no chunk to inspect');
-
-	// Absolute ids, normalised to forward slashes so this reads the same on Windows — which
-	// is one of the four legs `npm run check` rides.
-	modules = chunks.flatMap((chunk) => Object.keys(chunk.modules).map((id) => toPosix(id)));
+	({ modules } = await releaseBuild());
 }, BUILD_MS);
 
 describe('the built plugin', () => {
@@ -112,3 +83,4 @@ describe('the built plugin', () => {
 		expect(leaked, `test modules reached the bundle: ${leaked.join(', ')}`).toEqual([]);
 	});
 });
+

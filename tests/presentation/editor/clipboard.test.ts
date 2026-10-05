@@ -76,11 +76,15 @@ it('pastes a copied placement with its asset, its anchor on the paste point', as
 	rig.selection.select([id as never]); await settle();
 	expect(key(rig.canvasEl, { key: 'c', ctrlKey: true }).defaultPrevented).toBe(true);
 	pointAt(rig, { x: 20000, y: 20000 });
+	const before = Notice.shown.length;
 	expect(key(rig.canvasEl, { key: 'v', ctrlKey: true }).defaultPrevented).toBe(true);
 	await settleUntil(() => (rig.project.structure.elements ?? []).length === 2, 'the pasted placement');
 	const pasted = expectDefined(rig.project.structure.elements?.find(item => item.id !== id), 'the pasted placement');
 	expect(pasted).toMatchObject({ kind: 'asset', assetId: radiator.id });
 	expect(pasted.points[0].x).toBeCloseTo(20000); expect(pasted.points[0].y).toBeCloseTo(20000);
+	await settleUntil(() => Notice.shown.length === before + 1, 'the copied-scope success notice');
+	// A single-row tally: proves no stray ` · ` survives with only one counted kind.
+	expect(Notice.shown.at(-1)).toBe('Pasted into Ground floor. Work, materials, costs and evidence stay with the original. Use undo to reverse this paste. Objects: 1');
 });
 
 it('pastes at the view centre when the pointer is off the canvas', async () => {

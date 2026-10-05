@@ -70,6 +70,8 @@ const props = defineProps<{
 	expanded: ReadonlySet<string>;
 	/** §6.3's `''` sentinel already resolved to an id or `null` by the root. */
 	selectedId: AssetId | null;
+	/** The root's read-only notice, present on a mobile device. */
+	readOnlyReasonId?: string;
 	/** AD18-R18's `Grid | List`, the root's for the same reason `expanded` is. */
 	layout: LibraryLayout;
 	/** AD18-R18's sidebar filter, `''` for every category — the root's, likewise. */
@@ -146,6 +148,12 @@ const empty = computed(() => {
 	if (key !== null) return resolveEmptyState(EMPTY_STATE_CONTENT.assetLibrary[key]);
 	return filteredEmpty.value;
 });
+
+/** `noAssets`'s action creates, so a read-only surface refuses it; `noMatches`'s clears the
+ *  search and writes nothing. */
+const createRefusal = computed(() =>
+	context.readOnly === true && store.emptyStateKey === 'noAssets' ? props.readOnlyReasonId : undefined,
+);
 
 /**
  * `noAssets`'s action CREATES something (`New asset`, the same toolbar gesture the root owns);
@@ -284,10 +292,13 @@ defineExpose({ shelvesElement });
 			v-if="store.unreadable.length > 0"
 			:entries="store.unreadable"
 			@open="(path) => void onOpenNoteRow(path)"
+			@diagnostics="context.openDiagnosticsReport()"
 		/>
 		<EmptyState
 			v-if="empty !== null"
 			v-bind="empty"
+			:action-disabled="createRefusal !== undefined"
+			:action-described-by="createRefusal"
 			@action="onEmptyStateAction"
 		/>
 		<AssetShelves
@@ -306,6 +317,7 @@ defineExpose({ shelvesElement });
 			:entries="inCategory"
 			:selected-id="selectedId"
 			:outline-for="store.markFor"
+			:read-only-reason-id="readOnlyReasonId"
 			@select="emit('select', $event)"
 			@create="emit('create')"
 		/>

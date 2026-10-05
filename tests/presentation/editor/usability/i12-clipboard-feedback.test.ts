@@ -32,9 +32,6 @@ it('I12 reports actual copied geometry, its target floor, exclusions and existin
 	key(rig.canvasEl, { key: 'v', ctrlKey: true });
 	await settleUntil(() => Notice.shown.length === before + 1, 'the copied-scope success notice');
 	const message = Notice.shown.at(-1) ?? '';
-	expect(message).toContain(`Pasted into ${rig.project.plan?.name ?? 'Floor'}.`);
-	expect(message).toContain('Rooms: 1 · Walls: 4');
-	expect(message).toContain('Work, materials, costs and evidence stay with the original.');
-	expect(message).toContain('Use undo to reverse this paste.');
+	expect(message).toBe('Pasted into Ground floor. Work, materials, costs and evidence stay with the original. Use undo to reverse this paste. Rooms: 1 · Walls: 4');
 	expect(rig.runtime.canUndo.value).toBe(true);
 });

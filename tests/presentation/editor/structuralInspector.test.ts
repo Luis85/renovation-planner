@@ -23,6 +23,12 @@ it('summarises a beam, switches load-bearing through undoable history, and edits
 	toggle.element.click();
 	await settleUntil(() => rig.project.structure.elements?.[0].loadBearing === false, 'switched off');
 	expect(rig.wrapper.get<HTMLInputElement>('input[name="load-bearing"]').element.checked).toBe(false);
+	const switched = expectDefined(rig.project.structure.elements?.[0], 'the switched beam');
+	await rig.runtime.undo(); await settle();
+	expect(rig.project.structure.elements?.[0].loadBearing).toBe(true);
+	// Redo through the same door, `runtime.redo()`: exactly the switched beam, then Undo again for the width edit below.
+	await rig.runtime.redo(); await settle();
+	expect(rig.project.structure.elements?.[0]).toEqual(switched);
 	await rig.runtime.undo(); await settle();
 	expect(rig.project.structure.elements?.[0].loadBearing).toBe(true);
 	const editing = rig.runtime.elementActions.edit(KITCHEN_BEAM.id); await settle();

@@ -1,5 +1,14 @@
 # Plan a renovation from the floor
 
+> **What this guide is.** It describes behaviour that is **implemented** in this build: each
+> control it names exists in this build, and the automated suite exercises the behaviour behind
+> them, not every route end to end. It is not a record of **verification**. Whether a route has
+> been walked in Obsidian is in its case under [`tests/cases/`](tests/cases/), most of which carry
+> a `## Runs` table, on the build that row names; most record no run. The
+> Plan editor is desktop-only. What is limited or unsupported is in
+> [Known limitations](known-limitations.md), and the beta's status in
+> [first beta readiness](releases/first-beta-readiness/README.md).
+
 > **Current-route amendments — 2026-09-13.** This guide follows the current Plan Editor
 > routes. **Plan** is the geometry-editing perspective. **Renovate** keeps Select and Pan
 > available, offers **Add work item** for eligible targets, and exposes Existing, Planned, Work and related planning content;
@@ -7,11 +16,18 @@
 > Switching perspectives does not write a saved change. In German these visible modes are
 > **Plan**, **Renovieren** and **Prüfen**.
 
-> The current editor supports dragging an existing Room or Area corner in Plan, but it has
-> no approved non-drag or keyboard route for changing one arbitrary existing vertex. Numeric
-> coordinates remain available for supported creation/detail forms and reference calibration;
-> they are not a substitute for existing-corner editing. This limitation is intentionally
-> retained for validation and release decisions.
+> **Correcting one existing corner — 2026-09-20.** Select a Room or Area in Plan and choose
+> **Edit corners**, either from its right-click menu or from the Inspector, to type a corner's
+> position instead of dragging it. The dialog lists that zone's corners by number; choosing one
+> marks it on the plan and puts the caret in its X position field. The outline previews as you
+> type, and applying saves one reversible change. The route is Plan only: the menu entry is
+> greyed in Renovate, and neither door appears in Review. It changes the position of a corner
+> that already exists — it cannot add or remove one — and it does not replace dragging.
+> **Whether it is usable by keyboard and with assistive technology is not established yet.**
+> This route's case, *Edit a zone corner by typing its position*, records no run in a vault, and
+> the automated accessibility checks in this repository run without a rendering engine, so they measure neither a visible focus ring
+> nor contrast nor hit-target size. At a sidebar's width the dialog covers the canvas, so the
+> marked corner cannot be seen on the plan while you type.
 
 Open a floor from its Project. An empty floor offers three starting points: **Add rooms**,
 **Upload a floor plan**, or **Start empty**. A reference image or PDF can be cropped,
@@ -33,8 +49,9 @@ Use **Add** to choose a Room, Area, wall, hosted opening or another supported el
 Temporary tools show Finish and Cancel. Finish validates the draft and saves one change;
 Cancel discards it. Room creation supports a rectangle and a free-shape outline. Numeric
 controls let you enter exact dimensions or corner coordinates when the active creation/detail
-form supports them; they do not provide a non-drag route for changing one arbitrary corner of
-an existing Room or Area.
+form supports them. For a corner of a Room or Area you have already saved, **Edit corners** is
+the non-drag route; it moves an existing corner only, so adding or removing one stays **Add
+point** and Undo.
 With canvas focus, Enter finishes an Object, Path, Fence, Measurement, Stair or Direction arrow; Backspace removes
 its last draft point. Pending numeric input must be applied or discarded first. Enter in a
 numeric field applies that field’s form and does not finish the element.
@@ -68,12 +85,18 @@ does not add history.
 While saving, Select, Add and Cancel retain the pending edit. Switching tools deliberately
 abandons an unsaved entry; changing perspective first asks about the draft.
 
-A Room’s shape is edited by dragging its corner points on the plan. There is currently no
-keyboard or other approved non-drag route for editing one arbitrary existing corner. To add a corner, right-click
+A Room’s shape is edited by dragging its corner points on the plan, or by typing one corner’s
+position: right-click the Room or Area, or use its Inspector, and choose **Edit corners**. Pick a
+corner from the numbered list — it is marked on the plan and the caret lands in its X position
+field — enter X or Y in metres, watch the preview follow, then submit the dialog or **Cancel**.
+The submit button reads **Save**. Cancel writes nothing, and one Undo restores the outline a
+submitted change replaced.
+Whether this route is usable by keyboard and with assistive technology in a real vault is not
+validated yet. To add a corner, right-click
 a Room, Area, wall, path or fence and choose **Add point**: it lands on the nearest edge where you
 clicked, ready to drag, and one Undo removes it. A wall is cut there into two, so the new junction
 drags like any wall end; a cut through an opening is refused. Use **Details** to open the
-selected item’s Existing, Planned, Work, Materials, Costs or Evidence routes. A selected
+selected item’s Existing, Planned, Work, Materials, Costs, Documents, Photos or Notes routes. A selected
 wall shows its length label and, when it has a Room context, **Mark change**. Activate the label,
 or right-click the wall and choose **Edit**, to change its length; that still requires Preview
 and Apply. Mark change uses the separate Planned record. Openings, paths and objects are edited
@@ -102,7 +125,7 @@ comes from; with nothing selected and until a reference plan is added, the Inspe
 the outline is. **Fit floor** frames the guide while the Reference plan layer is visible, and
 that layer's eye hides it. Crop the new plan's reference image at the same corner and calibrate
 it, and the drawing lines up with the guide. A zone can have several detail plans, for example
-one per floor, and its right-click menu lists **Open** for each. On the canvas, a zone with
+one per floor, and its right-click menu lists **Open** followed by each plan’s name. On the canvas, a zone with
 detail plans shows a third line under its area: the plan's name, or how many there are. On a
 detail plan, the breadcrumb and the Property tree list every plan above it, and each name opens
 that plan. If the zone is later deleted, the outline disappears and the Property tree says so.
@@ -160,7 +183,7 @@ outlines remain independent of walls.
 
 Rotation preserves identity, names and links; separate Planned geometry stays independent.
 The rectangular Room size form remains limited to axis-aligned rectangles: drag the corner
-points of rotated outlines on the plan. Reference plans rotate through their existing configuration workflow.
+points of rotated outlines on the plan, or type them one at a time with **Edit corners**. Reference plans rotate through their existing configuration workflow.
 Saved groups and multiple selections rotate as an assembly. If another edit changes the
 saved baseline, the stale turn is refused. Read-back retry after a successful save only refreshes
 the view.
@@ -181,7 +204,7 @@ Select a Room or associated element, then open the current section’s navigatio
    the displayed Room totals. Follow the reconciliation
    explanation to understand what contributes to the displayed totals. Procurement does not
    itself record a payment.
-6. **Evidence** links ordinary vault files, notes and photos. Select a photo thumbnail to
+6. **Documents**, **Photos** and **Notes** link ordinary vault files as evidence. Select a photo thumbnail to
    show its metadata. Optionally record its capture or document date as YYYY-MM-DD; leave it
    blank when unknown. Recorded dates sort chronologically, with undated records following;
    the date is never taken from the file timestamp. Phase filters organize the gallery or list; following a specific record reveals it even if another phase was selected before.
@@ -206,7 +229,7 @@ From Costs, **Compare quotes** opens the Project’s separate comparison. Add a 
 record an offer’s dates and priced lines, and explicitly link each line to Work or catalogue
 items. Preview before applying. Compare only the scope you recorded: uncovered rows are
 shown as not quoted, and each offer has its own totals per currency. Recording a quote does
-not create a commitment or payment. A received offer is immutable; use **Record revision**
+not create a commitment or payment. A received offer is immutable; use **Record a revision**
 to start a new offer identity. Return to the floor to restore the original Room and record
 when they still exist.
 

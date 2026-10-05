@@ -93,32 +93,36 @@ drawing and calibration tools are desktop surfaces. On Obsidian mobile the proje
 stays readable — notes, lists, budgets, task views — but no surface requires touch
 drawing. `manifest.json` keeps `isDesktopOnly: false`, and that promise is now bounded
 rather than open: this resolves the PRD's §105 open question, and mobile *parity* is
-explicitly not the target.
+explicitly not the target. **Implemented, not verified on a device:** on mobile the Renovation
+project view and the Asset library open read-only, and the Plan editor and the Asset designer
+draw a refusal instead of mounting (`Platform.isMobile` in each view). No device has run it — see
+[Known limitations](docs/known-limitations.md#platforms).
 
 **Confirmed accessibility standard: WCAG 2.2 AA** — see `## Accessibility & Inclusion`.
 
-**Surfaces.** Four workspace views ship, and each has a design authority under
-`docs/user-experience/`:
+**Surfaces.** Four workspace views are implemented. None has been released, and none is
+accepted on a release candidate yet ([first beta readiness](docs/releases/first-beta-readiness/README.md)).
+Each has a design authority:
 
 - **Renovation project** — a project list that is a launcher (search, Resume, active and
   completed groups) and a detail state per project (name, status, currency, plans, project
   prices, note access). Authority: `renovation-planner-project-specs/` (P00–P07). The
   detail state's three guided entries — *Describe your renovation*, *Start with a plan*,
-  *Set project prices* — are a design proposal not yet built.
+  *Set project prices* — are implemented (`ProjectEntryGuidance.vue`).
 - **Plan editor** — per plan: image or PDF background, calibration, pan/zoom, polygon zones,
   selection, Inspector, undo/redo. Authority: `renovation-planner-editor-specs/` (M00–M17),
-  a locked visual direction. Its first vertical slice is built through checkpoint C3 — the
-  shell and read path, room-first creation (*Add → Room*, a dragged rectangle or two typed
-  lengths) and the trust path (a failed refresh keeps the floor on screen and says so) — and
-  its Plan / Renovate / Review perspectives, property tree, walls, openings, change states,
-  Materials, Costs, Evidence and Review readiness are proposed extensions, not shipped
-  behaviour.
+  a locked visual direction. Implemented beyond its first vertical slice: the Plan /
+  Renovate / Review perspectives, the property tree, walls and openings, Existing and Planned
+  states, Work, Materials, Costs, documents and photos, and Review findings. What each does is
+  in [Plan a renovation from the floor](docs/using-plan-editor.md) and `CHANGELOG.md`; which
+  of it has been walked in Obsidian is in the cases under `docs/tests/cases/`, most of which
+  carry a `## Runs` table.
 - **Asset library** — one vault-wide catalogue: category shelves and a right inspector,
-  search by name, supplier or SKU, usage and price source, delete with a reference check.
-  Authority: `asset-library-delivery/` (AL00–AL11).
-- **Asset designer** — per asset, the shape behind a library row. Its design is in the
-  editor package's component library and the archived library specification; no package of
-  its own.
+  search by name, supplier or SKU, usage and price source, duplicate, delete with a
+  reference check; read-only on mobile. Authority: `asset-library-delivery/` (AL00–AL11).
+- **Asset designer** — per asset, the shape behind a library row. Its execution package is
+  `docs/tasks/asset-designer-expansion/`, and its user guide is
+  [`docs/using-asset-designer.md`](docs/using-asset-designer.md).
 
 **UX decisions the packages make binding.** Obsidian is the design system: no plugin
 palette, logo, account, or standalone shell, and semantic Obsidian variables everywhere.
@@ -128,12 +132,19 @@ their names, and the mapping is explicit and tested rather than a rename. *Open 
 goes to details and never straight into the editor; *Resume* names its target before it
 acts and validates it first. A missing read is never shown as zero or as "no projects yet".
 No cross-project budgets, progress percentages or plan thumbnails on the overview.
-Starting without a plan is valid. A field edit that commits on blur is the shipped
-behaviour, and both the project and the library packages ask instead for an explicit
-Apply — that is an open decision (`docs/issues/`), not a package's to take.
+Starting without a plan is valid. Commit gestures differ by surface: project price rows use
+an explicit Apply and Cancel, the asset library inspector an explicit Save and Discard
+(`useDefinitionDraft`), and the Plan editor Inspector's and the Asset designer's inspector
+fields still commit as you leave a field or press Enter, with no Apply (`useFieldCommit`, or a
+plain `change` event). The issue that recorded the conflict (`docs/issues/`) is closed for the
+two catalogue surfaces; whether the two inspectors follow is not decided.
 
-Scope is staged, and the stage matters because a surface designed for a later stage is
-scope the product has not reached:
+Scope is staged. The stages are the PRD's planning buckets — intent, not a record of what is
+built: several V1 and V2 items already have implemented surfaces (trades, work with dates and
+dependencies, suppliers and quotes, commitments and actual costs, documents and photos,
+existing versus planned state). What is built is the *Surfaces* list above and `CHANGELOG.md`;
+a surface a package designs for a stage the product has not committed to is still out of
+scope:
 
 - **MVP** — project, plan, image/PDF background, calibration, pan/zoom, polygon zones,
   construction sections, basic assets, measurements, geometry calculations, basic
@@ -170,8 +181,8 @@ type; German is partial and falls back per string. The language comes from Obsid
 
 **Open, and not to be invented:** which locales beyond English and German; regional
 fallback (`de-AT` → `de`), which arrives with the first regional locale; whether a demo
-project ships (PRD §95 leaves it optional); whether field edits keep committing on blur or
-move to an explicit Apply; what has to ship for the asset catalogue's Bases route to count
+project ships (PRD §95 leaves it optional); whether the Plan editor's and the Asset designer's
+inspector fields keep committing on blur or move to an explicit Apply; what has to ship for the asset catalogue's Bases route to count
 as reachable; and the editor package's own open design questions (its §86 — left-panel
 composition, the perspective control's form, Inspector tabs versus stacked sections,
 whether Existing/Planned is a property or a comparison), each of which it says needs
@@ -206,12 +217,15 @@ timelines as though they came from a real project, and must not fabricate testim
 users, benchmarks or adoption numbers — there are none.
 
 The PRD's §95 example project does not exist; it would have to be authored, and that is an
-undecided product fact rather than an available asset.
+undecided product fact rather than an available asset. The **Create sample renovation
+project** command is not it: it is scaffolding that seeds one project named "Sample
+renovation (fictional)", one plan and five zones.
 
 What *does* exist to design against: the PRDs (`docs/product/prds/`), the SDD
 (`docs/development/sdds/`), the requirement, entity and business-rule notes under `docs/`,
-four shipped surfaces (see *Surfaces* above), and three design packages under
-`docs/user-experience/` — the editor (M00–M17), the project overview and details (P00–P07)
+four implemented surfaces (see *Surfaces* above), and three design packages under
+`docs/user-experience/` (the other folders there hold increment plans, research and a
+user-journey catalogue) — the editor (M00–M17), the project overview and details (P00–P07)
 and the asset library (AL00–AL11). Each carries screen specifications, interaction rules,
 a component library and its own proposed backlog. **Their mockups are generated images,
 not screenshots of running software**, the project and library packages' images carry

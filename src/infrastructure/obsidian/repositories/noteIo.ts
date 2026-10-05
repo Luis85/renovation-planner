@@ -237,8 +237,11 @@ export function fileStatAt(vault: Vault, path: string): string | undefined {
  * `EchoWindow.observedFileStat` carries the whole account, and `noteIo.echo.test.ts` pins it
  * as behaviour. Its reach is wider than one read: `VaultChangeAdapter.processNote` reads
  * through here too, so a colliding edit is answered as our own echo and its event is
- * SUPPRESSED. Reads self-correct the moment the cache catches up; the index does not, because
- * that path's one event has already been spent.
+ * SUPPRESSED. Reads self-correct the moment the cache catches up, and since owner ruling 76 so
+ * does the index: the parse arrives as `changed`, the cache now shows the edit rather than a
+ * superseded state of ours, and that second pass applies it (`echoCollision.test.ts`). The
+ * residue that is left is the window between the two, and an edit whose frontmatter is
+ * byte-identical to one of our own superseded states.
  *
  * An earlier draft listed a second residue beside it — an edit restoring a note's frontmatter
  * to byte-identical the pre-write reading. The stat guard closes that one (the edit moves the

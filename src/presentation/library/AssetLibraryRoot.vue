@@ -27,6 +27,12 @@ const store = useAssetLibraryStore();
 const dialogs = useDialogStore();
 const draftGuard = useLibraryDraftGuard();
 
+// One notice per surface, and the id every refused control points at — `ViewRoot.vue`'s shape.
+// Hooked by `data-rp-notice`, not `ViewRoot`'s rule-less class.
+const readOnly = context.readOnly === true;
+const noticeId = useId();
+const readOnlyReasonId = readOnly ? noticeId : undefined;
+
 const shellEl = ref<HTMLElement | null>(null);
 const searchEl = ref<HTMLInputElement | null>(null);
 const bodyRef = ref<InstanceType<typeof AssetLibraryBody> | null>(null);
@@ -258,6 +264,7 @@ async function createAsset(): Promise<void> {
 	performSelect(outcome.assetId);
 }
 async function onCreateAsset(): Promise<void> {
+	if (readOnly) return;
 	await draftGuard.leave(createAsset);
 }
 function onSelect(assetId: AssetId): void {
@@ -284,6 +291,14 @@ watch(context.assetId, async (assetId) => {
 		<h2 class="rp-al-title">
 			{{ tr('view.asset-library.title') }}
 		</h2>
+		<p
+			v-if="readOnly"
+			:id="noticeId"
+			class="rp-view-notice"
+			data-rp-notice="mobile-read-only"
+		>
+			{{ tr('view.mobile.read-only') }}
+		</p>
 		<ViewFailure
 			v-if="failure !== null"
 			v-bind="failure"
@@ -324,6 +339,8 @@ watch(context.assetId, async (assetId) => {
 				<button
 					type="button"
 					class="rp-al-create"
+					:disabled="readOnly"
+					:aria-describedby="readOnlyReasonId"
 					@click="onCreateAsset"
 				>
 					{{ tr('view.asset-library.new-asset') }}
@@ -349,6 +366,7 @@ watch(context.assetId, async (assetId) => {
 						ref="bodyRef"
 						:expanded="expandedCategories"
 						:selected-id="selectedId"
+						:read-only-reason-id="readOnlyReasonId"
 						:layout="layout"
 						:category="activeCategory"
 						@toggle="toggleShelf"
@@ -361,6 +379,7 @@ watch(context.assetId, async (assetId) => {
 					<AssetInspector
 						:class="{ 'rp-al-inspector--away': !showingSelection }"
 						:asset-id="selectedId"
+						:read-only-reason-id="readOnlyReasonId"
 						@back="onBack"
 						@delete="(id) => void onDelete(id)"
 					/>

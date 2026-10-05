@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { query, shot, shots } from '../helpers/harnessShotFixtures';
+import { constants, namesIn, query, shot, shots } from '../helpers/harnessShotFixtures';
 
 /**
  * The asset designer's fixed shots, pinned on what makes each different from a sibling. Split out of
@@ -120,6 +120,26 @@ describe('the asset designer shots', () => {
 		expect(query('asset-designer-select-multiple-light').get('theme')).toBe('light');
 		expect(query('asset-library-selected-details').get('theme')).toBe('light');
 		expect(query('asset-library-selected-details-dark').get('theme')).toBeNull();
+	});
+
+	/**
+	 * Task 11's designer shot: AD18-R13/R15's stale retry, reached through `&stale` — the knob
+	 * `designerStaleRetry.test.ts`'s own docblock records as missing, since `page.ts` used to pass
+	 * `stale` to the Plan Editor branch only. Pinned the same way every other preset shot is: the
+	 * query carries `&preset=`, since a shapeless fixture has nothing for `&stale` to act on, and
+	 * the selector is the retry control itself — present only once `AssetDesignStore.stale` is
+	 * `true` — beside `DESIGNER_READY`, so a knob that silently did nothing times out rather than
+	 * photographing the resting toolet under this name.
+	 */
+	it('takes the stale-retry shot through the ?stale knob, waiting on the control it alone produces', () => {
+		for (const name of ['asset-designer-stale', 'asset-designer-stale-light']) {
+			expect(query(name).has('stale')).toBe(true);
+			expect(query(name).has('preset')).toBe(true);
+			expect(shot(name).selector).toEqual([String(constants.get('ASSET_DESIGNER_VIEW')), String(constants.get('DESIGNER_READY')), '[data-rp-action="retry"]']);
+			expect(namesIn(name, 'selector')).toEqual(['ASSET_DESIGNER_VIEW', 'DESIGNER_READY']);
+		}
+		expect(query('asset-designer-stale-light').get('theme')).toBe('light');
+		expect(query('asset-designer-stale').get('theme')).toBeNull();
 	});
 
 	/**

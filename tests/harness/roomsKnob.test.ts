@@ -24,3 +24,23 @@ it('?rooms=40 draws forty rooms after the seeded ones, each with its own id', as
 	expect(ids.filter((id) => id?.startsWith('harness-room-'))).toHaveLength(40);
 	expect(new Set(ids).size).toBe(ids.length);
 });
+
+/**
+ * L-46's Tab walk, as far as jsdom can take one: jsdom has no sequential focus navigation, so the
+ * walk is the set a browser's Tab would visit, every control of a list at `tabIndex >= 0`. Before
+ * the ruling each row put its select button AND its lock there, two stops per room.
+ */
+it('?rooms=40 costs one Tab stop per rooms list, not two per row', async () => {
+	installCanvas();
+	installResizeObserver();
+	const { leafEl } = mountPlanEditorHarness(document.body, { rooms: 40 });
+	sizedShellRoot(leafEl);
+	await settleUntil(() => leafEl.querySelectorAll('[data-rp-region="layers"] .rp-room-list__row').length >= 40, 'forty rooms in Layers');
+	const lists = [...leafEl.querySelectorAll<HTMLElement>('.rp-room-list')];
+	expect(lists.length).toBeGreaterThanOrEqual(2);
+	for (const list of lists) {
+		const controls = [...list.querySelectorAll<HTMLElement>('button')];
+		expect(controls.length).toBeGreaterThan(2);
+		expect(controls.filter((control) => control.tabIndex >= 0)).toEqual([list.querySelector('.rp-room-list__row')]);
+	}
+});

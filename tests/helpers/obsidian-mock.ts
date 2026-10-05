@@ -53,13 +53,14 @@ export function getLanguage(): string {
 }
 
 /**
- * Point `getLanguage` at another locale — the browser harness's `?lang=` knob and nothing else.
+ * Point `getLanguage` at another locale — the browser harness's `?lang=` knob, and the suites
+ * that draw a German case.
  *
  * Exported rather than left as a mutable binding for the reason `Platform` is a plain object:
  * a module-level `let` cannot be assigned across an ES module boundary, so a setter is what a
- * caller actually has. NO suite calls this, and one that did would owe every later file in its
- * worker the reset — which is exactly why the harness, whose page is torn down with the tab, is
- * the only caller.
+ * caller actually has. `grep -rln "setLanguage(" tests/` lists the suites that call it, and each
+ * one owes the reset to `'en'` (an `afterEach` or a `finally`) to every case that runs after it
+ * against the same module registry. The harness owes none: its page is torn down with the tab.
  */
 export function setLanguage(tag: string): void {
 	language = tag;
@@ -449,7 +450,15 @@ export class Plugin {
 		this.extensions.set(extensions, viewType);
 	}
 
-	/** Every `registerEvent` ask; the base class unregisters these itself in real Obsidian. */
+	/**
+	 * Every `registerEvent` ask; the base class unregisters these itself in real Obsidian, and
+	 * this fake NEVER does — harsher than the host. Since owner ruling 76 that is reachable: the
+	 * stack's metadata cache is a live bus, so `metadataCache.catchUp()` after `onunload()` would
+	 * still reach a torn-down plugin's `changed` listener and arm its adapter's timer. No case
+	 * does that today (review M-3's grep). Recorded rather than fixed, because a release here
+	 * would reach nothing: this fake has no base `unload()` and suites call the plugin's own
+	 * `onunload()` directly, and the fake buses' refs do not carry the emitter an `offref` needs.
+	 */
 	readonly eventRefs: unknown[] = [];
 
 	registerEvent(_ref: unknown): void {

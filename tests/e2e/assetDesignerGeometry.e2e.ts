@@ -84,9 +84,8 @@ describe('Design an Asset and Recover, geometry guards in the real Obsidian host
 			expect((await canvas.shapeBoxes('asset-selection-handle')).length, `${frame}: the footprint is selected`).toBeGreaterThan(0);
 			console.log(`step 109 ${frame}: label ${JSON.stringify(label)} line ${JSON.stringify(line)} footprint top ${String(footprint.top)}`);
 			expect(gap(label, line), `${frame}: the line meets its label`).toBeLessThanOrEqual(1);
-			// `footprint.top` is Konva's client rect, which takes in half the 1.5 px outline stroke, so the
-			// edge itself lies 0.75 px below it: a label centred ON the edge has about 0.25 px of this
-			// pixel's slack left. The offset is a constant of the stroke, not of a platform.
+			// `footprint.top` is the edge itself (`shapeBoxes` skips the stroke), so a label centred ON the
+			// edge has this pixel's whole slack.
 			expect(centreOf(label).y, `${frame}: the label is off the drawing`).toBeLessThanOrEqual(footprint.top + 1);
 			return { label, footprint };
 		};
